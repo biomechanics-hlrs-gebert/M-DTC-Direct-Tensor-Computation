@@ -1,0 +1,18 @@
+'/home/hpcralf/Data/struct-process/'                                        ! Base path
+'Knochenprobe_1_0.1_285037_par'                                             ! Project name
+'/home/hpcralf/data/Knochenprobe_1/puredat/'                                ! muCT puredat pro_path
+'Knochenprobe_1'                                                            ! muCT puredat pro_name
+0.10 0.10 0.10                                                              ! Physical domain size
+45 54 13                                                                    ! Lower bounds of selected domain range
+45 54 13                                                                    ! Upper bounds of selected domain range
+0                                                                           ! Lower limit of iso value
+HEX20                                                                       ! Element type  on micro scale
+2                                                                           ! No of mesh parts per subdomain
+FMPS                                                                        ! Output Format
+1.E-06                                                                      ! Average strain on RVE
+5600.                                                                       ! Young_s modulus
+0.3                                                                         ! Poisson_s ratio
+1                                                                           ! Element order on macro scale
+DEBUG                                                                       ! Output amount
+N                                                                           ! Restart
+

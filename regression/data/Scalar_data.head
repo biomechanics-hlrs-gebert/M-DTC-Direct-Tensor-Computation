@@ -1,0 +1,48 @@
+<==branch==>
+<description> 'Scalar data structure'
+<no_of_branches> 0
+<no_of_leaves> 6
+<streams_allocated> T
+<size_int1_stream> 0
+<size_int2_stream> 0
+<size_int4_stream> 1906630
+<size_int8_stream> 0
+<size_real_stream> 6
+<size_char_stream> 78
+<size_log_stream>  0
+<--leaf-->
+<description> 'Field content description'
+<no_of_data> 78
+<type_of_data> 6
+<lower_bound> 1
+<upper_bound> 78
+<--leaf-->
+<description> 'Number of voxels per direction'
+<no_of_data> 3
+<type_of_data> 3
+<lower_bound> 1
+<upper_bound> 3
+<--leaf-->
+<description> 'Grid spacings'
+<no_of_data> 3
+<type_of_data> 5
+<lower_bound> 1
+<upper_bound> 3
+<--leaf-->
+<description> 'Origin'
+<no_of_data> 3
+<type_of_data> 3
+<lower_bound> 4
+<upper_bound> 6
+<--leaf-->
+<description> 'Origin Shift against global coordinate system'
+<no_of_data> 3
+<type_of_data> 5
+<lower_bound> 4
+<upper_bound> 6
+<--leaf-->
+<description> 'Scalar data'
+<no_of_data> 1906624
+<type_of_data> 3
+<lower_bound> 7
+<upper_bound> 1906630
