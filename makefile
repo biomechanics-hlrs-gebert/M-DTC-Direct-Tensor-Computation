@@ -32,7 +32,7 @@
 #*                                                                           **
 #* makefile for the material data process tool-chain                         **
 #*                                                                           **
-#* last edited : on  22.10.2021                                              **
+#* last edited : on  23.10.2021                                              **
 #*               by  Johannes Gebert                                         **
 #*                                                                           **
 #* For use of make please see                                                **
@@ -49,7 +49,7 @@ long_name="Directly Discretizing Tensor Computation"
 check-env:
 ifeq ($(DDTC_ARCH),)
 	@echo ----------------------------------------------------
-	@echo "Please source environment.sh first."
+	@echo "Please source setenv.sh »system« first."
 	@echo ----------------------------------------------------
 else
 	@echo ----------------------------------------------------

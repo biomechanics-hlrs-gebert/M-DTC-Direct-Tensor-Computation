@@ -34,7 +34,7 @@
 # HLRS - Material structure process chain
 # 
 # author:    Ralf Schneider »schneider@hlrs.de«
-# last edit: on 15/09/2021 
+# last edit: on 23/10/2021 
 #            by Johannes Gebert »gebert@hlrs.de«
 #
 # Prerequisites are :
@@ -52,36 +52,40 @@
 # https://github.com/Azrael3000/tmpi
 # https://github.com/tmux/tmux/wiki
 #------------------------------------------------------------------------------
+red='\033[0;31m'
+green='\033[0;32m'
+yellow='\033[0;33m'
+nc='\033[0m'
 #
 usage ()
 {
     echo ""
     echo "Usage:"
-    echo "     setenv.sh SYSTEM [silent]"
+    echo "     setenv.sh »system« [silent]"
     echo ""
     echo "Description:"
-    echo "     Sets the environment to run the material structure process chain"
-    echo "     for SYSTEM."
+    echo "     Sets the environment to run the directly discretizing tensor extraction"
+    echo "     for »system«."
     echo ""
     echo "Parameters:"
-    echo "     SYSTEM : Valid values are 'zeus', 'julius' or 'hawk'."
-    echo "     silent : Any value for arg 2 supresses all messages"
+    echo "     system : Valid values are 'zeus', 'julius' or 'hawk'."
+    echo "     silent : Any cmd arg 2 supresses all messages"
     echo ""           
 }
 #
 #------------------------------------------------------------------------------
-# 
+# BASH_SOURCE not compatible to zsh. Please avoid it :-)
 # prefix=$(dirname $BASH_SOURCE) 
 prefix=$PWD
-system=$1
+DDTC_ARCH=$1
 #
 if [ -z $1 ]; then
     usage
 else
     #
     if [ -z $2 ]; then
-        echo "============================================================"
-        echo "== Setting environment for system : "$1
+        echo "================================================================================"
+        echo "==    ${green}Setting environment${nc} for system : "$1
         echo "=="
     fi
     #
@@ -95,22 +99,23 @@ else
 
     if [ $sys_set -eq 0 ]; then
        echo ""
-       echo "!!! System $1 is currently not supported !!!"
+       echo "${red}System $1 currently is not supported.${nc}"
        usage
     else
 	#
 	# ----------------------------------------
-	# struct-process Environment
+	# DDTC Environment
 	#
 	# Basepath -------------------------------
-	export SP_PREFIX=${prefix}/
+	export DDTC_PREFIX=${prefix}/
 	#
 	# PATH extensions ------------------------
 	export PATH=${prefix}/bin:$PATH
 	#
 	if [ -z $2 ]; then
-	    echo "== Done"
-	    echo "============================================================"
+	    echo "==    ${green}Done${nc}"
+	    echo "================================================================================"
 	fi
     fi
 fi
+

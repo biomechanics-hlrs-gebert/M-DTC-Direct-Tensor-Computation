@@ -80,9 +80,10 @@ for tool in "${tools[@]}"; do
 done
 #
 if [[ $dbg_err == 0 ]]; then
-    echo "== Gnu Debugger:"
-    echo "== You may start the program via »tmpi $1 gdb --args mpirun/n_cpus/binary/input-file« within a new tmux pane."
-    echo "== After stopping gdb, [ctrl+b], [&] and [y] will get you back to the initial cli."
+    echo "==    Gnu Debugger:"
+    echo "==    »${yellow}tmpi $1 gdb --args mpirun n_cpus binary-input-file${nc}«"
+    echo "==    within a new tmux pane. After stopping gdb, [ctrl+b], [&], [y] and"
+    echo "==    »exit« will get you back to the initial command line interface."
 fi
 #
 echo "== "
