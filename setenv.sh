@@ -77,7 +77,7 @@ usage ()
 # BASH_SOURCE not compatible to zsh. Please avoid it :-)
 # prefix=$(dirname $BASH_SOURCE) 
 prefix=$PWD
-DDTC_ARCH=$1
+export DDTC_ARCH=$1
 #
 if [ -z $1 ]; then
     usage

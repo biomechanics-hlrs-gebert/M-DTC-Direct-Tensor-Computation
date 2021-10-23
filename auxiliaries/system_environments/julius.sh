@@ -68,22 +68,24 @@ tmpi_prefix="/opt/tmpi"
 #
 export PATH=${tmpi_prefix}:$PATH
 #           
-tools=( tmpi tmux mpirun )
+tools=( gdb tmpi tmux mpirun )
 #
 dbg_err=0
 #
 for tool in "${tools[@]}"; do
-    if ! which ${tool} > /dev/null 2> /dev/null; then
-        echo "== Please provide ${tool} to use gdb."
+    echo -n "==    " 
+    if ! which ${tool} ; then # > /dev/null 2> /dev/null (to suppress cmd line output)
+        echo "==    Please provide ${yellow}${tool}${nc} to use gdb with mpi."
         dbg_err=1
     fi
 done
 #
 if [[ $dbg_err == 0 ]]; then
-    echo "==    Gnu Debugger:"
+    echo "=="
+    echo "==    Usage of the GNU Debugger:"
     echo "==    »${yellow}tmpi $1 gdb --args mpirun n_cpus binary-input-file${nc}«"
-    echo "==    within a new tmux pane. After stopping gdb, [ctrl+b], [&], [y] and"
-    echo "==    »exit« will get you back to the initial command line interface."
+    echo "==    After stopping gdb, [ctrl+b], [&], [y] and »exit« will get you " 
+    echo "==    back to the initial command line interface."
 fi
 #
 echo "== "
