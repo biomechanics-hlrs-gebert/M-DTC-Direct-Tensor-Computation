@@ -1,6 +1,6 @@
 #!/bin/bash
 ###############################################################################
-# Copyright 2021 Johannes Gebert
+# Copyright 2021 Ralf Schneider
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -29,58 +29,36 @@
 # POSSIBILITY OF SUCH DAMAGE.
 ###############################################################################
 #
-#------------------------------------------------------------------------------
-# Set the environment for the Julius I system.
-#    Julius I is a Whiskey Lake Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz
-#    laptop running Arch Linux x86_64, Kernel > 5.14.12-arch1-1, zsh > 5.8
-#------------------------------------------------------------------------------
+# Unload MPT ------------------------------
+module unload mpt/2.23
 #
 # MPI environment ------------------------
-mpi_prefix=/opt/mpi/openmpi-NO_F08-4.1.0
+module load openmpi/4.0.4
+#
+mpi_prefix=/opt/hlrs/non-spack/mpi/openmpi/4.0.4-gcc-9.2.0/
 export PATH=${mpi_prefix}/bin:$PATH
 export LD_LIBRARY_PATH=${mpi_prefix}/lib:$LD_LIBRARY_PATH
+#
 # ----------------------------------------
 # BLAS/LAPACK installation
-export LAPACK_LIBPATH=/opt/lapack/lib
+module load scalapack
+#
+export LAPACK_LIBPATH=/opt/hlrs/spack/rev-004_2020-06-17/scalapack/2.1.0-gcc-9.2.0-amna4d3j
 #
 # ----------------------------------------
 # METIS installation
-metis_prefix=/opt/metis/metis-5.1.0
+module load metis/5.1.0-int64
+#
+metis_prefix=/opt/hlrs/spack/rev-004_2020-06-17/metis/5.1.0-gcc-9.2.0-rdkkxlua
 export METIS_INCPATH=${metis_prefix}/include
 export METIS_LIBPATH=${metis_prefix}/lib
 #
 # ----------------------------------------
 # PETSc installation
-petsc_prefix=/opt/petsc/petsc-3.15
+module load petsc/3.12.2-int64
+#
+petsc_prefix=/opt/hlrs/spack/rev-004_2020-06-17/petsc/3.12.2-gcc-9.2.0-5f6kltt5
 export PETSC_INCPATH=${petsc_prefix}/include
 export PETSC_LIBPATH=${petsc_prefix}/lib
 export LD_LIBRARY_PATH=${petsc_prefix}/lib:$LD_LIBRARY_PATH
 #
-# ---------------------------------------------------------------------------
-# Gnu Debugger - make tmpi available / check prerequisites
-#
-tmpi_prefix="/opt/tmpi"
-#
-export PATH=${tmpi_prefix}:$PATH
-#           
-tools=( gdb tmpi tmux mpirun )
-#
-dbg_err=0
-#
-for tool in "${tools[@]}"; do
-    echo -n "==    " 
-    if ! which ${tool} ; then # > /dev/null 2> /dev/null (to suppress cmd line output)
-        echo "==    Please provide ${yellow}${tool}${nc} to use gdb with mpi."
-        dbg_err=1
-    fi
-done
-#
-if [[ $dbg_err == 0 ]]; then
-    echo "=="
-    echo "==    Usage of the GNU Debugger:"
-    echo "==    »${yellow}tmpi $1 gdb --args mpirun n_cpus binary-input-file${nc}«"
-    echo "==    After stopping gdb, [ctrl+b], [&], [y] and »exit« will get you " 
-    echo "==    back to the initial command line interface."
-fi
-#
-echo "== "
