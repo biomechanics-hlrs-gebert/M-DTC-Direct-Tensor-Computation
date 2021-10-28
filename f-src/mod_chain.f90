@@ -11,7 +11,7 @@
 !> Character constants for unified log-file output
 Module chain_constants
 
-  use kinds
+  USE standards
 
   Implicit None
 

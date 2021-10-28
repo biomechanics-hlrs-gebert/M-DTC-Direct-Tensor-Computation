@@ -77,7 +77,7 @@ Module sp_aux_routines
 
   Use ISO_C_BINDING
   Use Operating_System
-  use kinds
+  USE standards
   use puredat_com
   use chain_routines
   use strings
@@ -932,7 +932,7 @@ End Module sp_aux_routines
 !------------------------------------------------------------------------------
 Program main_struct_process
 
-  Use kinds
+  USE standards
   Use puredat 
   Use chain_routines
   Use Operating_System

@@ -6,7 +6,7 @@
 !**                                                                          **
 module petsc_opt
 
-  Use kinds
+  USE standards
   use petsc
   
   implicit none

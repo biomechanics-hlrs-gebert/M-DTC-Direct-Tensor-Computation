@@ -8,7 +8,7 @@ Module Operating_System
           BIND(C, Name="stat_dir")
 
        use, intrinsic :: iso_c_binding
-       use            :: kinds
+       use            :: standards
        
        character(kind=c_char), dimension(4*mcl) :: dir
        Integer  (kind=c_int )                   :: status
@@ -23,7 +23,7 @@ Module Operating_System
           BIND(C, Name="make_dir")
 
        use, intrinsic :: iso_c_binding
-       use            :: kinds
+       use            :: standards
        
        character(kind=c_char), dimension(4*mcl) :: dir
        Integer  (kind=c_int )                   :: status

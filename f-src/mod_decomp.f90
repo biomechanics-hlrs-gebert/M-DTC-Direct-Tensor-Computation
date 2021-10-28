@@ -12,7 +12,7 @@
 !> Module with routines for domain decomposition
 module decomp
 
-  use kinds
+  USE standards
   use puredat
 
   implicit none

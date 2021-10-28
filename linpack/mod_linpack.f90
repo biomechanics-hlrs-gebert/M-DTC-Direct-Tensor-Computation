@@ -1,6 +1,6 @@
 Module LinPack
 
-  use kinds
+  USE standards
   Use blas_1
 
   Implicit None

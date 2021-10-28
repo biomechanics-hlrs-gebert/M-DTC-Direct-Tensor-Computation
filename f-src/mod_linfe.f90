@@ -1,6 +1,6 @@
 module linFE
 
-  use kinds
+  USE standards
 
   implicit none
 

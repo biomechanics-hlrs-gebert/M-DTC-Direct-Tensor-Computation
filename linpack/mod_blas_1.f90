@@ -1,6 +1,6 @@
 Module blas_1
 
-  Use kinds
+  USE standards
   
   Implicit None
 

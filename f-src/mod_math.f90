@@ -7,7 +7,7 @@
 
 Module math
 
-  use kinds
+  USE standards
   use chain_routines
 
   Implicit None
@@ -18,6 +18,12 @@ Module math
   Real(kind=rk), Parameter :: inv180     = 1._rk/180._rk
   Real(kind=rk), Parameter :: pi_div_180 = acos(-1._rk)/180._rk
   
+
+  !-- Higher dimensional numbers
+  TYPE Quaternion
+     REAL (KIND=rk)            :: w,x,y,z
+  END TYPE Quaternion
+
   Logical, Parameter       :: mmdbg=.false.
 
 contains
