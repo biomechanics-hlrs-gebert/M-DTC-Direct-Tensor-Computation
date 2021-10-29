@@ -216,6 +216,8 @@ END IF
 
 END SUBROUTINE date_time
 
+
+
 !------------------------------------------------------------------------------
 ! SUBROUTINE: handle_err
 !------------------------------------------------------------------------------  
@@ -242,25 +244,21 @@ INTEGER(KIND=ik)             , OPTIONAL :: err
 LOGICAL                      , OPTIONAL :: abrt
 
 !> Internal variables 
-INTEGER(KIND=mik)                       :: errcode = 1, fh_used
+INTEGER(KIND=mik)                       :: ierr = 1, fh_used
 CHARACTER(LEN=mcl)                      :: text
 LOGICAL                                 :: abrt_u
 
-IF(PRESENT(fh)) THEN
-  fh_used = fh
-ELSE
-  fh_used = 6
-END IF
+! Initialize
+abrt_u = .TRUE.
+IF(PRESENT(abrt)) abrt_u = abrt
 
-IF(PRESENT(abrt)) THEN
-  abrt_u = abrt
-ELSE
-  abrt_u = .TRUE.
-END IF
+fh_used = 6
+IF(PRESENT(fh)) fh_used = fh
+
+IF(PRESENT(err))  ierr = err
 
 text = TRIM(ADJUSTL(txt))
 
-IF(PRESENT(err))  errcode = err
 
 ! At first, opting out the only non-optional variable seems odd. However it fits some usage quite well, 
 ! because sometimes the routine shall return a feedback without printing stuff.
@@ -290,9 +288,44 @@ IF (abrt_u  .EQV. .TRUE.) THEN
     Call mpi_bcast(-1_ik, 1_mpi_ik, MPI_INTEGER8, 0_mpi_ik,&
             MPI_COMM_WORLD, ierr)
 
+    ! Not that beautiful workaround? immediately in front of »end program«
+    GOTO 1001
 END IF
 
 END SUBROUTINE handle_err
+
+
+
+
+!------------------------------------------------------------------------------
+! FUNCITON: usage
+!------------------------------------------------------------------------------  
+!> @author Johannes Gebert,   gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Print program usage. 
+!
+!> @param[in] abrt Optional suppression of program abortion
+!------------------------------------------------------------------------------  
+FUNCTION usage(abrt) result()
+
+LOGICAL, OPTIONAL, INTENT(IN) :: abrt
+LOGICAL                       :: abrt_u=.TRUE.
+
+IF (PRESENT(abrt)) abrt_u = abrt
+
+CALL dash(std_out)
+WRITE(std_out, '(A)') 'Directly Discretizing Tensor Computation | Usage:'
+CALL dash(std_out, 40)
+WRITE(std_out, '(A)') './ddtc_vx.y.z_x86_64 »flags« »meta filename«'
+WRITE(std_out, '(A)') '-y       Restart'
+WRITE(std_out, '(A)') '-h       This message.'
+WRITE(std_out, '(A)') '*.meta   Meta input file.'
+CALL dash(std_out)
+
+IF (abrt_u .EQV. .TRUE.) CALL handle_err(std_out, '', 0, .TRUE.)
+
+End Function usage
 
 
 !------------------------------------------------------------------------------

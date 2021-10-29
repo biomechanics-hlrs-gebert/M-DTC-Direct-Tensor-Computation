@@ -66,7 +66,7 @@
 * BINARIZE              No                                           ! Yes, No  
 * HU_THRESH_HI          65000                                        ! Typically Hounsfield units
 * HU_THRESH_LO          -32767                                       ! Typically Hounsfield units
-* BINARIZE_HI           1                                            ! Typically 0 or 1
+* BINARIZE_LO           0                                            ! Typically 0 or 1
 * BIN_INVERT            No                                           ! Yes, No  
 * CALC_DENSITY          Yes                                          ! Yes, No  
 * SIZE_DOMAIN           0.6 0.6 0.6                                  ! (mm)
@@ -89,7 +89,7 @@
 * POISSON_RATIO         0.3                                          ! Monolithical parameter
 * RVE_STRAIN            0.0000001                                    ! Strain on macro element
 * MACRO_ELMNT_ORDER     1                                            ! 1=linear (HEX08), 2=quadratic (HEX20)
-* MACRO_ELMNT_TYPE      HEX20                                        ! Element type  on micro scale
+* MICRO_ELMNT_TYPE      HEX20                                        ! Element type  on micro scale
 * MESH_PER_SUB_DMN      2                                            ! No of mesh parts per subdomain
 * OUT_FMT               FMPS                                         ! Output Format
 * DBG_LVL               DEBUG                                        ! Output amount
@@ -99,4 +99,8 @@
 * NEW_BSNM_FEATURE      new-feature                                  ! Last segment of basename - NO '_'
 * NEW_BSNM_PURPOSE      Pro                                          ! 3rd segment of basename - NO '_'
 
+* BASE_PATH             regression/solid_cube_reg                    ! Base path
+* PROJECT_NAME          solid_cube_Hex08                             ! Project name
+* MCT_PD_PRO_PATH       regression/solid_cube/                       ! muCT puredat pro_path
+* MCT_PD_PRO_NAME       solid_cube                                   ! muCT puredat pro_name
 -------------------------------------------------------------------------------------------------------------

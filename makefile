@@ -218,7 +218,7 @@ pd-objects = $(obj_dir)pd_dump_leaf$(obj_ext)            \
 
 # -----------------------------------------------------------------------------
 # struct-process executable ---------------------------------------------------
-main_bin = $(bin_dir)struct_process$(bin_suffix)
+MAIN_bin = $(bin_dir)$(bin_name)_$(trgt_vrsn)_$(bin_suffix)
 #
 # -----------------------------------------------------------------------------
 # PureDat auxiliary executables -----------------------------------------------
