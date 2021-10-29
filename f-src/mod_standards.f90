@@ -5,7 +5,6 @@
 !
 ! DESCRIPTION: 
 !> Module containing all recurring definitions of kinds and numbers.
-!
 !------------------------------------------------------------------------------
 MODULE standards
 
@@ -30,11 +29,11 @@ INTEGER(KIND=INT32), PARAMETER :: std_out       = 6
 INTEGER(KIND=INT32), PARAMETER :: std_err       = 0
 
 ! »Standard« data types
-INTEGER(KIND=INT32), PARAMETER :: fh_meta       = 42 , fhm  = 42
-INTEGER(KIND=INT32), PARAMETER :: fh_out        = 52 , fho  = 52
-INTEGER(KIND=INT32), PARAMETER :: fh_log        = 62 , fhl  = 62
-INTEGER(KIND=INT32), PARAMETER :: fh_res        = 72 , fhr  = 72
-INTEGER(KIND=INT32), PARAMETER :: fh_csv        = 82 , fhc  = 82
+INTEGER(KIND=INT32), PARAMETER :: fh_meta       = 20 , fhm  = 42
+INTEGER(KIND=INT32), PARAMETER :: fh_out        = 25 , fho  = 52
+INTEGER(KIND=INT32), PARAMETER :: fh_log        = 30 , fhl  = 62
+INTEGER(KIND=INT32), PARAMETER :: fh_res        = 35 , fhr  = 72
+INTEGER(KIND=INT32), PARAMETER :: fh_csv        = 40 , fhc  = 82
 CHARACTER(LEN=4)   , PARAMETER :: log_suf       = '.log'
 CHARACTER(LEN=5)   , PARAMETER :: lock_suf      = '.lock'
 CHARACTER(LEN=5)   , PARAMETER :: meta_suf      = '.meta'

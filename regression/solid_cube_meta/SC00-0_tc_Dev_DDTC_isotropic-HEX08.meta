@@ -89,7 +89,7 @@
 * POISSON_RATIO         0.3                                          ! Monolithical parameter
 * RVE_STRAIN            0.0000001                                    ! Strain on macro element
 * MACRO_ELMNT_ORDER     1                                            ! 1=linear (HEX08), 2=quadratic (HEX20)
-* MICRO_ELMNT_TYPE      HEX08                                        ! Element type  on micro scale
+* MACRO_ELMNT_TYPE      HEX20                                        ! Element type  on micro scale
 * MESH_PER_SUB_DMN      2                                            ! No of mesh parts per subdomain
 * OUT_FMT               FMPS                                         ! Output Format
 * DBG_LVL               DEBUG                                        ! Output amount

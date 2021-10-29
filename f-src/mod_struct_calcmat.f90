@@ -15,7 +15,6 @@ Module calcmat
 
 contains
  
-
   subroutine calc_effective_material_parameters(root, nn, ddc_nn, job_dir, fh_mpi) 
 
     !> \todo Make scaling and backrotation process correct!

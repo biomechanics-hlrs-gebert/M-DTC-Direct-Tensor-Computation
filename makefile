@@ -48,13 +48,13 @@ long_name="Directly Discretizing Tensor Computation"
 # Check for environment
 check-env:
 ifeq ($(DDTC_ARCH),)
-	@echo ----------------------------------------------------
+	@echo "--------------------------------------------------------------------------------------------"
 	@echo "Please source setenv.sh »system« first."
-	@echo ----------------------------------------------------
+	@echo "--------------------------------------------------------------------------------------------"
 else
-	@echo ----------------------------------------------------
+	@echo "--------------------------------------------------------------------------------------------"
 	@echo "Environment to build for: "$(DDTC_ARCH)
-	@echo ----------------------------------------------------
+	@echo "--------------------------------------------------------------------------------------------"
 	$(MAKE) all
 endif
 #
@@ -152,7 +152,6 @@ ifeq ($(PrgEnv),gnu)
 	 			 	 -Wno-conversion                            \
                  	 -Wall                                      \
 				 	 -finstrument-functions
-                     #-fopenmp  #-finstrument-functions 
    c_flags_c       = $(inc_path_flag) \
                      -finstrument-functions
    c_flags_linpack = -J$(mod_dir) -I$(mod_dir) -fdefault-integer-8 -g -O3 \
@@ -170,13 +169,13 @@ ifeq ($(PrgEnv),intel)
    #
    # Compile flags for libraries --------------------------
    c_flags_f90     = -module $(mod_dir) -I$(mod_dir)  \
-                     -integer-size 64 -real-size 64 -g -O3 #-fopenmp
+                     -integer-size 64 -real-size 64 -g -O3
    c_flags_c       = $(inc_path_flag)
    c_flags_linpack = -module $(mod_dir) -I$(mod_dir) -integer-size 64 -g -O3 \
                      -Wall # -fopenmp
    #
    # Linker flags for chain links -------------------------
-   link_flags = $(lib_path_flag) -L$(lib_dir) -g # -fopenmp -g # -pg 
+   link_flags = $(lib_path_flag) -L$(lib_dir) -g
    export glb_link_flags
    #
 endif

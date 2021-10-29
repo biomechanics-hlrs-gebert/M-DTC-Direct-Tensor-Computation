@@ -48,7 +48,7 @@
 !>
 !> </ol>
 !>
-!> Where <system> can currently take the values "zeus" or "cray". 
+!> Where <system> can currently take the values "zeus, "julius" or "hawk".
 !> Please not that in order to install the material structure process chain working copies of metis and petsc have to be installed on the executing system. Installation instructions for the dependencies can be found at this place: 
 !> \ref prerequisites.
 !>
@@ -63,17 +63,17 @@
 !==============================================================================
 
 !==============================================================================
-!> Module with auxiliary routines used only in the struct process main program
+!> Module containing the execution of a single domain
 !--
 !------------------------------------------------------------------------------
 !>  \section written Written by:
 !>  Ralf Schneider
 !>
 !>  \section modified Last modified:
-!>  by: Ralf Schneider \n
-!>  on : 17.06.2017
+!>  by: Johannes Gebert \n
+!>  on : 29.10.2021
 !------------------------------------------------------------------------------
-Module sp_aux_routines
+Module exec_single_domain
 
   Use ISO_C_BINDING
   Use Operating_System
@@ -90,31 +90,6 @@ Module sp_aux_routines
   Implicit None
   
 Contains
-
-  !============================================================================
-  !> Mpi error handling (Added for completeness)
-  Subroutine mpi_err(ierr,msg)
-
-    Integer(Kind=mpi_ik), Intent(In) :: ierr
-    Character(Len=*)    , Intent(In) :: msg
-    
-    Integer(Kind=mpi_ik)             :: ierror
-    
-    Character(len=*), Parameter :: err_mpi_fin= '("! MPI_FINALIZE did not succeed",T79,"!")'
-    Character(len=*), Parameter :: err_A      = '("! ",A,T79,"!")'
-    Character(len=*), Parameter :: err_STOP   = '("! ","Program halted",T79,"!")'
-    
-    !--------------------------------------------------------------------------
-
-    If ( ierr /= 0 ) Then
-       Write(un_mon,ERR_A)msg
-       Write(un_mon,ERR_STOP)
-       Call MPI_FINALIZE(ierror)
-       If ( ierror /= 0 ) Write(un_mon,err_mpi_fin)
-       Stop
-    End If
-
-  End Subroutine mpi_err
 
   !============================================================================
   !> Execution chain for the treatment of a single MVE
@@ -886,32 +861,7 @@ Contains
     End if
     
   End Subroutine exec_single_domain
-  
-  !============================================================================
-  !> Broadcast sequence to stop slave procs correctly
-  !>
-  Subroutine stop_slaves(MSG)
-
-    Character(len=*), intent(In) :: MSG
-    Integer(mpi_ik)              :: ierr
-    
-    Write(un_mon,fmt_sep)
-    Write(un_mon,FMT_ERR_A)trim(MSG)
-    Write(un_mon,FMT_STOP)
-    
-    Call mpi_bcast(pro_path, INT(mcl,mpi_ik), MPI_CHAR, 0_mpi_ik,&
-         MPI_COMM_WORLD, ierr)
-    
-    Call mpi_bcast(pro_name, INT(mcl,mpi_ik), MPI_CHAR, 0_mpi_ik,&
-         MPI_COMM_WORLD, ierr)
-    
-    !** Bcast Serial_root_size = -1 ==> Signal for slave to stop ***
-    Call mpi_bcast(-1_ik, 1_mpi_ik, MPI_INTEGER8, 0_mpi_ik,&
-         MPI_COMM_WORLD, ierr)
-
-  End Subroutine stop_slaves
-
-End Module sp_aux_routines
+  End Module exec_single_domain
 
 !==============================================================================
 !> Struct Process main programm
@@ -921,8 +871,8 @@ End Module sp_aux_routines
 !>  Ralf Schneider
 !>
 !>  \section modified Last modified:
-!>  by: Ralf Schneider \n
-!>  on : 28.08.2015
+!>  by: Johannes Gebert \n
+!>  on : 29.10.2021
 !>
 !> \todo At >> Recieve Job_Dir << calculate the Job_Dir from the Domain number
 !>       and the Domain Decomposition parameters.
@@ -945,6 +895,9 @@ Program main_struct_process
   
   Implicit None
 
+  ! Prepare for meta file format
+  TYPE(basename)                                     :: in, out
+  
   !-- MPI Variables -----------------------------------------------------------
   Integer(kind=mpi_ik)                               :: ierr
   Integer(kind=mpi_ik)                               :: rank_mpi, size_mpi
@@ -1032,8 +985,8 @@ Program main_struct_process
   Call mpi_err(ierr,"MPI_COMM_SIZE couldn't be retrieved")
  
   If (size_mpi < 2) then
-     Write(un_mon,*)"We need at least 2 MPI processes to execute this program !!"
-     Write(un_mon,*)"Program halted                                           !!"
+     Write(un_mon,*)"We need at least 2 MPI processes to execute this program."
+     Write(un_mon,*)"Program halted"
      Stop
   End If
   
@@ -1045,19 +998,71 @@ Program main_struct_process
      !** if the command line parameter is missing *****************************
      if (command_argument_count() /= 1) then
 
-        call stop_slaves(&
+         call stop_slaves(&
              "We need the input filename as the one and only command line parameter !")
-        Goto 1001
+         Goto 1001
         
-     End If
+      End If
 
-     Call Start_Timer("Init Process")
+      Call Start_Timer("Init Process")
+    
 
-     Call init_std_out()
-     
-     iun = give_new_unit()
 
-     Call get_command_Argument(1,infile)
+      !------------------------------------------------------------------------------
+      ! Parse the command arguments
+      !------------------------------------------------------------------------------
+
+      DO ii=0, 10 ! Read up to 10 command arguments.
+
+         CALL GET_COMMAND_ARGUMENT(ii, cmd_arg)
+
+         cmd_arg_history = TRIM(cmd_arg_history)//' '//TRIM(cmd_arg)
+
+         IF (cmd_arg(1:1) .EQ. '-') THEN
+            DO jj=2, LEN_TRIM(cmd_arg)
+                  SELECT CASE( cmd_arg(jj:jj) )
+                     CASE('y')
+                        restart = .TRUE.
+                     CASE('h')       ! CASE ('-h', '--help')
+                        WRITE(std_out, '( A)') std_lnbrk
+                        WRITE(std_out, '( A)') 'Struct Process Eval usage:'
+                        WRITE(std_out, '(2A)') std_shortbrk,std_shortbrk
+                        WRITE(std_out, '( A)') './spe_vx.y.z_x86_x64 »flags« »meta filename«'
+                        WRITE(std_out, '( A)') '-y       Restart (delete logfile)'
+                        WRITE(std_out, '( A)') '-h       This message.'
+                        WRITE(std_out, '( A)') '*.meta   Meta input file.'
+                        WRITE(std_out, '( A)') std_lnbrk
+                  END SELECT
+            END DO
+         END IF
+
+         ! Simple check whether the cmd arg can be a meta file since no other flag is longer than 3 characters.
+         ! May crash when the flags are extended improperly :-)
+         ! 
+         ! the check against the meta suffix happens at the CALL meta_append routine.
+         IF (LEN_TRIM(cmd_arg) .GT. 5_ik) infile=cmd_arg
+
+         IF(cmd_arg == '') EXIT           
+      END DO
+
+      IF(TRIM(infile) == '') THEN
+         mssg='No input file given via command argument.'
+         CALL handle_err(fh=std_out, txt=mssg, err=1_ik, abrt=.TRUE.)
+      END IF
+
+in%full = TRIM(infile)
+
+
+
+
+
+
+
+
+
+
+
+
 
      Open(unit=iun, file=Trim(infile), action="read", status="old")
 
