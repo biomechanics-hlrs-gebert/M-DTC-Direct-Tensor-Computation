@@ -73,7 +73,7 @@
 !>  by: Johannes Gebert \n
 !>  on : 29.10.2021
 !------------------------------------------------------------------------------
-Module exec_single_domain
+Module sp_aux_routines
 
   Use ISO_C_BINDING
   Use Operating_System
@@ -861,7 +861,27 @@ Contains
     End if
     
   End Subroutine exec_single_domain
-  End Module exec_single_domain
+
+  !============================================================================
+  !> Broadcast sequence to stop slave procs correctly
+  !>
+  Subroutine stop_slaves(MSG)
+
+  Character(len=*), intent(In) :: MSG
+  Integer(mpi_ik)              :: ierr
+
+  Write(un_mon,fmt_sep)
+  Write(un_mon,FMT_ERR_A)trim(MSG)
+  Write(un_mon,FMT_STOP)
+
+  Call mpi_bcast(pro_path, INT(mcl,mpi_ik), MPI_CHAR, 0_mpi_ik, MPI_COMM_WORLD, ierr)
+
+  Call mpi_bcast(pro_name, INT(mcl,mpi_ik), MPI_CHAR, 0_mpi_ik,MPI_COMM_WORLD, ierr)
+  !** Bcast Serial_root_size = -1 ==> Signal for slave to stop ***
+  Call mpi_bcast(-1_ik, 1_mpi_ik, MPI_INTEGER8, 0_mpi_ik, MPI_COMM_WORLD, ierr)
+
+  End Subroutine stop_slaves
+  End Module sp_aux_routines
 
 !==============================================================================
 !> Struct Process main programm
@@ -885,12 +905,13 @@ Program main_struct_process
   USE standards
   USE puredat 
   USE auxiliaries
+  USE meta
   USE chain_routines
   USE Operating_System
   USE MPI
   USE ISO_C_BINDING
   USE decomp 
-  USE exec_single_domain
+  USE sp_aux_routines
   USE PETSC
   USE petsc_opt
   
@@ -933,10 +954,16 @@ Program main_struct_process
   
   Integer(kind=ik)    , Allocatable, Dimension(:)   :: nn_D
  
-  Character(len=mcl)                                :: infile, fmps_epp
+  Character(len=mcl)                                :: fmps_epp
   Character(LEN=4*mcl)                              :: job_dir, tmp_fn
   Character                                         :: restart
   Character(LEN=4*mcl), Dimension(:), Allocatable   :: domain_path
+
+  ! Meta file variable
+  CHARACTER(LEN=mcl), DIMENSION(:), ALLOCATABLE     :: m_rry      
+  CHARACTER(LEN=mcl)                                :: infile='', int_id, file_hrdcd
+  CHARACTER(LEN=mcl)                                :: cmd_arg='notempty', cmd_arg_history=''
+
  
   Character(LEN=mcl)             :: muCT_pd_path
   Character(LEN=mcl)             :: muCT_pd_name
@@ -1002,7 +1029,7 @@ Program main_struct_process
       ! Parse the command arguments
       !------------------------------------------------------------------------------
 
-      IF (command_argument_count() == 0) usage(.TRUE.)
+      IF (command_argument_count() == 0) CALL usage(.TRUE.)
 
       DO ii=0, 10 ! Read up to 10 command arguments.
 
@@ -1014,10 +1041,10 @@ Program main_struct_process
             DO jj=2, LEN_TRIM(cmd_arg)
                   SELECT CASE( cmd_arg(jj:jj) )
                      CASE('y')
-                        restart = Y
+                        restart = 'Y'
                      ! It is highly recommended not to use this option on the cluster  :-)
                      CASE('h')       ! CASE ('-h', '--help')
-                        usage(.TRUE.)
+                        CALL usage(.TRUE.)
                   END SELECT
             END DO
          END IF
@@ -1031,7 +1058,10 @@ Program main_struct_process
          IF(cmd_arg == '') EXIT           
       END DO
 
-      IF(TRIM(infile) == '') CALL handle_err(fh=std_out, txt='No input file given via command argument.')
+      IF(TRIM(infile) == '') THEN
+         CALL handle_err(fh=std_out, txt='No input file given via command argument.',abrt=.FALSE.)
+         GOTO 1001
+      END IF
 
       in%full = TRIM(infile)
 
@@ -1046,8 +1076,8 @@ Program main_struct_process
       CALL meta_add_ascii(fh=fhl, suf=log_suf, st='start', restart=restart, in=in)
       ! CALL meta_add_ascii(fh=fhr, suf=res_suf, st='start', restart=restart, in=in)
 
-      CALL meta_io (fhl, 'BASE_PATH'   , m_in=m_rry, chars = outpath     , wl=.TRUE.)
-      CALL meta_io (fhl, 'PROJECT_NAME', m_in=m_rry, chars = project_name, wl=.TRUE.)
+      CALL meta_io (fhl, 'BASE_PATH'   , '(-)'  , m_rry, chars = outpath        , wl=.TRUE.)
+      CALL meta_io (fhl, 'PROJECT_NAME', '(-)'  , m_rry, chars = project_name   , wl=.TRUE.)
 
       ! Legacy stuff. May be ported to clean meta file handling
       outpath = trim(outpath)//"/"//trim(project_name)
@@ -1061,46 +1091,50 @@ Program main_struct_process
       !------------------------------------------------------------------------------
       ! Read input parameters
       !------------------------------------------------------------------------------
-      CALL meta_io (fhl, 'MCT_PD_PRO_PATH'  , m_in=m_rry, chars    = muCT_pd_path, wl=T)
-      CALL meta_io (fhl, 'MCT_PD_PRO_NAME'  , m_in=m_rry, chars    = muCT_pd_name, wl=T)
-      CALL meta_io (fhl, 'SIZE_DOMAIN'      , m_in=m_rry, real_1D3 = pdsize      , wl=T)
-      CALL meta_io (fhl, 'BINARIZE_LO'      , m_in=m_rry,  int_0D  = params      , wl=T)
-      CALL meta_io (fhl, 'LO_BNDS_DMN_RANGE', m_in=m_rry,  int_1D3 = xa_d        , wl=T)
-      CALL meta_io (fhl, 'UP_BNDS_DMN_RANGE', m_in=m_rry,  int_1D3 = xe_d        , wl=T)
-      CALL meta_io (fhl, 'MICRO_ELMNT_TYPE' , m_in=m_rry,    chars = elt_micro   , wl=T)
-      CALL meta_io (fhl, 'MACRO_ELMNT_ORDER', m_in=m_rry,  int_0D  = elo_macro   , wl=T)
-      CALL meta_io (fhl, 'MESH_PER_SUB_DMN' , m_in=m_rry,  int_0D  = parts       , wl=T)
-      CALL meta_io (fhl, 'OUT_FMT'          , m_in=m_rry,   chars  = output      , wl=T)
-      CALL meta_io (fhl, 'RVE_STRAIN'       , m_in=m_rry, real_0D  = strain      , wl=T)
-      CALL meta_io (fhl, 'YOUNG_MODULUS'    , m_in=m_rry, real_0D  = e_modul     , wl=T)
-      CALL meta_io (fhl, 'POISSON_RATIO'    , m_in=m_rry, real_0D  = nu          , wl=T)
-      CALL meta_io (fhl, 'DBG_LVL'          , m_in=m_rry,   chars  = out_amount  , wl=T)
+      CALL meta_io (fhl, 'MCT_PD_PRO_PATH'  , '(-)'  , m_rry,    chars = muCT_pd_path, wl=.TRUE.)
+      CALL meta_io (fhl, 'MCT_PD_PRO_NAME'  , '(-)'  , m_rry,    chars = muCT_pd_name, wl=.TRUE.)
+      CALL meta_io (fhl, 'MICRO_ELMNT_TYPE' , '(-)'  , m_rry,    chars = elt_micro   , wl=.TRUE.)
+      CALL meta_io (fhl, 'DBG_LVL'          , '(-)'  , m_rry,    chars = out_amount  , wl=.TRUE.)
+      CALL meta_io (fhl, 'OUT_FMT'          , '(-)'  , m_rry,    chars = output      , wl=.TRUE.)
+      CALL meta_io (fhl, 'SIZE_DOMAIN'      , '(mm)' , m_rry, real_1D3 = pdsize      , wl=.TRUE.)
+      CALL meta_io (fhl, 'LO_BNDS_DMN_RANGE', '(-)'  , m_rry,  int_1D3 = xa_d        , wl=.TRUE.)
+      CALL meta_io (fhl, 'UP_BNDS_DMN_RANGE', '(-)'  , m_rry,  int_1D3 = xe_d        , wl=.TRUE.)
+      CALL meta_io (fhl, 'BINARIZE_LO'      , '(-)'  , m_rry,  int_0D  = params      , wl=.TRUE.)
+      CALL meta_io (fhl, 'MESH_PER_SUB_DMN' , '(-)'  , m_rry,  int_0D  = parts       , wl=.TRUE.)
+      CALL meta_io (fhl, 'RVE_STRAIN'       , '(mm)' , m_rry, real_0D  = strain      , wl=.TRUE.)
+      CALL meta_io (fhl, 'YOUNG_MODULUS'    , '(MPa)', m_rry, real_0D  = e_modul     , wl=.TRUE.)
+      CALL meta_io (fhl, 'POISSON_RATIO'    , '(-)'  , m_rry, real_0D  = nu          , wl=.TRUE.)
+      CALL meta_io (fhl, 'MACRO_ELMNT_ORDER', '(-)'  , m_rry,  int_0D  = elo_macro   , wl=.TRUE.)
 
 
       ! Error handling
-      if ( (xa_d(1) > xe_d(1)) .OR. (xa_d(1) > xe_d(1)) .or. (xa_d(1) > xe_d(1)) ) then
-         CALL handle_err(fh=std_out, txt='Input parameter error: Start value of domain range larger than end value.')
-      End if
+      IF ( (xa_d(1) > xe_d(1)) .OR. (xa_d(1) > xe_d(1)) .or. (xa_d(1) > xe_d(1)) ) THEN
+         CALL handle_err(fh=std_out, txt='Input parameter error: Start value of domain range larger than end value.', abrt=.FALSE.)
+         GOTO 1001
+      END IF
 
-      Call add_leaf_to_branch(params, "muCT puredat pro_path"                , mcl , str_to_char(muCT_pd_path))
-      Call add_leaf_to_branch(params, "muCT puredat pro_name"                , mcl , str_to_char(muCT_pd_name))
-      Call add_leaf_to_branch(params, "Physical domain size"                 , 3_ik, pdsize)
-      Call add_leaf_to_branch(params, "Lower bounds of selected domain range", 3_ik, xa_d)
-      Call add_leaf_to_branch(params, "Upper bounds of selected domain range", 3_ik, xe_d)     
-      Call add_leaf_to_branch(params, 'Lower limit of iso value'             , 1_ik, [llimit])     
-      Call add_leaf_to_branch(params, 'Element type  on micro scale', len(elt_micro), str_to_char(elt_micro))     
-      Call add_leaf_to_branch(params, 'No of mesh parts per subdomain', 1, [parts])
-      Call add_leaf_to_branch(params, 'Output Format', len(output), str_to_char(output))
-      Call add_leaf_to_branch(params, 'Average strain on RVE', 1, [strain])   
-      Call add_leaf_to_branch(params, "Young_s modulus", 1, [e_modul])
-      Call add_leaf_to_branch(params, "Poisson_s ratio", 1, [nu])
-      Call add_leaf_to_branch(params, 'Element order on macro scale', 1, [elo_macro])
-      Call add_leaf_to_branch(params, 'Output amount', len(out_amount), str_to_char(out_amount))
-      Call add_leaf_to_branch(params, 'Restart', len(restart), str_to_char(restart))
+      IF (MOD(size_mpi-1, parts) .NE. 0) THEN
+         CALL handle_err(fh=std_out, txt='Please provide more domains than processors.')
+         GOTO 1001
+      END IF
+
+      CALL add_leaf_to_branch(params, "muCT puredat pro_path"                , mcl            , str_to_char(muCT_pd_path))
+      CALL add_leaf_to_branch(params, "muCT puredat pro_name"                , mcl            , str_to_char(muCT_pd_name))
+      CALL add_leaf_to_branch(params, 'Element type  on micro scale'         , len(elt_micro) , str_to_char(elt_micro))     
+      CALL add_leaf_to_branch(params, 'Output amount'                        , len(out_amount), str_to_char(out_amount))
+      CALL add_leaf_to_branch(params, 'Restart'                              , len(restart)   , str_to_char(restart))
+      CALL add_leaf_to_branch(params, 'Output Format'                        , len(output)    , str_to_char(output))
+      CALL add_leaf_to_branch(params, "Physical domain size"                 , 3_ik           , pdsize)
+      CALL add_leaf_to_branch(params, "Lower bounds of selected domain range", 3_ik           , xa_d)
+      CALL add_leaf_to_branch(params, "Upper bounds of selected domain range", 3_ik           , xe_d)     
+      CALL add_leaf_to_branch(params, 'Lower limit of iso value'             , 1_ik           , [llimit])     
+      CALL add_leaf_to_branch(params, 'No of mesh parts per subdomain'       , 1              , [parts])
+      CALL add_leaf_to_branch(params, 'Average strain on RVE'                , 1              , [strain])   
+      CALL add_leaf_to_branch(params, "Young_s modulus"                      , 1              , [e_modul])
+      CALL add_leaf_to_branch(params, "Poisson_s ratio"                      , 1              , [nu])
+      CALL add_leaf_to_branch(params, 'Element order on macro scale'         , 1              , [elo_macro])
      
 
-     ! Check number of MPI ranks
-     If (mod(size_mpi-1,parts) .NE. 0) CALL handle_err(fh=std_out, txt='Please provide more domains than processors.')
      
      !** Prepare output directory ****************************************
      c_char_array(1:len(Trim(outpath)//Char(0))) = str_to_char(Trim(outpath)//Char(0))

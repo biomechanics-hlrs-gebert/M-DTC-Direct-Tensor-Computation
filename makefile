@@ -81,27 +81,14 @@ export build_path
 #
 #------------------------------------------------------------------------------
 # Directories -----------------------------------------------------------------
-#
-# Directory for modules -----------------------------------
-mod_dir = $(build_path)/mod/
-#
-# Directories for objects ---------------------------------
-obj_dir = $(build_path)/obj/
-#
-# Directories for libraries -------------------------------
-lib_dir = $(build_path)/lib/
-#
-# Directory for binaries ----------------------------------
-bin_dir = $(build_path)/bin/
-#
-# Directory for fortran sources ---------------------------
-f_src_dir = $(build_path)/f-src/
-#
-# Directory for linpack sources ---------------------------
+c_src_dir       = $(build_path)/c-src/
+f_src_dir       = $(build_path)/f-src/
+ext_f-src       = $(build_path)/f-src/ext-src_
+mod_dir         = $(build_path)/mod/
+obj_dir         = $(build_path)/obj/
+lib_dir         = $(build_path)/lib/
 linpack_src_dir = $(build_path)/linpack/
-#
-# Directory for C sources ---------------------------------
-c_src_dir = $(build_path)/c-src/
+bin_dir         = $(build_path)/bin/
 #
 # Directory for documentation -----------------------------
 doc_dir  = $(build_path)/doc/
@@ -142,16 +129,16 @@ ifeq ($(PrgEnv),gnu)
    # Compile flags for libraries --------------------------
    c_flags_f90     = -J$(mod_dir) -I$(mod_dir) $(mod_path_flag) \
                      -fdefault-integer-8                        \
-					 -fdefault-real-8 	                        \
-					 -g				                            \
-				 	 -o    			                            \
-	             	 -O3			                            \
-	             	 -fbacktrace                                \
-                 	 -fbounds-check                             \
-				 	 -fbackslash                                \
-	 			 	 -Wno-conversion                            \
-                 	 -Wall                                      \
-				 	 -finstrument-functions
+					 					 -fdefault-real-8 	                        \
+					 					 -g				                                  \
+				 	 					 -o    			                                \
+	             	     -O3	       		                            \
+	             	     -fbacktrace                                \
+                 	   -fbounds-check                             \
+				 	 					 -fbackslash                                \
+	 			 	 					 -Wno-conversion                            \
+                 	   -Wall                                      \
+				 	           -finstrument-functions
    c_flags_c       = $(inc_path_flag) \
                      -finstrument-functions
    c_flags_linpack = -J$(mod_dir) -I$(mod_dir) -fdefault-integer-8 -g -O3 \
@@ -189,6 +176,7 @@ c-objects =  $(obj_dir)OS$(obj_ext)                    \
 f-objects = $(obj_dir)mod_standards$(obj_ext)          \
             $(obj_dir)mod_parameters$(obj_ext)         \
             $(obj_dir)mod_times$(obj_ext)              \
+            $(obj_dir)mod_auxiliaries$(obj_ext)        \
             $(obj_dir)mod_strings$(obj_ext)            \
             $(obj_dir)mod_puredat$(obj_ext)            \
             $(obj_dir)mod_eispack$(obj_ext)            \
@@ -218,7 +206,7 @@ pd-objects = $(obj_dir)pd_dump_leaf$(obj_ext)            \
 
 # -----------------------------------------------------------------------------
 # struct-process executable ---------------------------------------------------
-MAIN_bin = $(bin_dir)$(bin_name)_$(trgt_vrsn)_$(bin_suffix)
+main_bin = $(bin_dir)$(bin_name)_$(trgt_vrsn)_$(bin_suffix)
 #
 # -----------------------------------------------------------------------------
 # PureDat auxiliary executables -----------------------------------------------
@@ -263,8 +251,16 @@ $(obj_dir)mod_times$(obj_ext):$(f_src_dir)mod_times$(f90_ext)
 	@echo 
 
 # -----------------------------------------------------------------------------
+#-- Auxiliaries Module --------------------------------------------------------
+$(obj_dir)mod_auxiliaries$(obj_ext):$(mod_dir)standards$(mod_ext) \
+																		$(f_src_dir)mod_auxiliaries$(f90_ext)
+	@echo "----- Compiling " $(f_src_dir)mod_auxiliaries$(f90_ext) " -----"
+	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_auxiliaries$(f90_ext) -o $@
+	@echo 
+
+# -----------------------------------------------------------------------------
 #-- Strings Module ------------------------------------------------------------
-$(obj_dir)mod_strings$(obj_ext):$(f_src_dir)mod_strings$(f90_ext)
+$(obj_dir)mod_strings$(obj_ext):$(ext_f-src)strings$(f90_ext)
 	@echo "----- Compiling " $< " -----"
 	$(compiler) $(c_flags_f90) -c $< -o $@
 	@echo 
@@ -308,7 +304,7 @@ $(obj_dir)mod_vtkio$(obj_ext):$(f_src_dir)mod_vtkio$(f90_ext)
 #-- Paramter Modules ----------------------------------------------------------
 $(obj_dir)mod_parameters$(obj_ext):$(mod_dir)standards$(mod_ext) \
                                    $(f_src_dir)mod_parameters$(f90_ext)
-	@echo "----- Compiling " $< " -----"
+	@echo "----- Compiling " $(f_src_dir)mod_parameters$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_parameters$(f90_ext) -o $@
 	@echo 
 
@@ -445,7 +441,8 @@ $(obj_dir)mod_struct_calcmat$(obj_ext)::$(mod_dir)standards$(mod_ext)      $(mod
 
 # -----------------------------------------------------------------------------
 #-- MAIN Object ---------------------------------------------------------------
-$(obj_dir)struct_process$(obj_ext):$(mod_dir)standards$(mod_ext)            $(obj_dir)OS$(obj_ext) \
+$(obj_dir)struct_process$(obj_ext):$(mod_dir)standards$(mod_ext)        $(obj_dir)OS$(obj_ext) \
+                                   $(mod_dir)auxiliaries$(mod_ext)                             \
                                    $(mod_dir)operating_system$(mod_ext) $(mod_dir)puredat$(mod_ext)           \
                                    $(mod_dir)decomp$(mod_ext)           $(mod_dir)timer$(mod_ext)             \
                                    $(mod_dir)chain_routines$(mod_ext)   $(mod_dir)vtkio$(mod_ext)             \
@@ -455,7 +452,7 @@ $(obj_dir)struct_process$(obj_ext):$(mod_dir)standards$(mod_ext)            $(ob
                                    $(mod_dir)write_deck$(mod_ext)       $(mod_dir)gen_geometry$(mod_ext)      \
                                    $(mod_dir)tensors$(mod_ext)          $(mod_dir)mat_matrices$(mod_ext)      \
                                    $(mod_dir)calcmat$(mod_ext)          $(mod_dir)puredat_com$(mod_ext)       \
-                                   $(mod_dir)petsc_opt$(mod_ext)         $(f_src_dir)struct_process$(f90_ext)
+                                   $(mod_dir)petsc_opt$(mod_ext)        $(f_src_dir)struct_process$(f90_ext)
 	@echo "----- Compiling " struct_process$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)struct_process$(f90_ext) -o $@
 	@echo 

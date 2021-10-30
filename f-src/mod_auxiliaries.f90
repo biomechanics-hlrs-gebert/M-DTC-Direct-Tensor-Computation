@@ -17,6 +17,7 @@ MODULE auxiliaries
 
 USE ISO_FORTRAN_ENV
 USE standards
+USE MPI
 
 IMPLICIT NONE
 
@@ -244,7 +245,8 @@ INTEGER(KIND=ik)             , OPTIONAL :: err
 LOGICAL                      , OPTIONAL :: abrt
 
 !> Internal variables 
-INTEGER(KIND=mik)                       :: ierr = 1, fh_used
+INTEGER(KIND=mpi_ik)                    :: ierr = 1
+INTEGER(KIND=ik)                        :: fh_used
 CHARACTER(LEN=mcl)                      :: text
 LOGICAL                                 :: abrt_u
 
@@ -278,18 +280,8 @@ IF (abrt_u  .EQV. .TRUE.) THEN
         CLOSE(fh_used)
     END IF
 
-    Call mpi_bcast(pro_path, INT(mcl,mpi_ik), MPI_CHAR, 0_mpi_ik,&
-            MPI_COMM_WORLD, ierr)
-
-    Call mpi_bcast(pro_name, INT(mcl,mpi_ik), MPI_CHAR, 0_mpi_ik,&
-            MPI_COMM_WORLD, ierr)
-
-    !** Bcast Serial_root_size = -1 ==> Signal for slave to stop ***
-    Call mpi_bcast(-1_ik, 1_mpi_ik, MPI_INTEGER8, 0_mpi_ik,&
-            MPI_COMM_WORLD, ierr)
-
-    ! Not that beautiful workaround? immediately in front of »end program«
-    GOTO 1001
+    CALL stop_slaves('')
+    
 END IF
 
 END SUBROUTINE handle_err
@@ -307,7 +299,7 @@ END SUBROUTINE handle_err
 !
 !> @param[in] abrt Optional suppression of program abortion
 !------------------------------------------------------------------------------  
-FUNCTION usage(abrt) result()
+SUBROUTINE usage(abrt)
 
 LOGICAL, OPTIONAL, INTENT(IN) :: abrt
 LOGICAL                       :: abrt_u=.TRUE.
@@ -325,7 +317,7 @@ CALL dash(std_out)
 
 IF (abrt_u .EQV. .TRUE.) CALL handle_err(std_out, '', 0, .TRUE.)
 
-End Function usage
+END SUBROUTINE usage
 
 
 !------------------------------------------------------------------------------

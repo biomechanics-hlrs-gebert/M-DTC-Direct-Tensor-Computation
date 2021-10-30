@@ -21,19 +21,19 @@ INTEGER            , PARAMETER :: kcl           = 30   ! Keyword character  leng
 INTEGER            , PARAMETER :: kdescl        = 45   ! Keyword descriptor length
 
 !-- File handles, debug_lvl and suffix
-INTEGER(KIND=INT32), PARAMETER :: dbg_lvl       = 1
+INTEGER(KIND=ik)   , PARAMETER :: dbg_lvl       = 1
 CHARACTER(LEN=mcl)             :: mssg          = ''
 
-INTEGER(KIND=INT32), PARAMETER :: std_in        = 5
-INTEGER(KIND=INT32), PARAMETER :: std_out       = 6
-INTEGER(KIND=INT32), PARAMETER :: std_err       = 0
+INTEGER(KIND=ik)   , PARAMETER :: std_in        = 5
+INTEGER(KIND=ik)   , PARAMETER :: std_out       = 6
+INTEGER(KIND=ik)   , PARAMETER :: std_err       = 0
 
 ! »Standard« data types
-INTEGER(KIND=INT32), PARAMETER :: fh_meta       = 20 , fhm  = 42
-INTEGER(KIND=INT32), PARAMETER :: fh_out        = 25 , fho  = 52
-INTEGER(KIND=INT32), PARAMETER :: fh_log        = 30 , fhl  = 62
-INTEGER(KIND=INT32), PARAMETER :: fh_res        = 35 , fhr  = 72
-INTEGER(KIND=INT32), PARAMETER :: fh_csv        = 40 , fhc  = 82
+INTEGER(KIND=ik)   , PARAMETER :: fh_meta       = 20 , fhm  = 42
+INTEGER(KIND=ik)   , PARAMETER :: fh_out        = 25 , fho  = 52
+INTEGER(KIND=ik)   , PARAMETER :: fh_log        = 30 , fhl  = 62
+INTEGER(KIND=ik)   , PARAMETER :: fh_res        = 35 , fhr  = 72
+INTEGER(KIND=ik)   , PARAMETER :: fh_csv        = 40 , fhc  = 82
 CHARACTER(LEN=4)   , PARAMETER :: log_suf       = '.log'
 CHARACTER(LEN=5)   , PARAMETER :: lock_suf      = '.lock'
 CHARACTER(LEN=5)   , PARAMETER :: meta_suf      = '.meta'
