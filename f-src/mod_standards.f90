@@ -29,14 +29,16 @@ INTEGER(KIND=ik)   , PARAMETER :: std_out       = 6
 INTEGER(KIND=ik)   , PARAMETER :: std_err       = 0
 
 ! »Standard« data types
-INTEGER(KIND=ik)   , PARAMETER :: fh_meta       = 20 , fhm  = 42
-INTEGER(KIND=ik)   , PARAMETER :: fh_out        = 25 , fho  = 52
-INTEGER(KIND=ik)   , PARAMETER :: fh_log        = 30 , fhl  = 62
-INTEGER(KIND=ik)   , PARAMETER :: fh_res        = 35 , fhr  = 72
-INTEGER(KIND=ik)   , PARAMETER :: fh_csv        = 40 , fhc  = 82
+INTEGER(KIND=ik)   , PARAMETER :: fh_meta       = 20, fhme  = 20
+INTEGER(KIND=ik)   , PARAMETER :: fh_mon        = 25, fhmo  = 25
+INTEGER(KIND=ik)   , PARAMETER :: fh_out        = 30, fho   = 30
+INTEGER(KIND=ik)   , PARAMETER :: fh_log        = 35, fhl   = 35
+INTEGER(KIND=ik)   , PARAMETER :: fh_res        = 40, fhr   = 40
+INTEGER(KIND=ik)   , PARAMETER :: fh_csv        = 45, fhc   = 45
 CHARACTER(LEN=4)   , PARAMETER :: log_suf       = '.log'
 CHARACTER(LEN=5)   , PARAMETER :: lock_suf      = '.lock'
 CHARACTER(LEN=5)   , PARAMETER :: meta_suf      = '.meta'
+CHARACTER(LEN=4)   , PARAMETER :: mon_suf       = '.mon'
 CHARACTER(LEN=7)   , PARAMETER :: res_suf       = '.result'
 CHARACTER(LEN=4)   , PARAMETER :: csv_suf       = '.csv'
 

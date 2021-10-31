@@ -862,25 +862,6 @@ Contains
     
   End Subroutine exec_single_domain
 
-  !============================================================================
-  !> Broadcast sequence to stop slave procs correctly
-  !>
-  Subroutine stop_slaves(MSG)
-
-  Character(len=*), intent(In) :: MSG
-  Integer(mpi_ik)              :: ierr
-
-  Write(un_mon,fmt_sep)
-  Write(un_mon,FMT_ERR_A)trim(MSG)
-  Write(un_mon,FMT_STOP)
-
-  Call mpi_bcast(pro_path, INT(mcl,mpi_ik), MPI_CHAR, 0_mpi_ik, MPI_COMM_WORLD, ierr)
-
-  Call mpi_bcast(pro_name, INT(mcl,mpi_ik), MPI_CHAR, 0_mpi_ik,MPI_COMM_WORLD, ierr)
-  !** Bcast Serial_root_size = -1 ==> Signal for slave to stop ***
-  Call mpi_bcast(-1_ik, 1_mpi_ik, MPI_INTEGER8, 0_mpi_ik, MPI_COMM_WORLD, ierr)
-
-  End Subroutine stop_slaves
   End Module sp_aux_routines
 
 !==============================================================================
@@ -956,7 +937,7 @@ Program main_struct_process
  
   Character(len=mcl)                                :: fmps_epp
   Character(LEN=4*mcl)                              :: job_dir, tmp_fn
-  Character                                         :: restart
+  CHARACTER                                         :: restart='N'
   Character(LEN=4*mcl), Dimension(:), Allocatable   :: domain_path
 
   ! Meta file variable
@@ -1004,19 +985,15 @@ Program main_struct_process
   !----------------------------------------------------------------------------
  
   Call mpi_init(ierr)
-  Call mpi_err(ierr,"MPI_INIT didn't succeed")
+  CALL handle_err(std_out, "MPI_INIT didn't succeed", INT(ierr, KIND=ik))
 
   Call MPI_COMM_RANK(MPI_COMM_WORLD, rank_mpi, ierr)
-  Call mpi_err(ierr,"MPI_COMM_RANK couldn't be retrieved")
+  CALL handle_err(std_out, "MPI_COMM_RANK couldn't be retrieved", INT(ierr, KIND=ik))
  
   Call MPI_COMM_SIZE(MPI_COMM_WORLD, size_mpi, ierr)
-  Call mpi_err(ierr,"MPI_COMM_SIZE couldn't be retrieved")
+  CALL handle_err(std_out, "MPI_COMM_SIZE couldn't be retrieved", INT(ierr, KIND=ik))
  
-  If (size_mpi < 2) then
-     Write(un_mon,*)"We need at least 2 MPI processes to execute this program."
-     Write(un_mon,*)"Program halted"
-     Stop
-  End If
+  If (size_mpi < 2) CALL handle_err(std_out, "We need at least 2 MPI processes to execute this program.", 1)
   
   !------------------------------------------------------------------------------
   ! Rank 0 -- Init (Master) Process and broadcast init parameters 
@@ -1029,7 +1006,7 @@ Program main_struct_process
       ! Parse the command arguments
       !------------------------------------------------------------------------------
 
-      IF (command_argument_count() == 0) CALL usage(.TRUE.)
+      IF (command_argument_count() == 0) CALL usage(1)
 
       DO ii=0, 10 ! Read up to 10 command arguments.
 
@@ -1044,7 +1021,7 @@ Program main_struct_process
                         restart = 'Y'
                      ! It is highly recommended not to use this option on the cluster  :-)
                      CASE('h')       ! CASE ('-h', '--help')
-                        CALL usage(.TRUE.)
+                        CALL usage(1)
                   END SELECT
             END DO
          END IF
@@ -1058,10 +1035,7 @@ Program main_struct_process
          IF(cmd_arg == '') EXIT           
       END DO
 
-      IF(TRIM(infile) == '') THEN
-         CALL handle_err(fh=std_out, txt='No input file given via command argument.',abrt=.FALSE.)
-         GOTO 1001
-      END IF
+      IF(TRIM(infile) == '') CALL handle_err(std_out, 'No input file given via command argument.', 1)
 
       in%full = TRIM(infile)
 
@@ -1073,11 +1047,12 @@ Program main_struct_process
       !------------------------------------------------------------------------------
       ! Spawn a log file and a results file
       !------------------------------------------------------------------------------
-      CALL meta_add_ascii(fh=fhl, suf=log_suf, st='start', restart=restart, in=in)
+      CALL meta_add_ascii(fh=fhl , suf=log_suf, st='start', restart=restart, in=in)
+      CALL meta_add_ascii(fh=fhmo, suf=mon_suf, st='start', restart=restart, in=in)
       ! CALL meta_add_ascii(fh=fhr, suf=res_suf, st='start', restart=restart, in=in)
 
-      CALL meta_io (fhl, 'BASE_PATH'   , '(-)'  , m_rry, chars = outpath        , wl=.TRUE.)
-      CALL meta_io (fhl, 'PROJECT_NAME', '(-)'  , m_rry, chars = project_name   , wl=.TRUE.)
+      CALL meta_io (fhmo, 'BASE_PATH'   , '(-)'  , m_rry, chars = outpath        , wl=.TRUE.)
+      CALL meta_io (fhmo, 'PROJECT_NAME', '(-)'  , m_rry, chars = project_name   , wl=.TRUE.)
 
       ! Legacy stuff. May be ported to clean meta file handling
       outpath = trim(outpath)//"/"//trim(project_name)
@@ -1091,32 +1066,27 @@ Program main_struct_process
       !------------------------------------------------------------------------------
       ! Read input parameters
       !------------------------------------------------------------------------------
-      CALL meta_io (fhl, 'MCT_PD_PRO_PATH'  , '(-)'  , m_rry,    chars = muCT_pd_path, wl=.TRUE.)
-      CALL meta_io (fhl, 'MCT_PD_PRO_NAME'  , '(-)'  , m_rry,    chars = muCT_pd_name, wl=.TRUE.)
-      CALL meta_io (fhl, 'MICRO_ELMNT_TYPE' , '(-)'  , m_rry,    chars = elt_micro   , wl=.TRUE.)
-      CALL meta_io (fhl, 'DBG_LVL'          , '(-)'  , m_rry,    chars = out_amount  , wl=.TRUE.)
-      CALL meta_io (fhl, 'OUT_FMT'          , '(-)'  , m_rry,    chars = output      , wl=.TRUE.)
-      CALL meta_io (fhl, 'SIZE_DOMAIN'      , '(mm)' , m_rry, real_1D3 = pdsize      , wl=.TRUE.)
-      CALL meta_io (fhl, 'LO_BNDS_DMN_RANGE', '(-)'  , m_rry,  int_1D3 = xa_d        , wl=.TRUE.)
-      CALL meta_io (fhl, 'UP_BNDS_DMN_RANGE', '(-)'  , m_rry,  int_1D3 = xe_d        , wl=.TRUE.)
-      CALL meta_io (fhl, 'BINARIZE_LO'      , '(-)'  , m_rry,  int_0D  = params      , wl=.TRUE.)
-      CALL meta_io (fhl, 'MESH_PER_SUB_DMN' , '(-)'  , m_rry,  int_0D  = parts       , wl=.TRUE.)
-      CALL meta_io (fhl, 'RVE_STRAIN'       , '(mm)' , m_rry, real_0D  = strain      , wl=.TRUE.)
-      CALL meta_io (fhl, 'YOUNG_MODULUS'    , '(MPa)', m_rry, real_0D  = e_modul     , wl=.TRUE.)
-      CALL meta_io (fhl, 'POISSON_RATIO'    , '(-)'  , m_rry, real_0D  = nu          , wl=.TRUE.)
-      CALL meta_io (fhl, 'MACRO_ELMNT_ORDER', '(-)'  , m_rry,  int_0D  = elo_macro   , wl=.TRUE.)
-
+      CALL meta_io (fhmo, 'MCT_PD_PRO_PATH'  , '(-)'  , m_rry,    chars = muCT_pd_path, wl=.TRUE.)
+      CALL meta_io (fhmo, 'MCT_PD_PRO_NAME'  , '(-)'  , m_rry,    chars = muCT_pd_name, wl=.TRUE.)
+      CALL meta_io (fhmo, 'MICRO_ELMNT_TYPE' , '(-)'  , m_rry,    chars = elt_micro   , wl=.TRUE.)
+      CALL meta_io (fhmo, 'DBG_LVL'          , '(-)'  , m_rry,    chars = out_amount  , wl=.TRUE.)
+      CALL meta_io (fhmo, 'OUT_FMT'          , '(-)'  , m_rry,    chars = output      , wl=.TRUE.)
+      CALL meta_io (fhmo, 'SIZE_DOMAIN'      , '(mm)' , m_rry, real_1D3 = pdsize      , wl=.TRUE.)
+      CALL meta_io (fhmo, 'LO_BNDS_DMN_RANGE', '(-)'  , m_rry,  int_1D3 = xa_d        , wl=.TRUE.)
+      CALL meta_io (fhmo, 'UP_BNDS_DMN_RANGE', '(-)'  , m_rry,  int_1D3 = xe_d        , wl=.TRUE.)
+      CALL meta_io (fhmo, 'BINARIZE_LO'      , '(-)'  , m_rry,  int_0D  = llimit      , wl=.TRUE.)
+      CALL meta_io (fhmo, 'MESH_PER_SUB_DMN' , '(-)'  , m_rry,  int_0D  = parts       , wl=.TRUE.)
+      CALL meta_io (fhmo, 'RVE_STRAIN'       , '(mm)' , m_rry, real_0D  = strain      , wl=.TRUE.)
+      CALL meta_io (fhmo, 'YOUNG_MODULUS'    , '(MPa)', m_rry, real_0D  = e_modul     , wl=.TRUE.)
+      CALL meta_io (fhmo, 'POISSON_RATIO'    , '(-)'  , m_rry, real_0D  = nu          , wl=.TRUE.)
+      CALL meta_io (fhmo, 'MACRO_ELMNT_ORDER', '(-)'  , m_rry,  int_0D  = elo_macro   , wl=.TRUE.)
 
       ! Error handling
       IF ( (xa_d(1) > xe_d(1)) .OR. (xa_d(1) > xe_d(1)) .or. (xa_d(1) > xe_d(1)) ) THEN
-         CALL handle_err(fh=std_out, txt='Input parameter error: Start value of domain range larger than end value.', abrt=.FALSE.)
-         GOTO 1001
+         CALL handle_err(std_out, 'Input parameter error: Start value of domain range larger than end value.', 1)
       END IF
 
-      IF (MOD(size_mpi-1, parts) .NE. 0) THEN
-         CALL handle_err(fh=std_out, txt='Please provide more domains than processors.')
-         GOTO 1001
-      END IF
+      IF (MOD(size_mpi-1, parts) .NE. 0) CALL handle_err(std_out, 'Please provide more domains than processors.', 1)
 
       CALL add_leaf_to_branch(params, "muCT puredat pro_path"                , mcl            , str_to_char(muCT_pd_path))
       CALL add_leaf_to_branch(params, "muCT puredat pro_name"                , mcl            , str_to_char(muCT_pd_name))
@@ -1171,26 +1141,20 @@ Program main_struct_process
         
      Else
         
-        Write(*,FMT_ERR_A)"The output directory"
-        Write(*,FMT_ERR_A)trim(outpath)
-        Write(*,FMT_ERR_A)"apparently exists already with restart not equal to Y !!!"
-        Write(*,FMT_ERR_A)"Please check your struct-process-parameters.sh file   !!!"
-        write(*,FMT_STOP)
+        Write(std_out, FMT_ERR_A)"The output directory"
+        Write(std_out, FMT_ERR_A)trim(outpath)
+        Write(std_out, FMT_ERR_A)"apparently exists already with restart not equal to Y !!!"
+        Write(std_out, FMT_ERR_A)"Please check your struct-process-parameters.sh file   !!!"
+        write(std_out, FMT_STOP)
         success = .FALSE.
         
      End If
 
-     If (.NOT. success) then
-        call stop_slaves("Something went wrong during init of the output dir (see above)")
-        Goto 1001
-     End If
-     
+     If (.NOT. success) CALL handle_err(std_out, "Something went wrong during init of the output dir.", 1)
+
      Call link_start(link_name,.TRUE.,.FALSE., success)
      
-     If (.NOT. success) then
-        call stop_slaves("Something went wrong during link_start")
-        Goto 1001
-     End If
+     If (.NOT. success) CALL handle_err(std_out, "Something went wrong during link_start", 1)
 
      !** Set project name and path of puredat root ***
      pro_path = outpath
@@ -1224,13 +1188,8 @@ Program main_struct_process
         !** Check whether there is already a project header *******************
         inquire(file=Trim(pro_path)//Trim(pro_name)//'.head',exist=fexist)
         If (.not.fexist) then
-
-           call stop_slaves(&
-                "Restart on job without PureDat root header ! This case is not supported")
-           Call End_Timer("Init Process")
- 
-           Goto 1000
-           
+         Call End_Timer("Init Process")
+         CALL handle_err(std_out, "Restart on job without PureDat root header ! This case is not supported.", 1)         
         End If
         
         !** Read root branch ******************************
@@ -1473,20 +1432,14 @@ Program main_struct_process
 
      Call Start_Timer("Broadcast Init Params")
      
-     Call mpi_bcast(pro_path, INT(mcl,mpi_ik), MPI_CHAR, 0_mpi_ik,&
-          MPI_COMM_WORLD, ierr)
+     Call mpi_bcast(pro_path, INT(mcl,mpi_ik), MPI_CHAR, 0_mpi_ik, MPI_COMM_WORLD, ierr)
+     Call mpi_bcast(pro_name, INT(mcl,mpi_ik), MPI_CHAR, 0_mpi_ik, MPI_COMM_WORLD, ierr)
 
-     Call mpi_bcast(pro_name, INT(mcl,mpi_ik), MPI_CHAR, 0_mpi_ik,&
-          MPI_COMM_WORLD, ierr)
-
-     write(un_lf,FMT_MSG_AI0)"Broadcasting serialized root of size [Byte] ",&
-                              serial_root_size*8
+     write(un_lf,FMT_MSG_AI0)"Broadcasting serialized root of size [Byte] ", serial_root_size*8
      
-     Call mpi_bcast(serial_root_size, 1_mpi_ik, MPI_INTEGER8, 0_mpi_ik,&
-          MPI_COMM_WORLD, ierr)
+     Call mpi_bcast(serial_root_size, 1_mpi_ik, MPI_INTEGER8, 0_mpi_ik, MPI_COMM_WORLD, ierr)
      
-     Call mpi_bcast(serial_root, INT(serial_root_size,mpi_ik), MPI_INTEGER8, 0_mpi_ik,&
-          MPI_COMM_WORLD, ierr)
+     Call mpi_bcast(serial_root, INT(serial_root_size,mpi_ik), MPI_INTEGER8, 0_mpi_ik, MPI_COMM_WORLD, ierr)
 
      Call End_Timer("Broadcast Init Params")
 
@@ -1494,10 +1447,9 @@ Program main_struct_process
      !** the head master worker_comm is not needed and it should not be in
      !** any worker group and communicator. With MPI_UNDEFINED passed as
      !** color worker_comm gets the value MPI_COMM_NULL
-     Call MPI_Comm_split(MPI_COMM_WORLD, MPI_UNDEFINED, &
-          rank_mpi, worker_comm, ierr)
-     Call mpi_err(ierr,"MPI_COMM_SPLIT couldn't split MPI_COMM_WORLD")
-     
+     Call MPI_Comm_split(MPI_COMM_WORLD, MPI_UNDEFINED, rank_mpi, worker_comm, ierr)
+     CALL handle_err(std_out, "MPI_COMM_SPLIT couldn't split MPI_COMM_WORLD", INT(ierr, KIND=ik))
+    
   !****************************************************************************
   !** Ranks > 0 -- Worker slaves **********************************************
   !****************************************************************************
@@ -1506,14 +1458,9 @@ Program main_struct_process
      !** Broadcast recieve init parameters ************************************
      Call Start_Timer("Broadcast Init Params")
      
-     Call mpi_bcast(outpath, INT(mcl,mpi_ik), MPI_CHAR, 0_mpi_ik,&
-                    MPI_COMM_WORLD, ierr)
-
-     Call mpi_bcast(project_name, INT(mcl,mpi_ik), MPI_CHAR, 0_mpi_ik,&
-                    MPI_COMM_WORLD, ierr)
-
-     Call mpi_bcast(serial_root_size, 1_mpi_ik, MPI_INTEGER8, 0_mpi_ik,&
-                    MPI_COMM_WORLD, ierr)
+     Call mpi_bcast(outpath         , INT(mcl,mpi_ik), MPI_CHAR    , 0_mpi_ik, MPI_COMM_WORLD, ierr)
+     Call mpi_bcast(project_name    , INT(mcl,mpi_ik), MPI_CHAR    , 0_mpi_ik, MPI_COMM_WORLD, ierr)
+     Call mpi_bcast(serial_root_size, 1_mpi_ik       , MPI_INTEGER8, 0_mpi_ik, MPI_COMM_WORLD, ierr)
 
      !** Serial_root_size == -1 ==> Signal that Domain_Number < size_mpi-1 ****
      If ( serial_root_size == -1 ) then
@@ -1526,8 +1473,7 @@ Program main_struct_process
      
      Allocate(serial_root(serial_root_size))
      
-     Call mpi_bcast(serial_root, INT(serial_root_size,mpi_ik), MPI_INTEGER8, 0_mpi_ik,&
-          MPI_COMM_WORLD, ierr)
+     Call mpi_bcast(serial_root, INT(serial_root_size,mpi_ik), MPI_INTEGER8, 0_mpi_ik, MPI_COMM_WORLD, ierr)
 
      Call End_Timer("Broadcast Init Params")
 
@@ -1582,13 +1528,13 @@ Program main_struct_process
      !*************************************************************************
      Call MPI_Comm_split(MPI_COMM_WORLD, Int((rank_mpi-1)/parts,mpi_ik), &
                          rank_mpi, worker_comm, ierr)
-     Call mpi_err(ierr,"MPI_COMM_SPLIT couldn't split MPI_COMM_WORLD")
+     CALL handle_err(std_out, "MPI_COMM_SPLIT couldn't split MPI_COMM_WORLD", INT(ierr, KIND=ik))
      
      Call MPI_COMM_RANK(WORKER_COMM, worker_rank_mpi, ierr)
-     Call mpi_err(ierr,"MPI_COMM_RANK couldn't retrieve worker_rank_mpi")
+     CALL handle_err(std_out, "MPI_COMM_RANK couldn't retrieve worker_rank_mpi", INT(ierr, KIND=ik))
  
      Call MPI_COMM_SIZE(WORKER_COMM, worker_size_mpi, ierr)
-     Call mpi_err(ierr,"MPI_COMM_SIZE couldn't retrieve worker_size_mpi")
+     CALL handle_err(std_out, "MPI_COMM_SIZE couldn't retrieve worker_size_mpi", INT(ierr, KIND=ik))
 
      !** This sets the options for PETSc in-core. To alter the options ***
      !** add them in Set_PETSc_Options in Module pets_opt in file      ***
@@ -1649,16 +1595,16 @@ Program main_struct_process
            !** Activity = 1 (Set above during init) ***
            Call mpi_send(Activity(jj), 1_mpi_ik, mpi_integer, Int(jj,mpi_ik), Int(jj,mpi_ik), &
              MPI_COMM_WORLD,ierr)
-           Call mpi_err(ierr,"MPI_SEND of activity didn't succeed")
-           
+           CALL handle_err(std_out, "MPI_SEND of activity didn't succeed", INT(ierr, KIND=ik))
+
            Call mpi_send(nn, 1_mpi_ik, mpi_integer8, Int(jj,mpi_ik), Int(jj,mpi_ik), &
                 MPI_COMM_WORLD,ierr)
-           Call mpi_err(ierr,"MPI_SEND of Domain number didn't succeed")
+           CALL handle_err(std_out, "MPI_SEND of Domain number didn't succeed", INT(ierr, KIND=ik))
            
            if (out_amount /= "PRODUCTION") then
               Call mpi_send(domain_path(nn), Int(4_mpi_ik*mcl,mpi_ik), &
                    MPI_CHARACTER, Int(jj,mpi_ik), Int(jj,mpi_ik), MPI_COMM_WORLD,ierr)
-              Call mpi_err(ierr,"MPI_SEND of Domain path didn't succeed")
+              CALL handle_err(std_out, "MPI_SEND of Domain path didn't succeed", INT(ierr, KIND=ik))
            End if
         End Do
         
@@ -1671,7 +1617,7 @@ Program main_struct_process
         
         Call MPI_IRECV(Activity(ii), 1_mpi_ik, MPI_INTEGER, Int(ii,mpi_ik), Int(ii,mpi_ik), &
              MPI_COMM_WORLD, REQ_LIST(ii), IERR)
-        Call mpi_err(ierr,"MPI_IRECV of Activity(ii) didn't succeed")
+        CALL handle_err(std_out, "MPI_IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
 
         ii = ii + Int(parts,mpi_ik)
 
@@ -1690,9 +1636,7 @@ Program main_struct_process
      Call End_Timer("Write Root Branch")
      
      Call MPI_WAITANY(size_mpi-1_mpi_ik,req_list,finished,status_mpi,ierr)
-
-     Call mpi_err(ierr,"MPI_WAITANY on req_list for IRECV of "//&
-                       "Activity(ii) didn't succeed")
+     CALL handle_err(std_out, "MPI_WAITANY on req_list for IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
 
      ii = finished
      Domain_stats(act_domains(ii)) = Activity(ii)
@@ -1714,34 +1658,32 @@ Program main_struct_process
            
            Call mpi_send(Activity(jj), 1_mpi_ik, mpi_integer, Int(jj,mpi_ik), Int(jj,mpi_ik), &
              MPI_COMM_WORLD,ierr)
-           Call mpi_err(ierr,"MPI_SEND of activity didn't succeed")
-           
+           CALL handle_err(std_out, "MPI_SEND of activity didn't succeed", INT(ierr, KIND=ik))
+
            Call mpi_send(nn, 1_mpi_ik, mpi_integer8, Int(jj,mpi_ik), Int(jj,mpi_ik), &
                 MPI_COMM_WORLD,ierr)
-           Call mpi_err(ierr,"MPI_SEND of Domain number didn't succeed")
-           
+           CALL handle_err(std_out, "MPI_SEND of Domain number didn't succeed", INT(ierr, KIND=ik))
+
            if (out_amount /= "PRODUCTION") then
               Call mpi_send(domain_path(nn), Int(4_mpi_ik*mcl,mpi_ik), &
                    MPI_CHARACTER, Int(jj,mpi_ik), Int(jj,mpi_ik), MPI_COMM_WORLD,ierr)
-              Call mpi_err(ierr,"MPI_SEND of Domain path didn't succeed")
+              CALL handle_err(std_out, "MPI_SEND of Domain path didn't succeed", INT(ierr, KIND=ik))
            End if
         End Do
         
         !** Log to global stdout **********************************************
-        Write(un_mon,'(2(A,I10))')"MPI rank : ",ii, &
-                                  " ; Domain number : ",Domains(nn)
+        Write(un_mon,'(2(A,I10))')"MPI rank : ",ii, " ; Domain number : ",Domains(nn)
         flush(un_mon)
         
         nn = nn + 1_mpi_ik
         
         Call MPI_IRECV(Activity(ii), 1_mpi_ik, MPI_INTEGER, Int(ii,mpi_ik), &
                        Int(ii,mpi_ik), MPI_COMM_WORLD, REQ_LIST(ii), IERR)
-        Call mpi_err(ierr,"MPI_IRECV of Activity(ii) didn't succeed")
+        CALL handle_err(std_out, "MPI_IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
 
 
         Call MPI_WAITANY(size_mpi-1_mpi_ik,req_list, finished, status_mpi, ierr)
-        Call mpi_err(ierr,"MPI_WAITANY on req_list for IRECV of "//&
-             "Activity(ii) didn't succeed")
+        CALL handle_err(std_out, "MPI_WAITANY on req_list for IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
 
         ii = finished
 
@@ -1764,8 +1706,7 @@ Program main_struct_process
          0_pd_rk, Int(1,pd_mpi_ik), MPI_Real8, status_mpi, ierr)
      
      Call MPI_WAITALL(size_mpi-1_mpi_ik, req_list, statuses_mpi, ierr)
-     Call mpi_err(ierr,"MPI_WAITANY on req_list for IRECV of "//&
-          "Activity(ii) didn't succeed")
+     CALL handle_err(std_out, "MPI_WAITANY on req_list for IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
 
      !** TODO refactor domain_cross reference from size size_mpi-1 to *********
      !** (size_mpi-1)/parts ***************************************************
@@ -1780,7 +1721,7 @@ Program main_struct_process
      Do ii = 1_mpi_ik, size_mpi-1_mpi_ik
         Call mpi_send(Activity(ii), 1_mpi_ik, mpi_integer, Int(ii,mpi_ik), &
                       Int(ii,mpi_ik), MPI_COMM_WORLD,ierr)
-        Call mpi_err(ierr,"MPI_SEND of activity didn't succeed")
+        CALL handle_err(std_out, "MPI_SEND of activity didn't succeed", INT(ierr, KIND=ik))
      End Do
    
   !****************************************************************************
@@ -1824,11 +1765,11 @@ Program main_struct_process
         
      Else
         
-        Write(*,FMT_ERR_A)"The output directory"
-        Write(*,FMT_ERR_A)trim(outpath)
-        Write(*,FMT_ERR_A)"apparently exists already with restart not equal to Y !!!"
-        Write(*,FMT_ERR_A)"Please check your struct-process-parameters.sh file   !!!"
-        write(*,FMT_STOP)
+        Write(std_out,FMT_ERR_A)"The output directory"
+        Write(std_out,FMT_ERR_A)trim(outpath)
+        Write(std_out,FMT_ERR_A)"apparently exists already with restart not equal to Y !!!"
+        Write(std_out,FMT_ERR_A)"Please check your struct-process-parameters.sh file   !!!"
+        write(std_out,FMT_STOP)
         Goto 1001
         
      End If
@@ -1840,13 +1781,13 @@ Program main_struct_process
 
         Call mpi_recv(Active, 1_mpi_ik, mpi_integer, 0_mpi_ik, rank_mpi, &
                       MPI_COMM_WORLD, status_mpi, ierr)
-        Call mpi_err(ierr,"MPI_RECV on Active didn't succseed")
+        CALL handle_err(std_out, "MPI_RECV on Active didn't succseed", INT(ierr, KIND=ik))
 
         If (Active == -1) Exit
 
         CALL mpi_recv(nn, 1_mpi_ik, mpi_integer8, 0_mpi_ik, rank_mpi, &
                       MPI_COMM_WORLD, status_mpi, ierr)
-        CALL mpi_err(ierr,"MPI_RECV on Domain didn't succeed")
+        CALL handle_err(std_out, "MPI_RECV on Domain didn't succeed", INT(ierr, KIND=ik))
 
         Domain = Domains(nn)
         
@@ -1854,7 +1795,7 @@ Program main_struct_process
            !** >> Recieve Job_Dir << ******************************************
            CALL mpi_recv(job_dir, 4_mpi_ik*int(mcl,mpi_ik), mpi_character, 0_mpi_ik, &
                 rank_mpi, MPI_COMM_WORLD, status_mpi, ierr)
-           CALL mpi_err(ierr,"MPI_RECV on Domain path didn't succeed")
+           CALL handle_err(std_out, "MPI_RECV on Domain path didn't succeed", INT(ierr, KIND=ik))
 
         Else
            job_dir = outpath
@@ -1867,10 +1808,10 @@ Program main_struct_process
 
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         If (out_amount == "DEBUG") THEN
-           Write(un_lf,fmt_dbg_sep)
-           Write(un_lf,fmt_MSG_AI0)"Root pointer before exec_single_domain on proc",rank_mpi
+           Write(un_lf, fmt_dbg_sep)
+           Write(un_lf, fmt_MSG_AI0)"Root pointer before exec_single_domain on proc",rank_mpi
            Call log_tree(root,un_lf,.True.)
-           Write(un_lf,fmt_dbg_sep)
+           Write(un_lf, fmt_dbg_sep)
         END If
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -1881,10 +1822,10 @@ Program main_struct_process
         
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         If (out_amount == "DEBUG") THEN
-           Write(un_lf,fmt_dbg_sep)
-           Write(un_lf,fmt_MSG_AI0)"Root pointer after exec_single_domain on proc",rank_mpi
+           Write(un_lf, fmt_dbg_sep)
+           Write(un_lf, fmt_MSG_AI0)"Root pointer after exec_single_domain on proc",rank_mpi
            Call log_tree(root,un_lf,.True.)
-           Write(un_lf,fmt_dbg_sep)
+           Write(un_lf, fmt_dbg_sep)
         END If
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -1894,7 +1835,7 @@ Program main_struct_process
 
         !** Look for the Domain branch ****************************************
         domain_desc=''
-        Write(domain_desc,'(A,I0)')'Domain ',Domain
+        Write(domain_desc, '(A,I0)')'Domain ',Domain
         
 !!$        Call search_branch(trim(domain_desc), root, db, success)
 
@@ -1996,10 +1937,10 @@ Program main_struct_process
            
         Call MPI_ISEND(Active, 1_mpi_ik, MPI_INTEGER, 0_mpi_ik, rank_mpi, &
              MPI_COMM_WORLD, REQUEST, IERR)
-        Call mpi_err(ierr,"MPI_ISEND on Active didn't succeed")
+        CALL handle_err(std_out, "MPI_ISEND on Active didn't succeed", INT(ierr, KIND=ik))
 
         Call MPI_WAIT(REQUEST, status_mpi, ierr)
-        Call mpi_err(ierr,"MPI_WAIT on request for ISEND Active didn't succeed")
+        CALL handle_err(std_out, "MPI_WAIT on request for ISEND Active didn't succeed", INT(ierr, KIND=ik))
 
      End Do
 
@@ -2038,10 +1979,11 @@ IF(rank_mpi == 0) THEN
    out = in
    out%app = 'ddtc' 
    CALL meta_close    (in, out, m_rry)
-   CALL meta_add_ascii(fh=fhl, suf=log_suf, st='stop', out=out)
+   CALL meta_add_ascii(fh=un_lf, suf=log_suf, st='stop', out=out)
    ! CALL meta_add_ascii(fh=fhr, suf=res_suf, st='stop', out=out)
 END IF ! (rank_mpi == 0)
 
 Call MPI_FINALIZE(ierr)
-Call mpi_err(ierr,"MPI_FINALIZE didn't succeed")          
+CALL handle_err(std_out, "MPI_FINALIZE didn't succeed", INT(ierr, KIND=ik))
+
 End Program main_struct_process

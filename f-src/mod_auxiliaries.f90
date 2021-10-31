@@ -17,6 +17,8 @@ MODULE auxiliaries
 
 USE ISO_FORTRAN_ENV
 USE standards
+USE chain_variables
+USE puredat 
 USE MPI
 
 IMPLICIT NONE
@@ -49,13 +51,13 @@ SUBROUTINE check_file_exist(filename, target_val, fh, abrt, pmssg, stat)
 LOGICAL           , INTENT(IN)              :: target_val    
 CHARACTER(len=*)  , INTENT(IN)              :: filename      
 INTEGER(KIND=ik)  , INTENT(IN)   , OPTIONAL :: fh 
-LOGICAL           , INTENT(IN)   , OPTIONAL :: abrt
+INTEGER(KIND=ik)  , INTENT(IN)   , OPTIONAL :: abrt
 LOGICAL           , INTENT(IN)   , OPTIONAL :: pmssg
 INTEGER(KIND=ik)  , INTENT(OUT)  , OPTIONAL :: stat
 
 !-- Internal Variable
 LOGICAL                                     :: exist=.FALSE. 
-LOGICAL                                     :: abrt_u=.TRUE.
+INTEGER(KIND=ik)                            :: abrt_u=1
 LOGICAL                                     :: pmssg_u=.TRUE.
 
 ! In case of doubt, abort.
@@ -77,7 +79,7 @@ IF (exist .NEQV. target_val)  THEN
 
     IF(pmssg_u .EQV. .FALSE.) mssg = ''
     ! Only raise an error if the program shall stop.
-    CALL handle_err(fh=fh, txt=TRIM(mssg), err=1, abrt=abrt_u)
+    CALL handle_err(fh=fh, txt=TRIM(mssg), err=abrt_u)
 END IF
     
 END SUBROUTINE check_file_exist
@@ -102,10 +104,10 @@ SUBROUTINE check_and_open(fh, filename, restart, abrt, stat)
 INTEGER(KIND=ik)  , INTENT(IN)              :: fh 
 CHARACTER(len=*)  , INTENT(IN)              :: filename  
 LOGICAL           , INTENT(IN)   , OPTIONAL :: restart
-LOGICAL           , INTENT(IN)   , OPTIONAL :: abrt
+INTEGER(KIND=ik)  , INTENT(IN)   , OPTIONAL :: abrt
 INTEGER(KIND=ik)  , INTENT(OUT)  , OPTIONAL :: stat
 
-LOGICAL                                     :: abrt_u=.TRUE.
+INTEGER(KIND=ik)                            :: abrt_u=1
 
 !-- Internal Variable
 LOGICAL                                     :: opened=.FALSE.
@@ -172,7 +174,7 @@ IF (opened .EQV. .TRUE.) THEN
 ELSE
    IF(PRESENT(stat)) stat=1_ik
    mssg='The file '//TRIM(filename_u)//'was closed already.'
-   CALL handle_err(txt=TRIM(mssg), abrt=abrt_u)
+   CALL handle_err(txt=TRIM(mssg), err=stat)
 END IF
  
 END SUBROUTINE check_and_close
@@ -217,6 +219,29 @@ END IF
 
 END SUBROUTINE date_time
 
+!------------------------------------------------------------------------------
+! SUBROUTINE: stop_slaves
+!------------------------------------------------------------------------------  
+!> @author Johannes Gebert,   gebert@hlrs.de, HLRS/NUM
+!> @author Ralf Schneider, schneider@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Stop slaves properly
+!
+!> @param[in] fh Handle of file to print to
+!> @param[in] ierr Error code1
+!------------------------------------------------------------------------------  
+SUBROUTINE stop_slaves()
+ 
+    Integer(mpi_ik)              :: ierr
+
+    CALL MPI_BCAST(pro_path, INT(mcl,mpi_ik), MPI_CHAR, 0_mpi_ik, MPI_COMM_WORLD, ierr)
+
+    CALL MPI_BCAST(pro_name, INT(mcl,mpi_ik), MPI_CHAR, 0_mpi_ik,MPI_COMM_WORLD, ierr)
+    !** Bcast Serial_root_size = -1 ==> Signal for slave to stop ***
+    CALL MPI_BCAST(-1_ik, 1_mpi_ik, MPI_INTEGER8, 0_mpi_ik, MPI_COMM_WORLD, ierr)   
+
+END SUBROUTINE stop_slaves
 
 
 !------------------------------------------------------------------------------
@@ -230,37 +255,30 @@ END SUBROUTINE date_time
 !> Ralf Schneider.
 !
 !> @Description
-!> Handle error has a hardcoded std out.
+!> Aborts if err /= 0
 !
 !> @param[in] fh Handle of file to print to
 !> @param[in] txt Error message to print
 !> @param[in] err Errorcode / status of the message
-!> @param[in] abrt Abort program?
+!> @param[in] pro_path Path of project
+!> @param[in] pro_name Name of project
 !------------------------------------------------------------------------------  
-SUBROUTINE handle_err(fh, txt, err, abrt)
+SUBROUTINE handle_err(fh, txt, err)
  
-INTEGER(KIND=ik)             , OPTIONAL :: fh 
-CHARACTER(LEN=*), INTENT(IN)            :: txt
-INTEGER(KIND=ik)             , OPTIONAL :: err
-LOGICAL                      , OPTIONAL :: abrt
+INTEGER  (KIND=ik)             , OPTIONAL :: fh 
+CHARACTER(LEN=*)  , INTENT(IN)            :: txt
+INTEGER  (KIND=ik)                        :: err
 
 !> Internal variables 
-INTEGER(KIND=mpi_ik)                    :: ierr = 1
-INTEGER(KIND=ik)                        :: fh_used
-CHARACTER(LEN=mcl)                      :: text
-LOGICAL                                 :: abrt_u
+INTEGER(KIND=mpi_ik)                      :: ierr = 0
+INTEGER(KIND=ik)                          :: fh_used
+CHARACTER(LEN=mcl)                        :: text
 
-! Initialize
-abrt_u = .TRUE.
-IF(PRESENT(abrt)) abrt_u = abrt
 
 fh_used = 6
 IF(PRESENT(fh)) fh_used = fh
 
-IF(PRESENT(err))  ierr = err
-
 text = TRIM(ADJUSTL(txt))
-
 
 ! At first, opting out the only non-optional variable seems odd. However it fits some usage quite well, 
 ! because sometimes the routine shall return a feedback without printing stuff.
@@ -270,7 +288,7 @@ IF (txt/='') THEN
     FLUSH(fh_used)
 END IF 
 
-IF (abrt_u  .EQV. .TRUE.) THEN
+IF (err /= 0) THEN
 
     ! Color text red if on std out
     IF (fh_used .EQ. 6) THEN
@@ -280,14 +298,14 @@ IF (abrt_u  .EQV. .TRUE.) THEN
         CLOSE(fh_used)
     END IF
 
-    CALL stop_slaves('')
-    
+    CALL stop_slaves()
+
+    CALL MPI_FINALIZE(ierr)
+    IF ( ierr /= 0 ) WRITE(fh_used,'(A)') "MPI_FINALIZE did not succeed"
+    STOP 
 END IF
 
 END SUBROUTINE handle_err
-
-
-
 
 !------------------------------------------------------------------------------
 ! FUNCITON: usage
@@ -297,14 +315,11 @@ END SUBROUTINE handle_err
 !> @brief
 !> Print program usage. 
 !
-!> @param[in] abrt Optional suppression of program abortion
+!> @param[in] err Optional suppression of program abortion
 !------------------------------------------------------------------------------  
-SUBROUTINE usage(abrt)
+SUBROUTINE usage(err)
 
-LOGICAL, OPTIONAL, INTENT(IN) :: abrt
-LOGICAL                       :: abrt_u=.TRUE.
-
-IF (PRESENT(abrt)) abrt_u = abrt
+INTEGER, INTENT(IN) :: err
 
 CALL dash(std_out)
 WRITE(std_out, '(A)') 'Directly Discretizing Tensor Computation | Usage:'
@@ -315,7 +330,7 @@ WRITE(std_out, '(A)') '-h       This message.'
 WRITE(std_out, '(A)') '*.meta   Meta input file.'
 CALL dash(std_out)
 
-IF (abrt_u .EQV. .TRUE.) CALL handle_err(std_out, '', 0, .TRUE.)
+CALL handle_err(std_out, '', err)
 
 END SUBROUTINE usage
 
@@ -376,7 +391,7 @@ text = ''
 
 IF((.NOT. PRESENT(mat_real)) .AND. (.NOT. PRESENT(mat_int))) mssg='At least 1 kind of data type required '
 IF((      PRESENT(mat_real)) .AND. (      PRESENT(mat_int))) mssg='Please specify max. 1 kind of data type '
-IF(mssg /= '') CALL handle_err(txt=TRIM(mssg)//'to print '//TRIM(name)//' matrix', abrt=.TRUE.)
+IF(mssg /= '') CALL handle_err(txt=TRIM(mssg)//'to print '//TRIM(name)//' matrix', err=1)
 
 IF(PRESENT(mat_real)) THEN
     prec = PRECISION(mat_real)
@@ -429,7 +444,7 @@ SELECT CASE (TRIM(fmt_u))
 
    CASE DEFAULT
         mssg='Invalid formatting handle of matrix '//TRIM(name)//'.'
-        CALL handle_err(fh=std_out, txt=mssg, err=1_ik, abrt=.TRUE.)
+        CALL handle_err(fh=std_out, txt=mssg, err=1)
 END SELECT
 
 IF (nm_fmt_lngth .LT. 1_ik) nm_fmt_lngth = 1_ik

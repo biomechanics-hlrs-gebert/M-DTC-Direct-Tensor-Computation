@@ -176,15 +176,16 @@ c-objects =  $(obj_dir)OS$(obj_ext)                    \
 f-objects = $(obj_dir)mod_standards$(obj_ext)          \
             $(obj_dir)mod_parameters$(obj_ext)         \
             $(obj_dir)mod_times$(obj_ext)              \
-            $(obj_dir)mod_auxiliaries$(obj_ext)        \
             $(obj_dir)mod_strings$(obj_ext)            \
+            $(obj_dir)mod_chain$(obj_ext)              \
             $(obj_dir)mod_puredat$(obj_ext)            \
+            $(obj_dir)mod_auxiliaries$(obj_ext)        \
+            $(obj_dir)mod_meta$(obj_ext)               \
             $(obj_dir)mod_eispack$(obj_ext)            \
             $(obj_dir)mod_tensors$(obj_ext)            \
             $(obj_dir)mod_metis$(obj_ext)              \
             $(obj_dir)mod_OS$(obj_ext)                 \
             $(obj_dir)mod_linfe$(obj_ext)              \
-            $(obj_dir)mod_chain$(obj_ext)              \
             $(obj_dir)mod_math$(obj_ext)               \
             $(obj_dir)mod_blas_1$(obj_ext)             \
             $(obj_dir)mod_linpack$(obj_ext)            \
@@ -206,7 +207,7 @@ pd-objects = $(obj_dir)pd_dump_leaf$(obj_ext)            \
 
 # -----------------------------------------------------------------------------
 # struct-process executable ---------------------------------------------------
-main_bin = $(bin_dir)$(bin_name)_$(trgt_vrsn)_$(bin_suffix)
+main_bin = $(bin_dir)$(bin_name)_$(trgt_vrsn)$(bin_suffix)
 #
 # -----------------------------------------------------------------------------
 # PureDat auxiliary executables -----------------------------------------------
@@ -244,6 +245,13 @@ $(obj_dir)mod_standards$(obj_ext):$(f_src_dir)mod_standards$(f90_ext)
 	@echo 
 
 # -----------------------------------------------------------------------------
+#-- Strings Module ------------------------------------------------------------
+$(obj_dir)mod_strings$(obj_ext):$(ext_f-src)strings$(f90_ext)
+	@echo "----- Compiling " $< " -----"
+	$(compiler) $(c_flags_f90) -c $< -o $@
+	@echo 
+
+# -----------------------------------------------------------------------------
 #-- Timer Module --------------------------------------------------------------
 $(obj_dir)mod_times$(obj_ext):$(f_src_dir)mod_times$(f90_ext)
 	@echo "----- Compiling " $< " -----"
@@ -251,18 +259,44 @@ $(obj_dir)mod_times$(obj_ext):$(f_src_dir)mod_times$(f90_ext)
 	@echo 
 
 # -----------------------------------------------------------------------------
+#-- Chain modules -------------------------------------------------------------
+$(obj_dir)mod_chain$(obj_ext):$(mod_dir)standards$(mod_ext) $(mod_dir)timer$(mod_ext) \
+                              $(f_src_dir)mod_chain$(f90_ext)
+	@echo "----- Compiling " mod_chain$(f90_ext) " -----"
+	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_chain$(f90_ext) -o $@
+	@echo 
+
+$(mod_dir)chain_routines$(mod_ext):$(mod_dir)chain_constants$(mod_ext) \
+                                   $(mod_dir)chain_variables$(mod_ext)
+	$(clean_cmd) $(mod_dir)chain_routines$(mod_ext)
+	@echo "----- Compiling " mod_chain$(f90_ext) " -----"
+	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_chain$(f90_ext) -o $@
+	@echo 
+
+$(mod_dir)chain_variables$(mod_ext):$(mod_dir)chain_constants$(mod_ext)
+	$(clean_cmd) $(mod_dir)chain_variables$(mod_ext)
+	@echo "----- Compiling " mod_chain$(f90_ext) " -----"
+	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_chain$(f90_ext) -o $@
+	@echo 
+
+# -----------------------------------------------------------------------------
 #-- Auxiliaries Module --------------------------------------------------------
-$(obj_dir)mod_auxiliaries$(obj_ext):$(mod_dir)standards$(mod_ext) \
+$(obj_dir)mod_auxiliaries$(obj_ext):$(mod_dir)standards$(mod_ext)       \
+                                    $(mod_dir)chain_variables$(mod_ext) \
+																		$(mod_dir)puredat$(mod_ext)         \
 																		$(f_src_dir)mod_auxiliaries$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_auxiliaries$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_auxiliaries$(f90_ext) -o $@
 	@echo 
-
+	
 # -----------------------------------------------------------------------------
-#-- Strings Module ------------------------------------------------------------
-$(obj_dir)mod_strings$(obj_ext):$(ext_f-src)strings$(f90_ext)
-	@echo "----- Compiling " $< " -----"
-	$(compiler) $(c_flags_f90) -c $< -o $@
+#-- Meta Module ---------------------------------------------------------------
+$(obj_dir)mod_meta$(obj_ext):$(mod_dir)standards$(mod_ext)             \
+                             $(mod_dir)auxiliaries$(mod_ext)           \
+                             $(mod_dir)strings$(mod_ext)               \
+                             $(f_src_dir)mod_meta$(f90_ext)
+	@echo "----- Compiling " $(f_src_dir)mod_meta$(f90_ext) " -----"
+	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_meta$(f90_ext) -o $@
 	@echo 
 
 # -----------------------------------------------------------------------------
@@ -334,27 +368,6 @@ $(obj_dir)mod_linpack$(obj_ext):$(mod_dir)standards$(mod_ext) $(mod_dir)blas_1$(
                                 $(linpack_src_dir)mod_linpack$(f90_ext)
 	@echo "----- Compiling " mod_linpack$(f90_ext) " -----"
 	$(compiler) $(c_flags_linpack) -c $(linpack_src_dir)mod_linpack$(f90_ext) -o $@
-	@echo 
-
-# -----------------------------------------------------------------------------
-#-- Chain modules -------------------------------------------------------------
-$(obj_dir)mod_chain$(obj_ext):$(mod_dir)standards$(mod_ext) $(mod_dir)timer$(mod_ext) \
-                              $(f_src_dir)mod_chain$(f90_ext)
-	@echo "----- Compiling " mod_chain$(f90_ext) " -----"
-	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_chain$(f90_ext) -o $@
-	@echo 
-
-$(mod_dir)chain_routines$(mod_ext):$(mod_dir)chain_constants$(mod_ext) \
-                                   $(mod_dir)chain_variables$(mod_ext)
-	$(clean_cmd) $(mod_dir)chain_routines$(mod_ext)
-	@echo "----- Compiling " mod_chain$(f90_ext) " -----"
-	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_chain$(f90_ext) -o $@
-	@echo 
-
-$(mod_dir)chain_variables$(mod_ext):$(mod_dir)chain_constants$(mod_ext)
-	$(clean_cmd) $(mod_dir)chain_variables$(mod_ext)
-	@echo "----- Compiling " mod_chain$(f90_ext) " -----"
-	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_chain$(f90_ext) -o $@
 	@echo 
 
 # -----------------------------------------------------------------------------
