@@ -17,12 +17,11 @@
 !> for details
 Module vtkio
 
+  USE auxiliaries
+
   Implicit None
 
   Private give_new_unit
-  Private file_err
-
-  Integer, Parameter, Private :: ik=8, rk=8, mcl=256
 
   Integer, Dimension(20), Parameter :: topo_FE_to_VTK = &
        [1,3,5,7, 13,15,17,19, 2,4,6,8, 14,16,18,20, 9,10,11,12]
@@ -54,7 +53,7 @@ contains
     Character(Len=*)                 , Intent(in) :: filename
 
     Integer(Kind=ik)                  :: no_nodes, no_elems
-    character(len=mcl)                :: tmp_line
+    character(len=hcl)                :: tmp_line
     integer(kind=4)                   :: un_out
     integer(kind=ik)                  :: ii, ii_topo
 
@@ -184,7 +183,7 @@ contains
     Character(Len=*)                 , Intent(in) :: filename
 
     Integer(Kind=ik)                  :: no_nodes, no_elems
-    character(len=mcl)                :: tmp_line
+    character(len=hcl)                :: tmp_line
     integer(kind=4)                   :: un_out, nnpe, cell_type
     integer(kind=ik)                  :: ii
     integer(kind=4) , Dimension(:), allocatable :: cell_type_array
@@ -320,7 +319,7 @@ contains
     character(len=*), optional, intent(in) :: location
         
     integer(kind=4)                        :: un_out
-    character(len=mcl)                     :: tmp_pointdata
+    character(len=hcl)                     :: tmp_pointdata
     character(len=10)                      :: loc_location
     
     if (present(location)) then
@@ -360,7 +359,7 @@ contains
     Real(kind=rk)   , Dimension(3)    , intent(in) :: spacing,origin
     integer(kind=ik), Dimension(3)    , intent(in) :: extend
 
-    character(len=mcl)               :: tmp_line, tmp_origin,tmp_real
+    character(len=hcl)               :: tmp_line, tmp_origin,tmp_real
 
     write(un_out) 'DATASET STRUCTURED_POINTS',achar(10)
 
@@ -395,7 +394,7 @@ contains
     Integer(Kind=4)                  , intent(in) :: un_out
 
     Integer(Kind=ik)                  :: no_nodes
-    character(len=mcl)                :: tmp_line
+    character(len=hcl)                :: tmp_line
    
     no_nodes = size(nodes(1,:))
 
@@ -418,7 +417,7 @@ contains
     Logical         , optional                , intent(in) :: head
     character(len=*), optional                , intent(in) :: location
 
-    character(len=mcl)               :: tmp_pointdata
+    character(len=hcl)               :: tmp_pointdata
     character(len=12)                :: loc_desc
     integer(kind=4)                  :: un_out
     logical                          :: loc_head
@@ -488,7 +487,7 @@ contains
     Logical         , optional                , intent(in) :: head
     character(len=*), optional                , intent(in) :: location
 
-    character(len=mcl)               :: tmp_pointdata
+    character(len=hcl)               :: tmp_pointdata
     character(len=12)                :: loc_desc
     integer(kind=4)                  :: un_out
     logical                          :: loc_head
@@ -558,7 +557,7 @@ contains
     Logical         , optional                , intent(in) :: head
     character(len=*), optional                , intent(in) :: location
 
-    character(len=mcl)               :: tmp_pointdata
+    character(len=hcl)               :: tmp_pointdata
     character(len=12)                :: loc_desc
     integer(kind=4)                  :: un_out
     logical(kind=8)                  :: loc_head
@@ -628,7 +627,7 @@ contains
     Logical         , optional                , intent(in) :: head
     character(len=*), optional                , intent(in) :: location
 
-    character(len=mcl)               :: tmp_pointdata
+    character(len=hcl)               :: tmp_pointdata
     character(len=12)                :: loc_desc
     integer(kind=4)                  :: un_out
     logical                          :: loc_head
@@ -694,7 +693,7 @@ contains
     Logical         , optional                , intent(in) :: head
     character(len=*), optional                , intent(in) :: location
 
-    character(len=mcl)               :: tmp_pointdata
+    character(len=hcl)               :: tmp_pointdata
     character(len=12)                :: loc_desc
     integer(kind=4)                  :: un_out
     logical                          :: loc_head
@@ -790,25 +789,6 @@ contains
 
   End function give_new_unit
 
-  !============================================================================
-  !> Subroutine for I/O error handling while operating on files
-  SUBROUTINE file_err(in_file,io_stat)
-
-    INTEGER             :: io_stat
-    CHARACTER (LEN=*)   :: in_file
-
-    IF (io_stat /= 0) Then
-       WRITE(*,*)
-       WRITE(*,"(80('='))")
-       WRITE(*,"('EE ',A,T77,' EE')")   'Operation on file :'       
-       WRITE(*,"('EE ',A          )")   in_file
-       WRITE(*,"('EE ',A,T77,' EE')")   'faild !!'
-       WRITE(*,"('EE ',A,I0,T77,' EE')")'With I/O Status ',io_stat
-       WRITE(*,"('EE PROGRAM STOPPED ..... ',T77,' EE',/,'<',77('='),'>')")
-       STOP
-    End IF
-
-  END SUBROUTINE file_err
 
   !============================================================================
   !> Subroutine for opening files with big endian encoding
@@ -820,7 +800,7 @@ contains
     character(len=*),intent(in), optional :: position
 
     !integer(kind=4)             :: ier
-    character(len=mcl)          :: loc_pos
+    character(len=hcl)          :: loc_pos
 
     If (present(position)) then
        loc_pos = position

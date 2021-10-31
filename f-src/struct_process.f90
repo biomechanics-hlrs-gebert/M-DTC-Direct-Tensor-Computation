@@ -77,7 +77,7 @@ Module sp_aux_routines
 
   Use ISO_C_BINDING
   Use Operating_System
-  USE standards
+  USE global_std
   use puredat_com
   use chain_routines
   use strings
@@ -883,7 +883,8 @@ Contains
 !------------------------------------------------------------------------------
 Program main_struct_process
 
-  USE standards
+  USE global_std
+  USE global_pd
   USE puredat 
   USE auxiliaries
   USE meta
@@ -1051,14 +1052,12 @@ Program main_struct_process
       CALL meta_add_ascii(fh=fhmo, suf=mon_suf, st='start', restart=restart, in=in)
       ! CALL meta_add_ascii(fh=fhr, suf=res_suf, st='start', restart=restart, in=in)
 
-      CALL meta_io (fhmo, 'BASE_PATH'   , '(-)'  , m_rry, chars = outpath        , wl=.TRUE.)
-      CALL meta_io (fhmo, 'PROJECT_NAME', '(-)'  , m_rry, chars = project_name   , wl=.TRUE.)
+      ! CALL meta_io (fhmo, 'BASE_PATH'   , '(-)'  , m_rry, chars = outpath        , wl=.TRUE.)
+      ! CALL meta_io (fhmo, 'PROJECT_NAME', '(-)'  , m_rry, chars = project_name   , wl=.TRUE.)
 
       ! Legacy stuff. May be ported to clean meta file handling
-      outpath = trim(outpath)//"/"//trim(project_name)
-      if (outpath(len(outpath):len(outpath)) /= "/") then
-         outpath = trim(outpath)//"/"
-      End if
+      outpath      = TRIM(in%p_n_bsnm)//"_reg/"
+      project_name = TRIM(in%bsnm)
 
       Allocate(params)
       Call raise_tree("Input parameters",params)
@@ -1088,8 +1087,17 @@ Program main_struct_process
 
       IF (MOD(size_mpi-1, parts) .NE. 0) CALL handle_err(std_out, 'Please provide more domains than processors.', 1)
 
-      CALL add_leaf_to_branch(params, "muCT puredat pro_path"                , mcl            , str_to_char(muCT_pd_path))
-      CALL add_leaf_to_branch(params, "muCT puredat pro_name"                , mcl            , str_to_char(muCT_pd_name))
+WRITE(*,*) "muCT_pd_path: ", TRIM(muCT_pd_path)
+WRITE(*,*) "muCT_pd_name: ", TRIM(muCT_pd_name)
+CALL skip(std_out)
+WRITE(*,*) "muCT_pd_path: ", TRIM(in%path)
+WRITE(*,*) "muCT_pd_name: ", TRIM(in%bsnm)
+CALL skip(std_out)
+WRITE(*,*) "muCT_pd_path: ", TRIM(in%p_n_bsnm)
+WRITE(*,*) "muCT_pd_name: ", TRIM(in%bsnm)
+
+      CALL add_leaf_to_branch(params, "muCT puredat pro_path"                , mcl            , str_to_char(in%p_n_bsnm))
+      CALL add_leaf_to_branch(params, "muCT puredat pro_name"                , mcl            , str_to_char(in%bsnm))
       CALL add_leaf_to_branch(params, 'Element type  on micro scale'         , len(elt_micro) , str_to_char(elt_micro))     
       CALL add_leaf_to_branch(params, 'Output amount'                        , len(out_amount), str_to_char(out_amount))
       CALL add_leaf_to_branch(params, 'Restart'                              , len(restart)   , str_to_char(restart))
@@ -1186,7 +1194,8 @@ Program main_struct_process
      Else if ( Restart == "Y" ) Then
 
         !** Check whether there is already a project header *******************
-        inquire(file=Trim(pro_path)//Trim(pro_name)//'.head',exist=fexist)
+
+        inquire(file=Trim(in%p_n_bsnm)//'.head',exist=fexist)
         If (.not.fexist) then
          Call End_Timer("Init Process")
          CALL handle_err(std_out, "Restart on job without PureDat root header ! This case is not supported.", 1)         
@@ -1433,13 +1442,15 @@ Program main_struct_process
      Call Start_Timer("Broadcast Init Params")
      
      Call mpi_bcast(pro_path, INT(mcl,mpi_ik), MPI_CHAR, 0_mpi_ik, MPI_COMM_WORLD, ierr)
+
      Call mpi_bcast(pro_name, INT(mcl,mpi_ik), MPI_CHAR, 0_mpi_ik, MPI_COMM_WORLD, ierr)
 
      write(un_lf,FMT_MSG_AI0)"Broadcasting serialized root of size [Byte] ", serial_root_size*8
      
      Call mpi_bcast(serial_root_size, 1_mpi_ik, MPI_INTEGER8, 0_mpi_ik, MPI_COMM_WORLD, ierr)
      
-     Call mpi_bcast(serial_root, INT(serial_root_size,mpi_ik), MPI_INTEGER8, 0_mpi_ik, MPI_COMM_WORLD, ierr)
+     Call mpi_bcast(serial_root, INT(serial_root_size,mpi_ik), MPI_INTEGER8, 0_mpi_ik,&
+          MPI_COMM_WORLD, ierr)
 
      Call End_Timer("Broadcast Init Params")
 
@@ -1447,7 +1458,8 @@ Program main_struct_process
      !** the head master worker_comm is not needed and it should not be in
      !** any worker group and communicator. With MPI_UNDEFINED passed as
      !** color worker_comm gets the value MPI_COMM_NULL
-     Call MPI_Comm_split(MPI_COMM_WORLD, MPI_UNDEFINED, rank_mpi, worker_comm, ierr)
+     Call MPI_Comm_split(MPI_COMM_WORLD, MPI_UNDEFINED, &
+          rank_mpi, worker_comm, ierr)
      CALL handle_err(std_out, "MPI_COMM_SPLIT couldn't split MPI_COMM_WORLD", INT(ierr, KIND=ik))
     
   !****************************************************************************
@@ -1473,7 +1485,8 @@ Program main_struct_process
      
      Allocate(serial_root(serial_root_size))
      
-     Call mpi_bcast(serial_root, INT(serial_root_size,mpi_ik), MPI_INTEGER8, 0_mpi_ik, MPI_COMM_WORLD, ierr)
+     Call mpi_bcast(serial_root, INT(serial_root_size,mpi_ik), MPI_INTEGER8, 0_mpi_ik,&
+          MPI_COMM_WORLD, ierr)
 
      Call End_Timer("Broadcast Init Params")
 
@@ -1532,6 +1545,7 @@ Program main_struct_process
      
      Call MPI_COMM_RANK(WORKER_COMM, worker_rank_mpi, ierr)
      CALL handle_err(std_out, "MPI_COMM_RANK couldn't retrieve worker_rank_mpi", INT(ierr, KIND=ik))
+
  
      Call MPI_COMM_SIZE(WORKER_COMM, worker_size_mpi, ierr)
      CALL handle_err(std_out, "MPI_COMM_SIZE couldn't retrieve worker_size_mpi", INT(ierr, KIND=ik))

@@ -1,6 +1,6 @@
 Module LinPack
 
-  USE standards
+  USE global_std
   Use blas_1
 
   Implicit None

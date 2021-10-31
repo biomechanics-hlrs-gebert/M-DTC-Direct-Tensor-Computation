@@ -172,14 +172,15 @@ endif
 #
 c-objects =  $(obj_dir)OS$(obj_ext)                    \
              $(obj_dir)metis_interface$(obj_ext) 
-
-f-objects = $(obj_dir)mod_standards$(obj_ext)          \
+#
+# For linking and cleaning
+f-objects = $(obj_dir)mod_global_std$(obj_ext)         \
             $(obj_dir)mod_parameters$(obj_ext)         \
             $(obj_dir)mod_times$(obj_ext)              \
             $(obj_dir)mod_strings$(obj_ext)            \
             $(obj_dir)mod_chain$(obj_ext)              \
-            $(obj_dir)mod_puredat$(obj_ext)            \
             $(obj_dir)mod_auxiliaries$(obj_ext)        \
+            $(obj_dir)mod_puredat$(obj_ext)            \
             $(obj_dir)mod_meta$(obj_ext)               \
             $(obj_dir)mod_eispack$(obj_ext)            \
             $(obj_dir)mod_tensors$(obj_ext)            \
@@ -198,7 +199,13 @@ f-objects = $(obj_dir)mod_standards$(obj_ext)          \
             $(obj_dir)mod_struct_preprocess$(obj_ext)  \
             $(obj_dir)mod_struct_calcmat$(obj_ext)     \
             $(obj_dir)struct_process$(obj_ext)
-
+#
+# For linking
+pd-ld-objects = $(obj_dir)mod_global_std$(obj_ext)     \
+		            $(obj_dir)mod_auxiliaries$(obj_ext)    \
+		            $(obj_dir)mod_puredat$(obj_ext)        \
+#
+# For cleaning
 pd-objects = $(obj_dir)pd_dump_leaf$(obj_ext)            \
              $(obj_dir)pd_dump_tree$(obj_ext)            \
              $(obj_dir)pd_leaf_diff$(obj_ext)            \
@@ -238,11 +245,12 @@ $(obj_dir)%$(obj_ext):$(c_src_dir)%$(c_ext)
 	@echo 
 
 # -----------------------------------------------------------------------------
-#-- Standards Module - Precision Module ---------------------------------------
-$(obj_dir)mod_standards$(obj_ext):$(f_src_dir)mod_standards$(f90_ext)
+#-- global_std Module - Precision Module ---------------------------------------
+$(obj_dir)mod_global_std$(obj_ext):$(f_src_dir)mod_global_std$(f90_ext)
 	@echo "----- Compiling " $< " -----"
 	$(compiler) $(c_flags_f90) -c $< -o $@
 	@echo 
+
 
 # -----------------------------------------------------------------------------
 #-- Strings Module ------------------------------------------------------------
@@ -260,7 +268,7 @@ $(obj_dir)mod_times$(obj_ext):$(f_src_dir)mod_times$(f90_ext)
 
 # -----------------------------------------------------------------------------
 #-- Chain modules -------------------------------------------------------------
-$(obj_dir)mod_chain$(obj_ext):$(mod_dir)standards$(mod_ext) $(mod_dir)timer$(mod_ext) \
+$(obj_dir)mod_chain$(obj_ext):$(mod_dir)global_std$(mod_ext) $(mod_dir)timer$(mod_ext) \
                               $(f_src_dir)mod_chain$(f90_ext)
 	@echo "----- Compiling " mod_chain$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_chain$(f90_ext) -o $@
@@ -281,9 +289,7 @@ $(mod_dir)chain_variables$(mod_ext):$(mod_dir)chain_constants$(mod_ext)
 
 # -----------------------------------------------------------------------------
 #-- Auxiliaries Module --------------------------------------------------------
-$(obj_dir)mod_auxiliaries$(obj_ext):$(mod_dir)standards$(mod_ext)       \
-                                    $(mod_dir)chain_variables$(mod_ext) \
-																		$(mod_dir)puredat$(mod_ext)         \
+$(obj_dir)mod_auxiliaries$(obj_ext):$(mod_dir)global_std$(mod_ext) $(mod_dir)chain_variables$(mod_ext)	\
 																		$(f_src_dir)mod_auxiliaries$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_auxiliaries$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_auxiliaries$(f90_ext) -o $@
@@ -291,9 +297,9 @@ $(obj_dir)mod_auxiliaries$(obj_ext):$(mod_dir)standards$(mod_ext)       \
 	
 # -----------------------------------------------------------------------------
 #-- Meta Module ---------------------------------------------------------------
-$(obj_dir)mod_meta$(obj_ext):$(mod_dir)standards$(mod_ext)             \
-                             $(mod_dir)auxiliaries$(mod_ext)           \
-                             $(mod_dir)strings$(mod_ext)               \
+$(obj_dir)mod_meta$(obj_ext):$(mod_dir)global_std$(mod_ext)     \
+                             $(mod_dir)auxiliaries$(mod_ext)    \
+                             $(mod_dir)strings$(mod_ext)        \
                              $(f_src_dir)mod_meta$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_meta$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_meta$(f90_ext) -o $@
@@ -301,9 +307,12 @@ $(obj_dir)mod_meta$(obj_ext):$(mod_dir)standards$(mod_ext)             \
 
 # -----------------------------------------------------------------------------
 #-- PureDat -------------------------------------------------------------------
-$(obj_dir)mod_puredat$(obj_ext):$(f_src_dir)mod_puredat$(f90_ext)
-	@echo "----- Compiling " $< " -----"
-	$(compiler) $(c_flags_f90) -c $< -o $@
+$(obj_dir)mod_puredat$(obj_ext):$(mod_dir)global_std$(mod_ext)   \
+																$(mod_dir)global_pd$(mod_ext)   \
+																$(mod_dir)auxiliaries$(mod_ext)  \
+																$(f_src_dir)mod_puredat$(f90_ext)
+	@echo "----- Compiling " $(f_src_dir)mod_puredat$(f90_ext) " -----"
+	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_puredat$(f90_ext) -o $@
 	@echo 
 
 # -----------------------------------------------------------------------------
@@ -329,14 +338,15 @@ $(obj_dir)mod_metis$(obj_ext):$(obj_dir)metis_interface$(obj_ext) $(f_src_dir)mo
 
 # -----------------------------------------------------------------------------
 #-- VTK-I/O -------------------------------------------------------------------
-$(obj_dir)mod_vtkio$(obj_ext):$(f_src_dir)mod_vtkio$(f90_ext)
-	@echo "----- Compiling " $< " -----"
-	$(compiler) $(c_flags_f90) -c $< -o $@
+$(obj_dir)mod_vtkio$(obj_ext):$(mod_dir)auxiliaries$(mod_ext) \
+															$(f_src_dir)mod_vtkio$(f90_ext)
+	@echo "----- Compiling " $(f_src_dir)mod_vtkio$(f90_ext) " -----"
+	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_vtkio$(f90_ext) -o $@
 	@echo 
 
 # -----------------------------------------------------------------------------
 #-- Paramter Modules ----------------------------------------------------------
-$(obj_dir)mod_parameters$(obj_ext):$(mod_dir)standards$(mod_ext) \
+$(obj_dir)mod_parameters$(obj_ext):$(mod_dir)global_std$(mod_ext) \
                                    $(f_src_dir)mod_parameters$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_parameters$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_parameters$(f90_ext) -o $@
@@ -344,7 +354,7 @@ $(obj_dir)mod_parameters$(obj_ext):$(mod_dir)standards$(mod_ext) \
 
 # -----------------------------------------------------------------------------
 #-- Operating System C-call wrappers ------------------------------------------
-$(obj_dir)mod_OS$(obj_ext): $(mod_dir)standards$(mod_ext) \
+$(obj_dir)mod_OS$(obj_ext): $(mod_dir)global_std$(mod_ext) \
                             $(obj_dir)OS$(obj_ext) $(f_src_dir)mod_OS$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_OS$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_OS$(f90_ext) -o $@
@@ -352,19 +362,19 @@ $(obj_dir)mod_OS$(obj_ext): $(mod_dir)standards$(mod_ext) \
 
 # -----------------------------------------------------------------------------
 #-- Finite Element Routines ---------------------------------------------------
-$(obj_dir)mod_linfe$(obj_ext):$(mod_dir)standards$(mod_ext) $(f_src_dir)mod_linfe$(f90_ext)
+$(obj_dir)mod_linfe$(obj_ext):$(mod_dir)global_std$(mod_ext) $(f_src_dir)mod_linfe$(f90_ext)
 	@echo "----- Compiling " mod_linfe$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_linfe$(f90_ext) -o $@
 	@echo 
 
 # -----------------------------------------------------------------------------
 #-- LinPack Objects (Blas 1 and LinPack) --------------------------------------
-$(obj_dir)mod_blas_1$(obj_ext):$(mod_dir)standards$(mod_ext) $(linpack_src_dir)mod_blas_1$(f90_ext)
+$(obj_dir)mod_blas_1$(obj_ext):$(mod_dir)global_std$(mod_ext) $(linpack_src_dir)mod_blas_1$(f90_ext)
 	@echo "----- Compiling " $< " -----"
 	$(compiler) $(c_flags_linpack) -c $(linpack_src_dir)mod_blas_1$(f90_ext) -o $@
 	@echo 
 
-$(obj_dir)mod_linpack$(obj_ext):$(mod_dir)standards$(mod_ext) $(mod_dir)blas_1$(mod_ext) \
+$(obj_dir)mod_linpack$(obj_ext):$(mod_dir)global_std$(mod_ext) $(mod_dir)blas_1$(mod_ext) \
                                 $(linpack_src_dir)mod_linpack$(f90_ext)
 	@echo "----- Compiling " mod_linpack$(f90_ext) " -----"
 	$(compiler) $(c_flags_linpack) -c $(linpack_src_dir)mod_linpack$(f90_ext) -o $@
@@ -372,15 +382,15 @@ $(obj_dir)mod_linpack$(obj_ext):$(mod_dir)standards$(mod_ext) $(mod_dir)blas_1$(
 
 # -----------------------------------------------------------------------------
 #-- Math module ---------------------------------------------------------------
-$(obj_dir)mod_math$(obj_ext):$(mod_dir)standards$(mod_ext) $(mod_dir)timer$(mod_ext) \
-                             $(mod_dir)chain_routines$(mod_ext) $(f_src_dir)mod_math$(f90_ext)
+$(obj_dir)mod_math$(obj_ext):$(mod_dir)global_std$(mod_ext) $(mod_dir)timer$(mod_ext) \
+                             $(mod_dir)chain_routines$(mod_ext)    $(f_src_dir)mod_math$(f90_ext)
 	@echo "----- Compiling " mod_math$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_math$(f90_ext) -o $@
 	@echo 
 
 # -----------------------------------------------------------------------------
 #-- Material matrices ---------------------------------------------------------
-$(obj_dir)mod_mat_matrices$(obj_ext):$(mod_dir)standards$(mod_ext)      $(mod_dir)timer$(mod_ext)   \
+$(obj_dir)mod_mat_matrices$(obj_ext):$(mod_dir)global_std$(mod_ext)     $(mod_dir)timer$(mod_ext)   \
                                      $(mod_dir)chain_routines$(mod_ext) $(mod_dir)math$(mod_ext)    \
                                      $(mod_dir)blas_1$(mod_ext)         $(mod_dir)linpack$(mod_ext) \
                                      $(f_src_dir)mod_mat_matrices$(f90_ext)
@@ -390,7 +400,7 @@ $(obj_dir)mod_mat_matrices$(obj_ext):$(mod_dir)standards$(mod_ext)      $(mod_di
 
 # -----------------------------------------------------------------------------
 #-- Domain decomposition module -----------------------------------------------
-$(obj_dir)mod_decomp$(obj_ext):$(mod_dir)standards$(mod_ext)  $(mod_dir)puredat$(mod_ext) \
+$(obj_dir)mod_decomp$(obj_ext):$(mod_dir)global_std$(mod_ext)  $(mod_dir)puredat$(mod_ext) \
                                $(f_src_dir)mod_decomp$(f90_ext)
 	@echo "----- Compiling " mod_decomp$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_decomp$(f90_ext) -o $@
@@ -398,7 +408,7 @@ $(obj_dir)mod_decomp$(obj_ext):$(mod_dir)standards$(mod_ext)  $(mod_dir)puredat$
 
 # -----------------------------------------------------------------------------
 #-- Mesh Partitioning ---------------------------------------------------------
-$(obj_dir)mod_mesh_partitioning$(obj_ext):$(mod_dir)standards$(mod_ext)       $(mod_dir)puredat$(mod_ext) \
+$(obj_dir)mod_mesh_partitioning$(obj_ext):$(mod_dir)global_std$(mod_ext)      $(mod_dir)puredat$(mod_ext) \
                                           $(mod_dir)decomp$(mod_ext)          $(mod_dir)timer$(mod_ext)   \
                                           $(mod_dir)chain_routines$(mod_ext)  $(mod_dir)vtkio$(mod_ext)   \
                                           $(obj_dir)metis_interface$(obj_ext) $(mod_dir)metis$(mod_ext)   \
@@ -409,19 +419,19 @@ $(obj_dir)mod_mesh_partitioning$(obj_ext):$(mod_dir)standards$(mod_ext)       $(
 
 # -----------------------------------------------------------------------------
 #-- Deck output ---------------------------------------------------------------
-$(obj_dir)mod_write_deck$(obj_ext):$(mod_dir)standards$(mod_ext)       $(mod_dir)puredat$(mod_ext)           \
-                                   $(mod_dir)decomp$(mod_ext)          $(mod_dir)timer$(mod_ext)             \
-                                   $(mod_dir)chain_routines$(mod_ext)  $(mod_dir)vtkio$(mod_ext)             \
-                                   $(obj_dir)metis_interface$(obj_ext) $(mod_dir)metis$(mod_ext)             \
-                                   $(mod_dir)linfe$(mod_ext)           $(mod_dir)mesh_partitioning$(mod_ext) \
-                                   $(mod_dir)strings$(mod_ext)         $(f_src_dir)mod_write_deck$(f90_ext)
+$(obj_dir)mod_write_deck$(obj_ext):$(mod_dir)global_std$(mod_ext)        $(mod_dir)puredat$(mod_ext)           \
+                                   $(mod_dir)decomp$(mod_ext)            $(mod_dir)timer$(mod_ext)             \
+                                   $(mod_dir)chain_routines$(mod_ext)    $(mod_dir)vtkio$(mod_ext)             \
+                                   $(obj_dir)metis_interface$(obj_ext)   $(mod_dir)metis$(mod_ext)             \
+                                   $(mod_dir)linfe$(mod_ext)             $(mod_dir)mesh_partitioning$(mod_ext) \
+                                   $(mod_dir)strings$(mod_ext)           $(f_src_dir)mod_write_deck$(f90_ext)
 	@echo "----- Compiling " mod_write_deck$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_write_deck$(f90_ext) -o $@
 	@echo 
 
 # -----------------------------------------------------------------------------
 #-- Mesh generation -----------------------------------------------------------
-$(obj_dir)mod_gen_quadmesh$(obj_ext):$(mod_dir)standards$(mod_ext)      $(mod_dir)puredat$(mod_ext)   \
+$(obj_dir)mod_gen_quadmesh$(obj_ext):$(mod_dir)global_std$(mod_ext)     $(mod_dir)puredat$(mod_ext)   \
                                      $(mod_dir)decomp$(mod_ext)         $(mod_dir)timer$(mod_ext)     \
                                      $(mod_dir)chain_routines$(mod_ext) $(f_src_dir)mod_gen_quadmesh$(f90_ext)
 	@echo "----- Compiling " mod_gen_quadmesh$(f90_ext) " -----"
@@ -430,23 +440,23 @@ $(obj_dir)mod_gen_quadmesh$(obj_ext):$(mod_dir)standards$(mod_ext)      $(mod_di
 
 # -----------------------------------------------------------------------------
 #-- Geometry and loadcase setup -----------------------------------------------
-$(obj_dir)mod_struct_preprocess$(obj_ext):$(mod_dir)standards$(mod_ext)       $(mod_dir)puredat$(mod_ext)      \
-                                          $(mod_dir)decomp$(mod_ext)          $(mod_dir)timer$(mod_ext)        \
-                                          $(mod_dir)chain_routines$(mod_ext)  $(mod_dir)vtkio$(mod_ext)        \
-                                          $(obj_dir)metis_interface$(obj_ext) $(mod_dir)metis$(mod_ext)        \
-                                          $(mod_dir)linfe$(mod_ext)      $(mod_dir)mesh_partitioning$(mod_ext) \
-                                          $(mod_dir)strings$(mod_ext)    $(mod_dir)gen_quadmesh$(mod_ext)      \
-                                          $(mod_dir)write_deck$(mod_ext) $(f_src_dir)mod_struct_preprocess$(f90_ext)
+$(obj_dir)mod_struct_preprocess$(obj_ext):$(mod_dir)global_std$(mod_ext)        $(mod_dir)puredat$(mod_ext)           \
+                                          $(mod_dir)decomp$(mod_ext)            $(mod_dir)timer$(mod_ext)             \
+                                          $(mod_dir)chain_routines$(mod_ext)    $(mod_dir)vtkio$(mod_ext)             \
+                                          $(obj_dir)metis_interface$(obj_ext)   $(mod_dir)metis$(mod_ext)             \
+                                          $(mod_dir)linfe$(mod_ext)             $(mod_dir)mesh_partitioning$(mod_ext) \
+                                          $(mod_dir)strings$(mod_ext)           $(mod_dir)gen_quadmesh$(mod_ext)      \
+                                          $(mod_dir)write_deck$(mod_ext)        $(f_src_dir)mod_struct_preprocess$(f90_ext)
 	@echo "----- Compiling " mod_struct_preprocess$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_struct_preprocess$(f90_ext) -o $@
 	@echo 
 
 # -----------------------------------------------------------------------------
 #-- Calculate effective stiffness parameters ----------------------------------
-$(obj_dir)mod_struct_calcmat$(obj_ext)::$(mod_dir)standards$(mod_ext)      $(mod_dir)tensors$(mod_ext)       \
-                                        $(mod_dir)puredat$(mod_ext)        $(mod_dir)timer$(mod_ext)         \
-                                        $(mod_dir)decomp$(mod_ext)         $(mod_dir)mat_matrices$(mod_ext)  \
-                                        $(mod_dir)chain_routines$(mod_ext) $(mod_dir)linfe$(mod_ext)         \
+$(obj_dir)mod_struct_calcmat$(obj_ext)::$(mod_dir)global_std$(mod_ext) $(mod_dir)tensors$(mod_ext)       \
+                                        $(mod_dir)puredat$(mod_ext)           $(mod_dir)timer$(mod_ext)         \
+                                        $(mod_dir)decomp$(mod_ext)            $(mod_dir)mat_matrices$(mod_ext)  \
+                                        $(mod_dir)chain_routines$(mod_ext)    $(mod_dir)linfe$(mod_ext)         \
                                         $(f_src_dir)mod_struct_calcmat$(f90_ext)
 	@echo "----- Compiling " mod_struct_calcmat$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_struct_calcmat$(f90_ext) -o $@
@@ -454,27 +464,27 @@ $(obj_dir)mod_struct_calcmat$(obj_ext)::$(mod_dir)standards$(mod_ext)      $(mod
 
 # -----------------------------------------------------------------------------
 #-- MAIN Object ---------------------------------------------------------------
-$(obj_dir)struct_process$(obj_ext):$(mod_dir)standards$(mod_ext)        $(obj_dir)OS$(obj_ext) \
-                                   $(mod_dir)auxiliaries$(mod_ext)                             \
-                                   $(mod_dir)operating_system$(mod_ext) $(mod_dir)puredat$(mod_ext)           \
-                                   $(mod_dir)decomp$(mod_ext)           $(mod_dir)timer$(mod_ext)             \
-                                   $(mod_dir)chain_routines$(mod_ext)   $(mod_dir)vtkio$(mod_ext)             \
-                                   $(obj_dir)metis_interface$(obj_ext)  $(mod_dir)metis$(mod_ext)             \
-                                   $(mod_dir)linfe$(mod_ext)            $(mod_dir)mesh_partitioning$(mod_ext) \
-                                   $(mod_dir)strings$(mod_ext)          $(mod_dir)gen_quadmesh$(mod_ext)      \
-                                   $(mod_dir)write_deck$(mod_ext)       $(mod_dir)gen_geometry$(mod_ext)      \
-                                   $(mod_dir)tensors$(mod_ext)          $(mod_dir)mat_matrices$(mod_ext)      \
-                                   $(mod_dir)calcmat$(mod_ext)          $(mod_dir)puredat_com$(mod_ext)       \
-                                   $(mod_dir)petsc_opt$(mod_ext)        $(f_src_dir)struct_process$(f90_ext)
+$(obj_dir)struct_process$(obj_ext):$(mod_dir)global_std$(mod_ext) $(obj_dir)OS$(obj_ext)                       \
+                                   $(mod_dir)auxiliaries$(mod_ext)       $(mod_dir)global_pd$(mod_ext)         \
+                                   $(mod_dir)operating_system$(mod_ext)  $(mod_dir)puredat$(mod_ext)           \
+                                   $(mod_dir)decomp$(mod_ext)            $(mod_dir)timer$(mod_ext)             \
+                                   $(mod_dir)chain_routines$(mod_ext)    $(mod_dir)vtkio$(mod_ext)             \
+                                   $(obj_dir)metis_interface$(obj_ext)   $(mod_dir)metis$(mod_ext)             \
+                                   $(mod_dir)linfe$(mod_ext)             $(mod_dir)mesh_partitioning$(mod_ext) \
+                                   $(mod_dir)strings$(mod_ext)           $(mod_dir)gen_quadmesh$(mod_ext)      \
+                                   $(mod_dir)write_deck$(mod_ext)        $(mod_dir)gen_geometry$(mod_ext)      \
+                                   $(mod_dir)tensors$(mod_ext)           $(mod_dir)mat_matrices$(mod_ext)      \
+                                   $(mod_dir)calcmat$(mod_ext)           $(mod_dir)puredat_com$(mod_ext)       \
+                                   $(mod_dir)petsc_opt$(mod_ext)         $(f_src_dir)struct_process$(f90_ext)
 	@echo "----- Compiling " struct_process$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)struct_process$(f90_ext) -o $@
 	@echo 
 
 # -----------------------------------------------------------------------------
 #-- PureDat auxiliary executables ---------------------------------------------
-$(obj_dir)pd_dump_leaf$(obj_ext):$(mod_dir)puredat$(mod_ext) $(mod_dir)puredat_com$(mod_ext)   \
+$(obj_dir)pd_dump_leaf$(obj_ext):$(mod_dir)global_pd$(mod_ext) $(mod_dir)puredat$(mod_ext) $(mod_dir)puredat_com$(mod_ext)   \
                                  $(f_src_dir)pd_dump_leaf$(f90_ext)
-	@echo "----- Compiling " pd_dump_leaf$(f90_ext) " -----"
+	@echo "***** Compiling " pd_dump_leaf$(f90_ext) " *****"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)pd_dump_leaf$(f90_ext) -o $@
 	@echo 
 
@@ -513,40 +523,40 @@ $(main_bin): $(c-objects) $(f-objects)
 
 # -----------------------------------------------------------------------------
 # Final Link step of PureDat auxiliary executables ----------------------------
-$(pd_dump_leaf_bin): $(obj_dir)mod_puredat$(obj_ext) $(obj_dir)pd_dump_leaf$(obj_ext)
+$(pd_dump_leaf_bin): $(pd-ld-objects) $(obj_dir)pd_dump_leaf$(obj_ext)
 	@echo "--------------------------------------------------------------------------------------------"
 	@echo '--- Linking PureDat auxiliary pd_dump_leaf'
 	@echo "--------------------------------------------------------------------------------------------"
-	$(compiler) $(link_flags) $(obj_dir)mod_puredat$(obj_ext) $(obj_dir)pd_dump_leaf$(obj_ext) -o $@
+	$(compiler) $(link_flags) $(pd-ld-objects) $(obj_dir)pd_dump_leaf$(obj_ext) -o $@
 	@echo 
 
-$(pd_dump_tree_bin): $(obj_dir)mod_puredat$(obj_ext) $(obj_dir)pd_dump_tree$(obj_ext)
+$(pd_dump_tree_bin): $(pd-ld-objects) $(obj_dir)pd_dump_tree$(obj_ext)
 	@echo "--------------------------------------------------------------------------------------------"
 	@echo '--- Linking PureDat auxiliary pd_dump_tree'
 	@echo "--------------------------------------------------------------------------------------------"
-	$(compiler) $(link_flags) $(obj_dir)mod_puredat$(obj_ext) $(obj_dir)pd_dump_tree$(obj_ext) -o $@
+	$(compiler) $(link_flags) $(pd-ld-objects) $(obj_dir)pd_dump_tree$(obj_ext) -o $@
 
-$(pd_leaf_diff_bin): $(obj_dir)mod_puredat$(obj_ext) $(obj_dir)pd_leaf_diff$(obj_ext)
+$(pd_leaf_diff_bin): $(pd-ld-objects) $(obj_dir)pd_leaf_diff$(obj_ext)
 	@echo "--------------------------------------------------------------------------------------------"
 	@echo '--- Linking PureDat auxiliary pd_leaf_diff'
 	@echo "--------------------------------------------------------------------------------------------"
-	$(compiler) $(link_flags) $(obj_dir)mod_puredat$(obj_ext) $(obj_dir)pd_leaf_diff$(obj_ext) -o $@
+	$(compiler) $(link_flags) $(pd-ld-objects) $(obj_dir)pd_leaf_diff$(obj_ext) -o $@
 	@echo 
 
-$(pd_leaf_to_file_bin): $(obj_dir)mod_puredat$(obj_ext) $(obj_dir)mod_vtkio$(obj_ext) \
+$(pd_leaf_to_file_bin): $(pd-ld-objects) $(obj_dir)mod_vtkio$(obj_ext) \
 	                $(obj_dir)pd_leaf_to_file$(obj_ext)
 	@echo "--------------------------------------------------------------------------------------------"
 	@echo '--- Linking PureDat auxiliary pd_leaf_to_file'
 	@echo "--------------------------------------------------------------------------------------------"
-	$(compiler) $(link_flags) $(obj_dir)mod_puredat$(obj_ext) \
+	$(compiler) $(link_flags) $(pd-ld-objects) \
 	$(obj_dir)mod_vtkio$(obj_ext) $(obj_dir)pd_leaf_to_file$(obj_ext) -o $@
 	@echo 
 
-$(pd_merge_branch_to_tree_bin): $(obj_dir)mod_puredat$(obj_ext) $(obj_dir)pd_merge_branch_to_tree$(obj_ext)
+$(pd_merge_branch_to_tree_bin): $(pd-ld-objects) $(obj_dir)pd_merge_branch_to_tree$(obj_ext)
 	@echo "--------------------------------------------------------------------------------------------"
 	@echo '--- Linking PureDat auxiliary pd_merge_branch_to_tree'
 	@echo "--------------------------------------------------------------------------------------------"
-	$(compiler) $(link_flags) $(obj_dir)mod_puredat$(obj_ext) $(obj_dir)pd_merge_branch_to_tree$(obj_ext) -o $@
+	$(compiler) $(link_flags) $(pd-ld-objects) $(obj_dir)pd_merge_branch_to_tree$(obj_ext) -o $@
 	@echo 
 
 # -----------------------------------------------------------------------------

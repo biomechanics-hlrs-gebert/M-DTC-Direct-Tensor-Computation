@@ -6,7 +6,7 @@
 !**                                                                          **
 module petsc_opt
 
-  USE standards
+  USE global_std
   use petsc
   
   implicit none

@@ -11,7 +11,7 @@
 !> Character constants for unified log-file output
 Module chain_constants
 
-  use standards
+  use global_std
 
   Implicit None
 
@@ -71,6 +71,7 @@ End Module chain_constants
 Module chain_variables
  
   Use ISO_FORTRAN_ENV
+  USE global_std
   use chain_constants
   
   Implicit None
@@ -253,7 +254,7 @@ Contains
     If (loc_stdio) then
        Write(un_mon,*)
        Write(un_mon,fmt_sep)
-       Write(un_mon,'(A,A)')'Starting chain link :',trim(link_name)
+       Write(un_mon,'(A,A)')'Starting chain link: ',trim(link_name)
        Write(un_mon,*)
     End If
 
@@ -350,7 +351,7 @@ Contains
        !** Message to std out *************************************************
        If (loc_stdio) then
           
-          Write(un_mon,FMT_MSG)'Opened and replaced existing log-file :'
+          Write(un_mon,FMT_MSG)'Opened and replaced existing log-file: '
           Write(lf,'(A)')trim(outpath)//trim(project_name)//'.log'
           
           If (Len_trim(lf) > 72) Then
@@ -981,24 +982,6 @@ Contains
 
   END SUBROUTINE alloc_err
 
-  !============================================================================
-  !> Subroutine for I/O error handling while operating on files
-  SUBROUTINE file_err(in_file,io_stat)
-
-    INTEGER             :: io_stat
-    CHARACTER (LEN=*)   :: in_file
-
-    IF (io_stat /= 0) Then
-       WRITE(un_mon,fmt_sep)
-       WRITE(un_mon,FMT_ERR)'Operation on file :'       
-       WRITE(un_mon,FMT_ERR) in_file
-       WRITE(un_mon,FMT_ERR)'faild !!'
-       WRITE(un_mon,FMT_ERR_AI0)'With I/O Status ',io_stat
-       WRITE(un_mon,FMT_STOP)
-       STOP
-    End IF
-
-  END SUBROUTINE file_err
 
   !============================================================================
   !> Function which returns a new free unit

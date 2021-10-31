@@ -1,6 +1,6 @@
 module linFE
 
-  USE standards
+  USE global_std
 
   implicit none
 

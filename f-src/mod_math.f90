@@ -7,7 +7,7 @@
 
 Module math
 
-  USE standards
+  USE global_std
   use chain_routines
 
   Implicit None

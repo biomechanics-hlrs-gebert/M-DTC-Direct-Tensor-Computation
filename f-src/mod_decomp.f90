@@ -12,7 +12,7 @@
 !> Module with routines for domain decomposition
 module decomp
 
-  USE standards
+  USE global_std
   use puredat
 
   implicit none

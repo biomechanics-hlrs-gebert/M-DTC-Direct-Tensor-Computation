@@ -16,14 +16,89 @@
 MODULE auxiliaries
 
 USE ISO_FORTRAN_ENV
-USE standards
-USE chain_variables
-USE puredat 
+USE global_std
+USE global_pd
 USE MPI
 
 IMPLICIT NONE
 
 CONTAINS
+
+!------------------------------------------------------------------------------
+! SUBROUTINE: skip
+!------------------------------------------------------------------------------ 
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/vM
+!
+!> @brief
+!> Write empty lines to file handle
+!
+!> @param[in] fh File Handle     
+!> @param[in] lines Empty lines to print     
+!------------------------------------------------------------------------------  
+SUBROUTINE skip(fh, lines)
+   INTEGER (KIND=ik)           :: fh
+   INTEGER (KIND=ik), OPTIONAL :: lines
+
+   INTEGER  (KIND=ik)          :: howmanylns, ii
+
+   howmanylns = 1
+   IF (PRESENT(lines)) THEN
+      IF (lines .GT. 1) howmanylns = lines
+   END IF
+
+   DO ii=1, howmanylns
+      WRITE(fh,'(A)') ''
+   END DO
+
+END SUBROUTINE skip
+
+!------------------------------------------------------------------------------
+! SUBROUTINE: dash
+!------------------------------------------------------------------------------ 
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/vM
+!
+!> @brief
+!> Routine to write a separator to an io unit
+!
+!> @Description
+!> CALL dash(fh) behaves exactly like WRITE(fh,'(A)') stdlnbrk
+!
+!> @param[in] fh File Handle     
+!> @param[in] dashes How many dashes to print
+!> @param[in] lines How many lines to print
+!> @param[in] chr Whch character to print
+!------------------------------------------------revised------------------------------  
+SUBROUTINE dash(fh, dashes, lines, chr)
+   INTEGER  (KIND=ik)           :: fh
+   INTEGER  (KIND=ik), OPTIONAL :: dashes, lines
+   CHARACTER(LEN=*)  , OPTIONAL :: chr
+
+   INTEGER  (KIND=ik)           :: howmanychars, howmanylns, ii
+   CHARACTER(LEN=mcl)           :: cr, sep ! Separator
+
+   cr = '-'
+   IF (PRESENT(chr)) THEN
+      IF (chr .NE. '') cr = chr ! x typically is a standar format specifier
+   END IF
+
+   howmanychars = 100
+   IF (PRESENT(dashes)) THEN
+      IF (dashes .GE. 1) howmanychars = dashes
+   END IF
+
+   howmanylns = 1
+   IF (PRESENT(lines)) THEN
+      IF (lines .GT. 1) howmanylns = lines
+   END IF
+
+   WRITE(sep, "(A,I0,3A)") "(", howmanychars ,"('",TRIM(cr),"'))"        
+
+   DO ii=1, howmanylns
+      WRITE(fh, sep) 
+   END DO
+
+END SUBROUTINE dash
+
 
 !------------------------------------------------------------------------------
 ! SUBROUTINE: check_file_exist
@@ -40,17 +115,17 @@ CONTAINS
 !
 !> stat = 1 --> opposite of target_val
 !
+!> @param[in] fh File handle to decide where to store the data
 !> @param[in] target_val True/False if file shall exist
 !> @param[in] filename Filename which is to be checked
-!> @param[in] fh File handle to decide where to store the data
 !> @param[in] abrt Abort or do not.
 !> @param[in] stat Gives Feedback
 !------------------------------------------------------------------------------
-SUBROUTINE check_file_exist(filename, target_val, fh, abrt, pmssg, stat)
+SUBROUTINE check_file_exist(fh, filename, target_val, abrt, pmssg, stat)
 
+INTEGER(KIND=ik)  , INTENT(IN)              :: fh 
 LOGICAL           , INTENT(IN)              :: target_val    
 CHARACTER(len=*)  , INTENT(IN)              :: filename      
-INTEGER(KIND=ik)  , INTENT(IN)   , OPTIONAL :: fh 
 INTEGER(KIND=ik)  , INTENT(IN)   , OPTIONAL :: abrt
 LOGICAL           , INTENT(IN)   , OPTIONAL :: pmssg
 INTEGER(KIND=ik)  , INTENT(OUT)  , OPTIONAL :: stat
@@ -60,7 +135,7 @@ LOGICAL                                     :: exist=.FALSE.
 INTEGER(KIND=ik)                            :: abrt_u=1
 LOGICAL                                     :: pmssg_u=.TRUE.
 
-! In case of doubt, abort.
+! Initialize
 IF(PRESENT(abrt))  abrt_u  = abrt
 IF(PRESENT(pmssg)) pmssg_u = pmssg
 IF(PRESENT(stat))  stat    = 0
@@ -119,7 +194,7 @@ IF(PRESENT(restart)) restart_u=restart
 IF(PRESENT(abrt)) abrt_u=abrt
 IF(PRESENT(stat)) stat=0
 
-CALL check_file_exist(filename_u, .FALSE.,fh, abrt_u, .TRUE., stat)
+CALL check_file_exist(fh, filename_u, .FALSE., abrt_u, .TRUE., stat)
 
 INQUIRE(UNIT=fh, OPENED=opened)
 
@@ -174,7 +249,7 @@ IF (opened .EQV. .TRUE.) THEN
 ELSE
    IF(PRESENT(stat)) stat=1_ik
    mssg='The file '//TRIM(filename_u)//'was closed already.'
-   CALL handle_err(txt=TRIM(mssg), err=stat)
+   CALL handle_err(fh, TRIM(mssg), stat, .TRUE.)
 END IF
  
 END SUBROUTINE check_and_close
@@ -243,6 +318,24 @@ SUBROUTINE stop_slaves()
 
 END SUBROUTINE stop_slaves
 
+!   !============================================================================
+!   !> Subroutine for I/O error handling while operating on files
+!   SUBROUTINE file_err(in_file,io_stat)
+
+!     INTEGER             :: io_stat
+!     CHARACTER (LEN=*)   :: in_file
+
+!     IF (io_stat /= 0) Then
+!        WRITE(un_mon,fmt_sep)
+!        WRITE(un_mon,FMT_ERR)'Operation on file :'       
+!        WRITE(un_mon,FMT_ERR) in_file
+!        WRITE(un_mon,FMT_ERR)'faild !!'
+!        WRITE(un_mon,FMT_ERR_AI0)'With I/O Status ',io_stat
+!        WRITE(un_mon,FMT_STOP)
+!        STOP
+!     End IF
+
+!   END SUBROUTINE file_err
 
 !------------------------------------------------------------------------------
 ! SUBROUTINE: handle_err
@@ -260,48 +353,48 @@ END SUBROUTINE stop_slaves
 !> @param[in] fh Handle of file to print to
 !> @param[in] txt Error message to print
 !> @param[in] err Errorcode / status of the message
-!> @param[in] pro_path Path of project
-!> @param[in] pro_name Name of project
+!> @param[in] pmssg Print message anyway
 !------------------------------------------------------------------------------  
-SUBROUTINE handle_err(fh, txt, err)
+SUBROUTINE handle_err(fh, txt, err, pmssg)
  
-INTEGER  (KIND=ik)             , OPTIONAL :: fh 
+INTEGER  (KIND=ik)                        :: fh 
 CHARACTER(LEN=*)  , INTENT(IN)            :: txt
 INTEGER  (KIND=ik)                        :: err
+LOGICAL  (KIND=ik)            , OPTIONAL  :: pmssg
 
 !> Internal variables 
 INTEGER(KIND=mpi_ik)                      :: ierr = 0
-INTEGER(KIND=ik)                          :: fh_used
 CHARACTER(LEN=mcl)                        :: text
 
+LOGICAL  (KIND=ik)                        :: pmssg_used
 
-fh_used = 6
-IF(PRESENT(fh)) fh_used = fh
+pmssg_used = .FALSE.
+IF(PRESENT(pmssg)) pmssg_used = pmssg
 
 text = TRIM(ADJUSTL(txt))
 
 ! At first, opting out the only non-optional variable seems odd. However it fits some usage quite well, 
 ! because sometimes the routine shall return a feedback without printing stuff.
-IF (txt/='') THEN
-    CALL skip(fh_used)
-    WRITE(fh_used, '(A)') TRIM(ADJUSTL(text))
-    FLUSH(fh_used)
+IF ((pmssg_used .EQV. .TRUE.) .OR. (err /= 0)) THEN
+    CALL skip(fh)
+    WRITE(fh, '(A)') TRIM(ADJUSTL(text))
+    FLUSH(fh)
 END IF 
 
 IF (err /= 0) THEN
 
     ! Color text red if on std out
-    IF (fh_used .EQ. 6) THEN
-        WRITE(fh_used, '(A)') "\x1B[31mProgram aborted.\x1B[0m"
+    IF (fh .EQ. std_out) THEN
+        WRITE(fh, '(A)') "\x1B[31mProgram aborted.\x1B[0m"
     ELSE
-        WRITE(fh_used, '(A)') "Program aborted."
-        CLOSE(fh_used)
+        WRITE(fh, '(A)') "Program aborted."
+        CLOSE(fh)
     END IF
 
     CALL stop_slaves()
 
     CALL MPI_FINALIZE(ierr)
-    IF ( ierr /= 0 ) WRITE(fh_used,'(A)') "MPI_FINALIZE did not succeed"
+    IF ( ierr /= 0 ) WRITE(fh,'(A)') "MPI_FINALIZE did not succeed"
     STOP 
 END IF
 
@@ -391,7 +484,7 @@ text = ''
 
 IF((.NOT. PRESENT(mat_real)) .AND. (.NOT. PRESENT(mat_int))) mssg='At least 1 kind of data type required '
 IF((      PRESENT(mat_real)) .AND. (      PRESENT(mat_int))) mssg='Please specify max. 1 kind of data type '
-IF(mssg /= '') CALL handle_err(txt=TRIM(mssg)//'to print '//TRIM(name)//' matrix', err=1)
+IF(mssg /= '') CALL handle_err(fh, TRIM(mssg)//'to print '//TRIM(name)//' matrix', 1)
 
 IF(PRESENT(mat_real)) THEN
     prec = PRECISION(mat_real)

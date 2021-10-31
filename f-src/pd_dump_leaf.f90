@@ -9,10 +9,10 @@
 !>  by: Ralf Schneider \n
 !>  on : 15.02.2012
 !** ------------------------------------------------------------------------ **
-Program pd_dump_tree
+Program pd_dump_leaf
 
-  Use puredat         ! From libpuredat
-
+  Use puredat         
+  
   Implicit None
 
   !****************************************************************************
@@ -197,4 +197,4 @@ Program pd_dump_tree
   Write(*,PDF_M_A )'=='
   Write(*,PDF_TIME)"User time :",gend_time-gstart_time
  
-End Program pd_dump_tree
+End Program pd_dump_leaf

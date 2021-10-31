@@ -1,6 +1,6 @@
 Module blas_1
 
-  USE standards
+  USE global_std
   
   Implicit None
 

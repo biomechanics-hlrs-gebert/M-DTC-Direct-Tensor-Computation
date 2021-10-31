@@ -17,7 +17,7 @@
 !------------------------------------------------------------------------------
 MODULE strings
 
-USE standards
+USE global_std
 
 CONTAINS
 

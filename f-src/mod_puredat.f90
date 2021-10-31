@@ -10,103 +10,19 @@
 !> \todo Character stream copy in and copy out von strings realisieren
 !> \todo Warning in log_tree wenn pointer of leaf nicht korrekt connected
 
-!==============================================================================
-!> Global integer and real kinds for the puredat data handling library
-!> \author Ralf Schneider
-!> \date 22.01.2010
-!>
-Module puredat_precision
-
-  Use ISO_FORTRAN_ENV
-
-  Implicit none
-  
-  Integer, Parameter :: pd_ik = 8         !** Puredat Integer kind parameter
-  Integer, Parameter :: pd_rk = 8         !** Puredat Real    kind parameter
-  Integer, Parameter :: pd_mpi_ik = 4     !** Puredat Integer MPI kind parameter
-  
-End Module puredat_precision
-
-!==============================================================================
-!> Global constants and parameters for the puredat data handling library
-!> \author Ralf Schneider
-!> \date 22.01.2010
-!>
-Module puredat_constants
-
-  Implicit none
-  
-  !> Number of currently used stream variables in puredat_streams
-  !>
-  !> The total number of currently used stream variables which is the  
-  !> number of arrays defined in puredat_streams independently from 
-  !> their data type
-  Integer, Parameter :: no_streams = 7
-
-  !> Maximum character length used in puredat library
-  Integer, Parameter :: pd_mcl = 512
-  !> Maximum Character Length in pd_ik elements
-  Integer, Parameter :: pd_ce  = 512/8
-
-  ! Character constants for nice output ---------------------------------------
-  Character(Len=*), Parameter :: PDF_E_A    = "('EE ',A)"
-  Character(Len=*), Parameter :: PDF_E_AI0  = "('EE ',*(A,1X,I0))"
-  Character(Len=*), Parameter :: PDF_E_STOP = &
-       "('EE PROGRAM STOPPED ..... ',/,'<',78('='),'>')"
-  
-  Character(Len=*), Parameter :: PDF_W_A    = "('WW ',A)"
-  Character(Len=*), Parameter :: PDF_W_AI0  = "('WW ',*(A,1X,I0))"
-  
-  Character(Len=*), Parameter :: PDF_M_A    = "('MM ',A)"
-  Character(Len=*), Parameter :: PDF_M_AI0  = "('MM ',A,1X,I0)"
-
-  Character(Len=*), Parameter :: PDF_TIME   = "('MM ',A,1X,F0.6,' sec')"
-
-  Character(Len=*), Parameter :: PDF_SEP    = "('<',78('='),'>')"
-
-End Module puredat_constants
-
-!==============================================================================
-!> Global variables for the puredat data handling library
-!> \author Ralf Schneider
-!> \date 22.01.2010
-!>
-Module puredat_globals
-  
-  Use ISO_FORTRAN_ENV
-  
-  Use puredat_constants
-
-  Implicit None
-
-  !============================================================================
-  !== files and paths
-  !> puredat project path
-  !>
-  !> Path to puredat project files which means header-, stream- and 
-  !> log-files
-  Character(len=pd_mcl) :: pro_path
-  !> puredat project name
-  !>
-  !> Base name of the puredat project files which are ...
-  Character(len=pd_mcl) :: pro_name
-  
-  !> puredat monitor unit
-  Integer               :: pd_umon  = OUTPUT_UNIT
-
-End Module puredat_globals
 
 !==============================================================================
 !> Derived datatypes for puredat data handling
 !> \author Ralf Schneider
 !> \date 22.01.2010
 !>
-Module puredat_types
+MODULE puredat_types
 
-  use puredat_precision
-  use puredat_constants
+USE global_std
+USE global_pd
+USE auxiliaries
 
-  implicit none
+IMPLICIT NONE
 
   !============================================================================
   !> Type: Stream allocatable stream arrays
@@ -240,7 +156,8 @@ End Module puredat_types
 !>
 Module puredat_com
 
-  use puredat_globals
+  use global_std
+  use global_pd
   use puredat_types  
 
   implicit none
@@ -331,16 +248,16 @@ End Module puredat_com
 !>
 Module puredat
 
-  Use puredat_types
-  Use puredat_com
-  use mpi
-  
+USE global_pd
+USE puredat_types
+USE puredat_com
+USE mpi
+
   Implicit None
 
   !============================================================================
   !== Private routines
   Private alloc_error
-  Private file_err
   Private char_to_str
   Private str_to_char
   Private copy_leaves_to_streams
@@ -2636,6 +2553,7 @@ Contains
     Character(len=pd_mcl)                        :: lpos
 
     Character(len=10)                            :: faction
+    Character(len=mcl)                           :: mssg
 
     logical :: fexist
     Integer :: ii, funit
@@ -2702,9 +2620,11 @@ Contains
              Call MPI_FILE_OPEN(MPI_COMM_WORLD, trim(streams%stream_files(ii)), &
                   MPI_MODE_WRONLY+MPI_MODE_CREATE, MPI_INFO_NULL, FH_MPI(ii), ierr)
 
-             If (ierr /= 0) call file_err(trim(streams%stream_files(ii)), Int(ierr,pd_ik), &
-                  "MPI_FILE_OPEN", "open_stream_files_from_streams_mpi")
-             
+            IF (ierr /= 0) THEN
+               mssg = TRIM(streams%stream_files(ii))//' - MPI_FILE_OPEN - open_stream_files_from_streams_mpi'
+               CALL handle_err(pd_umon, TRIM(mssg), INT(ierr, KIND=ik))
+            END IF
+
              Select Case (ii)
              
              Case (1)
@@ -2743,10 +2663,12 @@ Contains
                      "native", MPI_INFO_NULL, IERR)   
 
              End Select
-          
-             If (ierr /= 0) call file_err(trim(streams%stream_files(ii)), Int(ierr,pd_ik), &
-                   "MPI_FILE_SET_VIEW", "open_stream_files_from_streams_mpi")
-             
+                     
+            IF (ierr /= 0) THEN
+               mssg = TRIM(streams%stream_files(ii))//' - MPI_FILE_SET_VIEW - open_stream_files_from_streams_mpi'
+               CALL handle_err(pd_umon, TRIM(mssg), INT(ierr, KIND=ik))
+            END IF
+
              streams%ifopen(ii) = .TRUE.
 
              If (action == 'read') then
@@ -3323,7 +3245,7 @@ Contains
        un_head = pd_give_new_unit()
        Open(unit=un_head, file=Trim(pro_path)//Trim(pro_name)//'.head', &
             status='old', action='read',iostat=io_stat)
-       call file_err(Trim(pro_path)//Trim(pro_name)//'.head',io_stat)
+       CALL handle_err(pd_umon, 'Error while handling'//Trim(pro_path)//Trim(pro_name)//'.head', io_stat, .TRUE.)
 
        if (present(success)) then
           success = .TRUE.
@@ -3339,7 +3261,7 @@ Contains
 
     Else
 
-       call file_err(Trim(pro_path)//Trim(pro_name)//'.head',50000)
+       CALL handle_err(pd_umon, 'Error while handling'//Trim(pro_path)//Trim(pro_name)//'.head'//'  No 50000', io_stat, .TRUE.)
 
     End if
 
@@ -3370,7 +3292,7 @@ Contains
        un_head = pd_give_new_unit()
        Open(unit=un_head, file=Trim(pro_path)//Trim(pro_name)//'.head', &
             status='old', action='read',iostat=io_stat, access="stream")
-       call file_err(Trim(pro_path)//Trim(pro_name)//'.head',io_stat)
+       CALL handle_err(pd_umon, 'Error while handling'//Trim(pro_path)//Trim(pro_name)//'.head', io_stat, .TRUE.)
 
        Allocate(head(fsize), Stat=alloc_stat)
        Call alloc_error(alloc_stat,'head', 'read_tree', fsize)
@@ -3388,7 +3310,7 @@ Contains
 
     Else
 
-       call file_err(Trim(pro_path)//Trim(pro_name)//'.head',50000)
+       CALL handle_err(pd_umon, 'Error while handling'//Trim(pro_path)//Trim(pro_name)//'.head'//'  No 50000', io_stat, .TRUE.)
 
     End if
 
@@ -6979,42 +6901,7 @@ Contains
 
   End function pd_give_new_unit
 
-  !============================================================================
-  !> Subroutine for I/O error handling while operating on files
-  SUBROUTINE file_err(in_file,io_stat, called, routine)
-
-    INTEGER(kind=pd_ik)        , Intent(in)   :: io_stat
-    CHARACTER (LEN=*)          , Intent(in)   :: in_file
-    CHARACTER (LEN=*), optional, Intent(in)   :: called, routine
-
-    IF (io_stat /= 0) Then
-
-       WRITE(pd_umon,*)
-       WRITE(pd_umon,"(80('='))")
-       WRITE(pd_umon,"('EE ',A,T77,' EE')")   'Operation on file :'       
-       WRITE(pd_umon,"('EE ',A          )")   in_file
-       WRITE(pd_umon,"('EE ',A,T77,' EE')",Advance="NO") 'faild'
-
-       If (present(called)) then
-          Write(pd_umon,"('EE ',A,T77,' EE')")'during call to'
-          Write(pd_umon,"('EE ',A,T77,' EE')")called
-       Else
-          Write(pd_umon,*)
-          Write(pd_umon,"('EE ',A,T77,' EE')")'!!'
-       End If
-       If (present(routine)) then
-          Write(pd_umon,"('EE ',A,T77,' EE')")'in '
-          Write(pd_umon,"('EE ',A,T77,' EE')")routine
-       End If
-       
-       WRITE(pd_umon,"('EE ',A,I0,T77,' EE')")'With I/O Status ',io_stat
-       WRITE(pd_umon,"('EE PROGRAM STOPPED ..... ',T77,' EE',/,'<',77('='),'>')")
-       STOP
-       
-    End IF
-
-  END SUBROUTINE file_err
-  
+ 
   !============================================================================
   !> Subroutine for allocation error handling
   Subroutine alloc_error(alloc_stat, field, routine, dim)

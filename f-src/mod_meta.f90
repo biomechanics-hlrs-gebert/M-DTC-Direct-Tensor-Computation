@@ -12,7 +12,7 @@
 !------------------------------------------------------------------------------
 MODULE meta_file_auxiliaries
 
-USE standards
+USE global_std
 USE auxiliaries
 
 IMPLICIT NONE
@@ -51,12 +51,12 @@ INQUIRE (FILE = TRIM(lockname), EXIST = exist)
 
 IF((restart_u .EQ. 'N') .AND. (exist .EQV. .TRUE.)) THEN
    mssg='The .*.lock file is set and a restart prohibited by default or the user.'
-   CALL handle_err(fh=std_out, txt=TRIM(mssg), err=1_ik)
+   CALL handle_err(std_out, TRIM(mssg), err=1_ik)
 END IF
 
 IF(((restart_u .EQ. 'Y') .AND. (exist .EQV. .FALSE.)) .OR. ((restart_u .EQ. 'N') .AND. (exist .EQV. .FALSE.))) THEN
    CALL execute_command_line ('touch '//TRIM(lockname), CMDSTAT=ios)
-   CALL handle_err(fh=std_out, txt='The .*.lock file could not be set.', err=ios)
+   CALL handle_err(std_out, 'The .*.lock file could not be set.', err=ios)
 END IF
 
 IF((restart_u .EQ. 'Y') .AND. (exist .EQV. .TRUE.)) CONTINUE
@@ -79,7 +79,7 @@ END MODULE meta_file_auxiliaries
 !------------------------------------------------------------------------------
 MODULE meta
 
-USE standards
+USE global_std
 USE meta_file_auxiliaries
 USE strings
 USE auxiliaries
@@ -118,7 +118,7 @@ IF(PRESENT(restart)) restart_u=restart
 !------------------------------------------------------------------------------
 ! Automatically aborts if there is no input file found on the drive
 !------------------------------------------------------------------------------
-CALL check_file_exist(filename=in%full, target_val=.TRUE., abrt=1, stat=ios)
+CALL check_file_exist(std_out, filename=in%full, target_val=.TRUE., abrt=1, stat=ios)
 
 CALL parse( str=in%full, delims=".", args=tokens, nargs=ntokens)
 
@@ -143,7 +143,7 @@ IF ( '.'//TRIM(tokens(ntokens)) .EQ. meta_suf) THEN
    in%features  = TRIM(tokens(5))
 ELSE
    ! File is not a meta file
-   CALL handle_err(txt="The input file is not a *"//meta_suf//" file.", err=1)
+   CALL handle_err(std_out, "The input file is not a *"//meta_suf//" file.", 1)
 END IF
 
 !------------------------------------------------------------------------------
@@ -184,7 +184,7 @@ CALL parse(str=TRIM(in%bsnm), delims='_', args=tokens, nargs=ntokens)
 ! Check if the basename consists of exactly the 5 parts.
 IF(ntokens /= 5_ik) THEN   
    mssg='The basename »'//TRIM(in%bsnm)//'« of the meta-file was ill-defined. It may be parsed wrong.'
-   CALL handle_err(txt=TRIM(mssg), err=0)
+   CALL handle_err(std_out, TRIM(mssg), 0, .TRUE.)
 END IF
 
 END SUBROUTINE meta_append
@@ -246,17 +246,20 @@ IF (st == 'start') THEN
    ! Check for the basename derived type object since it is required.
    IF(.NOT. PRESENT(in)) THEN
       mssg="The presence of an existing meta_add_ascii file during restart can't be checked. Variable 'in' missing."
-      CALL handle_err(fh=std_out, txt=mssg, err=1_ik)
+      CALL handle_err(std_out, mssg, 1)
    END IF
 
+   !------------------------------------------------------------------------------
+   ! Check restart prerequisites
+   !------------------------------------------------------------------------------
    ! Check for restart default value
    IF(PRESENT(restart)) restart_u=restart
 
    ! Check for temporary file
-   CALL check_file_exist(filename=suf_file, target_val=.FALSE., pmssg=.FALSE., abrt=0, stat=stat_t)
+   CALL check_file_exist(std_out, filename=suf_file, target_val=.FALSE., pmssg=.FALSE., abrt=0, stat=stat_t)
 
    ! Check for a permanent file
-   CALL check_file_exist(filename=in%p_n_bsnm//TRIM(suf), target_val=.FALSE., pmssg=.FALSE., abrt=0, stat=stat_p)
+   CALL check_file_exist(std_out, filename=in%p_n_bsnm//TRIM(suf), target_val=.FALSE., pmssg=.FALSE., abrt=0, stat=stat_p)
 
    !------------------------------------------------------------------------------
    ! What happens when a restart is requested.
@@ -265,12 +268,12 @@ IF (st == 'start') THEN
       ! if target_val if check_file_exist = .FALSE. and stat_*l = 0 - the file does not exist
       IF(stat_t == 1) THEN
          CALL execute_command_line ('rm -r '//TRIM(suf_file), CMDSTAT=ios)   
-         CALL handle_err(fh=std_out, txt='»'//TRIM(suf_file)//'« not deletable.', err=ios)
+         CALL handle_err(std_out, '»'//TRIM(suf_file)//'« not deletable.',ios)
       END IF
 
       IF(stat_p == 1) THEN
          CALL execute_command_line ('rm -r '//TRIM(in%p_n_bsnm)//TRIM(suf), CMDSTAT=ios)
-         CALL handle_err(fh=std_out, txt='»'//TRIM(in%full)//'« not deletable.', err=ios)
+         CALL handle_err(std_out, '»'//TRIM(in%full)//'« not deletable.', ios)
       END IF
 
    ELSE ! restart_u .EQ. 'N'
@@ -285,7 +288,7 @@ IF (st == 'start') THEN
       IF (stat_p == 1)                      mssg='The file permanent.'//suf_max_le//' already exists.'
       IF((stat_t == 0) .AND. (stat_p == 0)) mssg=''
 
-      IF (mssg /= '') CALL handle_err(fh=std_out, txt=mssg, err=1_ik)     
+      IF (mssg /= '') CALL handle_err(std_out, mssg, 1)     
    END IF
 
    OPEN(UNIT=fh, FILE=TRIM(suf_file), ACTION='WRITE', ACCESS='SEQUENTIAL', STATUS='NEW')
@@ -304,7 +307,7 @@ IF (TRIM(st) == 'stop') THEN
 
       IF(ios /= 0_ik) THEN
          mssg='Can not rename the suffix_file from »'//TRIM(suf_file)//'« to the proper basename.'
-         CALL handle_err(fh=std_out, txt=mssg, err=0)
+         CALL handle_err(std_out, mssg, 0, .TRUE.)
       END IF
    END IF
 END IF
@@ -405,7 +408,7 @@ IF(PRESENT(nd))     ndu      = nd
 IF(LEN_TRIM(keyword) .GT. LEN(kywd_lngth)) THEN
    WRITE(fh, '(A)') ''
    mssg = "The keyword »"//TRIM(keyword)//"« is longer than the convention allows and therefore truncated!"
-   CALL handle_err(fh=fh, txt=TRIM(mssg), err=0)
+   CALL handle_err(fh, TRIM(mssg), 0, .TRUE.)
 
    kywd_lngth = keyword(1:LEN(kywd_lngth))
 ELSE
@@ -419,7 +422,7 @@ IF (PRESENT(unit)) THEN
    ! Check unit length for convention and proper formatting
    IF(LEN_TRIM(unit) .GT. LEN(unit_lngth)) THEN
       mssg = "The unit "//TRIM(unit)//" is longer than the convention allows and therefore truncated!"
-      CALL handle_err(fh=fh, txt=TRIM(mssg), err=0)
+      CALL handle_err(fh, TRIM(mssg), 0, .TRUE.)
       unit_lngth = unit(1:LEN(unit_lngth))
    ELSE
       unit_lngth = unit
@@ -464,7 +467,7 @@ END IF
 mssg=''
 IF (cntr .LT. 1_ik) mssg = "The datatype of keyword »"//TRIM(keyword)//"« was not defined!"
 IF (cntr .GT. 1_ik) mssg = "Too many datatypes for keyword »"//TRIM(keyword)//"« were defined!"
-IF (mssg .NE. '') CALL handle_err(fh=fh, txt=TRIM(mssg), err=1_ik)
+IF (mssg .NE. '') CALL handle_err(fh, TRIM(mssg), 1)
 
 !------------------------------------------------------------------------------
 ! Read meta input
@@ -473,7 +476,7 @@ IF (PRESENT(m_in) .EQV. .TRUE.) THEN
 
    IF(.NOT. PRESENT(m_in) ) THEN
       mssg = 'No array of lines to parse keyword »'//TRIM(keyword)//'« given. Check subroutine »read_write_meta«.' 
-      CALL handle_err(fh=fh, txt=TRIM(mssg), err=1_ik)
+      CALL handle_err(fh, TRIM(mssg), 1)
    ELSE
       do_loop_counter = SIZE(m_in)
    END IF
@@ -511,7 +514,7 @@ IF (PRESENT(m_in) .EQV. .TRUE.) THEN
    IF (kywd_found .EQ. 0_ik)  THEN
 
       mssg = "The keyword »"//TRIM(keyword)//"« was not found in the meta file!"
-      CALL handle_err(fh=fh, txt=TRIM(mssg), err=kwabrt_u)
+      CALL handle_err(fh, TRIM(mssg), kwabrt_u, .TRUE.)
       stat = 1
    END IF
 END IF
@@ -588,7 +591,7 @@ IF((ios ==1)) out%purpose = in%purpose             ! if ios = 1 --> no keyword f
 
 IF ((out%purpose == in%purpose) .AND. (out%features == in%features)) THEN
    mssg='The basename did not change. When in doubt, please check your meta file.'
-   CALL handle_err(fh=std_out, txt=mssg, err=0)
+   CALL handle_err(std_out, mssg, 0, .TRUE.)
 END IF
 
 !------------------------------------------------------------------------------
@@ -625,7 +628,7 @@ CALL check_and_close(fhme, 'meta', .FALSE.)
 ! System calls to update / finalize the file names of the log and the meta file
 !------------------------------------------------------------------------------
 CALL execute_command_line ('mv '//TRIM(in%full)//' '//TRIM(out%full), CMDSTAT=ios)
-CALL handle_err(fh=std_out, txt='The update of the meta filename went wrong.', err=ios)
+CALL handle_err(std_out, 'The update of the meta filename went wrong.', ios, .TRUE.)
 
 END SUBROUTINE meta_close
 
