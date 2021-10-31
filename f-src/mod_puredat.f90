@@ -1100,13 +1100,13 @@ Contains
   !> tBranch::desc   = desc             \n
   !> tBranch::streams::ii_st  = 1_pd_ik          \n
   !> tBranch::streams::dim_st = 0_pd_ik          \n
-  !> tBranch::streams::stream_files(1) = Trim(pro_path)//Trim(pro_name)//'.int1.st'  \n
-  !> tBranch::streams::stream_files(2) = Trim(pro_path)//Trim(pro_name)//'.int2.st'  \n
-  !> tBranch::streams::stream_files(3) = Trim(pro_path)//Trim(pro_name)//'.int4.st'  \n
-  !> tBranch::streams::stream_files(4) = Trim(pro_path)//Trim(pro_name)//'.int8.st'  \n
-  !> tBranch::streams::stream_files(5) = Trim(pro_path)//Trim(pro_name)//'.real8.st'  \n
-  !> tBranch::streams::stream_files(6) = Trim(pro_path)//Trim(pro_name)//'.char.st'  \n
-  !> tBranch::streams::stream_files(7) = Trim(pro_path)//Trim(pro_name)//'.log.st'   \n
+  !> tBranch::streams::stream_files(1) = in%p_n_bsnm//'.int1.st'  \n
+  !> tBranch::streams::stream_files(2) = in%p_n_bsnm//'.int2.st'  \n
+  !> tBranch::streams::stream_files(3) = in%p_n_bsnm//'.int4.st'  \n
+  !> tBranch::streams::stream_files(4) = in%p_n_bsnm//'.int8.st'  \n
+  !> tBranch::streams::stream_files(5) = in%p_n_bsnm//'.real8.st'  \n
+  !> tBranch::streams::stream_files(6) = in%p_n_bsnm//'.char.st'  \n
+  !> tBranch::streams::stream_files(7) = in%p_n_bsnm//'.log.st'   \n
   !> tBranch::streams::ifopen          = .FALSE.                                     \n
   !> tBranch::streams::units           = -1
   Subroutine raise_tree(desc,tree)
@@ -1140,13 +1140,13 @@ Contains
     tree%streams%dim_st = 0_pd_ik
 
     !* Init stream files logic ************************************************
-    tree%streams%stream_files(1) = Trim(pro_path)//Trim(pro_name)//'.int1.st'
-    tree%streams%stream_files(2) = Trim(pro_path)//Trim(pro_name)//'.int2.st'
-    tree%streams%stream_files(3) = Trim(pro_path)//Trim(pro_name)//'.int4.st'
-    tree%streams%stream_files(4) = Trim(pro_path)//Trim(pro_name)//'.int8.st'
-    tree%streams%stream_files(5) = Trim(pro_path)//Trim(pro_name)//'.real8.st'
-    tree%streams%stream_files(6) = Trim(pro_path)//Trim(pro_name)//'.char.st'
-    tree%streams%stream_files(7) = Trim(pro_path)//Trim(pro_name)//'.log.st'
+    tree%streams%stream_files(1) = in%p_n_bsnm//'.int1.st'
+    tree%streams%stream_files(2) = in%p_n_bsnm//'.int2.st'
+    tree%streams%stream_files(3) = in%p_n_bsnm//'.int4.st'
+    tree%streams%stream_files(4) = in%p_n_bsnm//'.int8.st'
+    tree%streams%stream_files(5) = in%p_n_bsnm//'.real8.st'
+    tree%streams%stream_files(6) = in%p_n_bsnm//'.char.st'
+    tree%streams%stream_files(7) = in%p_n_bsnm//'.log.st'
 
     tree%streams%ifopen = .FALSE.
     tree%streams%units  = -1
@@ -2250,13 +2250,13 @@ Contains
     Type(tstreams) :: streams
     
     !* Init stream files logic ************************************************
-    streams%stream_files(1) = Trim(pro_path)//Trim(pro_name)//'.int1.st'
-    streams%stream_files(2) = Trim(pro_path)//Trim(pro_name)//'.int2.st'
-    streams%stream_files(3) = Trim(pro_path)//Trim(pro_name)//'.int4.st'
-    streams%stream_files(4) = Trim(pro_path)//Trim(pro_name)//'.int8.st'
-    streams%stream_files(5) = Trim(pro_path)//Trim(pro_name)//'.real8.st'
-    streams%stream_files(6) = Trim(pro_path)//Trim(pro_name)//'.char.st'
-    streams%stream_files(7) = Trim(pro_path)//Trim(pro_name)//'.log.st'
+    streams%stream_files(1) = in%p_n_bsnm//'.int1.st'
+    streams%stream_files(2) = in%p_n_bsnm//'.int2.st'
+    streams%stream_files(3) = in%p_n_bsnm//'.int4.st'
+    streams%stream_files(4) = in%p_n_bsnm//'.int8.st'
+    streams%stream_files(5) = in%p_n_bsnm//'.real8.st'
+    streams%stream_files(6) = in%p_n_bsnm//'.char.st'
+    streams%stream_files(7) = in%p_n_bsnm//'.log.st'
 
   End Subroutine set_stream_fienames
   
@@ -3237,15 +3237,15 @@ Contains
 
     call raise_tree('',tree)
 
-    Inquire(file=Trim(pro_path)//Trim(pro_name)//'.head', &
+    Inquire(file=in%p_n_bsnm//'.head', &
          exist=fexist)
 
     If (fexist) then
 
        un_head = pd_give_new_unit()
-       Open(unit=un_head, file=Trim(pro_path)//Trim(pro_name)//'.head', &
+       Open(unit=un_head, file=in%p_n_bsnm//'.head', &
             status='old', action='read',iostat=io_stat)
-       CALL handle_err(pd_umon, 'Error while handling'//Trim(pro_path)//Trim(pro_name)//'.head', io_stat, .TRUE.)
+       CALL handle_err(pd_umon, 'Error while handling '//in%p_n_bsnm//'.head', io_stat, .TRUE.)
 
        if (present(success)) then
           success = .TRUE.
@@ -3261,7 +3261,7 @@ Contains
 
     Else
 
-       CALL handle_err(pd_umon, 'Error while handling'//Trim(pro_path)//Trim(pro_name)//'.head'//'  No 50000', io_stat, .TRUE.)
+       CALL handle_err(pd_umon, 'Error while handling '//in%p_n_bsnm//'.head'//'  No 50000', io_stat, .TRUE.)
 
     End if
 
@@ -3284,15 +3284,15 @@ Contains
 
     call raise_tree('',tree)
 
-    Inquire(file=Trim(pro_path)//Trim(pro_name)//'.head', &
+    Inquire(file=in%p_n_bsnm//'.head', &
          exist=fexist,size=fsize)
 
     If (fexist) then
 
        un_head = pd_give_new_unit()
-       Open(unit=un_head, file=Trim(pro_path)//Trim(pro_name)//'.head', &
+       Open(unit=un_head, file=in%p_n_bsnm//'.head', &
             status='old', action='read',iostat=io_stat, access="stream")
-       CALL handle_err(pd_umon, 'Error while handling'//Trim(pro_path)//Trim(pro_name)//'.head', io_stat, .TRUE.)
+       CALL handle_err(pd_umon, 'Error while handling '//in%p_n_bsnm//'.head', io_stat, .TRUE.)
 
        Allocate(head(fsize), Stat=alloc_stat)
        Call alloc_error(alloc_stat,'head', 'read_tree', fsize)
@@ -3310,7 +3310,7 @@ Contains
 
     Else
 
-       CALL handle_err(pd_umon, 'Error while handling'//Trim(pro_path)//Trim(pro_name)//'.head'//'  No 50000', io_stat, .TRUE.)
+       CALL handle_err(pd_umon, 'Error while handling '//in%p_n_bsnm//'.head'//'  No 50000', io_stat, .TRUE.)
 
     End if
 
@@ -4357,7 +4357,7 @@ Contains
 
     un_head = pd_give_new_unit()
 
-    Open(unit=un_head, file=Trim(pro_path)//Trim(pro_name)//'.head', status='replace', &
+    Open(unit=un_head, file=in%p_n_bsnm//'.head', status='replace', &
          action='write')
 
     Call write_branch(tree,un_head)
@@ -5034,7 +5034,7 @@ Contains
     
     un_head = pd_give_new_unit()
 
-    Open(unit=un_head, file=Trim(pro_path)//Trim(pro_name)//'.head', status='new', &
+    Open(unit=un_head, file=in%p_n_bsnm//'.head', status='new', &
          action='write')
 
     Write(un_head, fmt_bsep)
@@ -5064,7 +5064,7 @@ Contains
 
     Close(un_head)
 
-    Open(unit=un_head, file=Trim(pro_path)//Trim(pro_name)//'.head', status='old', &
+    Open(unit=un_head, file=in%p_n_bsnm//'.head', status='old', &
          action='write',access="stream")
 
     !** Calc skip from begin of file :
@@ -5356,7 +5356,7 @@ Contains
     size = size - 1
 
 !!$    un_head = pd_give_new_unit()
-!!$    Open(unit=un_head, file=Trim(pro_path)//Trim(pro_name)//'.serialhead', status='replace', &
+!!$    Open(unit=un_head, file=in%p_n_bsnm//'.serialhead', status='replace', &
 !!$         action='write',access="stream")
 !!$    write(un_head)head
 !!$    close(un_head)
@@ -6017,10 +6017,10 @@ Contains
     End If
 
     If (wrn .AND. (.NOT.success)) then
-       write(*,PDF_W_A)"Branch with descr"
-       write(*,PDF_W_A)trim(descr)
-       write(*,PDF_W_A)"was not found in branch with descr"
-       write(*,PDF_W_A)trim(branch%desc)
+       write(std_out, PDF_W_A)"Branch with descr"
+       write(std_out, PDF_W_A)trim(descr)
+       write(std_out, PDF_W_A)"was not found in branch with descr"
+       write(std_out, PDF_W_A)trim(branch%desc)
     End If
     
   End Subroutine Search_branch_wrn

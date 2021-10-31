@@ -78,13 +78,13 @@ Module chain_variables
  
   ! ---------------------------------------------------------------------------
   !> Logfile unit
-  Integer                     :: un_lf   = 10000
+  Integer                     :: un_lf    = 10000
   !> Monitor file unit (default = stdout)
-  Integer                     :: un_mon  = OUTPUT_UNIT
+  Integer                     :: un_mon   = OUTPUT_UNIT
   
-  Character(len=mcl)          :: outpath = "./"
-  Character(len=mcl)          :: inpath  = "./"
-  Character(len=mcl)          :: project_name
+!   Character(len=mcl)          :: outpath = "./"
+!   Character(len=mcl)          :: inpath  = "./"
+!   Character(len=mcl)          :: project_name
 
   !-- Variables for reading input ---------------------------------------------
   Character(Len=mcl)            :: chp_char
@@ -231,8 +231,8 @@ Contains
     Call init_std_out()
       
     !** Check Outpath ********************************************
-    If (outpath(len_trim(outpath):len_trim(outpath)) /= "/") then
-       outpath = trim(outpath)//"/"
+    If (out%path(len_trim(out%path):len_trim(out%path)) /= "/") then
+       out%path = trim(out%path)//"/"
     End If
     
     call start_timer(trim(link_name))
@@ -258,12 +258,12 @@ Contains
        Write(un_mon,*)
     End If
 
-    Inquire(file=trim(outpath)//trim(project_name)//'.log', opened=opened)
-    Inquire(file=trim(outpath)//trim(project_name)//'.log', exist=exist)
+    Inquire(file=trim(out%path)//trim(out%bsnm)//'.log', opened=opened)
+    Inquire(file=trim(out%path)//trim(out%bsnm)//'.log', exist=exist)
 
     IF (opened) Then
 
-       Inquire(file=trim(outpath)//trim(project_name)//'.log', number=un_lf)
+       Inquire(file=trim(out%path)//trim(out%bsnm)//'.log', number=un_lf)
 
        !** Message to std out *************************************************
        If (loc_stdio) then
@@ -271,14 +271,14 @@ Contains
           Write(un_mon,FMT_MSG )"The log-file was already opened"
 
           Write(un_mon,FMT_MSG)'Reusing open and existing log-file :'
-          Write(lf,'(A)')trim(outpath)//trim(project_name)//'.log'
+          Write(lf,'(A)')trim(out%path)//trim(out%bsnm)//'.log'
 
           If (Len_trim(lf) > 72) Then
              Do ii = 1, Len_trim(lf), 72
                 Write(un_mon,FMT_MSG)lf(ii:ii+71)
              End Do
           Else
-             Write(un_mon,FMT_MSG)trim(outpath)//trim(project_name)//'.log'
+             Write(un_mon,FMT_MSG)trim(out%path)//trim(out%bsnm)//'.log'
           End If
           
        End If
@@ -286,34 +286,34 @@ Contains
     Else if (exist .AND. (.NOT.loc_init_lf)) then
 
        un_lf = give_new_unit()
-       Open(unit=un_lf, file=trim(outpath)//trim(project_name)//'.log', &
+       Open(unit=un_lf, file=trim(out%path)//trim(out%bsnm)//'.log', &
             Action='Write', status='old', position='Append')
 
        !** Message to std out *************************************************
        If (loc_stdio) then
           
           Write(un_mon,FMT_MSG)'Opened existing log-file :'
-          Write(lf,'(A)')trim(outpath)//trim(project_name)//'.log'
+          Write(lf,'(A)')trim(out%path)//trim(out%bsnm)//'.log'
           
           If (Len_trim(lf) > 72) Then
              Do ii = 1, Len_trim(lf), 72
                 Write(un_mon,FMT_MSG)lf(ii:ii+71)
              End Do
           Else
-             Write(un_mon,FMT_MSG)trim(outpath)//trim(project_name)//'.log'
+             Write(un_mon,FMT_MSG)trim(out%path)//trim(out%bsnm)//'.log'
           End If
        End If
        
     Else if (.NOT.exist) Then
 
        un_lf = give_new_unit()
-       Open(unit=un_lf, file=trim(outpath)//trim(project_name)//'.log', &
+       Open(unit=un_lf, file=trim(out%path)//trim(out%bsnm)//'.log', &
             Action='Write', status='new', iostat=io_stat)
 
        If (io_stat /= 0) then
           Write(un_mon,fmt_sep)
           Write(un_mon,FMT_ERR )"In link_start it was not possible to open the file"
-          Write(un_mon,FMT_ERR_A)trim(outpath)//trim(project_name)//'.log'
+          Write(un_mon,FMT_ERR_A)trim(out%path)//trim(out%bsnm)//'.log'
           Write(un_mon,FMT_ERR )"Please check the path and file naming conventions"
           Write(un_mon,FMT_STOP)
           
@@ -330,14 +330,14 @@ Contains
        If (loc_stdio) then
           
           Write(un_mon,FMT_MSG)'Opened new log-file :'
-          Write(lf,'(A)')trim(outpath)//trim(project_name)//'.log'
+          Write(lf,'(A)')trim(out%path)//trim(out%bsnm)//'.log'
           
           If (Len_trim(lf) > 72) Then
              Do ii = 1, Len_trim(lf), 72
                 Write(un_mon,FMT_MSG)lf(ii:ii+71)
              End Do
           Else
-             Write(un_mon,FMT_MSG)trim(outpath)//trim(project_name)//'.log'
+             Write(un_mon,FMT_MSG)trim(out%path)//trim(out%bsnm)//'.log'
           End If
           
        End If
@@ -345,21 +345,21 @@ Contains
     Else if (loc_init_lf) then
 
        un_lf = give_new_unit()
-       Open(unit=un_lf, file=trim(outpath)//trim(project_name)//'.log', &
+       Open(unit=un_lf, file=trim(out%path)//trim(out%bsnm)//'.log', &
             Action='Write', status='replace')
        
        !** Message to std out *************************************************
        If (loc_stdio) then
           
           Write(un_mon,FMT_MSG)'Opened and replaced existing log-file: '
-          Write(lf,'(A)')trim(outpath)//trim(project_name)//'.log'
+          Write(lf,'(A)')trim(out%path)//trim(out%bsnm)//'.log'
           
           If (Len_trim(lf) > 72) Then
              Do ii = 1, Len_trim(lf), 72
                 Write(un_mon,FMT_MSG)lf(ii:ii+71)
              End Do
           Else
-             Write(un_mon,FMT_MSG)trim(outpath)//trim(project_name)//'.log'
+             Write(un_mon,FMT_MSG)trim(out%path)//trim(out%bsnm)//'.log'
           End If
        End If
        
@@ -405,7 +405,7 @@ Contains
 
     if (.not.opened) then
        un_lf = give_new_unit()
-       Open(unit=un_lf, file=trim(outpath)//trim(project_name)//'.log', &
+       Open(unit=un_lf, file=trim(out%path)//trim(out%bsnm)//'.log', &
             Action='Write', status='replace')
     End if
 
@@ -440,7 +440,7 @@ Contains
 
     if (.not.opened) then
        un_lf = give_new_unit()
-       Open(unit=un_lf, file=trim(outpath)//trim(project_name)//'.log', &
+       Open(unit=un_lf, file=trim(out%path)//trim(out%bsnm)//'.log', &
             Action='Write', status='replace')
     End if
 

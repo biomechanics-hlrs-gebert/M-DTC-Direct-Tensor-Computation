@@ -189,7 +189,7 @@ contains
        jj = jj + 1
        crp(jj) = len(alloc_str)
 
-       Write(line,'(A,I0)')trim(project_name)//'_',ddc_nn
+       Write(line,'(A,I0)')trim(out%bsnm)//'_',ddc_nn
        alloc_str = alloc_str//trim(line)//char(10)
        jj = jj + 1
        crp(jj) = len(alloc_str)
@@ -225,7 +225,7 @@ contains
        jj = jj + 1
        crp(jj) = len(alloc_str)
 
-       Write(line,'(A,I0)')trim(project_name)//'_',ddc_nn
+       Write(line,'(A,I0)')trim(out%bsnm)//'_',ddc_nn
        alloc_str = alloc_str//trim(line)//char(10)
        jj = jj + 1
        crp(jj) = len(alloc_str)
@@ -313,7 +313,7 @@ contains
        jj = jj + 1
        crp(jj) = len(alloc_str)
 
-       Write(line,'(A,I0)')trim(project_name)//'_',ddc_nn
+       Write(line,'(A,I0)')trim(out%bsnm)//'_',ddc_nn
        alloc_str = alloc_str//trim(line)//char(10)
        jj = jj + 1
        crp(jj) = len(alloc_str)
@@ -331,7 +331,7 @@ contains
           alloc_str = alloc_str//'PUREDAT'//char(10)
           jj = jj + 1
           crp(jj) = len(alloc_str)
-          Write(line,'(A,I0,A)')trim(project_name)//'_',ddc_nn,'_Mesh'
+          Write(line,'(A,I0,A)')trim(out%bsnm)//'_',ddc_nn,'_Mesh'
           alloc_str = alloc_str//trim(line)//char(10)
           jj = jj + 1
           crp(jj) = len(alloc_str)
@@ -441,9 +441,9 @@ contains
 
     !** init mesh pd-project **************************************************
     pro_path = trim(job_dir)
-    Write(pro_name,'(A,I0,A,I0)')trim(project_name)//"_",ddc_nn,"_Mesh"
+    Write(pro_name,'(A,I0,A,I0)')trim(out%bsnm)//"_",ddc_nn,"_Mesh"
 
-    Write(desc,'(A,1X,I0)')'Nodes, Elements and boundaries of '//trim(project_name),ddc_nn
+    Write(desc,'(A,1X,I0)')'Nodes, Elements and boundaries of '//trim(out%bsnm),ddc_nn
 
     call raise_tree(trim(desc),loc_mesh)
     call raise_branch(trim(desc), Int(parts,pd_ik), 0_pd_ik, loc_mesh)

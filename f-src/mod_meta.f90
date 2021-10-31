@@ -27,12 +27,10 @@ CONTAINS
 !> @brief
 !> Subroutine to encapsule the lock file handling
 !
-!> @param[in] in Metafile of the input.
 !> @param[in] restart Whether to restart or not to.
 !---------------------------------------------------------------------------  
-SUBROUTINE handle_lock_file(in, restart)
+SUBROUTINE handle_lock_file(restart)
 
-TYPE(basename)                                            :: in
 CHARACTER                       , INTENT(IN)   , OPTIONAL :: restart
 
 CHARACTER                                                 :: restart_u='N'
@@ -96,13 +94,11 @@ CONTAINS
 !> @brief
 !> Subroutine to open a meta file to append data/ keywords
 !
-!> @param[in] in Metafile of the input.
 !> @param[in] restart Whether to restart or not to.
 !> @param[inout] meta_as_rry Meta data written into a character array
 !---------------------------------------------------------------------------  
-SUBROUTINE meta_append(in, restart, meta_as_rry)
+SUBROUTINE meta_append(restart, meta_as_rry)
 
-TYPE(basename)                                               :: in
 CHARACTER                       , INTENT(IN)   , OPTIONAL    :: restart
 CHARACTER(LEN=mcl), DIMENSION(:), INTENT(INOUT), ALLOCATABLE :: meta_as_rry      
 
@@ -141,6 +137,8 @@ IF ( '.'//TRIM(tokens(ntokens)) .EQ. meta_suf) THEN
    in%purpose   = TRIM(tokens(3))
    in%app       = TRIM(tokens(4))
    in%features  = TRIM(tokens(5))
+
+   out = in  
 ELSE
    ! File is not a meta file
    CALL handle_err(std_out, "The input file is not a *"//meta_suf//" file.", 1)
@@ -149,7 +147,7 @@ END IF
 !------------------------------------------------------------------------------
 ! Lock file handling - this file may remain on the file system
 !------------------------------------------------------------------------------
-CALL handle_lock_file(in, restart)
+CALL handle_lock_file(restart)
 
 !------------------------------------------------------------------------------
 ! Open the meta file
@@ -218,16 +216,13 @@ END SUBROUTINE meta_append
 !> @param[in] suf Suffix of the file
 !> @param[in] st Metafile of the input
 !> @param[in] restart Logfiles (temporary and permanent)
-!> @param[in] in Input basename
-!> @param[in] out Output basename
 !---------------------------------------------------------------------------  
-SUBROUTINE meta_add_ascii(fh, suf, st, restart, in, out)
+SUBROUTINE meta_add_ascii(fh, suf, st, restart)
 
 INTEGER  (KIND=ik)              , INTENT(IN)              :: fh
 CHARACTER(LEN=*)                , INTENT(IN)              :: suf
 CHARACTER(LEN=*)                , INTENT(IN)              :: st
 CHARACTER                       , INTENT(IN)   , OPTIONAL :: restart
-TYPE(basename)                  , INTENT(IN)   , OPTIONAL :: in, out
 
 CHARACTER(LEN=mcl)                                        :: suf_file
 CHARACTER(LEN=10 )                                        :: suf_max_le
@@ -242,12 +237,6 @@ suf_file = '.temporary'//TRIM(suf)
 ! Create the file
 !------------------------------------------------------------------------------
 IF (st == 'start') THEN
-
-   ! Check for the basename derived type object since it is required.
-   IF(.NOT. PRESENT(in)) THEN
-      mssg="The presence of an existing meta_add_ascii file during restart can't be checked. Variable 'in' missing."
-      CALL handle_err(std_out, mssg, 1)
-   END IF
 
    !------------------------------------------------------------------------------
    ! Check restart prerequisites
@@ -301,14 +290,12 @@ END IF !  (st == 'start') THEN
 IF (TRIM(st) == 'stop') THEN
    CLOSE (fh)
 
-   IF(PRESENT(out)) THEN
-      ! The temporary log file must be renamed to a permanent one
-      CALL execute_command_line ('mv '//TRIM(suf_file)//' '//TRIM(out%p_n_bsnm)//TRIM(suf), CMDSTAT=ios)
+   ! The temporary log file must be renamed to a permanent one
+   CALL execute_command_line ('mv '//TRIM(suf_file)//' '//TRIM(out%p_n_bsnm)//TRIM(suf), CMDSTAT=ios)
 
-      IF(ios /= 0_ik) THEN
-         mssg='Can not rename the suffix_file from »'//TRIM(suf_file)//'« to the proper basename.'
-         CALL handle_err(std_out, mssg, 0, .TRUE.)
-      END IF
+   IF(ios /= 0_ik) THEN
+      mssg='Can not rename the suffix_file from »'//TRIM(suf_file)//'« to the proper basename.'
+      CALL handle_err(std_out, mssg, 0, .TRUE.)
    END IF
 END IF
 
@@ -564,15 +551,11 @@ END SUBROUTINE meta_io
 !> Subroutine to close a meta file and to alter its name.
 !> Assign out = in before calling this routine. Also define a new app_name :-)
 !
-!> @param[INOUT] in Input basename
-!> @param[INOUT] out Output basename
 !> @param[INOUT] m_in Array of lines of ascii meta file
 !> @param[INOUT] status In case the main program likes to get a status
 !------------------------------------------------------------------------------
-SUBROUTINE meta_close(in, out, m_in)
+SUBROUTINE meta_close(m_in)
 
-TYPE(basename)                  , INTENT(INOUT)           :: in
-TYPE(basename)                  , INTENT(INOUT)           :: out
 CHARACTER(LEN=mcl), DIMENSION(:), INTENT(INOUT), OPTIONAL :: m_in      
 
 ! Internal Variables

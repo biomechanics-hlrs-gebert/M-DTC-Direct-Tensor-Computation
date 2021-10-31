@@ -74,6 +74,9 @@ TYPE basename
    CHARACTER(LEN=kcl)         :: features      = ''            ! Features. For example the parametrization
 END TYPE basename
 
+! Always provide in/out for meta driven environments
+TYPE(basename)                                     :: in, out
+
 END MODULE global_std
 
 
@@ -308,47 +311,47 @@ END MODULE mechanical_standards
 !>
 Module global_pd
 
-  Implicit none
-  
-  !> Number of currently used stream variables in puredat_streams
-  !>
-  !> The total number of currently used stream variables which is the  
-  !> number of arrays defined in puredat_streams independently from 
-  !> their data type
-  Integer, Parameter :: no_streams = 7
+Implicit none
 
-  !> Maximum character length used in puredat library
-  Integer, Parameter :: pd_mcl = 512
-  !> Maximum Character Length in pd_ik elements
-  Integer, Parameter :: pd_ce  = 512/8
+!> Number of currently used stream variables in puredat_streams
+!>
+!> The total number of currently used stream variables which is the  
+!> number of arrays defined in puredat_streams independently from 
+!> their data type
+Integer, Parameter :: no_streams = 7
 
-  ! Character constants for nice output ---------------------------------------
-  Character(Len=*), Parameter :: PDF_E_A    = "('EE ',A)"
-  Character(Len=*), Parameter :: PDF_E_AI0  = "('EE ',*(A,1X,I0))"
-  Character(Len=*), Parameter :: PDF_E_STOP = &
-       "('EE PROGRAM STOPPED ..... ',/,'<',78('='),'>')"
-  
-  Character(Len=*), Parameter :: PDF_W_A    = "('WW ',A)"
-  Character(Len=*), Parameter :: PDF_W_AI0  = "('WW ',*(A,1X,I0))"
-  
-  Character(Len=*), Parameter :: PDF_M_A    = "('MM ',A)"
-  Character(Len=*), Parameter :: PDF_M_AI0  = "('MM ',A,1X,I0)"
+!> Maximum character length used in puredat library
+Integer, Parameter :: pd_mcl = 512
+!> Maximum Character Length in pd_ik elements
+Integer, Parameter :: pd_ce  = 512/8
 
-  Character(Len=*), Parameter :: PDF_TIME   = "('MM ',A,1X,F0.6,' sec')"
+! Character constants for nice output ---------------------------------------
+Character(Len=*), Parameter :: PDF_E_A    = "('EE ',A)"
+Character(Len=*), Parameter :: PDF_E_AI0  = "('EE ',*(A,1X,I0))"
+Character(Len=*), Parameter :: PDF_E_STOP = &
+      "('EE PROGRAM STOPPED ..... ',/,'<',78('='),'>')"
 
-  Character(Len=*), Parameter :: PDF_SEP    = "('<',78('='),'>')"
+Character(Len=*), Parameter :: PDF_W_A    = "('WW ',A)"
+Character(Len=*), Parameter :: PDF_W_AI0  = "('WW ',*(A,1X,I0))"
 
-  !> puredat project path
-  !>
-  !> Path to puredat project files which means header-, stream- and 
-  !> log-files
-  Character(len=pd_mcl) :: pro_path
-  !> puredat project name
-  !>
-  !> Base name of the puredat project files which are ...
-  Character(len=pd_mcl) :: pro_name
-  
+Character(Len=*), Parameter :: PDF_M_A    = "('MM ',A)"
+Character(Len=*), Parameter :: PDF_M_AI0  = "('MM ',A,1X,I0)"
+
+Character(Len=*), Parameter :: PDF_TIME   = "('MM ',A,1X,F0.6,' sec')"
+
+Character(Len=*), Parameter :: PDF_SEP    = "('<',78('='),'>')"
+
+!> puredat project path
+!>
+!> Path to puredat project files which means header-, stream- and 
+!> log-files
+Character(len=pd_mcl) :: pro_path
+!> puredat project name
+!>
+!> Base name of the puredat project files which are ...
+Character(len=pd_mcl) :: pro_name
+
 !   !> puredat monitor unit
-  Integer               :: pd_umon  != OUTPUT_UNIT
-
+Integer               :: pd_umon  != OUTPUT_UNIT
+  
 End Module global_pd

@@ -240,7 +240,7 @@ Contains
     if (out_amount == "DEBUG") then
 
        filename=''
-       write(filename,'(A,I0,A)')trim(job_dir)//trim(project_name)//"_",ddc_nn,"_phi.vtk"
+       write(filename,'(A,I0,A)')trim(job_dir)//trim(out%bsnm)//"_",ddc_nn,"_phi.vtk"
        !** Write structured points ***********************************
        call write_vtk_structured_points(filename = trim(filename),  &
             extend = x_D, spacing = delta, &
@@ -268,7 +268,7 @@ Contains
     if (out_amount == "DEBUG") then
 
        filename=''
-       write(filename,'(A,I0,A)')trim(job_dir)//trim(project_name)//"_",ddc_nn,"_usg.vtk"
+       write(filename,'(A,I0,A)')trim(job_dir)//trim(out%bsnm)//"_",ddc_nn,"_usg.vtk"
        
        if (elt_micro == "HEX08") then
           
@@ -284,7 +284,7 @@ Contains
        end if
 
        !filename=''
-       !write(filename,'(A,I0,A)')trim(job_dir)//trim(project_name)//"_",ddc_nn,"_usg.inp"
+       !write(filename,'(A,I0,A)')trim(job_dir)//trim(out%bsnm)//"_",ddc_nn,"_usg.inp"
        !open(newunit=un_abq,file=trim(filename),action="write",status="replace")
 
        !write(un_abq,'(A)')"*NODE"
@@ -311,7 +311,7 @@ Contains
     
     !** Add branch for mesh to domain branch **********************************
     desc=''
-    Write(desc,'(A,I0)')'Mesh info of '//trim(project_name)//'_',ddc_nn
+    Write(desc,'(A,I0)')'Mesh info of '//trim(out%bsnm)//'_',ddc_nn
    
     call add_branch_to_branch(db,PMesh)
     call raise_branch(trim(desc), parts, 0_pd_ik, PMesh)
