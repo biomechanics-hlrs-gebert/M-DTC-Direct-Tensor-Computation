@@ -157,14 +157,16 @@ INTEGER(KIND=ik)                            :: stat_u
 
 !-- Internal Variable
 LOGICAL                                     :: opened=.FALSE. 
-CHARACTER(len=mcl)                          :: filename_u=''
+CHARACTER(len=mcl)                          :: filename_u
 
+! Initialize
 stat_u = 0
+filename_u=''
 
 ! In case of doubt, abort.
 IF(PRESENT(abrt)) abrt_u = abrt
 IF(PRESENT(stat)) stat_u = stat
-IF(PRESENT(filename)) filename_u = '»'//TRIM(filename)//'« '
+IF(PRESENT(filename)) filename_u = TRIM(filename)
 
 
 INQUIRE(UNIT=fh, OPENED=opened)
@@ -172,7 +174,7 @@ INQUIRE(UNIT=fh, OPENED=opened)
 IF (opened .EQV. .TRUE.) THEN
    CLOSE (fh)
 ELSE
-    mssg='The file '//TRIM(filename_u)//'was closed already.'
+    mssg='The file »'//TRIM(filename_u)//'« was closed already.'
 
     ! Whether to stop the program has to be decided via the call.
     IF (abrt_u .EQV. .TRUE.) stat_u = 1

@@ -34,7 +34,7 @@ INTEGER(KIND=ik)   , PARAMETER :: std_err       = 0
 
 ! Standard files
 INTEGER(KIND=ik)   , PARAMETER :: fh_meta_in    = 20, fhmei  = 20
-INTEGER(KIND=ik)   , PARAMETER :: fh_meta_put   = 20, fhmeo  = 20
+INTEGER(KIND=ik)   , PARAMETER :: fh_meta_put   = 21, fhmeo  = 21
 INTEGER(KIND=ik)   , PARAMETER :: fh_mon        = 25, fhmon  = 25
 INTEGER(KIND=ik)   , PARAMETER :: fh_out        = 30, fho    = 30
 INTEGER(KIND=ik)   , PARAMETER :: fh_log        = 35, fhl    = 35

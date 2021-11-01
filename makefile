@@ -274,18 +274,17 @@ $(obj_dir)mod_chain$(obj_ext):$(mod_dir)global_std$(mod_ext) $(mod_dir)timer$(mo
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_chain$(f90_ext) -o $@
 	@echo 
 
-$(mod_dir)chain_routines$(mod_ext):$(mod_dir)chain_constants$(mod_ext) \
-                                   $(mod_dir)chain_variables$(mod_ext)
+$(mod_dir)chain_routines$(mod_ext):$(mod_dir)chain_variables$(mod_ext)
 	$(clean_cmd) $(mod_dir)chain_routines$(mod_ext)
 	@echo "----- Compiling " mod_chain$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_chain$(f90_ext) -o $@
 	@echo 
 
-$(mod_dir)chain_variables$(mod_ext):$(mod_dir)chain_constants$(mod_ext)
-	$(clean_cmd) $(mod_dir)chain_variables$(mod_ext)
-	@echo "----- Compiling " mod_chain$(f90_ext) " -----"
-	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_chain$(f90_ext) -o $@
-	@echo 
+# $(mod_dir)chain_variables$(mod_ext):$(mod_dir)chain_constants$(mod_ext)
+# 	$(clean_cmd) $(mod_dir)chain_variables$(mod_ext)
+# 	@echo "----- Compiling " mod_chain$(f90_ext) " -----"
+# 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_chain$(f90_ext) -o $@
+# 	@echo 
 
 # -----------------------------------------------------------------------------
 #-- Auxiliaries Module --------------------------------------------------------

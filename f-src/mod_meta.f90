@@ -190,10 +190,10 @@ END IF
 ! The variable »alter« must be given and must be true, 
 ! because its a dangerous operation which may lead to data loss.
 !------------------------------------------------------------------------------
-CALL meta_io (fhmo, 'NEW_BSNM_FEATURE', '', meta_as_rry, chars= out%features, kwabrt=0, stat=ios, wl=.FALSE.)
+CALL meta_io (fhmon, 'NEW_BSNM_FEATURE', '', meta_as_rry, chars= out%features, kwabrt=0, stat=ios, wl=.FALSE.)
 IF((ios ==1)) out%features = in%features           ! if ios = 1 --> no keyword found
 
-CALL meta_io (fhmo, 'NEW_BSNM_PURPOSE', '', meta_as_rry, chars= out%purpose, kwabrt=0, stat=ios, wl=.FALSE.)
+CALL meta_io (fhmon, 'NEW_BSNM_PURPOSE', '', meta_as_rry, chars= out%purpose, kwabrt=0, stat=ios, wl=.FALSE.)
 IF((ios ==1)) out%purpose = in%purpose             ! if ios = 1 --> no keyword found
 
 IF ((out%purpose == in%purpose) .AND. (out%features == in%features)) THEN
@@ -620,11 +620,11 @@ CHARACTER(LEN=mcl), DIMENSION(:), INTENT(INOUT), OPTIONAL :: m_in
 ! Print log if requested
 !------------------------------------------------------------------------------
 IF (dbg_lvl .GE. 1) THEN
-   WRITE(fhmo, FMT_HY_SEP)
-   WRITE(fhmo,'( A)') "State of the meta basename:"
-   WRITE(fhmo,'(2A)') "Input  full path: ", TRIM(in%full)
-   WRITE(fhmo,'(2A)') "Output full path: ", TRIM(out%full)
-   WRITE(fhmo, FMT_HY_SEP)
+   WRITE(fhmon, FMT_HY_SEP)
+   WRITE(fhmon,'( A)') "State of the meta basename:"
+   WRITE(fhmon,'(2A)') "Input  full path: ", TRIM(in%full)
+   WRITE(fhmon,'(2A)') "Output full path: ", TRIM(out%full)
+   WRITE(fhmon, FMT_HY_SEP)
 END IF
 
 !------------------------------------------------------------------------------

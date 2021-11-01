@@ -1047,18 +1047,18 @@ Program main_struct_process
       !------------------------------------------------------------------------------
       ! Spawn a log file and a results file
       !------------------------------------------------------------------------------
-      CALL meta_add_ascii(fh=fhl , suf=log_suf, st='start', restart=restart)
-      CALL meta_add_ascii(fh=fhmo, suf=mon_suf, st='start', restart=restart)
+      CALL meta_add_ascii(fh=fhl  , suf=log_suf, st='start', restart=restart)
+      CALL meta_add_ascii(fh=fhmon, suf=mon_suf, st='start', restart=restart)
       ! CALL meta_add_ascii(fh=fhr, suf=res_suf, st='start', restart=restart)
 
 
       !------------------------------------------------------------------------------
       ! Read input parameters
       !------------------------------------------------------------------------------
-      CALL meta_io (fhmo, 'MCT_PD_PRO_PATH'  , '(-)'  , m_rry, chars = muCT_pd_path , wl=.TRUE.)
-      CALL meta_io (fhmo, 'MCT_PD_PRO_NAME'  , '(-)'  , m_rry, chars = muCT_pd_name , wl=.TRUE.)
-      CALL meta_io (fhmo, 'BASE_PATH'        , '(-)'  , m_rry, chars = outpath      , wl=.TRUE.)
-      CALL meta_io (fhmo, 'PROJECT_NAME'     , '(-)'  , m_rry, chars = project_name , wl=.TRUE.)
+      CALL meta_io (fhmon, 'MCT_PD_PRO_PATH'  , '(-)'  , m_rry, chars = muCT_pd_path , wl=.TRUE.)
+      CALL meta_io (fhmon, 'MCT_PD_PRO_NAME'  , '(-)'  , m_rry, chars = muCT_pd_name , wl=.TRUE.)
+      CALL meta_io (fhmon, 'BASE_PATH'        , '(-)'  , m_rry, chars = outpath      , wl=.TRUE.)
+      CALL meta_io (fhmon, 'PROJECT_NAME'     , '(-)'  , m_rry, chars = project_name , wl=.TRUE.)
 
    
       !------------------------------------------------------------------------------
@@ -1077,18 +1077,18 @@ Program main_struct_process
       END IF
       out%p_n_bsnm = TRIM(out%path)//TRIM(out%bsnm)
 
-      CALL meta_io (fhmo, 'MICRO_ELMNT_TYPE' , '(-)'  , m_rry,    chars = elt_micro   , wl=.TRUE.)
-      CALL meta_io (fhmo, 'DBG_LVL'          , '(-)'  , m_rry,    chars = out_amount  , wl=.TRUE.)
-      CALL meta_io (fhmo, 'OUT_FMT'          , '(-)'  , m_rry,    chars = output      , wl=.TRUE.)
-      CALL meta_io (fhmo, 'SIZE_DOMAIN'      , '(mm)' , m_rry, real_1D3 = pdsize      , wl=.TRUE.)
-      CALL meta_io (fhmo, 'LO_BNDS_DMN_RANGE', '(-)'  , m_rry,  int_1D3 = xa_d        , wl=.TRUE.)
-      CALL meta_io (fhmo, 'UP_BNDS_DMN_RANGE', '(-)'  , m_rry,  int_1D3 = xe_d        , wl=.TRUE.)
-      CALL meta_io (fhmo, 'BINARIZE_LO'      , '(-)'  , m_rry,  int_0D  = llimit      , wl=.TRUE.)
-      CALL meta_io (fhmo, 'MESH_PER_SUB_DMN' , '(-)'  , m_rry,  int_0D  = parts       , wl=.TRUE.)
-      CALL meta_io (fhmo, 'RVE_STRAIN'       , '(mm)' , m_rry, real_0D  = strain      , wl=.TRUE.)
-      CALL meta_io (fhmo, 'YOUNG_MODULUS'    , '(MPa)', m_rry, real_0D  = e_modul     , wl=.TRUE.)
-      CALL meta_io (fhmo, 'POISSON_RATIO'    , '(-)'  , m_rry, real_0D  = nu          , wl=.TRUE.)
-      CALL meta_io (fhmo, 'MACRO_ELMNT_ORDER', '(-)'  , m_rry,  int_0D  = elo_macro   , wl=.TRUE.)
+      CALL meta_io (fhmon, 'MICRO_ELMNT_TYPE' , '(-)'  , m_rry,    chars = elt_micro   , wl=.TRUE.)
+      CALL meta_io (fhmon, 'DBG_LVL'          , '(-)'  , m_rry,    chars = out_amount  , wl=.TRUE.)
+      CALL meta_io (fhmon, 'OUT_FMT'          , '(-)'  , m_rry,    chars = output      , wl=.TRUE.)
+      CALL meta_io (fhmon, 'SIZE_DOMAIN'      , '(mm)' , m_rry, real_1D3 = pdsize      , wl=.TRUE.)
+      CALL meta_io (fhmon, 'LO_BNDS_DMN_RANGE', '(-)'  , m_rry,  int_1D3 = xa_d        , wl=.TRUE.)
+      CALL meta_io (fhmon, 'UP_BNDS_DMN_RANGE', '(-)'  , m_rry,  int_1D3 = xe_d        , wl=.TRUE.)
+      CALL meta_io (fhmon, 'BINARIZE_LO'      , '(-)'  , m_rry,  int_0D  = llimit      , wl=.TRUE.)
+      CALL meta_io (fhmon, 'MESH_PER_SUB_DMN' , '(-)'  , m_rry,  int_0D  = parts       , wl=.TRUE.)
+      CALL meta_io (fhmon, 'RVE_STRAIN'       , '(mm)' , m_rry, real_0D  = strain      , wl=.TRUE.)
+      CALL meta_io (fhmon, 'YOUNG_MODULUS'    , '(MPa)', m_rry, real_0D  = e_modul     , wl=.TRUE.)
+      CALL meta_io (fhmon, 'POISSON_RATIO'    , '(-)'  , m_rry, real_0D  = nu          , wl=.TRUE.)
+      CALL meta_io (fhmon, 'MACRO_ELMNT_ORDER', '(-)'  , m_rry,  int_0D  = elo_macro   , wl=.TRUE.)
 
       ! Error handling
       IF ( (xa_d(1) > xe_d(1)) .OR. (xa_d(1) > xe_d(1)) .or. (xa_d(1) > xe_d(1)) ) THEN
@@ -1987,8 +1987,8 @@ Program main_struct_process
 
 IF(rank_mpi == 0) THEN
    CALL meta_close    (m_rry)
-   CALL meta_add_ascii(fh=fhl , suf=log_suf, st='stop')
-   CALL meta_add_ascii(fh=fhmo, suf=mon_suf, st='stop')
+   CALL meta_add_ascii(fh=fhl  , suf=log_suf, st='stop')
+   CALL meta_add_ascii(fh=fhmon, suf=mon_suf, st='stop')
    ! CALL meta_add_ascii(fh=fhr, suf=res_suf, st='stop')
 END IF ! (rank_mpi == 0)
 
