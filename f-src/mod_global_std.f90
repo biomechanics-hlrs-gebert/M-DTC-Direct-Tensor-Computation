@@ -19,8 +19,9 @@ INTEGER            , PARAMETER :: rk            = 8    ! Real Kind
 INTEGER            , PARAMETER :: mcl           = 512  ! Maximal character  length
 INTEGER            , PARAMETER :: hcl           = 256  ! Half    character  length
 INTEGER            , PARAMETER :: scl           = 64   ! Short   character  length
-INTEGER            , PARAMETER :: kcl           = 30   ! Keyword character  length
-INTEGER            , PARAMETER :: kdescl        = 45   ! Keyword descriptor length
+INTEGER            , PARAMETER :: kcl           = 25   ! Keyword character  length
+INTEGER            , PARAMETER :: ucl           = 10   ! Unit    character  length
+INTEGER            , PARAMETER :: stdspc        = 45   ! Keyword standard space
 
 !-- File handles, debug_lvl and suffix
 INTEGER(KIND=ik)   , PARAMETER :: dbg_lvl       = 1

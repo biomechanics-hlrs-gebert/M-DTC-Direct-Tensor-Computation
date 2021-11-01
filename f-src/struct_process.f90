@@ -1998,7 +1998,8 @@ IF(rank_mpi == 0) THEN
    out = in
    out%app = 'ddtc' 
    CALL meta_close    (m_rry)
-   CALL meta_add_ascii(fh=un_lf, suf=log_suf, st='stop')
+   CALL meta_add_ascii(fh=fhl , suf=log_suf, st='stop')
+   CALL meta_add_ascii(fh=fhmo, suf=mon_suf, st='stop')
    ! CALL meta_add_ascii(fh=fhr, suf=res_suf, st='stop')
 END IF ! (rank_mpi == 0)
 

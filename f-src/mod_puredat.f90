@@ -137,23 +137,17 @@ Module puredat_types
      Logical              , Dimension(no_streams) :: ifopen       = .FALSE.
      Integer              , Dimension(no_streams) :: units        = -1
 
-     !> Global stream variable for 1 Byte integer data
-     Integer(kind=1)  , Dimension(:), pointer :: int1_st => null()
-     !> Global stream variable for 2 Byte integer data
-     Integer(kind=2)  , Dimension(:), pointer :: int2_st => null()
-     !> Global stream variable for 4 Byte integer data
-     Integer(kind=4)  , Dimension(:), pointer :: int4_st => null()
-     !> Global stream variable for 8 Byte integer data
-     Integer(kind=8)  , Dimension(:), pointer :: int8_st => null()
-
-     !> Global stream variable for 8 Byte floating point data
+     !> Global stream variables
+     Integer(kind=1)  , Dimension(:), pointer :: int1_st  => null()
+     Integer(kind=2)  , Dimension(:), pointer :: int2_st  => null()
+     Integer(kind=4)  , Dimension(:), pointer :: int4_st  => null()
+     Integer(kind=8)  , Dimension(:), pointer :: int8_st  => null()
+     !
      Real(kind=8)     , Dimension(:), pointer :: real8_st => null()
-
-     !> Global stream variable for 1 Byte character data
-     Character        , Dimension(:), pointer :: char_st => null()
-
+     !
+     Character        , Dimension(:), pointer :: char_st  => null()
      !> Global stream variable for logical data
-     Logical(Kind=1)  , Dimension(:), pointer :: log_st => null()
+     Logical(Kind=1)  , Dimension(:), pointer :: log_st   => null()
 
   End type tStreams
 

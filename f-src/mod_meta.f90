@@ -49,7 +49,7 @@ INQUIRE (FILE = TRIM(lockname), EXIST = exist)
 
 IF((restart_u .EQ. 'N') .AND. (exist .EQV. .TRUE.)) THEN
    mssg='The .*.lock file is set and a restart prohibited by default or the user.'
-   CALL handle_err(std_out, TRIM(mssg), err=1_ik)
+   CALL handle_err(std_out, TRIM(ADJUSTL(mssg)), err=1_ik)
 END IF
 
 IF(((restart_u .EQ. 'Y') .AND. (exist .EQV. .FALSE.)) .OR. ((restart_u .EQ. 'N') .AND. (exist .EQV. .FALSE.))) THEN
@@ -182,7 +182,7 @@ CALL parse(str=TRIM(in%bsnm), delims='_', args=tokens, nargs=ntokens)
 ! Check if the basename consists of exactly the 5 parts.
 IF(ntokens /= 5_ik) THEN   
    mssg='The basename »'//TRIM(in%bsnm)//'« of the meta-file was ill-defined. It may be parsed wrong.'
-   CALL handle_err(std_out, TRIM(mssg), 0, .TRUE.)
+   CALL handle_err(std_out, TRIM(ADJUSTL(mssg)), 0, .TRUE.)
 END IF
 
 END SUBROUTINE meta_append
@@ -224,14 +224,14 @@ CHARACTER(LEN=*)                , INTENT(IN)              :: suf
 CHARACTER(LEN=*)                , INTENT(IN)              :: st
 CHARACTER                       , INTENT(IN)   , OPTIONAL :: restart
 
-CHARACTER(LEN=mcl)                                        :: suf_file
-CHARACTER(LEN=10 )                                        :: suf_max_le
+CHARACTER(LEN=mcl)                                        :: temp_f_suf, perm_f_suf
 INTEGER  (KIND=ik)                                        :: ios, stat_t, stat_p
 CHARACTER                                                 :: restart_u='N'
 
 
 ! The temporaray file is a hidden one.
-suf_file = '.temporary'//TRIM(suf)
+temp_f_suf = TRIM(in%path)//'.temporary'//TRIM(suf)
+perm_f_suf = TRIM(in%p_n_bsnm)//TRIM(suf)
 
 !------------------------------------------------------------------------------
 ! Create the file
@@ -245,7 +245,7 @@ IF (st == 'start') THEN
    IF(PRESENT(restart)) restart_u=restart
 
    ! Check for temporary file
-   CALL check_file_exist(std_out, filename=suf_file, target_val=.FALSE., pmssg=.FALSE., abrt=0, stat=stat_t)
+   CALL check_file_exist(std_out, filename=temp_f_suf, target_val=.FALSE., pmssg=.FALSE., abrt=0, stat=stat_t)
 
    ! Check for a permanent file
    CALL check_file_exist(std_out, filename=in%p_n_bsnm//TRIM(suf), target_val=.FALSE., pmssg=.FALSE., abrt=0, stat=stat_p)
@@ -256,8 +256,8 @@ IF (st == 'start') THEN
    IF (restart_u .EQ. 'Y') THEN
       ! if target_val if check_file_exist = .FALSE. and stat_*l = 0 - the file does not exist
       IF(stat_t == 1) THEN
-         CALL execute_command_line ('rm -r '//TRIM(suf_file), CMDSTAT=ios)   
-         CALL handle_err(std_out, '»'//TRIM(suf_file)//'« not deletable.',ios)
+         CALL execute_command_line ('rm -r '//TRIM(temp_f_suf), CMDSTAT=ios)   
+         CALL handle_err(std_out, '»'//TRIM(temp_f_suf)//'« not deletable.',ios)
       END IF
 
       IF(stat_p == 1) THEN
@@ -266,21 +266,23 @@ IF (st == 'start') THEN
       END IF
 
    ELSE ! restart_u .EQ. 'N'
-   !------------------------------------------------------------------------------
-   ! If no restart is requested (default)
-   !------------------------------------------------------------------------------
-      suf_max_le = suf
-      IF((stat_t == 1) .AND. (stat_p == 1)) THEN 
-         mssg='The permanent'//TRIM(suf)//' and the file .temporary'//suf_max_le//' already exists.'
-      END IF
-      IF (stat_t == 1)                      mssg='The file .temporary'//suf_max_le//' already exists.'
-      IF (stat_p == 1)                      mssg='The file permanent'//suf_max_le//' already exists.'
-      IF((stat_t == 0) .AND. (stat_p == 0)) mssg=''
+      !------------------------------------------------------------------------------
+      ! If no restart is requested (default)
+      !------------------------------------------------------------------------------
+      IF    ((stat_t /= 0) .OR. (stat_p /= 0)) THEN
+         IF ((stat_t == 1) .AND. (stat_p == 1)) THEN 
+            mssg='The file '//TRIM(perm_f_suf)//' and the file '//TRIM(temp_f_suf)//' already exists.'
+         ELSE IF  (stat_t == 1) THEN
+            mssg='The file '//TRIM(temp_f_suf)//' already exists.'
+         ELSE ! (stat_p == 1) 
+            mssg='The file '//TRIM(perm_f_suf)//' already exists.'
+         END IF
 
-      IF (mssg /= '') CALL handle_err(std_out, mssg, 1)     
+         CALL handle_err(std_out, mssg, 1)     
+      END IF
    END IF
 
-   OPEN(UNIT=fh, FILE=TRIM(suf_file), ACTION='WRITE', ACCESS='SEQUENTIAL', STATUS='NEW')
+   OPEN(UNIT=fh, FILE=TRIM(temp_f_suf), ACTION='WRITE', ACCESS='SEQUENTIAL', STATUS='NEW')
 
 END IF !  (st == 'start') THEN
 
@@ -291,10 +293,10 @@ IF (TRIM(st) == 'stop') THEN
    CLOSE (fh)
 
    ! The temporary log file must be renamed to a permanent one
-   CALL execute_command_line ('mv '//TRIM(suf_file)//' '//TRIM(out%p_n_bsnm)//TRIM(suf), CMDSTAT=ios)
+   CALL execute_command_line ('mv '//TRIM(temp_f_suf)//' '//TRIM(out%p_n_bsnm)//TRIM(suf), CMDSTAT=ios)
 
    IF(ios /= 0_ik) THEN
-      mssg='Can not rename the suffix_file from »'//TRIM(suf_file)//'« to the proper basename.'
+      mssg='Can not rename the suffix_file from »'//TRIM(temp_f_suf)//'« to the proper basename.'
       CALL handle_err(std_out, mssg, 0, .TRUE.)
    END IF
 END IF
@@ -365,11 +367,10 @@ LOGICAL           ,               INTENT(IN)   , OPTIONAL :: nd
 
 ! Internal variables
 CHARACTER(LEN=kcl)                                        :: kywd_lngth
-CHARACTER(LEN=9)                                          :: unit_lngth ! up to 9 characters per unit
-CHARACTER(LEN=scl)                                        :: uf='                                      '
+CHARACTER(LEN=ucl)                                        :: unit_lngth
 CHARACTER(LEN=mcl)                                        :: tokens(30), line
 INTEGER  (KIND=ik)                                        :: ntokens, datatype, ii, do_loop_counter
-INTEGER  (KIND=ik)                                        :: cntr=0, kywd_found=0
+INTEGER  (KIND=ik)                                        :: cntr, kywd_found, maxchars
 INTEGER  (KIND=ik)                                        :: unit_post_fill, kwabrt_u
 LOGICAL                                                   :: wlu,  ndu
 
@@ -395,7 +396,7 @@ IF(PRESENT(nd))     ndu      = nd
 IF(LEN_TRIM(keyword) .GT. LEN(kywd_lngth)) THEN
    WRITE(fh, '(A)') ''
    mssg = "The keyword »"//TRIM(keyword)//"« is longer than the convention allows and therefore truncated!"
-   CALL handle_err(fh, TRIM(mssg), 0, .TRUE.)
+   CALL handle_err(fh, TRIM(ADJUSTL(mssg)), 0, .TRUE.)
 
    kywd_lngth = keyword(1:LEN(kywd_lngth))
 ELSE
@@ -409,7 +410,7 @@ IF (PRESENT(unit)) THEN
    ! Check unit length for convention and proper formatting
    IF(LEN_TRIM(unit) .GT. LEN(unit_lngth)) THEN
       mssg = "The unit "//TRIM(unit)//" is longer than the convention allows and therefore truncated!"
-      CALL handle_err(fh, TRIM(mssg), 0, .TRUE.)
+      CALL handle_err(fh, TRIM(ADJUSTL(mssg)), 0, .TRUE.)
       unit_lngth = unit(1:LEN(unit_lngth))
    ELSE
       unit_lngth = unit
@@ -454,7 +455,7 @@ END IF
 mssg=''
 IF (cntr .LT. 1_ik) mssg = "The datatype of keyword »"//TRIM(keyword)//"« was not defined!"
 IF (cntr .GT. 1_ik) mssg = "Too many datatypes for keyword »"//TRIM(keyword)//"« were defined!"
-IF (mssg .NE. '') CALL handle_err(fh, TRIM(mssg), 1)
+IF (mssg .NE. '') CALL handle_err(fh, TRIM(ADJUSTL(mssg)), 1)
 
 !------------------------------------------------------------------------------
 ! Read meta input
@@ -463,7 +464,7 @@ IF (PRESENT(m_in) .EQV. .TRUE.) THEN
 
    IF(.NOT. PRESENT(m_in) ) THEN
       mssg = 'No array of lines to parse keyword »'//TRIM(keyword)//'« given. Check subroutine »read_write_meta«.' 
-      CALL handle_err(fh, TRIM(mssg), 1)
+      CALL handle_err(fh, TRIM(ADJUSTL(mssg)), 1)
    ELSE
       do_loop_counter = SIZE(m_in)
    END IF
@@ -488,7 +489,7 @@ IF (PRESENT(m_in) .EQV. .TRUE.) THEN
                CASE(4); READ(tokens(3:4), rfmt)  real_1D2
                CASE(5); READ(tokens(3:5), ifmt)   int_1D3
                CASE(6); READ(tokens(3:5), rfmt)  real_1D3
-               CASE(7); chars = tokens(3) !(kdescl-LEN_TRIM(tokens(3)) : kdescl)
+               CASE(7); chars = TRIM(ADJUSTL(tokens(3))) !(stdspc-LEN_TRIM(tokens(3)) : stdspc)
             END SELECT
             
             ! Exit the loop after parsing the first occurance as its the last mentioning of the keyword. (File is read beginning from the last line)
@@ -500,8 +501,8 @@ IF (PRESENT(m_in) .EQV. .TRUE.) THEN
    ! If the keyword is not in the file: kwabrt controls whether to stop the program or not
    IF (kywd_found .EQ. 0_ik)  THEN
 
-      mssg = "The keyword »"//TRIM(keyword)//"« was not found in the meta file!"
-      CALL handle_err(fh, TRIM(mssg), kwabrt_u, .TRUE.)
+      mssg = "The keyword »"//TRIM(ADJUSTL(keyword))//"« was not found in the meta file!"
+      CALL handle_err(fh, TRIM(ADJUSTL(mssg)), kwabrt_u, .TRUE.)
       stat = 1
    END IF
 END IF
@@ -512,27 +513,36 @@ END IF
 !------------------------------------------------------------------------------
 IF ((PRESENT(m_in) .EQV. .FALSE.) .OR. (wlu .EQV. .TRUE.)) THEN
 
+   maxchars = stdspc
+
    WRITE(fh, '(A)', ADVANCE='NO') kywd_lngth
 
    ! Build format specifier and write the output
    SELECT CASE( datatype )
-      CASE(1); WRITE(fh, '( A, I15     )', ADVANCE='NO') uf(1:30),  int_0D
-      CASE(2); WRITE(fh, '( A, F15.7   )', ADVANCE='NO') uf(1:30), real_0D
-      CASE(3); WRITE(fh, '( A, 2(I15)  )', ADVANCE='NO') uf(1:15),  int_1D2
-      CASE(4); WRITE(fh, '( A, 2(F15.7))', ADVANCE='NO') uf(1:15), real_1D2
-      CASE(5); WRITE(fh, '(    3(I15)  )', ADVANCE='NO')            int_1D3
-      CASE(6); WRITE(fh, '(    3(F15.7))', ADVANCE='NO')           real_1D3
-      CASE(7); WRITE(fh, '( 3A         )', ADVANCE='NO') ' ', uf(1:44-LEN_TRIM(chars)), TRIM(chars)
+      CASE(1); WRITE(fh, "(30(' '),   I15   )", ADVANCE='NO')  int_0D
+      CASE(2); WRITE(fh, "(30(' '),   F15.7 )", ADVANCE='NO') real_0D
+      CASE(3); WRITE(fh, "(15(' '), 2(I15)  )", ADVANCE='NO')  int_1D2
+      CASE(4); WRITE(fh, "(15(' '), 2(F15.7))", ADVANCE='NO') real_1D2
+      CASE(5); WRITE(fh, "(         3(I15)  )", ADVANCE='NO')  int_1D3
+      CASE(6); WRITE(fh, "(         3(F15.7))", ADVANCE='NO') real_1D3
+      CASE(7)
+         ! The width is adjusted to 3x 20 chars (3 dimensions with 15 places each).
+         ! above 60 chars, the width is essentially overflowing.
+         IF (LEN_TRIM(ADJUSTL(chars)) .GT. stdspc) maxchars = LEN_TRIM(ADJUSTL(chars))+1 
+         WRITE(fh, "(2A)", ADVANCE='NO') REPEAT(' ', maxchars-LEN_TRIM(ADJUSTL(chars))), TRIM(ADJUSTL(chars))
    END SELECT
 
-   IF (PRESENT(unit)) THEN
+
+   IF ((PRESENT(unit)) .AND. (datatype /= 7)) THEN
       WRITE(fh, '(A)', ADVANCE='NO') ' '
       WRITE(fh, '(A)', ADVANCE='NO') unit_lngth
    ELSE
-      WRITE(fh, '(A)', ADVANCE='NO') uf(1:LEN(unit_lngth)+1)
+      IF (((maxchars-stdspc .GT. 0) .AND. (maxchars-stdspc .LE. ucl)) .OR. (maxchars == stdspc)) THEN
+         WRITE(fh, '(A)', ADVANCE='NO') REPEAT(' ', LEN(unit_lngth)+1-(maxchars-stdspc))
+      END IF
    END IF
      
-   IF (ndu .EQV. .FALSE.) THEN
+   IF ((ndu .EQV. .FALSE.) .AND. (maxchars-stdspc-ucl .LT. 0)) THEN
       CALL date_time(fh, da=.TRUE., ti=.TRUE., zo=.TRUE.)
    ELSE
       WRITE(fh, '(A)') '' ! In this case, a linebreak is required
@@ -597,7 +607,7 @@ out%full = TRIM(out%p_n_bsnm)//meta_suf
 IF (dbg_lvl .GE. 1) THEN
    CALL dash(fhmo)
    WRITE(fhmo,'( A)') "State of the meta basename:"
-   WRITE(fhmo,'(2A)') "Input full path:  ", TRIM(in%full)
+   WRITE(fhmo,'(2A)') "Input  full path: ", TRIM(in%full)
    WRITE(fhmo,'(2A)') "Output full path: ", TRIM(out%full)
    CALL dash(fhmo)
 END IF
@@ -610,9 +620,7 @@ CALL check_and_close(fhme, 'meta', .FALSE.)
 !------------------------------------------------------------------------------
 ! System calls to update / finalize the file names of the log and the meta file
 !------------------------------------------------------------------------------
-CALL execute_command_line ('mv '//TRIM(in%full)//' '//TRIM(out%full), CMDSTAT=ios)
-write(*,*) "in:  ", TRIM(in%full)
-write(*,*) "out: ", TRIM(out%full)
+CALL execute_command_line ('cp '//TRIM(in%full)//' '//TRIM(out%full), CMDSTAT=ios)
 CALL handle_err(std_out, 'The update of the meta filename went wrong.', 0, .TRUE.)
 
 END SUBROUTINE meta_close
