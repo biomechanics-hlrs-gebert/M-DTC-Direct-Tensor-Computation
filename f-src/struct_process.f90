@@ -1043,10 +1043,11 @@ Program main_struct_process
       CALL meta_append(restart, m_rry)
       
       !------------------------------------------------------------------------------
-      ! Structure output directories and namings
+      ! Modify output directories and namings
       !------------------------------------------------------------------------------
-      out%path = in%path(1:LEN_TRIM(in%path)-1)//"_reg/"
-      out%bsnm = TRIM(in%bsnm)
+      out%path     = in%path(1:LEN_TRIM(in%path)-1)//"_reg/"
+      out%bsnm     = TRIM(in%bsnm)
+      out%p_n_bsnm = TRIM(out%path)//TRIM(out%bsnm)
 
       !------------------------------------------------------------------------------
       ! Spawn a log file and a results file
@@ -1092,8 +1093,9 @@ Program main_struct_process
       IF (MOD(size_mpi-1, parts) .NE. 0) CALL handle_err(std_out, 'Please provide more domains than processors.', 1)
 
 CALL skip(std_out)
-WRITE(*,*) "muCT_pd_path: ", TRIM(in%path)
-WRITE(*,*) "muCT_pd_name: ", TRIM(in%bsnm)
+WRITE(*,*) "out%path:     ", TRIM(out%path)
+WRITE(*,*) "out%bsnm:     ", TRIM(out%bsnm)
+WRITE(*,*) "out%p_n_bsnm: ", TRIM(out%p_n_bsnm)
 CALL skip(std_out)
 
       CALL add_leaf_to_branch(params, "muCT puredat pro_path"                , mcl            , str_to_char(in%p_n_bsnm))
@@ -1196,7 +1198,7 @@ CALL skip(std_out)
         !** Check whether there is already a project header *******************
 
       !   inquire(file=Trim(pro_path)//Trim(pro_name)//'.head',exist=fexist)
-        
+ 
         inquire(file=Trim(in%p_n_bsnm)//'.head',exist=fexist)
         If (.not.fexist) then
          Call End_Timer("Init Process")
@@ -1215,6 +1217,8 @@ CALL skip(std_out)
            flush(un_lf)
         END If
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+           WRITE(*,*) "rank: ", rank_mpi, "TESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTEST"
 
         !** !!! This calling sequence is only valid since "Averaged Material 
         !** !!! Properties" only contains r8 data added at the end of the 
@@ -1463,7 +1467,8 @@ CALL skip(std_out)
      Call MPI_Comm_split(MPI_COMM_WORLD, MPI_UNDEFINED, &
           rank_mpi, worker_comm, ierr)
      CALL handle_err(std_out, "MPI_COMM_SPLIT couldn't split MPI_COMM_WORLD", INT(ierr, KIND=ik))
-    
+     
+
   !****************************************************************************
   !** Ranks > 0 -- Worker slaves **********************************************
   !****************************************************************************

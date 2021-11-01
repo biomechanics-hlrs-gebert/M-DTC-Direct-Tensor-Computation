@@ -66,7 +66,6 @@ TYPE basename
    CHARACTER(LEN=mcl)         :: path          = ''            ! Only the path to the file
    CHARACTER(LEN=mcl)         :: p_n_bsnm      = ''            ! Just the path and the basename
    CHARACTER(LEN=mcl)         :: bsnm          = ''            ! Just the basename
-   !
    CHARACTER(LEN=kcl)         :: dataset       = ''            ! For example FH01-1 (Femoral Head 1, Scan1)
    CHARACTER(LEN=2)           :: type          = ''            ! 'cl' - clinical or 'mu' - microfocus
    CHARACTER(LEN=3)           :: purpose       = ''            ! 'Dev' or 'Pro' (Development or Production)

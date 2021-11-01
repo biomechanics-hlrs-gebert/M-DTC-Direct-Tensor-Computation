@@ -3237,15 +3237,13 @@ Contains
 
     call raise_tree('',tree)
 
-    Inquire(file=in%p_n_bsnm//'.head', &
-         exist=fexist)
+    Inquire(file=TRIM(in%p_n_bsnm)//'.head', exist=fexist)
 
     If (fexist) then
 
        un_head = pd_give_new_unit()
-       Open(unit=un_head, file=in%p_n_bsnm//'.head', &
-            status='old', action='read',iostat=io_stat)
-       CALL handle_err(pd_umon, 'Error while handling '//in%p_n_bsnm//'.head', io_stat, .TRUE.)
+       Open(unit=un_head, file=TRIM(in%p_n_bsnm)//'.head', status='old', action='read',iostat=io_stat)
+       CALL handle_err(pd_umon, 'Error while handling '//TRIM(in%p_n_bsnm)//'.head', io_stat, .TRUE.)
 
        if (present(success)) then
           success = .TRUE.
@@ -3261,7 +3259,7 @@ Contains
 
     Else
 
-       CALL handle_err(pd_umon, 'Error while handling '//in%p_n_bsnm//'.head'//'  No 50000', io_stat, .TRUE.)
+       CALL handle_err(pd_umon, 'Error while handling '//TRIM(in%p_n_bsnm)//'.head'//'  No 50000', io_stat, .TRUE.)
 
     End if
 
@@ -3284,15 +3282,13 @@ Contains
 
     call raise_tree('',tree)
 
-    Inquire(file=in%p_n_bsnm//'.head', &
-         exist=fexist,size=fsize)
+    Inquire(file=TRIM(in%p_n_bsnm)//'.head', exist=fexist,size=fsize)
 
     If (fexist) then
 
        un_head = pd_give_new_unit()
-       Open(unit=un_head, file=in%p_n_bsnm//'.head', &
-            status='old', action='read',iostat=io_stat, access="stream")
-       CALL handle_err(pd_umon, 'Error while handling '//in%p_n_bsnm//'.head', io_stat, .TRUE.)
+       Open(unit=un_head, file=TRIM(in%p_n_bsnm)//'.head', status='old', action='read',iostat=io_stat, access="stream")
+       CALL handle_err(pd_umon, 'Error while handling '//TRIM(in%p_n_bsnm)//'.head', io_stat, .TRUE.)
 
        Allocate(head(fsize), Stat=alloc_stat)
        Call alloc_error(alloc_stat,'head', 'read_tree', fsize)
@@ -3302,15 +3298,19 @@ Contains
        Close(un_head)
        pos = 1
        if (present(streams)) then
+                  WRITE(*,*)  "pd_give_new_unitpd_give_new_unitpd_give_new_unitpd_give_new_unit"
+
           streams%no_branches = 1
           call read_branch(head,tree,fsize,pos,streams)
        Else
+                  WRITE(*,*)  "nopenopenopenopenopenopenopenopenopenopenopenopenopenope"
+
           call read_branch(head,tree,fsize,pos)
        End if
 
     Else
 
-       CALL handle_err(pd_umon, 'Error while handling '//in%p_n_bsnm//'.head'//'  No 50000', io_stat, .TRUE.)
+       CALL handle_err(pd_umon, 'Error while handling '//TRIM(in%p_n_bsnm)//'.head'//'  No 50000', io_stat, .TRUE.)
 
     End if
 
@@ -5034,7 +5034,7 @@ Contains
     
     un_head = pd_give_new_unit()
 
-    Open(unit=un_head, file=in%p_n_bsnm//'.head', status='new', &
+    Open(unit=un_head, file=TRIM(out%p_n_bsnm)//'.head', status='new', &
          action='write')
 
     Write(un_head, fmt_bsep)
