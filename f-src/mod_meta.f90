@@ -31,14 +31,11 @@ CONTAINS
 !---------------------------------------------------------------------------  
 SUBROUTINE handle_lock_file(restart)
 
-CHARACTER                       , INTENT(IN)   , OPTIONAL :: restart
+CHARACTER         , INTENT(IN)          :: restart
 
-CHARACTER                                                 :: restart_u='N'
-LOGICAL                                                   :: exist=.FALSE.
-INTEGER  (KIND=ik)                                        :: ios
-CHARACTER(LEN=mcl)                                        :: lockname
-
-IF(PRESENT(restart)) restart_u=restart
+LOGICAL                                 :: exist=.FALSE.
+INTEGER  (KIND=ik)                      :: ios
+CHARACTER(LEN=mcl)                      :: lockname
 
 !------------------------------------------------------------------------------
 ! Automatically aborts if there is no input file found on the drive
@@ -47,17 +44,17 @@ lockname=TRIM(in%path)//'.'//TRIM(in%bsnm)//lock_suf
 
 INQUIRE (FILE = TRIM(lockname), EXIST = exist)
 
-IF((restart_u .EQ. 'N') .AND. (exist .EQV. .TRUE.)) THEN
+IF((restart .EQ. 'N') .AND. (exist .EQV. .TRUE.)) THEN
    mssg='The .*.lock file is set and a restart prohibited by default or the user.'
    CALL handle_err(std_out, TRIM(ADJUSTL(mssg)), err=1_ik)
 END IF
 
-IF(((restart_u .EQ. 'Y') .AND. (exist .EQV. .FALSE.)) .OR. ((restart_u .EQ. 'N') .AND. (exist .EQV. .FALSE.))) THEN
+IF(((restart .EQ. 'Y') .AND. (exist .EQV. .FALSE.)) .OR. ((restart .EQ. 'N') .AND. (exist .EQV. .FALSE.))) THEN
    CALL execute_command_line ('touch '//TRIM(lockname), CMDSTAT=ios)
    CALL handle_err(std_out, 'The .*.lock file could not be set.', err=ios)
 END IF
 
-IF((restart_u .EQ. 'Y') .AND. (exist .EQV. .TRUE.)) CONTINUE
+IF((restart .EQ. 'Y') .AND. (exist .EQV. .TRUE.)) CONTINUE
 
 END SUBROUTINE handle_lock_file
 
@@ -99,7 +96,7 @@ CONTAINS
 !---------------------------------------------------------------------------  
 SUBROUTINE meta_append(restart, meta_as_rry)
 
-CHARACTER                       , INTENT(IN)   , OPTIONAL    :: restart
+CHARACTER                       , INTENT(IN)                 :: restart
 CHARACTER(LEN=mcl), DIMENSION(:), INTENT(INOUT), ALLOCATABLE :: meta_as_rry      
 
 ! Internal Variables
@@ -107,9 +104,6 @@ CHARACTER(LEN=mcl)                                           :: line
 INTEGER  (KIND=ik)                                           :: ios, lines, ii
 CHARACTER(LEN=mcl)                                           :: tokens(30)
 INTEGER  (KIND=ik)                                           :: ntokens
-CHARACTER                                                    :: restart_u='N'
-
-IF(PRESENT(restart)) restart_u=restart
 
 !------------------------------------------------------------------------------
 ! Automatically aborts if there is no input file found on the drive
@@ -339,12 +333,6 @@ END IF !  (st == 'start') THEN
 !------------------------------------------------------------------------------
 IF (TRIM(st) == 'stop') THEN
    CLOSE (fh)
-
-WRITE(*,*) TRIM(temp_f_suf)
-WRITE(*,*) TRIM(out%p_n_bsnm)//TRIM(suf)
-WRITE(*,*) 
-WRITE(*,*) 'mv '//TRIM(temp_f_suf)//' '//TRIM(out%p_n_bsnm)//TRIM(suf)
-
 
    ! The temporary log file must be renamed to a permanent one
    CALL execute_command_line ('mv '//TRIM(temp_f_suf)//' '//TRIM(out%p_n_bsnm)//TRIM(suf), CMDSTAT=ios)

@@ -1005,7 +1005,7 @@ Program main_struct_process
 
       IF (command_argument_count() == 0) CALL usage(1)
 
-      DO ii=0, 10 ! Read up to 10 command arguments.
+      DO ii=0, 15 ! Read up to 15 command arguments.
 
          CALL GET_COMMAND_ARGUMENT(ii, cmd_arg)
 
@@ -1014,7 +1014,7 @@ Program main_struct_process
          IF (cmd_arg(1:1) .EQ. '-') THEN
             DO jj=2, LEN_TRIM(cmd_arg)
                   SELECT CASE( cmd_arg(jj:jj) )
-                     CASE('y')
+                     CASE('y', 'Y')
                         restart = 'Y'
                      ! It is highly recommended not to use this option on the cluster  :-)
                      CASE('h')       ! CASE ('-h', '--help')
