@@ -71,16 +71,15 @@ End Module chain_constants
 Module chain_variables
  
   Use ISO_FORTRAN_ENV
-  USE global_std
   use chain_constants
   
   Implicit None
  
   ! ---------------------------------------------------------------------------
   !> Logfile unit
-  Integer                     :: un_lf    = 10000
+  Integer                     :: un_lf   = 10000
   !> Monitor file unit (default = stdout)
-  Integer                     :: un_mon   = OUTPUT_UNIT
+  Integer                     :: un_mon  = OUTPUT_UNIT
   
   Character(len=mcl)          :: outpath = "./"
   Character(len=mcl)          :: inpath  = "./"
@@ -229,7 +228,12 @@ Contains
     !--------------------------------------------------------------------------
 
     Call init_std_out()
-        
+      
+    !** Check Outpath ********************************************
+    If (outpath(len_trim(outpath):len_trim(outpath)) /= "/") then
+       outpath = trim(outpath)//"/"
+    End If
+    
     call start_timer(trim(link_name))
 
     If (present(silent_stdio)) then
@@ -253,12 +257,12 @@ Contains
        Write(un_mon,*)
     End If
 
-    Inquire(file=TRIM(out%p_n_bsnm)//'.log', opened=opened)
-    Inquire(file=TRIM(out%p_n_bsnm)//'.log', exist=exist)
+    Inquire(file=trim(outpath)//trim(project_name)//'.log', opened=opened)
+    Inquire(file=trim(outpath)//trim(project_name)//'.log', exist=exist)
 
     IF (opened) Then
 
-       Inquire(file=TRIM(out%p_n_bsnm)//'.log', number=un_lf)
+       Inquire(file=trim(outpath)//trim(project_name)//'.log', number=un_lf)
 
        !** Message to std out *************************************************
        If (loc_stdio) then
@@ -266,14 +270,14 @@ Contains
           Write(un_mon,FMT_MSG )"The log-file was already opened"
 
           Write(un_mon,FMT_MSG)'Reusing open and existing log-file :'
-          Write(lf,'(A)')TRIM(out%p_n_bsnm)//'.log'
+          Write(lf,'(A)')trim(outpath)//trim(project_name)//'.log'
 
           If (Len_trim(lf) > 72) Then
              Do ii = 1, Len_trim(lf), 72
                 Write(un_mon,FMT_MSG)lf(ii:ii+71)
              End Do
           Else
-             Write(un_mon,FMT_MSG)TRIM(out%p_n_bsnm)//'.log'
+             Write(un_mon,FMT_MSG)trim(outpath)//trim(project_name)//'.log'
           End If
           
        End If
@@ -281,34 +285,34 @@ Contains
     Else if (exist .AND. (.NOT.loc_init_lf)) then
 
        un_lf = give_new_unit()
-       Open(unit=un_lf, file=TRIM(out%p_n_bsnm)//'.log', &
+       Open(unit=un_lf, file=trim(outpath)//trim(project_name)//'.log', &
             Action='Write', status='old', position='Append')
 
        !** Message to std out *************************************************
        If (loc_stdio) then
           
           Write(un_mon,FMT_MSG)'Opened existing log-file :'
-          Write(lf,'(A)')TRIM(out%p_n_bsnm)//'.log'
+          Write(lf,'(A)')trim(outpath)//trim(project_name)//'.log'
           
           If (Len_trim(lf) > 72) Then
              Do ii = 1, Len_trim(lf), 72
                 Write(un_mon,FMT_MSG)lf(ii:ii+71)
              End Do
           Else
-             Write(un_mon,FMT_MSG)TRIM(out%p_n_bsnm)//'.log'
+             Write(un_mon,FMT_MSG)trim(outpath)//trim(project_name)//'.log'
           End If
        End If
        
     Else if (.NOT.exist) Then
 
        un_lf = give_new_unit()
-       Open(unit=un_lf, file=TRIM(out%p_n_bsnm)//'.log', &
+       Open(unit=un_lf, file=trim(outpath)//trim(project_name)//'.log', &
             Action='Write', status='new', iostat=io_stat)
 
        If (io_stat /= 0) then
           Write(un_mon,fmt_sep)
           Write(un_mon,FMT_ERR )"In link_start it was not possible to open the file"
-          Write(un_mon,FMT_ERR_A)TRIM(out%p_n_bsnm)//'.log'
+          Write(un_mon,FMT_ERR_A)trim(outpath)//trim(project_name)//'.log'
           Write(un_mon,FMT_ERR )"Please check the path and file naming conventions"
           Write(un_mon,FMT_STOP)
           
@@ -325,14 +329,14 @@ Contains
        If (loc_stdio) then
           
           Write(un_mon,FMT_MSG)'Opened new log-file :'
-          Write(lf,'(A)')TRIM(out%p_n_bsnm)//'.log'
+          Write(lf,'(A)')trim(outpath)//trim(project_name)//'.log'
           
           If (Len_trim(lf) > 72) Then
              Do ii = 1, Len_trim(lf), 72
                 Write(un_mon,FMT_MSG)lf(ii:ii+71)
              End Do
           Else
-             Write(un_mon,FMT_MSG)TRIM(out%p_n_bsnm)//'.log'
+             Write(un_mon,FMT_MSG)trim(outpath)//trim(project_name)//'.log'
           End If
           
        End If
@@ -340,21 +344,21 @@ Contains
     Else if (loc_init_lf) then
 
        un_lf = give_new_unit()
-       Open(unit=un_lf, file=TRIM(out%p_n_bsnm)//'.log', &
+       Open(unit=un_lf, file=trim(outpath)//trim(project_name)//'.log', &
             Action='Write', status='replace')
        
        !** Message to std out *************************************************
        If (loc_stdio) then
           
-          Write(un_mon,FMT_MSG)'Opened and replaced existing log-file: '
-          Write(lf,'(A)')TRIM(out%p_n_bsnm)//'.log'
+          Write(un_mon,FMT_MSG)'Opened and replaced existing log-file :'
+          Write(lf,'(A)')trim(outpath)//trim(project_name)//'.log'
           
           If (Len_trim(lf) > 72) Then
              Do ii = 1, Len_trim(lf), 72
                 Write(un_mon,FMT_MSG)lf(ii:ii+71)
              End Do
           Else
-             Write(un_mon,FMT_MSG)TRIM(out%p_n_bsnm)//'.log'
+             Write(un_mon,FMT_MSG)trim(outpath)//trim(project_name)//'.log'
           End If
        End If
        
@@ -400,7 +404,7 @@ Contains
 
     if (.not.opened) then
        un_lf = give_new_unit()
-       Open(unit=un_lf, file=TRIM(out%p_n_bsnm)//'.log', &
+       Open(unit=un_lf, file=trim(outpath)//trim(project_name)//'.log', &
             Action='Write', status='replace')
     End if
 
@@ -435,7 +439,7 @@ Contains
 
     if (.not.opened) then
        un_lf = give_new_unit()
-       Open(unit=un_lf, file=TRIM(out%p_n_bsnm)//'.log', &
+       Open(unit=un_lf, file=trim(outpath)//trim(project_name)//'.log', &
             Action='Write', status='replace')
     End if
 

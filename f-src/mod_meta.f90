@@ -271,10 +271,10 @@ IF (st == 'start') THEN
    !------------------------------------------------------------------------------
       suf_max_le = suf
       IF((stat_t == 1) .AND. (stat_p == 1)) THEN 
-         mssg='The permanent.'//TRIM(suf)//' and the file .temporary.'//suf_max_le//' already exists.'
+         mssg='The permanent'//TRIM(suf)//' and the file .temporary'//suf_max_le//' already exists.'
       END IF
-      IF (stat_t == 1)                      mssg='The file .temporary.'//suf_max_le//' already exists.'
-      IF (stat_p == 1)                      mssg='The file permanent.'//suf_max_le//' already exists.'
+      IF (stat_t == 1)                      mssg='The file .temporary'//suf_max_le//' already exists.'
+      IF (stat_p == 1)                      mssg='The file permanent'//suf_max_le//' already exists.'
       IF((stat_t == 0) .AND. (stat_p == 0)) mssg=''
 
       IF (mssg /= '') CALL handle_err(std_out, mssg, 1)     
@@ -611,7 +611,9 @@ CALL check_and_close(fhme, 'meta', .FALSE.)
 ! System calls to update / finalize the file names of the log and the meta file
 !------------------------------------------------------------------------------
 CALL execute_command_line ('mv '//TRIM(in%full)//' '//TRIM(out%full), CMDSTAT=ios)
-CALL handle_err(std_out, 'The update of the meta filename went wrong.', ios, .TRUE.)
+write(*,*) "in:  ", TRIM(in%full)
+write(*,*) "out: ", TRIM(out%full)
+CALL handle_err(std_out, 'The update of the meta filename went wrong.', 0, .TRUE.)
 
 END SUBROUTINE meta_close
 

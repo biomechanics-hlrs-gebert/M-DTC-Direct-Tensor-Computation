@@ -10,19 +10,103 @@
 !> \todo Character stream copy in and copy out von strings realisieren
 !> \todo Warning in log_tree wenn pointer of leaf nicht korrekt connected
 
+!==============================================================================
+!> Global integer and real kinds for the puredat data handling library
+!> \author Ralf Schneider
+!> \date 22.01.2010
+!>
+Module puredat_precision
+
+  Use ISO_FORTRAN_ENV
+
+  Implicit none
+  
+  Integer, Parameter :: pd_ik = 8         !** Puredat Integer kind parameter
+  Integer, Parameter :: pd_rk = 8         !** Puredat Real    kind parameter
+  Integer, Parameter :: pd_mpi_ik = 4     !** Puredat Integer MPI kind parameter
+  
+End Module puredat_precision
+
+!==============================================================================
+!> Global constants and parameters for the puredat data handling library
+!> \author Ralf Schneider
+!> \date 22.01.2010
+!>
+Module puredat_constants
+
+  Implicit none
+  
+  !> Number of currently used stream variables in puredat_streams
+  !>
+  !> The total number of currently used stream variables which is the  
+  !> number of arrays defined in puredat_streams independently from 
+  !> their data type
+  Integer, Parameter :: no_streams = 7
+
+  !> Maximum character length used in puredat library
+  Integer, Parameter :: pd_mcl = 512
+  !> Maximum Character Length in pd_ik elements
+  Integer, Parameter :: pd_ce  = 512/8
+
+  ! Character constants for nice output ---------------------------------------
+  Character(Len=*), Parameter :: PDF_E_A    = "('EE ',A)"
+  Character(Len=*), Parameter :: PDF_E_AI0  = "('EE ',*(A,1X,I0))"
+  Character(Len=*), Parameter :: PDF_E_STOP = &
+       "('EE PROGRAM STOPPED ..... ',/,'<',78('='),'>')"
+  
+  Character(Len=*), Parameter :: PDF_W_A    = "('WW ',A)"
+  Character(Len=*), Parameter :: PDF_W_AI0  = "('WW ',*(A,1X,I0))"
+  
+  Character(Len=*), Parameter :: PDF_M_A    = "('MM ',A)"
+  Character(Len=*), Parameter :: PDF_M_AI0  = "('MM ',A,1X,I0)"
+
+  Character(Len=*), Parameter :: PDF_TIME   = "('MM ',A,1X,F0.6,' sec')"
+
+  Character(Len=*), Parameter :: PDF_SEP    = "('<',78('='),'>')"
+
+End Module puredat_constants
+
+!==============================================================================
+!> Global variables for the puredat data handling library
+!> \author Ralf Schneider
+!> \date 22.01.2010
+!>
+Module puredat_globals
+  
+  Use ISO_FORTRAN_ENV
+  
+  Use puredat_constants
+
+  Implicit None
+
+  !============================================================================
+  !== files and paths
+  !> puredat project path
+  !>
+  !> Path to puredat project files which means header-, stream- and 
+  !> log-files
+  Character(len=pd_mcl) :: pro_path
+  !> puredat project name
+  !>
+  !> Base name of the puredat project files which are ...
+  Character(len=pd_mcl) :: pro_name
+  
+  !> puredat monitor unit
+  Integer               :: pd_umon  != OUTPUT_UNIT
+
+End Module puredat_globals
 
 !==============================================================================
 !> Derived datatypes for puredat data handling
 !> \author Ralf Schneider
 !> \date 22.01.2010
 !>
-MODULE puredat_types
+Module puredat_types
 
-USE global_std
-USE global_pd
-USE auxiliaries
+  use puredat_precision
+  use puredat_constants
 
-IMPLICIT NONE
+  implicit none
 
   !============================================================================
   !> Type: Stream allocatable stream arrays
@@ -156,8 +240,7 @@ End Module puredat_types
 !>
 Module puredat_com
 
-  use global_std
-  use global_pd
+  use puredat_globals
   use puredat_types  
 
   implicit none
@@ -248,16 +331,16 @@ End Module puredat_com
 !>
 Module puredat
 
-USE global_pd
-USE puredat_types
-USE puredat_com
-USE mpi
-
+  Use puredat_types
+  Use puredat_com
+  use mpi
+  
   Implicit None
 
   !============================================================================
   !== Private routines
   Private alloc_error
+  Private file_err
   Private char_to_str
   Private str_to_char
   Private copy_leaves_to_streams
@@ -758,19 +841,19 @@ Contains
 
     t_b%no_leaves = t_b%no_leaves + 1
 
-    t_b%leaves(t_b%no_leaves)%desc   = trim(desc)
-    t_b%leaves(t_b%no_leaves)%dat_ty = dat_ty
-    t_b%leaves(t_b%no_leaves)%dat_no = dat_no
-    t_b%leaves(t_b%no_leaves)%lbound = 0_pd_ik
-    t_b%leaves(t_b%no_leaves)%ubound = 0_pd_ik
+    t_b%leaves(t_b%no_leaves)%desc    = trim(desc)
+    t_b%leaves(t_b%no_leaves)%dat_ty  = dat_ty
+    t_b%leaves(t_b%no_leaves)%dat_no  = dat_no
+    t_b%leaves(t_b%no_leaves)%lbound  = 0_pd_ik
+    t_b%leaves(t_b%no_leaves)%ubound  = 0_pd_ik
 
-    t_b%leaves(t_b%no_leaves)%p_int1 => NULL()
-    t_b%leaves(t_b%no_leaves)%p_int2 => NULL()
-    t_b%leaves(t_b%no_leaves)%p_int4 => NULL()
-    t_b%leaves(t_b%no_leaves)%p_int8 => NULL()
+    t_b%leaves(t_b%no_leaves)%p_int1  => NULL()
+    t_b%leaves(t_b%no_leaves)%p_int2  => NULL()
+    t_b%leaves(t_b%no_leaves)%p_int4  => NULL()
+    t_b%leaves(t_b%no_leaves)%p_int8  => NULL()
     t_b%leaves(t_b%no_leaves)%p_real8 => NULL()
-    t_b%leaves(t_b%no_leaves)%p_char => NULL()
-    t_b%leaves(t_b%no_leaves)%p_log  => NULL()
+    t_b%leaves(t_b%no_leaves)%p_char  => NULL()
+    t_b%leaves(t_b%no_leaves)%p_log   => NULL()
 
     t_b%leaves(t_b%no_leaves)%pstat = 0
 
@@ -1100,13 +1183,13 @@ Contains
   !> tBranch::desc   = desc             \n
   !> tBranch::streams::ii_st  = 1_pd_ik          \n
   !> tBranch::streams::dim_st = 0_pd_ik          \n
-  !> tBranch::streams::stream_files(1) = in%p_n_bsnm//'.int1.st'  \n
-  !> tBranch::streams::stream_files(2) = in%p_n_bsnm//'.int2.st'  \n
-  !> tBranch::streams::stream_files(3) = in%p_n_bsnm//'.int4.st'  \n
-  !> tBranch::streams::stream_files(4) = in%p_n_bsnm//'.int8.st'  \n
-  !> tBranch::streams::stream_files(5) = in%p_n_bsnm//'.real8.st'  \n
-  !> tBranch::streams::stream_files(6) = in%p_n_bsnm//'.char.st'  \n
-  !> tBranch::streams::stream_files(7) = in%p_n_bsnm//'.log.st'   \n
+  !> tBranch::streams::stream_files(1) = Trim(pro_path)//Trim(pro_name)//'.int1.st'  \n
+  !> tBranch::streams::stream_files(2) = Trim(pro_path)//Trim(pro_name)//'.int2.st'  \n
+  !> tBranch::streams::stream_files(3) = Trim(pro_path)//Trim(pro_name)//'.int4.st'  \n
+  !> tBranch::streams::stream_files(4) = Trim(pro_path)//Trim(pro_name)//'.int8.st'  \n
+  !> tBranch::streams::stream_files(5) = Trim(pro_path)//Trim(pro_name)//'.real8.st'  \n
+  !> tBranch::streams::stream_files(6) = Trim(pro_path)//Trim(pro_name)//'.char.st'  \n
+  !> tBranch::streams::stream_files(7) = Trim(pro_path)//Trim(pro_name)//'.log.st'   \n
   !> tBranch::streams::ifopen          = .FALSE.                                     \n
   !> tBranch::streams::units           = -1
   Subroutine raise_tree(desc,tree)
@@ -1122,8 +1205,8 @@ Contains
     !* Init tBranch components ************************************************
     tree%no_branches = 0
     tree%no_leaves   = 0
-    tree%branches => NULL()
-    tree%leaves   => NULL()
+    tree%branches    => NULL()
+    tree%leaves      => NULL()
 
     !* Streams component ******************************************************
     IF (.not. allocated(tree%streams)) then
@@ -1140,13 +1223,13 @@ Contains
     tree%streams%dim_st = 0_pd_ik
 
     !* Init stream files logic ************************************************
-    tree%streams%stream_files(1) = in%p_n_bsnm//'.int1.st'
-    tree%streams%stream_files(2) = in%p_n_bsnm//'.int2.st'
-    tree%streams%stream_files(3) = in%p_n_bsnm//'.int4.st'
-    tree%streams%stream_files(4) = in%p_n_bsnm//'.int8.st'
-    tree%streams%stream_files(5) = in%p_n_bsnm//'.real8.st'
-    tree%streams%stream_files(6) = in%p_n_bsnm//'.char.st'
-    tree%streams%stream_files(7) = in%p_n_bsnm//'.log.st'
+    tree%streams%stream_files(1) = Trim(pro_path)//Trim(pro_name)//'.int1.st'
+    tree%streams%stream_files(2) = Trim(pro_path)//Trim(pro_name)//'.int2.st'
+    tree%streams%stream_files(3) = Trim(pro_path)//Trim(pro_name)//'.int4.st'
+    tree%streams%stream_files(4) = Trim(pro_path)//Trim(pro_name)//'.int8.st'
+    tree%streams%stream_files(5) = Trim(pro_path)//Trim(pro_name)//'.real8.st'
+    tree%streams%stream_files(6) = Trim(pro_path)//Trim(pro_name)//'.char.st'
+    tree%streams%stream_files(7) = Trim(pro_path)//Trim(pro_name)//'.log.st'
 
     tree%streams%ifopen = .FALSE.
     tree%streams%units  = -1
@@ -2250,13 +2333,13 @@ Contains
     Type(tstreams) :: streams
     
     !* Init stream files logic ************************************************
-    streams%stream_files(1) = in%p_n_bsnm//'.int1.st'
-    streams%stream_files(2) = in%p_n_bsnm//'.int2.st'
-    streams%stream_files(3) = in%p_n_bsnm//'.int4.st'
-    streams%stream_files(4) = in%p_n_bsnm//'.int8.st'
-    streams%stream_files(5) = in%p_n_bsnm//'.real8.st'
-    streams%stream_files(6) = in%p_n_bsnm//'.char.st'
-    streams%stream_files(7) = in%p_n_bsnm//'.log.st'
+    streams%stream_files(1) = Trim(pro_path)//Trim(pro_name)//'.int1.st'
+    streams%stream_files(2) = Trim(pro_path)//Trim(pro_name)//'.int2.st'
+    streams%stream_files(3) = Trim(pro_path)//Trim(pro_name)//'.int4.st'
+    streams%stream_files(4) = Trim(pro_path)//Trim(pro_name)//'.int8.st'
+    streams%stream_files(5) = Trim(pro_path)//Trim(pro_name)//'.real8.st'
+    streams%stream_files(6) = Trim(pro_path)//Trim(pro_name)//'.char.st'
+    streams%stream_files(7) = Trim(pro_path)//Trim(pro_name)//'.log.st'
 
   End Subroutine set_stream_fienames
   
@@ -2553,7 +2636,6 @@ Contains
     Character(len=pd_mcl)                        :: lpos
 
     Character(len=10)                            :: faction
-    Character(len=mcl)                           :: mssg
 
     logical :: fexist
     Integer :: ii, funit
@@ -2620,11 +2702,9 @@ Contains
              Call MPI_FILE_OPEN(MPI_COMM_WORLD, trim(streams%stream_files(ii)), &
                   MPI_MODE_WRONLY+MPI_MODE_CREATE, MPI_INFO_NULL, FH_MPI(ii), ierr)
 
-            IF (ierr /= 0) THEN
-               mssg = TRIM(streams%stream_files(ii))//' - MPI_FILE_OPEN - open_stream_files_from_streams_mpi'
-               CALL handle_err(pd_umon, TRIM(mssg), INT(ierr, KIND=ik))
-            END IF
-
+             If (ierr /= 0) call file_err(trim(streams%stream_files(ii)), Int(ierr,pd_ik), &
+                  "MPI_FILE_OPEN", "open_stream_files_from_streams_mpi")
+             
              Select Case (ii)
              
              Case (1)
@@ -2663,12 +2743,10 @@ Contains
                      "native", MPI_INFO_NULL, IERR)   
 
              End Select
-                     
-            IF (ierr /= 0) THEN
-               mssg = TRIM(streams%stream_files(ii))//' - MPI_FILE_SET_VIEW - open_stream_files_from_streams_mpi'
-               CALL handle_err(pd_umon, TRIM(mssg), INT(ierr, KIND=ik))
-            END IF
-
+          
+             If (ierr /= 0) call file_err(trim(streams%stream_files(ii)), Int(ierr,pd_ik), &
+                   "MPI_FILE_SET_VIEW", "open_stream_files_from_streams_mpi")
+             
              streams%ifopen(ii) = .TRUE.
 
              If (action == 'read') then
@@ -3237,13 +3315,14 @@ Contains
 
     call raise_tree('',tree)
 
-    Inquire(file=TRIM(in%p_n_bsnm)//'.head', exist=fexist)
+    Inquire(file=Trim(pro_path)//Trim(pro_name)//'.head', exist=fexist)
 
     If (fexist) then
 
        un_head = pd_give_new_unit()
-       Open(unit=un_head, file=TRIM(in%p_n_bsnm)//'.head', status='old', action='read',iostat=io_stat)
-       CALL handle_err(pd_umon, 'Error while handling '//TRIM(in%p_n_bsnm)//'.head', io_stat, .TRUE.)
+       Open(unit=un_head, file=Trim(pro_path)//Trim(pro_name)//'.head', &
+            status='old', action='read',iostat=io_stat)
+       call file_err(Trim(pro_path)//Trim(pro_name)//'.head',io_stat)
 
        if (present(success)) then
           success = .TRUE.
@@ -3259,7 +3338,7 @@ Contains
 
     Else
 
-       CALL handle_err(pd_umon, 'Error while handling '//TRIM(in%p_n_bsnm)//'.head'//'  No 50000', io_stat, .TRUE.)
+       call file_err(Trim(pro_path)//Trim(pro_name)//'.head',50000)
 
     End if
 
@@ -3282,13 +3361,15 @@ Contains
 
     call raise_tree('',tree)
 
-    Inquire(file=TRIM(in%p_n_bsnm)//'.head', exist=fexist,size=fsize)
+    Inquire(file=Trim(pro_path)//Trim(pro_name)//'.head', &
+         exist=fexist,size=fsize)
 
     If (fexist) then
 
        un_head = pd_give_new_unit()
-       Open(unit=un_head, file=TRIM(in%p_n_bsnm)//'.head', status='old', action='read',iostat=io_stat, access="stream")
-       CALL handle_err(pd_umon, 'Error while handling '//TRIM(in%p_n_bsnm)//'.head', io_stat, .TRUE.)
+       Open(unit=un_head, file=Trim(pro_path)//Trim(pro_name)//'.head', &
+            status='old', action='read',iostat=io_stat, access="stream")
+       call file_err(Trim(pro_path)//Trim(pro_name)//'.head',io_stat)
 
        Allocate(head(fsize), Stat=alloc_stat)
        Call alloc_error(alloc_stat,'head', 'read_tree', fsize)
@@ -3298,19 +3379,15 @@ Contains
        Close(un_head)
        pos = 1
        if (present(streams)) then
-                  WRITE(*,*)  "pd_give_new_unitpd_give_new_unitpd_give_new_unitpd_give_new_unit"
-
           streams%no_branches = 1
           call read_branch(head,tree,fsize,pos,streams)
        Else
-                  WRITE(*,*)  "nopenopenopenopenopenopenopenopenopenopenopenopenopenope"
-
           call read_branch(head,tree,fsize,pos)
        End if
 
     Else
 
-       CALL handle_err(pd_umon, 'Error while handling '//TRIM(in%p_n_bsnm)//'.head'//'  No 50000', io_stat, .TRUE.)
+       call file_err(Trim(pro_path)//Trim(pro_name)//'.head',50000)
 
     End if
 
@@ -4357,7 +4434,7 @@ Contains
 
     un_head = pd_give_new_unit()
 
-    Open(unit=un_head, file=in%p_n_bsnm//'.head', status='replace', &
+    Open(unit=un_head, file=Trim(pro_path)//Trim(pro_name)//'.head', status='replace', &
          action='write')
 
     Call write_branch(tree,un_head)
@@ -5034,7 +5111,7 @@ Contains
     
     un_head = pd_give_new_unit()
 
-    Open(unit=un_head, file=TRIM(out%p_n_bsnm)//'.head', status='new', &
+    Open(unit=un_head, file=Trim(pro_path)//Trim(pro_name)//'.head', status='new', &
          action='write')
 
     Write(un_head, fmt_bsep)
@@ -5064,7 +5141,7 @@ Contains
 
     Close(un_head)
 
-    Open(unit=un_head, file=in%p_n_bsnm//'.head', status='old', &
+    Open(unit=un_head, file=Trim(pro_path)//Trim(pro_name)//'.head', status='old', &
          action='write',access="stream")
 
     !** Calc skip from begin of file :
@@ -5356,7 +5433,7 @@ Contains
     size = size - 1
 
 !!$    un_head = pd_give_new_unit()
-!!$    Open(unit=un_head, file=in%p_n_bsnm//'.serialhead', status='replace', &
+!!$    Open(unit=un_head, file=Trim(pro_path)//Trim(pro_name)//'.serialhead', status='replace', &
 !!$         action='write',access="stream")
 !!$    write(un_head)head
 !!$    close(un_head)
@@ -6017,10 +6094,10 @@ Contains
     End If
 
     If (wrn .AND. (.NOT.success)) then
-       write(std_out, PDF_W_A)"Branch with descr"
-       write(std_out, PDF_W_A)trim(descr)
-       write(std_out, PDF_W_A)"was not found in branch with descr"
-       write(std_out, PDF_W_A)trim(branch%desc)
+       write(*,PDF_W_A)"Branch with descr"
+       write(*,PDF_W_A)trim(descr)
+       write(*,PDF_W_A)"was not found in branch with descr"
+       write(*,PDF_W_A)trim(branch%desc)
     End If
     
   End Subroutine Search_branch_wrn
@@ -6901,7 +6978,42 @@ Contains
 
   End function pd_give_new_unit
 
- 
+  !============================================================================
+  !> Subroutine for I/O error handling while operating on files
+  SUBROUTINE file_err(in_file,io_stat, called, routine)
+
+    INTEGER(kind=pd_ik)        , Intent(in)   :: io_stat
+    CHARACTER (LEN=*)          , Intent(in)   :: in_file
+    CHARACTER (LEN=*), optional, Intent(in)   :: called, routine
+
+    IF (io_stat /= 0) Then
+
+       WRITE(pd_umon,*)
+       WRITE(pd_umon,"(80('='))")
+       WRITE(pd_umon,"('EE ',A,T77,' EE')")   'Operation on file: '       
+       WRITE(pd_umon,"('EE ',A          )")   in_file
+       WRITE(pd_umon,"('EE ',A,T77,' EE')",Advance="NO") 'faild'
+
+       If (present(called)) then
+          Write(pd_umon,"('EE ',A,T77,' EE')")'during call to'
+          Write(pd_umon,"('EE ',A,T77,' EE')")called
+       Else
+          Write(pd_umon,*)
+          Write(pd_umon,"('EE ',A,T77,' EE')")'!!'
+       End If
+       If (present(routine)) then
+          Write(pd_umon,"('EE ',A,T77,' EE')")'in '
+          Write(pd_umon,"('EE ',A,T77,' EE')")routine
+       End If
+       
+       WRITE(pd_umon,"('EE ',A,I0,T77,' EE')")'With I/O Status ',io_stat
+       WRITE(pd_umon,"('EE PROGRAM STOPPED ..... ',T77,' EE',/,'<',77('='),'>')")
+       STOP
+       
+    End IF
+
+  END SUBROUTINE file_err
+  
   !============================================================================
   !> Subroutine for allocation error handling
   Subroutine alloc_error(alloc_stat, field, routine, dim)

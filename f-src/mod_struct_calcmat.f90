@@ -145,13 +145,13 @@ contains
     Call Search_branch("Domain "//trim(nn_char), root, db  , success)
     
     desc = ''
-    Write(desc,'(A,I0)')'Mesh info of '//trim(out%bsnm)//'_',ddc_nn
+    Write(desc,'(A,I0)')'Mesh info of '//trim(project_name)//'_',ddc_nn
     Call search_branch(trim(desc), db, mesh, success)
 
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     call log_tree(mesh,un_lf,.FALSE.)
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-    
+
     call pd_get(mesh, 'No of nodes in mesh',  no_nodes)
     call pd_get(mesh, 'No of elements in mesh',  no_dat)
    

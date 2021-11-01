@@ -17,7 +17,6 @@ MODULE auxiliaries
 
 USE ISO_FORTRAN_ENV
 USE global_std
-USE global_pd
 USE MPI
 
 IMPLICIT NONE
@@ -304,10 +303,14 @@ END SUBROUTINE date_time
 !> Stop slaves properly
 !
 !> @param[in] fh Handle of file to print to
+!> @param[in] pro_path Project Path
+!> @param[in] pro_name Project Name
 !> @param[in] ierr Error code1
 !------------------------------------------------------------------------------  
-SUBROUTINE stop_slaves()
+SUBROUTINE stop_slaves(pro_path, pro_name)
  
+    CHARACTER(LEN=*), INTENT(IN) :: pro_path
+    CHARACTER(LEN=*), INTENT(IN) :: pro_name
     Integer(mpi_ik)              :: ierr
 
     CALL MPI_BCAST(pro_path, INT(mcl,mpi_ik), MPI_CHAR, 0_mpi_ik, MPI_COMM_WORLD, ierr)
@@ -317,25 +320,6 @@ SUBROUTINE stop_slaves()
     CALL MPI_BCAST(-1_ik, 1_mpi_ik, MPI_INTEGER8, 0_mpi_ik, MPI_COMM_WORLD, ierr)   
 
 END SUBROUTINE stop_slaves
-
-!   !============================================================================
-!   !> Subroutine for I/O error handling while operating on files
-!   SUBROUTINE file_err(in_file,io_stat)
-
-!     INTEGER             :: io_stat
-!     CHARACTER (LEN=*)   :: in_file
-
-!     IF (io_stat /= 0) Then
-!        WRITE(un_mon,fmt_sep)
-!        WRITE(un_mon,FMT_ERR)'Operation on file :'       
-!        WRITE(un_mon,FMT_ERR) in_file
-!        WRITE(un_mon,FMT_ERR)'faild !!'
-!        WRITE(un_mon,FMT_ERR_AI0)'With I/O Status ',io_stat
-!        WRITE(un_mon,FMT_STOP)
-!        STOP
-!     End IF
-
-!   END SUBROUTINE file_err
 
 !------------------------------------------------------------------------------
 ! SUBROUTINE: handle_err
@@ -391,7 +375,7 @@ IF (err /= 0) THEN
         CLOSE(fh)
     END IF
 
-    CALL stop_slaves()
+    CALL stop_slaves(out%path, out%bsnm)
 
     CALL MPI_FINALIZE(ierr)
     IF ( ierr /= 0 ) WRITE(fh,'(A)') "MPI_FINALIZE did not succeed"

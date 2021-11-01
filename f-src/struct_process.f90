@@ -240,7 +240,7 @@ Contains
 
        umon = give_new_unit()
 
-       Open(unit=umon, file=Trim(job_dir)//Trim(out%bsnm)//".mon",action="write", &
+       Open(unit=umon, file=Trim(job_dir)//Trim(project_name)//".mon",action="write", &
             status="replace")
 
        Write(umon,fmt_eq_sep)
@@ -277,7 +277,7 @@ Contains
 
        !** Get the no of nodes per part **************************************
        mesh_desc = ''
-       Write(mesh_desc,'(A,I0)')'Mesh info of '//trim(out%bsnm)//'_',nn
+       Write(mesh_desc,'(A,I0)')'Mesh info of '//trim(project_name)//'_',nn
        
        Call search_branch(trim(mesh_desc), db, mb, success, DEBUG)
        call pd_get(mb, 'No of nodes in mesh',  nodes_in_mesh)
@@ -686,7 +686,7 @@ Contains
        
        if ( rank_mpi == 0 ) then
           filename=''
-          write(filename,'(A,I0,A)')trim(job_dir)//trim(out%bsnm)//"_",nn,"_usg.vtk"
+          write(filename,'(A,I0,A)')trim(job_dir)//trim(project_name)//"_",nn,"_usg.vtk"
           Call write_data_head(filename, m_size/3)
        End if
 
@@ -884,7 +884,6 @@ Contains
 Program main_struct_process
 
   USE global_std
-  USE global_pd
   USE puredat 
   USE auxiliaries
   USE meta
@@ -1041,13 +1040,7 @@ Program main_struct_process
       ! Check and open the input file; Modify the Meta-Filename / Basename
       !------------------------------------------------------------------------------
       CALL meta_append(restart, m_rry)
-      
-      !------------------------------------------------------------------------------
-      ! Modify output directories and namings
-      !------------------------------------------------------------------------------
-      out%path     = in%path(1:LEN_TRIM(in%path)-1)//"_reg/"
-      out%bsnm     = TRIM(in%bsnm)
-      out%p_n_bsnm = TRIM(out%path)//TRIM(out%bsnm)
+
 
       !------------------------------------------------------------------------------
       ! Spawn a log file and a results file
@@ -1056,22 +1049,32 @@ Program main_struct_process
       CALL meta_add_ascii(fh=fhmo, suf=mon_suf, st='start', restart=restart)
       ! CALL meta_add_ascii(fh=fhr, suf=res_suf, st='start', restart=restart)
 
-      ! CALL meta_io (fhmo, 'BASE_PATH'   , '(-)'  , m_rry, chars = out%path   , wl=.TRUE.)
-      ! CALL meta_io (fhmo, 'PROJECT_NAME', '(-)'  , m_rry, chars = out%bsnm   , wl=.TRUE.)
-
-
-
-      ! outpath      = TRIM(in%path)//"_reg/"
-      ! project_name = TRIM(in%bsnm)
-
-      Allocate(params)
-      Call raise_tree("Input parameters",params)
 
       !------------------------------------------------------------------------------
       ! Read input parameters
       !------------------------------------------------------------------------------
-      ! CALL meta_io (fhmo, 'MCT_PD_PRO_PATH'  , '(-)'  , m_rry,    chars = muCT_pd_path, wl=.TRUE.)
-      ! CALL meta_io (fhmo, 'MCT_PD_PRO_NAME'  , '(-)'  , m_rry,    chars = muCT_pd_name, wl=.TRUE.)
+      CALL meta_io (fhmo, 'MCT_PD_PRO_PATH'  , '(-)'  , m_rry, chars = muCT_pd_path , wl=.TRUE.)
+      CALL meta_io (fhmo, 'MCT_PD_PRO_NAME'  , '(-)'  , m_rry, chars = muCT_pd_name , wl=.TRUE.)
+      CALL meta_io (fhmo, 'BASE_PATH'        , '(-)'  , m_rry, chars = outpath      , wl=.TRUE.)
+      CALL meta_io (fhmo, 'PROJECT_NAME'     , '(-)'  , m_rry, chars = project_name , wl=.TRUE.)
+
+   
+      !------------------------------------------------------------------------------
+      ! Modify output directories and namings - Planned as a makeshift solution to 
+      ! Connect PureDat and the meta/raw approach.
+      !------------------------------------------------------------------------------
+      
+     outpath = trim(outpath)//"/"//trim(project_name)
+     if (outpath(len(outpath):len(outpath)) /= "/") then
+        outpath = trim(outpath)//"/"
+     End if
+
+      out%path     = outpath
+      IF (TRIM(out%bsnm) /= TRIM(project_name)) THEN
+         CALL handle_err(std_out, 'out%bsnm and project name do not match!', 0, .TRUE.)
+      END IF
+      out%p_n_bsnm = TRIM(out%path)//TRIM(out%bsnm)
+
       CALL meta_io (fhmo, 'MICRO_ELMNT_TYPE' , '(-)'  , m_rry,    chars = elt_micro   , wl=.TRUE.)
       CALL meta_io (fhmo, 'DBG_LVL'          , '(-)'  , m_rry,    chars = out_amount  , wl=.TRUE.)
       CALL meta_io (fhmo, 'OUT_FMT'          , '(-)'  , m_rry,    chars = output      , wl=.TRUE.)
@@ -1092,14 +1095,11 @@ Program main_struct_process
 
       IF (MOD(size_mpi-1, parts) .NE. 0) CALL handle_err(std_out, 'Please provide more domains than processors.', 1)
 
-CALL skip(std_out)
-WRITE(*,*) "out%path:     ", TRIM(out%path)
-WRITE(*,*) "out%bsnm:     ", TRIM(out%bsnm)
-WRITE(*,*) "out%p_n_bsnm: ", TRIM(out%p_n_bsnm)
-CALL skip(std_out)
+      Allocate(params)
+      Call raise_tree("Input parameters",params)
 
-      CALL add_leaf_to_branch(params, "muCT puredat pro_path"                , mcl            , str_to_char(in%p_n_bsnm))
-      CALL add_leaf_to_branch(params, "muCT puredat pro_name"                , mcl            , str_to_char(in%bsnm))
+      CALL add_leaf_to_branch(params, "muCT puredat pro_path"                , mcl            , str_to_char(muCT_pd_path))
+      CALL add_leaf_to_branch(params, "muCT puredat pro_name"                , mcl            , str_to_char(muCT_pd_name))
       CALL add_leaf_to_branch(params, 'Element type  on micro scale'         , len(elt_micro) , str_to_char(elt_micro))     
       CALL add_leaf_to_branch(params, 'Output amount'                        , len(out_amount), str_to_char(out_amount))
       CALL add_leaf_to_branch(params, 'Restart'                              , len(restart)   , str_to_char(restart))
@@ -1117,17 +1117,17 @@ CALL skip(std_out)
 
      
      !** Prepare output directory ****************************************
-     c_char_array(1:len(Trim(out%path)//Char(0))) = str_to_char(Trim(out%path)//Char(0))
+     c_char_array(1:len(Trim(outpath)//Char(0))) = str_to_char(Trim(outpath)//Char(0))
 
      Call Stat_Dir(c_char_array, stat_c_int)
 
      If ( stat_c_int /= 0 ) Then
 
-        Call execute_command_line("mkdir -p "//trim(out%path),CMDSTAT=stat)
+        Call execute_command_line("mkdir -p "//trim(outpath),CMDSTAT=stat)
 
         If ( stat /= 0 ) Then
            Write(un_mon,*)"Could not execute syscall"
-           Write(un_mon,*)"mkpir -p "//trim(out%path)
+           Write(un_mon,*)"mkpir -p "//trim(outpath)
            Write(un_mon,*)"Program halted"
            success = .FALSE.
         End If
@@ -1136,7 +1136,7 @@ CALL skip(std_out)
 
         If ( stat_c_int /= 0 ) Then
            Write(un_mon,*)"Could not create directory"
-           Write(un_mon,*)trim(out%path)
+           Write(un_mon,*)trim(outpath)
            Write(un_mon,*)"Program halted"
            success = .FALSE.
         End If
@@ -1146,16 +1146,16 @@ CALL skip(std_out)
      Else If ( (stat_c_int == 0) .AND. (Restart == "Y") ) Then
 
         Write(un_mon,FMT_MSG_A)"Reusing the output directory"
-        Write(un_mon,FMT_MSG_A)trim(out%path)
+        Write(un_mon,FMT_MSG_A)trim(outpath)
         success = .TRUE.
         
      Else
         
-        Write(std_out, FMT_ERR_A)"The output directory"
-        Write(std_out, FMT_ERR_A)trim(out%path)
-        Write(std_out, FMT_ERR_A)"apparently exists already with restart not equal to Y !!!"
-        Write(std_out, FMT_ERR_A)"Please check your struct-process-parameters.sh file   !!!"
-        write(std_out, FMT_STOP)
+        Write(*,FMT_ERR_A)"The output directory"
+        Write(*,FMT_ERR_A)trim(outpath)
+        Write(*,FMT_ERR_A)"apparently exists already with restart not equal to Y !!!"
+        Write(*,FMT_ERR_A)"Please check your struct-process-parameters.sh file   !!!"
+        write(*,FMT_STOP)
         success = .FALSE.
         
      End If
@@ -1167,26 +1167,26 @@ CALL skip(std_out)
      If (.NOT. success) CALL handle_err(std_out, "Something went wrong during link_start", 1)
 
      !** Set project name and path of puredat root ***
-     pro_path = in%path
-     pro_name = in%bsnm
+     pro_path = outpath
+     pro_name = project_name
         
      If ( restart == "N" ) then 
 
         !** Raise root branch *************************************************
-        Call raise_tree(Trim(out%bsnm),root)
+        Call raise_tree(Trim(project_name),root)
 
         Call include_branch_into_branch(s_b=params, t_b=root, blind=.TRUE.)
      
         !** Load puredat tree of micro-CT data and calculate the global
         !** parameters of the domain decomposition
-        pro_path = in%path
-        pro_name = in%bsnm
+        pro_path = muCT_pd_path
+        pro_name = muCT_pd_name
 
         phi_tree = read_tree()
 
         !** Set project name and path of global domain decomposition     
-        pro_path = in%path
-        pro_name = in%bsnm
+        pro_path = outpath
+        pro_name = project_name
 
         allocate(ddc)
         ddc = calc_general_ddc_params(pdsize, phi_tree)
@@ -1196,13 +1196,14 @@ CALL skip(std_out)
      Else if ( Restart == "Y" ) Then
 
         !** Check whether there is already a project header *******************
-
-      !   inquire(file=Trim(pro_path)//Trim(pro_name)//'.head',exist=fexist)
- 
-        inquire(file=Trim(in%p_n_bsnm)//'.head',exist=fexist)
+        inquire(file=Trim(pro_path)//Trim(pro_name)//'.head',exist=fexist)
         If (.not.fexist) then
-         Call End_Timer("Init Process")
-         CALL handle_err(std_out, "Restart on job without PureDat root header ! This case is not supported.", 1)         
+
+           CALL handle_err(std_out, 'Restart on job without PureDat root header ! This case is not supported', 1)
+           Call End_Timer("Init Process")
+ 
+           Goto 1000
+           
         End If
         
         !** Read root branch ******************************
@@ -1218,15 +1219,13 @@ CALL skip(std_out)
         END If
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-           WRITE(*,*) "rank: ", rank_mpi, "TESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTEST"
-
         !** !!! This calling sequence is only valid since "Averaged Material 
         !** !!! Properties" only contains r8 data added at the end of the 
         !** !!! r8-stream. More correct would be a routine that ensures data
         !** !!! integrity and compresses potentially missing stream data in
         !** !!! an efficient way.
-        call delete_branch_from_branch("Averaged Material Properties", &
-                                       root, dsize)
+        call delete_branch_from_branch("Averaged Material Properties", root, dsize)
+
         Call get_stream_size(root, dsize)
         root%streams%dim_st = dsize
         root%streams%ii_st = dsize+1
@@ -1355,20 +1354,20 @@ CALL skip(std_out)
      
      If (restart == "Y") then
 
-        Open(aun, file=trim(out%path)//"/"//trim(out%bsnm)//"_Activity.raw", &
+        Open(aun, file=trim(outpath)//"/"//trim(project_name)//"_Activity.raw", &
              action="read", status="old", access="stream")
 
         read(aun)Domain_stats
 
         close(aun)
         
-        Open(aun, file=trim(out%path)//"/"//trim(out%bsnm)//"_Activity.raw", &
+        Open(aun, file=trim(outpath)//"/"//trim(project_name)//"_Activity.raw", &
              action="write", status="old", access="stream")
         
      Else
 
         !** Init State tracker file *******************************************
-        Open(aun, file=trim(out%path)//"/"//trim(out%bsnm)//"_Activity.raw", &
+        Open(aun, file=trim(outpath)//"/"//trim(project_name)//"_Activity.raw", &
              action="write", status="replace", access="stream")
         
         Domain_stats = 1
@@ -1379,7 +1378,7 @@ CALL skip(std_out)
 
      !** Init Domain Cross Reference and domain paths *************************
      dc = 0
-     domain_path(0) = in%p_n_bsnm//"_results"
+     domain_path(0) = Trim(pro_path)//Trim(pro_name)//"_results"
 
      nn = 1
      Do kk = xa_d(3), xe_d(3)
@@ -1477,8 +1476,8 @@ CALL skip(std_out)
      !** Broadcast recieve init parameters ************************************
      Call Start_Timer("Broadcast Init Params")
      
-     Call mpi_bcast(out%path         , INT(mcl,mpi_ik), MPI_CHAR    , 0_mpi_ik, MPI_COMM_WORLD, ierr)
-     Call mpi_bcast(out%bsnm    , INT(mcl,mpi_ik), MPI_CHAR    , 0_mpi_ik, MPI_COMM_WORLD, ierr)
+     Call mpi_bcast(outpath         , INT(mcl,mpi_ik), MPI_CHAR    , 0_mpi_ik, MPI_COMM_WORLD, ierr)
+     Call mpi_bcast(project_name    , INT(mcl,mpi_ik), MPI_CHAR    , 0_mpi_ik, MPI_COMM_WORLD, ierr)
      Call mpi_bcast(serial_root_size, 1_mpi_ik       , MPI_INTEGER8, 0_mpi_ik, MPI_COMM_WORLD, ierr)
 
      !** Serial_root_size == -1 ==> Signal that Domain_Number < size_mpi-1 ****
@@ -1693,7 +1692,7 @@ CALL skip(std_out)
         End Do
         
         !** Log to global stdout **********************************************
-        Write(un_mon,'(2(A,I10))')"MPI rank : ",ii, " ; Domain number : ",Domains(nn)
+        Write(un_mon,'(2(A,I10))')"MPI rank : ",ii, " ; Domain number: ",Domains(nn)
         flush(un_mon)
         
         nn = nn + 1_mpi_ik
@@ -1750,22 +1749,22 @@ CALL skip(std_out)
   !****************************************************************************
   Else 
 
-     !** Extend out%bsnm and out%path with rank number ******************
-     Write(out%path,'(A,A,I7.7,A)')Trim(out%path),"Rank_",rank_mpi,"/"
-     Write(out%bsnm,'(A,A,I7.7)')Trim(out%bsnm),"_",rank_mpi
+     !** Extend project_name and outpath with rank number ******************
+     Write(outpath     ,'(A,A,I7.7,A)') TRIM(outpath     ),"Rank_",rank_mpi,"/"
+     Write(project_name,'(A,A,I7.7)'  ) TRIM(project_name),"_"    ,rank_mpi
      
      !** Prepare Rank output directory ****************************************
-     c_char_array(1:len(Trim(out%path)//Char(0))) = str_to_char(Trim(out%path)//Char(0))
+     c_char_array(1:len(Trim(outpath)//Char(0))) = str_to_char(Trim(outpath)//Char(0))
 
      Call Stat_Dir(c_char_array, stat_c_int)
 
      If ( stat_c_int /= 0 ) Then
 
-        Call execute_command_line("mkdir -p "//trim(out%path),CMDSTAT=stat)
+        Call execute_command_line("mkdir -p "//trim(outpath),CMDSTAT=stat)
 
         If ( stat /= 0 ) Then
            Write(un_mon,*)"Could not execute syscall"
-           Write(un_mon,*)"mkpir -p "//trim(out%path)
+           Write(un_mon,*)"mkpir -p "//trim(outpath)
            Write(un_mon,*)"Program halted"
            Stop
         End If
@@ -1774,7 +1773,7 @@ CALL skip(std_out)
 
         If ( stat_c_int /= 0 ) Then
            Write(un_mon,*)"Could not create directory"
-           Write(un_mon,*)trim(out%path)
+           Write(un_mon,*)trim(outpath)
            Write(un_mon,*)"Program halted"
            Stop
         End If
@@ -1782,15 +1781,15 @@ CALL skip(std_out)
      Else If ( (stat_c_int == 0) .AND. (Restart == "Y") ) Then
 
         Write(un_mon,FMT_MSG_A)"Reusing the output directory"
-        Write(un_mon,FMT_MSG_A)trim(out%path)
+        Write(un_mon,FMT_MSG_A)trim(outpath)
         
      Else
         
-        Write(std_out,FMT_ERR_A)"The output directory"
-        Write(std_out,FMT_ERR_A)trim(out%path)
-        Write(std_out,FMT_ERR_A)"apparently exists already with restart not equal to Y !!!"
-        Write(std_out,FMT_ERR_A)"Please check your struct-process-parameters.sh file   !!!"
-        write(std_out,FMT_STOP)
+        Write(*,FMT_ERR_A)"The output directory"
+        Write(*,FMT_ERR_A)trim(outpath)
+        Write(*,FMT_ERR_A)"apparently exists already with restart not equal to Y !!!"
+        Write(*,FMT_ERR_A)"Please check your struct-process-parameters.sh file   !!!"
+        write(*,FMT_STOP)
         Goto 1001
         
      End If
@@ -1819,7 +1818,7 @@ CALL skip(std_out)
            CALL handle_err(std_out, "MPI_RECV on Domain path didn't succeed", INT(ierr, KIND=ik))
 
         Else
-           job_dir = out%path
+           job_dir = outpath
 
         End if
         
@@ -1876,7 +1875,7 @@ CALL skip(std_out)
 !!$
 !!$                 tmp_un = give_new_unit()
 !!$                 
-!!$                 !write(tmp_fn,fmt_filename) trim(job_dir)//trim(out%bsnm)//'_',&
+!!$                 !write(tmp_fn,fmt_filename) trim(job_dir)//trim(project_name)//'_',&
 !!$                 !      nn,'_',ii,'.dat'
 !!$             
 !!$                 Open(unit=tmp_un, file=trim(tmp_fn), action="write", &
@@ -1903,7 +1902,7 @@ CALL skip(std_out)
 !!$
 !!$        !** Dump the mesh and results branch *******************************
 !!$        mesh_desc=''
-!!$        Write(mesh_desc,'(A,I0)')'Mesh info of '//trim(out%bsnm)//'_',Domain
+!!$        Write(mesh_desc,'(A,I0)')'Mesh info of '//trim(project_name)//'_',Domain
 !!$        
 !!$        Call search_branch(trim(mesh_desc), root, meshb, success)
 !!$           
@@ -1956,8 +1955,7 @@ CALL skip(std_out)
 !!$        END If
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
            
-        Call MPI_ISEND(Active, 1_mpi_ik, MPI_INTEGER, 0_mpi_ik, rank_mpi, &
-             MPI_COMM_WORLD, REQUEST, IERR)
+        Call MPI_ISEND(Active, 1_mpi_ik, MPI_INTEGER, 0_mpi_ik, rank_mpi, MPI_COMM_WORLD, REQUEST, IERR)
         CALL handle_err(std_out, "MPI_ISEND on Active didn't succeed", INT(ierr, KIND=ik))
 
         Call MPI_WAIT(REQUEST, status_mpi, ierr)

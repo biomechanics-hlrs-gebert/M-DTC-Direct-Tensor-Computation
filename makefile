@@ -308,7 +308,6 @@ $(obj_dir)mod_meta$(obj_ext):$(mod_dir)global_std$(mod_ext)     \
 # -----------------------------------------------------------------------------
 #-- PureDat -------------------------------------------------------------------
 $(obj_dir)mod_puredat$(obj_ext):$(mod_dir)global_std$(mod_ext)   \
-																$(mod_dir)global_pd$(mod_ext)   \
 																$(mod_dir)auxiliaries$(mod_ext)  \
 																$(f_src_dir)mod_puredat$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_puredat$(f90_ext) " -----"
@@ -465,7 +464,7 @@ $(obj_dir)mod_struct_calcmat$(obj_ext)::$(mod_dir)global_std$(mod_ext) $(mod_dir
 # -----------------------------------------------------------------------------
 #-- MAIN Object ---------------------------------------------------------------
 $(obj_dir)struct_process$(obj_ext):$(mod_dir)global_std$(mod_ext) $(obj_dir)OS$(obj_ext)                       \
-                                   $(mod_dir)auxiliaries$(mod_ext)       $(mod_dir)global_pd$(mod_ext)         \
+                                   $(mod_dir)auxiliaries$(mod_ext)       \
                                    $(mod_dir)operating_system$(mod_ext)  $(mod_dir)puredat$(mod_ext)           \
                                    $(mod_dir)decomp$(mod_ext)            $(mod_dir)timer$(mod_ext)             \
                                    $(mod_dir)chain_routines$(mod_ext)    $(mod_dir)vtkio$(mod_ext)             \
@@ -482,7 +481,7 @@ $(obj_dir)struct_process$(obj_ext):$(mod_dir)global_std$(mod_ext) $(obj_dir)OS$(
 
 # -----------------------------------------------------------------------------
 #-- PureDat auxiliary executables ---------------------------------------------
-$(obj_dir)pd_dump_leaf$(obj_ext):$(mod_dir)global_pd$(mod_ext) $(mod_dir)puredat$(mod_ext) $(mod_dir)puredat_com$(mod_ext)   \
+$(obj_dir)pd_dump_leaf$(obj_ext):$(mod_dir)puredat$(mod_ext) $(mod_dir)puredat_com$(mod_ext)   \
                                  $(f_src_dir)pd_dump_leaf$(f90_ext)
 	@echo "***** Compiling " pd_dump_leaf$(f90_ext) " *****"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)pd_dump_leaf$(f90_ext) -o $@
