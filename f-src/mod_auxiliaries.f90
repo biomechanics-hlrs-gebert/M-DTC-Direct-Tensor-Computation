@@ -24,82 +24,6 @@ IMPLICIT NONE
 CONTAINS
 
 !------------------------------------------------------------------------------
-! SUBROUTINE: skip
-!------------------------------------------------------------------------------ 
-!> @author Johannes Gebert, gebert@hlrs.de, HLRS/vM
-!
-!> @brief
-!> Write empty lines to file handle
-!
-!> @param[in] fh File Handle     
-!> @param[in] lines Empty lines to print     
-!------------------------------------------------------------------------------  
-SUBROUTINE skip(fh, lines)
-   INTEGER (KIND=ik)           :: fh
-   INTEGER (KIND=ik), OPTIONAL :: lines
-
-   INTEGER  (KIND=ik)          :: howmanylns, ii
-
-   howmanylns = 1
-   IF (PRESENT(lines)) THEN
-      IF (lines .GT. 1) howmanylns = lines
-   END IF
-
-   DO ii=1, howmanylns
-      WRITE(fh,'(A)') ''
-   END DO
-
-END SUBROUTINE skip
-
-!------------------------------------------------------------------------------
-! SUBROUTINE: dash
-!------------------------------------------------------------------------------ 
-!> @author Johannes Gebert, gebert@hlrs.de, HLRS/vM
-!
-!> @brief
-!> Routine to write a separator to an io unit
-!
-!> @Description
-!> CALL dash(fh) behaves exactly like WRITE(fh,'(A)') stdlnbrk
-!
-!> @param[in] fh File Handle     
-!> @param[in] dashes How many dashes to print
-!> @param[in] lines How many lines to print
-!> @param[in] chr Whch character to print
-!------------------------------------------------revised------------------------------  
-SUBROUTINE dash(fh, dashes, lines, chr)
-   INTEGER  (KIND=ik)           :: fh
-   INTEGER  (KIND=ik), OPTIONAL :: dashes, lines
-   CHARACTER(LEN=*)  , OPTIONAL :: chr
-
-   INTEGER  (KIND=ik)           :: howmanychars, howmanylns, ii
-   CHARACTER(LEN=mcl)           :: cr, sep ! Separator
-
-   cr = '-'
-   IF (PRESENT(chr)) THEN
-      IF (chr .NE. '') cr = chr ! x typically is a standar format specifier
-   END IF
-
-   howmanychars = 100
-   IF (PRESENT(dashes)) THEN
-      IF (dashes .GE. 1) howmanychars = dashes
-   END IF
-
-   howmanylns = 1
-   IF (PRESENT(lines)) THEN
-      IF (lines .GT. 1) howmanylns = lines
-   END IF
-
-   WRITE(sep, "(A,I0,3A)") "(", howmanychars ,"('",TRIM(cr),"'))"        
-
-   DO ii=1, howmanylns
-      WRITE(fh, sep) 
-   END DO
-
-END SUBROUTINE dash
-
-
-!------------------------------------------------------------------------------
 ! SUBROUTINE: check_file_exist
 !------------------------------------------------------------------------------  
 !> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
@@ -229,14 +153,17 @@ LOGICAL           , INTENT(IN)   , OPTIONAL :: abrt
 INTEGER(KIND=ik)  , INTENT(OUT)  , OPTIONAL :: stat
 
 LOGICAL                                     :: abrt_u=.TRUE.
+INTEGER(KIND=ik)                            :: stat_u
 
 !-- Internal Variable
 LOGICAL                                     :: opened=.FALSE. 
 CHARACTER(len=mcl)                          :: filename_u=''
 
+stat_u = 0
+
 ! In case of doubt, abort.
-IF(PRESENT(abrt)) abrt_u=abrt
-IF(PRESENT(stat)) stat=0
+IF(PRESENT(abrt)) abrt_u = abrt
+IF(PRESENT(stat)) stat_u = stat
 IF(PRESENT(filename)) filename_u = '»'//TRIM(filename)//'« '
 
 
@@ -244,11 +171,12 @@ INQUIRE(UNIT=fh, OPENED=opened)
 
 IF (opened .EQV. .TRUE.) THEN
    CLOSE (fh)
-   IF(PRESENT(stat)) stat=0_ik
 ELSE
-   IF(PRESENT(stat)) stat=1_ik
-   mssg='The file '//TRIM(filename_u)//'was closed already.'
-   CALL handle_err(fh, TRIM(mssg), stat, .TRUE.)
+    mssg='The file '//TRIM(filename_u)//'was closed already.'
+
+    ! Whether to stop the program has to be decided via the call.
+    IF (abrt_u .EQV. .TRUE.) stat_u = 1
+    CALL handle_err(fh, TRIM(mssg), stat_u, .TRUE.)
 END IF
  
 END SUBROUTINE check_and_close
@@ -360,7 +288,7 @@ text = TRIM(ADJUSTL(txt))
 ! At first, opting out the only non-optional variable seems odd. However it fits some usage quite well, 
 ! because sometimes the routine shall return a feedback without printing stuff.
 IF ((pmssg_used .EQV. .TRUE.) .OR. (err /= 0)) THEN
-    CALL skip(fh)
+    WRITE(fh, '(A)')
     WRITE(fh, '(A)') TRIM(ADJUSTL(text))
     FLUSH(fh)
 END IF 
@@ -398,14 +326,14 @@ SUBROUTINE usage(err)
 
 INTEGER, INTENT(IN) :: err
 
-CALL dash(std_out)
+WRITE(std_out, FMT_HY_SEP)
 WRITE(std_out, '(A)') 'Directly Discretizing Tensor Computation | Usage:'
-CALL dash(std_out, 40)
+WRITE(std_out, FMT_HY_SEP)
 WRITE(std_out, '(A)') './ddtc_vx.y.z_x86_64 »flags« »meta filename«'
 WRITE(std_out, '(A)') '-y       Restart'
 WRITE(std_out, '(A)') '-h       This message.'
 WRITE(std_out, '(A)') '*.meta   Meta input file.'
-CALL dash(std_out)
+WRITE(std_out, FMT_HY_SEP)
 
 CALL handle_err(std_out, '', err)
 

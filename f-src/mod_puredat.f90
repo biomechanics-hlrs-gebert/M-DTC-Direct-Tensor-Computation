@@ -48,22 +48,6 @@ Module puredat_constants
   !> Maximum Character Length in pd_ik elements
   Integer, Parameter :: pd_ce  = 512/8
 
-  ! Character constants for nice output ---------------------------------------
-  Character(Len=*), Parameter :: PDF_E_A    = "('EE ',A)"
-  Character(Len=*), Parameter :: PDF_E_AI0  = "('EE ',*(A,1X,I0))"
-  Character(Len=*), Parameter :: PDF_E_STOP = &
-       "('EE PROGRAM STOPPED ..... ',/,'<',78('='),'>')"
-  
-  Character(Len=*), Parameter :: PDF_W_A    = "('WW ',A)"
-  Character(Len=*), Parameter :: PDF_W_AI0  = "('WW ',*(A,1X,I0))"
-  
-  Character(Len=*), Parameter :: PDF_M_A    = "('MM ',A)"
-  Character(Len=*), Parameter :: PDF_M_AI0  = "('MM ',A,1X,I0)"
-
-  Character(Len=*), Parameter :: PDF_TIME   = "('MM ',A,1X,F0.6,' sec')"
-
-  Character(Len=*), Parameter :: PDF_SEP    = "('<',78('='),'>')"
-
 End Module puredat_constants
 
 !==============================================================================
@@ -138,16 +122,16 @@ Module puredat_types
      Integer              , Dimension(no_streams) :: units        = -1
 
      !> Global stream variables
-     Integer(kind=1)  , Dimension(:), pointer :: int1_st  => null()
-     Integer(kind=2)  , Dimension(:), pointer :: int2_st  => null()
-     Integer(kind=4)  , Dimension(:), pointer :: int4_st  => null()
-     Integer(kind=8)  , Dimension(:), pointer :: int8_st  => null()
+     Integer(kind=1)      , Dimension(:), pointer :: int1_st  => null()
+     Integer(kind=2)      , Dimension(:), pointer :: int2_st  => null()
+     Integer(kind=4)      , Dimension(:), pointer :: int4_st  => null()
+     Integer(kind=8)      , Dimension(:), pointer :: int8_st  => null()
      !
-     Real(kind=8)     , Dimension(:), pointer :: real8_st => null()
+     Real(kind=8)         , Dimension(:), pointer :: real8_st => null()
      !
-     Character        , Dimension(:), pointer :: char_st  => null()
+     Character            , Dimension(:), pointer :: char_st  => null()
      !> Global stream variable for logical data
-     Logical(Kind=1)  , Dimension(:), pointer :: log_st   => null()
+     Logical(Kind=1)      , Dimension(:), pointer :: log_st   => null()
 
   End type tStreams
 
@@ -183,21 +167,17 @@ Module puredat_types
 
      Integer(kind=pd_ik)               :: pstat = 0
 
-     !> Data chunk pointer to 1 Byte integer data
-     Integer(Kind=1), Dimension(:),Pointer   :: p_int1 => null()
-     !> Data chunk pointer to 2 Byte integer data
-     Integer(Kind=2), Dimension(:),Pointer   :: p_int2 => null()
-     !> Data chunk pointer to 4 Byte integer data
-     Integer(Kind=4), Dimension(:),Pointer   :: p_int4 => null()
-     !> Data chunk pointer to 8 Byte integer data
-     Integer(Kind=8), Dimension(:),Pointer   :: p_int8 => null()
+     !> Data chunk pointer to x Byte y data
+     Integer(Kind=1), Dimension(:),Pointer   :: p_int1  => null()
+     Integer(Kind=2), Dimension(:),Pointer   :: p_int2  => null()
+     Integer(Kind=4), Dimension(:),Pointer   :: p_int4  => null()
+     Integer(Kind=8), Dimension(:),Pointer   :: p_int8  => null()
 
-     !> Data chunk pointer to 8 Byte floating point data
      Real   (Kind=8), Dimension(:),Pointer   :: p_real8 => null()
-     !> Data chunk pointer to 1 Byte character data
-     Character      , Dimension(:),Pointer   :: p_char => null()
-     !> Data chunk pointer to logical data
-     Logical(Kind=1), Dimension(:),Pointer   :: p_log  => null()
+     
+     Character      , Dimension(:),Pointer   :: p_char  => null()
+     
+     Logical(Kind=1), Dimension(:),Pointer   :: p_log   => null()
 
   End Type tLeaf
 
@@ -325,11 +305,12 @@ End Module puredat_com
 !>
 Module puredat
 
-  Use puredat_types
-  Use puredat_com
-  use mpi
-  
-  Implicit None
+USE global_std
+USE puredat_types
+USE puredat_com
+USE mpi
+
+Implicit None
 
   !============================================================================
   !== Private routines

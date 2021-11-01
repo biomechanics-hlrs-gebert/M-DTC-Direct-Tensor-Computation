@@ -78,9 +78,9 @@ END MODULE meta_file_auxiliaries
 MODULE meta
 
 USE global_std
+USE auxiliaries
 USE meta_file_auxiliaries
 USE strings
-USE auxiliaries
 
 IMPLICIT NONE
 
@@ -150,28 +150,28 @@ END IF
 CALL handle_lock_file(restart)
 
 !------------------------------------------------------------------------------
-! Open the meta file
+! Open the meta input file
 !------------------------------------------------------------------------------
-OPEN(UNIT=fhme, FILE=TRIM(in%full), ACTION='READWRITE', ACCESS='SEQUENTIAL', STATUS='OLD')
+OPEN(UNIT=fhmei, FILE=TRIM(in%full), ACTION='READWRITE', ACCESS='SEQUENTIAL', STATUS='OLD')
 
 ! Count lines of input file
 lines = 0_ik
 DO
-   READ(fhme, '(A)', iostat=ios) line
+   READ(fhmei, '(A)', iostat=ios) line
    IF ( ios .NE. 0_ik ) EXIT
    
    lines = lines + 1_ik
 END DO
 
 ! Reposition to first line of file
-REWIND (fhme)
+REWIND (fhmei)
 
 ALLOCATE(meta_as_rry(lines))
 !------------------------------------------------------------------------------
 ! Read all lines into the file
 !------------------------------------------------------------------------------
 DO ii=1, lines
-   READ(fhme,'(A)') meta_as_rry(ii)
+   READ(fhmei,'(A)') meta_as_rry(ii)
 END DO
 
 !------------------------------------------------------------------------------
@@ -185,7 +185,55 @@ IF(ntokens /= 5_ik) THEN
    CALL handle_err(std_out, TRIM(ADJUSTL(mssg)), 0, .TRUE.)
 END IF
 
+!------------------------------------------------------------------------------
+! Alter the meta file name
+! The variable »alter« must be given and must be true, 
+! because its a dangerous operation which may lead to data loss.
+!------------------------------------------------------------------------------
+CALL meta_io (fhmo, 'NEW_BSNM_FEATURE', '', meta_as_rry, chars= out%features, kwabrt=0, stat=ios, wl=.FALSE.)
+IF((ios ==1)) out%features = in%features           ! if ios = 1 --> no keyword found
+
+CALL meta_io (fhmo, 'NEW_BSNM_PURPOSE', '', meta_as_rry, chars= out%purpose, kwabrt=0, stat=ios, wl=.FALSE.)
+IF((ios ==1)) out%purpose = in%purpose             ! if ios = 1 --> no keyword found
+
+IF ((out%purpose == in%purpose) .AND. (out%features == in%features)) THEN
+   mssg='The basename did not change. When in doubt, please check your meta file.'
+   CALL handle_err(std_out, mssg, 0, .TRUE.)
+END IF
+
+!------------------------------------------------------------------------------
+! Build the new outfile path
+!------------------------------------------------------------------------------
+! Nomenclature: dataset_type_purpose_app_features
+! This assignment requres the out = in assignment before
+out%p_n_bsnm = TRIM(out%path)//&
+               TRIM(out%dataset)//&
+          '_'//TRIM(out%type)//&
+          '_'//TRIM(out%purpose)//&
+          '_'//TRIM(out%app)//&        ! out%app shall be defined in the main program!
+          '_'//TRIM(out%features)
+
+out%full = TRIM(out%p_n_bsnm)//meta_suf
+
+!------------------------------------------------------------------------------
+! System call to update the file name of the meta file
+!------------------------------------------------------------------------------
+CALL execute_command_line ('cp '//TRIM(in%full)//' '//TRIM(out%full), CMDSTAT=ios)
+CALL handle_err(std_out, 'The update of the meta filename went wrong.', ios)
+
+!------------------------------------------------------------------------------
+! Open the meta output file
+!------------------------------------------------------------------------------
+OPEN(UNIT=fhmeo, FILE=TRIM(out%full), ACTION='READWRITE', ACCESS='SEQUENTIAL', STATUS='OLD')
+
+WRITE(fhmeo, '(A)')
+WRITE(fhmeo, FMT_HY_SEP)
+WRITE(fhmeo, '(A)')
+
 END SUBROUTINE meta_append
+
+
+
 
 !------------------------------------------------------------------------------
 ! SUBROUTINE: meta_add_ascii
@@ -568,60 +616,22 @@ SUBROUTINE meta_close(m_in)
 
 CHARACTER(LEN=mcl), DIMENSION(:), INTENT(INOUT), OPTIONAL :: m_in      
 
-! Internal Variables
-INTEGER  (KIND=ik)                                        :: ios
-
-!------------------------------------------------------------------------------
-! Alter the meta file name
-! The variable »alter« must be given and must be true, 
-! because its a dangerous operation which may lead to data loss.
-!------------------------------------------------------------------------------
-CALL meta_io (fhmo, 'NEW_BSNM_FEATURE', '', m_in, chars= out%features, kwabrt=0, stat=ios, wl=.FALSE.)
-IF((ios ==1)) out%features = in%features           ! if ios = 1 --> no keyword found
-
-CALL meta_io (fhmo, 'NEW_BSNM_PURPOSE', '', m_in, chars= out%purpose, kwabrt=0, stat=ios, wl=.FALSE.)
-IF((ios ==1)) out%purpose = in%purpose             ! if ios = 1 --> no keyword found
-
-IF ((out%purpose == in%purpose) .AND. (out%features == in%features)) THEN
-   mssg='The basename did not change. When in doubt, please check your meta file.'
-   CALL handle_err(std_out, mssg, 0, .TRUE.)
-END IF
-
-!------------------------------------------------------------------------------
-! Build the new outfile path
-!------------------------------------------------------------------------------
-! Nomenclature: dataset_type_purpose_app_features
-! This assignment requres the out = in assignment before
-out%p_n_bsnm = TRIM(out%path)//&
-               TRIM(out%dataset)//&
-          '_'//TRIM(out%type)//&
-          '_'//TRIM(out%purpose)//&
-          '_'//TRIM(out%app)//&
-          '_'//TRIM(out%features)
-
-out%full = TRIM(out%p_n_bsnm)//meta_suf
-
 !------------------------------------------------------------------------------
 ! Print log if requested
 !------------------------------------------------------------------------------
 IF (dbg_lvl .GE. 1) THEN
-   CALL dash(fhmo)
+   WRITE(fhmo, FMT_HY_SEP)
    WRITE(fhmo,'( A)') "State of the meta basename:"
    WRITE(fhmo,'(2A)') "Input  full path: ", TRIM(in%full)
    WRITE(fhmo,'(2A)') "Output full path: ", TRIM(out%full)
-   CALL dash(fhmo)
+   WRITE(fhmo, FMT_HY_SEP)
 END IF
 
 !------------------------------------------------------------------------------
 ! Check and close files - Routine: (fh, filename, abrt, stat)
 !------------------------------------------------------------------------------
-CALL check_and_close(fhme, 'meta', .FALSE.)
-
-!------------------------------------------------------------------------------
-! System calls to update / finalize the file names of the log and the meta file
-!------------------------------------------------------------------------------
-CALL execute_command_line ('cp '//TRIM(in%full)//' '//TRIM(out%full), CMDSTAT=ios)
-CALL handle_err(std_out, 'The update of the meta filename went wrong.', 0, .TRUE.)
+CALL check_and_close(fhmei, TRIM(in%full) , .FALSE.)
+CALL check_and_close(fhmeo, TRIM(out%full), .FALSE.)
 
 END SUBROUTINE meta_close
 

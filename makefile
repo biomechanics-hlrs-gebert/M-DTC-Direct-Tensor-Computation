@@ -298,7 +298,6 @@ $(obj_dir)mod_auxiliaries$(obj_ext):$(mod_dir)global_std$(mod_ext) $(mod_dir)cha
 # -----------------------------------------------------------------------------
 #-- Meta Module ---------------------------------------------------------------
 $(obj_dir)mod_meta$(obj_ext):$(mod_dir)global_std$(mod_ext)     \
-                             $(mod_dir)auxiliaries$(mod_ext)    \
                              $(mod_dir)strings$(mod_ext)        \
                              $(f_src_dir)mod_meta$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_meta$(f90_ext) " -----"

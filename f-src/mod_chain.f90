@@ -8,70 +8,11 @@
 !> \date 07.05.2012
 
 !==============================================================================
-!> Character constants for unified log-file output
-Module chain_constants
-
-  use global_std
-
-  Implicit None
-
-  Integer         , Parameter :: timer_level = 3 ! 1 ! 2
-  
-  ! Character constants for nice output ---------------------------------------
-  Character(Len=*), Parameter :: fmt_sep    = "('<',77('='),'>')"
-  Character(LEN=*), Parameter :: fmt_inpsep = "('+',79('-'))"
-
-  Character(Len=*), Parameter :: FMT_MSG     = "('MM ',A,T77,' MM')"
-  Character(Len=*), Parameter :: FMT_MSG_BS  = "('MM ',A,T68,' ... ',$)"
-  Character(Len=*), Parameter :: FMT_MSG_BE  = "('done MM')"
-
-  Character(Len=*), Parameter :: FMT_WRN     = "('WW ',A,T77,' WW')"  
-  Character(Len=*), Parameter :: FMT_ERR     = "('EE ',A,T77,' EE')"
-  Character(Len=*), Parameter :: FMT_ERR_AI0 = "('EE ',*(A,I0))"  
-  CHARACTER(Len=*), PARAMETER :: FMT_ERR_A   = "('EE ',A)"
-
-  Character(Len=*), Parameter :: FMT_STOP    = "('EE PROGRAM STOPPED ..... ',&
-                                                &T77,' EE',/,'<',77('='),'>')"
-
-  Character(Len=*), Parameter :: FMT_TIME = "('MM ',A,1X,F0.6,' sec')"
-
-  !** Warning fromats *********************************************************
-  CHARACTER(Len=*), PARAMETER :: FMT_WRN_A    = "('WW ',A)"
-  CHARACTER(Len=*), PARAMETER :: FMT_WRN_AI0  = "('WW ',A,1X,I0)"
-  CHARACTER(Len=*), PARAMETER :: FMT_WRN_AI0A = "('WW ',A,1X,I0,1X,A)"
-  CHARACTER(Len=*), PARAMETER :: FMT_WRN_AF0  = "('WW ',A,1X,F0.6)"
-
-  !** Message formats *********************************************************
-  CHARACTER(Len=*), PARAMETER :: FMT_MSG_AI0  = "('MM ',*(A,1X,I0,1X))"
-  CHARACTER(Len=*), PARAMETER :: FMT_MSG_AI0A = "('MM ',A,1X,I0,1X,A)"
-  CHARACTER(Len=*), PARAMETER :: FMT_MSG_A8I5 = "('MM ',A,1X,8(',',I5))"
-  CHARACTER(Len=*), PARAMETER :: FMT_MSG_2AI0 = "('MM ',2(A,1X,I0,1X))"
-  CHARACTER(Len=*), PARAMETER :: FMT_MSG_A3I0 = "('MM ',A,3(',',I0))"
-
-  CHARACTER(Len=*), PARAMETER :: FMT_MSG_AF0  = "('MM ',A,F0.6)"
-  CHARACTER(Len=*), PARAMETER :: FMT_MSG_AF0A = "('MM ',A,F0.6,A)"
-  CHARACTER(Len=*), PARAMETER :: FMT_MSG_A2F0 = "('MM ',A,2(',',F0.6))"
-  CHARACTER(Len=*), PARAMETER :: FMT_MSG_A3F0 = "('MM ',A,3(',',F0.6))"
-
-  CHARACTER(Len=*), PARAMETER :: FMT_MSG_AL  = "('MM ',A,L1)"
-
-  CHARACTER(Len=*), PARAMETER :: FMT_MSG_A   = "('MM ',A)"
-
-  !** Error formats ***********************************************************
-
-  !** Seperators **************************************************************
-  CHARACTER(Len=*), PARAMETER :: FMT_HY_SEP  = "(80('-'))"
-  CHARACTER(Len=*), PARAMETER :: FMT_EQ_SEP  = "(80('='))"
-  CHARACTER(Len=*), PARAMETER :: FMT_DBG_SEP = "('#DBG#',75('='))"
-
-End Module chain_constants
-
-!==============================================================================
 !> Global Variables for the chain process library
 Module chain_variables
  
-  Use ISO_FORTRAN_ENV
-  use chain_constants
+  USE ISO_FORTRAN_ENV
+  USE global_std
   
   Implicit None
  

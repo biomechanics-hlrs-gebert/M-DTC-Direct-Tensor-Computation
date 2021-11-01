@@ -1039,8 +1039,10 @@ Program main_struct_process
       !------------------------------------------------------------------------------
       ! Check and open the input file; Modify the Meta-Filename / Basename
       !------------------------------------------------------------------------------
+      ! Define the new application name first
+      out%app = 'ddtc' 
       CALL meta_append(restart, m_rry)
-
+      
 
       !------------------------------------------------------------------------------
       ! Spawn a log file and a results file
@@ -1983,20 +1985,7 @@ Program main_struct_process
 
 1001 Continue
 
-
-
 IF(rank_mpi == 0) THEN
-   !------------------------------------------------------------------------------
-   ! Assign out=in and define the app-name
-   ! 1. Call Close the meta file and decide whether to alter the basename.
-   ! 2. Call Close the log  file.
-   !------------------------------------------------------------------------------
-   ! Hardcode a program specific altered meta app name
-   ! This segment must be considered best practice, as it does not 
-   ! hide the principle functionality of the setup.
-   !------------------------------------------------------------------------------
-   out = in
-   out%app = 'ddtc' 
    CALL meta_close    (m_rry)
    CALL meta_add_ascii(fh=fhl , suf=log_suf, st='stop')
    CALL meta_add_ascii(fh=fhmo, suf=mon_suf, st='stop')
