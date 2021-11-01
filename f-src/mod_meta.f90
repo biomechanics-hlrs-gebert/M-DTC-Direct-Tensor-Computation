@@ -278,8 +278,8 @@ CHARACTER                                                 :: restart_u='N'
 
 
 ! The temporaray file is a hidden one.
-temp_f_suf = TRIM(in%path)//'.temporary'//TRIM(suf)
-perm_f_suf = TRIM(in%p_n_bsnm)//TRIM(suf)
+temp_f_suf = TRIM(out%path)//'.temporary'//TRIM(suf)
+perm_f_suf = TRIM(out%p_n_bsnm)//TRIM(suf)
 
 !------------------------------------------------------------------------------
 ! Create the file
@@ -296,7 +296,7 @@ IF (st == 'start') THEN
    CALL check_file_exist(std_out, filename=temp_f_suf, target_val=.FALSE., pmssg=.FALSE., abrt=0, stat=stat_t)
 
    ! Check for a permanent file
-   CALL check_file_exist(std_out, filename=in%p_n_bsnm//TRIM(suf), target_val=.FALSE., pmssg=.FALSE., abrt=0, stat=stat_p)
+   CALL check_file_exist(std_out, filename=out%p_n_bsnm//TRIM(suf), target_val=.FALSE., pmssg=.FALSE., abrt=0, stat=stat_p)
 
    !------------------------------------------------------------------------------
    ! What happens when a restart is requested.
@@ -309,8 +309,8 @@ IF (st == 'start') THEN
       END IF
 
       IF(stat_p == 1) THEN
-         CALL execute_command_line ('rm -r '//TRIM(in%p_n_bsnm)//TRIM(suf), CMDSTAT=ios)
-         CALL handle_err(std_out, '»'//TRIM(in%full)//'« not deletable.', ios)
+         CALL execute_command_line ('rm -r '//TRIM(out%p_n_bsnm)//TRIM(suf), CMDSTAT=ios)
+         CALL handle_err(std_out, '»'//TRIM(out%full)//'« not deletable.', ios)
       END IF
 
    ELSE ! restart_u .EQ. 'N'
@@ -339,6 +339,12 @@ END IF !  (st == 'start') THEN
 !------------------------------------------------------------------------------
 IF (TRIM(st) == 'stop') THEN
    CLOSE (fh)
+
+WRITE(*,*) TRIM(temp_f_suf)
+WRITE(*,*) TRIM(out%p_n_bsnm)//TRIM(suf)
+WRITE(*,*) 
+WRITE(*,*) 'mv '//TRIM(temp_f_suf)//' '//TRIM(out%p_n_bsnm)//TRIM(suf)
+
 
    ! The temporary log file must be renamed to a permanent one
    CALL execute_command_line ('mv '//TRIM(temp_f_suf)//' '//TRIM(out%p_n_bsnm)//TRIM(suf), CMDSTAT=ios)

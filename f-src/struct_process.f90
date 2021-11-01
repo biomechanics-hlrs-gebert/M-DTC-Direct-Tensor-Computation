@@ -1066,16 +1066,10 @@ Program main_struct_process
       ! Connect PureDat and the meta/raw approach.
       !------------------------------------------------------------------------------
       
-     outpath = trim(outpath)//"/"//trim(project_name)
-     if (outpath(len(outpath):len(outpath)) /= "/") then
-        outpath = trim(outpath)//"/"
-     End if
-
-      out%path     = outpath
-      IF (TRIM(out%bsnm) /= TRIM(project_name)) THEN
-         CALL handle_err(std_out, 'out%bsnm and project name do not match!', 0, .TRUE.)
-      END IF
-      out%p_n_bsnm = TRIM(out%path)//TRIM(out%bsnm)
+      outpath = trim(outpath)//"/"//trim(project_name)
+      if (outpath(len(outpath):len(outpath)) /= "/") then
+         outpath = trim(outpath)//"/"
+      End if
 
       CALL meta_io (fhmon, 'MICRO_ELMNT_TYPE' , '(-)'  , m_rry,    chars = elt_micro   , wl=.TRUE.)
       CALL meta_io (fhmon, 'DBG_LVL'          , '(-)'  , m_rry,    chars = out_amount  , wl=.TRUE.)
