@@ -1098,7 +1098,7 @@ Program main_struct_process
       ! Ideally, all processors are used. Therefore, MOD(size_mpi-1, parts) shall 
       ! resolve without a remainder. "-1" to take the master process into account.
       !------------------------------------------------------------------------------
-      remainder = 
+      remainder = MOD(size_mpi-1, parts)
 
       IF (remainder .NE. 0) THEN
          size_mpi = size_mpi - remainder
