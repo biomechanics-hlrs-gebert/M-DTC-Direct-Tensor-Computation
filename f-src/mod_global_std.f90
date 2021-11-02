@@ -65,6 +65,10 @@ Character(Len=*), Parameter :: FMT_MSG_BE  = "('done MM')"
 
 Character(Len=*), Parameter :: FMT_WRN     = "('WW ',A,T77,' WW')"  
 Character(Len=*), Parameter :: FMT_ERR     = "('EE ',A,T77,' EE')"
+Character(Len=*), Parameter :: FMT_WRN_SO  = "('\x1B[35m','WW ','\x1B[0m',A,T77,'\x1B[35m',' WW','\x1B[0m')" ! std_out
+Character(Len=*), Parameter :: FMT_ERR_SO  = "('\x1B[31m','EE ','\x1B[0m',A,T77,'\x1B[31m',' EE','\x1B[0m')" ! std_out
+Character(Len=*), Parameter :: FMT_ERR_SOC = "('\x1B[31m','EE ',A,T77,' EE','\x1B[0m')" ! std_out - complete color
+
 Character(Len=*), Parameter :: FMT_ERR_AI0 = "('EE ',*(A,I0))"  
 CHARACTER(Len=*), PARAMETER :: FMT_ERR_A   = "('EE ',A)"
 

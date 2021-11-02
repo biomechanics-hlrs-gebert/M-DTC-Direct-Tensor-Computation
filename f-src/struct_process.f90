@@ -945,7 +945,7 @@ Program main_struct_process
  
   Character(LEN=mcl)             :: muCT_pd_path
   Character(LEN=mcl)             :: muCT_pd_name
-  Character(Len=mcl)             :: mesh_desc, domain_desc
+  Character(Len=mcl)             :: mesh_desc, domain_desc, rmndr
 
   Real(kind=rk)   , Dimension(3) :: pdsize
 
@@ -959,7 +959,7 @@ Program main_struct_process
 
   Integer(kind=ik), Allocatable, Dimension(:)   :: Domains, Domain_stats, act_domains
   Integer(kind=ik)                              :: Domain
-  Integer(kind=ik)                              :: llimit, parts, elo_macro
+  Integer(kind=ik)                              :: llimit, parts, elo_macro, remainder
   Integer(kind=ik)                              :: no_solver, pscratch
   Character(LEN=8)                              :: elt_micro
   Character(Len=8)                              :: output
@@ -1069,7 +1069,6 @@ Program main_struct_process
       ! Modify output directories and namings - Planned as a makeshift solution to 
       ! Connect PureDat and the meta/raw approach.
       !------------------------------------------------------------------------------
-      ! outpath = trim(outpath)//"/"//trim(project_name)
       if (outpath(len(outpath):len(outpath)) /= "/") then
          outpath = trim(outpath)//"/"
       End if
@@ -1089,12 +1088,31 @@ Program main_struct_process
       CALL meta_io (fhmon, 'MACRO_ELMNT_ORDER', '(-)'  , m_rry,  int_0D  = elo_macro   , wl=.TRUE.)
 
       ! Error handling
-      IF ( (xa_d(1) > xe_d(1)) .OR. (xa_d(1) > xe_d(1)) .or. (xa_d(1) > xe_d(1)) ) THEN
+      IF ( (xa_d(1) > xe_d(1)) .OR. (xa_d(2) > xe_d(2)) .or. (xa_d(3) > xe_d(3)) ) THEN
          CALL handle_err(std_out, 'Input parameter error: Start value of domain range larger than end value.', 1)
       END IF
 
-      IF (MOD(size_mpi-1, parts) .NE. 0) CALL handle_err(std_out, 'Please provide more domains than processors.', 1)
+      !------------------------------------------------------------------------------
+      ! Each subdomain gets computed by a user defined amount of processors. This 
+      ! amount of processors equals to a specific amount of mesh parts.
+      ! Ideally, all processors are used. Therefore, MOD(size_mpi-1, parts) shall 
+      ! resolve without a remainder. "-1" to take the master process into account.
+      !------------------------------------------------------------------------------
+      remainder = 
 
+      IF (remainder .NE. 0) THEN
+         size_mpi = size_mpi - remainder
+
+         WRITE(rmndr, '(I15)') remainder
+
+         !------------------------------------------------------------------------------
+         ! Stop the program if more than max 1% of the processors are skipped.
+         !------------------------------------------------------------------------------
+         stat = -1                                                ! Just a warning, because reaminder .NE. 0
+         IF (remainder .GT. AINT(size_mpi/100._rk, ik)) stat = 1  ! Now it's an error
+         
+         CALL handle_err(std_out, TRIM(ADJUSTL(rmndr))//' processors are skipped due to a subdomain remainder.', stat)
+      END IF
       !------------------------------------------------------------------------------
       ! Raise and build params tree
       ! Hardcoded, implicitly given order of the leafs. 
@@ -1119,7 +1137,6 @@ Program main_struct_process
       CALL add_leaf_to_branch(params, "Output amount"                        , len(out_amount), str_to_char(out_amount))
       CALL add_leaf_to_branch(params, "Restart"                              , 1              , str_to_char(restart))
      
-
 
       !------------------------------------------------------------------------------
       ! Prepare output directory for calling the c function.

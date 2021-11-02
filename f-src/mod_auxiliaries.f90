@@ -178,7 +178,7 @@ ELSE
 
     ! Whether to stop the program has to be decided via the call.
     IF (abrt_u .EQV. .TRUE.) stat_u = 1
-    CALL handle_err(fh, TRIM(mssg), stat_u, .TRUE.)
+    CALL handle_err(fh, TRIM(mssg), stat_u)
 END IF
  
 END SUBROUTINE check_and_close
@@ -262,54 +262,49 @@ END SUBROUTINE stop_slaves
 !> Ralf Schneider.
 !
 !> @Description
-!> Aborts if err /= 0
+!> Aborts if err /= 0. Colorized output in case it's printing to std_out.
 !
 !> @param[in] fh Handle of file to print to
 !> @param[in] txt Error message to print
 !> @param[in] err Errorcode / status of the message
-!> @param[in] pmssg Print message anyway
 !------------------------------------------------------------------------------  
-SUBROUTINE handle_err(fh, txt, err, pmssg)
+SUBROUTINE handle_err(fh, txt, err)
  
 INTEGER  (KIND=ik)                        :: fh 
 CHARACTER(LEN=*)  , INTENT(IN)            :: txt
 INTEGER  (KIND=ik)                        :: err
-LOGICAL  (KIND=ik)            , OPTIONAL  :: pmssg
 
 !> Internal variables 
 INTEGER(KIND=mpi_ik)                      :: ierr = 0
 CHARACTER(LEN=mcl)                        :: text
-
-LOGICAL  (KIND=ik)                        :: pmssg_used
-
-pmssg_used = .FALSE.
-IF(PRESENT(pmssg)) pmssg_used = pmssg
+CHARACTER(LEN=scl)                        :: fmt
 
 text = TRIM(ADJUSTL(txt))
+fmt  = FMT_ERR
 
-! At first, opting out the only non-optional variable seems odd. However it fits some usage quite well, 
-! because sometimes the routine shall return a feedback without printing stuff.
-IF ((pmssg_used .EQV. .TRUE.) .OR. (err /= 0)) THEN
-    WRITE(fh, '(A)')
-    WRITE(fh, '(A)') TRIM(ADJUSTL(text))
+IF (err == 0) THEN
+    CONTINUE
+ELSE
+    ! Colorized text in case of printing to std out which might be a terminal.
+    ! Someone may write it in a nice way :-)
+    IF ((err >=  0) .AND. (fh == std_out)) fmt = FMT_ERR_SO
+    IF ((err == -1) .AND. (fh /= std_out)) fmt = FMT_WRN
+    IF ((err == -1) .AND. (fh == std_out)) fmt = FMT_WRN_SO
+
+    WRITE(fh, fmt)
+    WRITE(fh, fmt) TRIM(ADJUSTL(text))
     FLUSH(fh)
-END IF 
 
-IF (err /= 0) THEN
+    IF (err .GT. 0) THEN ! An error occured   
+        fmt = FMT_ERR_SOC 
+        WRITE(fh, fmt) "Program halted."
+        CALL stop_slaves(out%path, out%bsnm)
 
-    ! Color text red if on std out
-    IF (fh .EQ. std_out) THEN
-        WRITE(fh, '(A)') "\x1B[31mProgram halted.\x1B[0m"
-    ELSE
-        WRITE(fh, '(A)') "Program aborted."
-        CLOSE(fh)
+        CALL MPI_FINALIZE(ierr)
+        IF ( ierr /= 0 ) WRITE(fh,'(A)') "MPI_FINALIZE did not succeed"
+        STOP 
     END IF
 
-    CALL stop_slaves(out%path, out%bsnm)
-
-    CALL MPI_FINALIZE(ierr)
-    IF ( ierr /= 0 ) WRITE(fh,'(A)') "MPI_FINALIZE did not succeed"
-    STOP 
 END IF
 
 END SUBROUTINE handle_err
