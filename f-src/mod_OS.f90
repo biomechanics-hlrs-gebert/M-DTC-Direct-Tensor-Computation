@@ -1,9 +1,13 @@
+!------------------------------------------------------------------------------
+! Additional explanations about the interoperability of C and FORTRAN can be
+! obtained by the following article:
+! https://stackoverflow.com/tags/fortran-iso-c-binding/info
+!------------------------------------------------------------------------------
 Module Operating_System
   
   implicit none
 
   INTERFACE
-
      Subroutine stat_dir(dir, status) &
           BIND(C, Name="stat_dir")
 
@@ -18,7 +22,6 @@ Module Operating_System
   END INTERFACE
 
   INTERFACE
-
      Subroutine make_dir(dir, status) &
           BIND(C, Name="make_dir")
 

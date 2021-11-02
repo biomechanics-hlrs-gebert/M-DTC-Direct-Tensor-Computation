@@ -1023,10 +1023,11 @@ Program main_struct_process
             END DO
          END IF
 
-         ! Simple check whether the cmd arg can be a meta file since no other flag is longer than 3 characters.
-         ! May crash when the flags are extended improperly :-)
-         ! 
-         ! the check against the meta suffix happens at the CALL meta_append routine.
+         !------------------------------------------------------------------------------
+         ! Simple check whether the cmd arg can be a meta file since no other flag is 
+         ! longer than 3 characters. May crash when the flags are extended improperly :-)
+         ! The check against the meta suffix happens at the CALL meta_append routine.
+         !------------------------------------------------------------------------------
          IF (LEN_TRIM(cmd_arg) .GT. 5_ik) infile=cmd_arg
 
          IF(cmd_arg == '') EXIT           
@@ -1038,8 +1039,8 @@ Program main_struct_process
 
       !------------------------------------------------------------------------------
       ! Check and open the input file; Modify the Meta-Filename / Basename
-      !------------------------------------------------------------------------------
       ! Define the new application name first
+      !------------------------------------------------------------------------------
       out%app = 'ddtc' 
       CALL meta_append(restart, m_rry)
       
@@ -1047,7 +1048,10 @@ Program main_struct_process
       !------------------------------------------------------------------------------
       ! Spawn a log file and a results file
       !------------------------------------------------------------------------------
-      CALL meta_add_ascii(fh=fhl  , suf=log_suf, st='start', restart=restart)
+      ! This log file may collide with the original log file (!)
+      ! The regular struct_process log file contains still has the "old" basename!
+      !------------------------------------------------------------------------------
+      ! CALL meta_add_ascii(fh=fhl  , suf=log_suf, st='start', restart=restart)
       CALL meta_add_ascii(fh=fhmon, suf=mon_suf, st='start', restart=restart)
       ! CALL meta_add_ascii(fh=fhr, suf=res_suf, st='start', restart=restart)
 
@@ -1065,8 +1069,7 @@ Program main_struct_process
       ! Modify output directories and namings - Planned as a makeshift solution to 
       ! Connect PureDat and the meta/raw approach.
       !------------------------------------------------------------------------------
-      
-      outpath = trim(outpath)//"/"//trim(project_name)
+      ! outpath = trim(outpath)//"/"//trim(project_name)
       if (outpath(len(outpath):len(outpath)) /= "/") then
          outpath = trim(outpath)//"/"
       End if
@@ -1074,6 +1077,7 @@ Program main_struct_process
       CALL meta_io (fhmon, 'MICRO_ELMNT_TYPE' , '(-)'  , m_rry,    chars = elt_micro   , wl=.TRUE.)
       CALL meta_io (fhmon, 'DBG_LVL'          , '(-)'  , m_rry,    chars = out_amount  , wl=.TRUE.)
       CALL meta_io (fhmon, 'OUT_FMT'          , '(-)'  , m_rry,    chars = output      , wl=.TRUE.)
+      ! WHERE DOES THE GRID SPACING COME FROM? SIZE_DOMAIN/MES_PER_SUB_DMN?X
       CALL meta_io (fhmon, 'SIZE_DOMAIN'      , '(mm)' , m_rry, real_1D3 = pdsize      , wl=.TRUE.)
       CALL meta_io (fhmon, 'LO_BNDS_DMN_RANGE', '(-)'  , m_rry,  int_1D3 = xa_d        , wl=.TRUE.)
       CALL meta_io (fhmon, 'UP_BNDS_DMN_RANGE', '(-)'  , m_rry,  int_1D3 = xe_d        , wl=.TRUE.)
@@ -1091,76 +1095,91 @@ Program main_struct_process
 
       IF (MOD(size_mpi-1, parts) .NE. 0) CALL handle_err(std_out, 'Please provide more domains than processors.', 1)
 
+      !------------------------------------------------------------------------------
+      ! Raise and build params tree
+      ! Hardcoded, implicitly given order of the leafs. 
+      ! DO NOT CHANGE ORDER WITHOUT MODIFYING ALL OTHER INDICES REGARDING »params«
+      !------------------------------------------------------------------------------
       Allocate(params)
-      Call raise_tree("Input parameters",params)
+      Call raise_tree("Input parameters", params)
 
       CALL add_leaf_to_branch(params, "muCT puredat pro_path"                , mcl            , str_to_char(muCT_pd_path))
       CALL add_leaf_to_branch(params, "muCT puredat pro_name"                , mcl            , str_to_char(muCT_pd_name))
-      CALL add_leaf_to_branch(params, 'Element type  on micro scale'         , len(elt_micro) , str_to_char(elt_micro))     
-      CALL add_leaf_to_branch(params, 'Output amount'                        , len(out_amount), str_to_char(out_amount))
-      CALL add_leaf_to_branch(params, 'Restart'                              , len(restart)   , str_to_char(restart))
-      CALL add_leaf_to_branch(params, 'Output Format'                        , len(output)    , str_to_char(output))
       CALL add_leaf_to_branch(params, "Physical domain size"                 , 3_ik           , pdsize)
       CALL add_leaf_to_branch(params, "Lower bounds of selected domain range", 3_ik           , xa_d)
       CALL add_leaf_to_branch(params, "Upper bounds of selected domain range", 3_ik           , xe_d)     
-      CALL add_leaf_to_branch(params, 'Lower limit of iso value'             , 1_ik           , [llimit])     
-      CALL add_leaf_to_branch(params, 'No of mesh parts per subdomain'       , 1              , [parts])
-      CALL add_leaf_to_branch(params, 'Average strain on RVE'                , 1              , [strain])   
+      CALL add_leaf_to_branch(params, "Lower limit of iso value"             , 1_ik           , [llimit])     
+      CALL add_leaf_to_branch(params, "Element type  on micro scale"         , len(elt_micro) , str_to_char(elt_micro))     
+      CALL add_leaf_to_branch(params, "No of mesh parts per subdomain"       , 1              , [parts])
+      CALL add_leaf_to_branch(params, "Output Format"                        , len(output)    , str_to_char(output))
+      CALL add_leaf_to_branch(params, "Average strain on RVE"                , 1              , [strain])   
       CALL add_leaf_to_branch(params, "Young_s modulus"                      , 1              , [e_modul])
       CALL add_leaf_to_branch(params, "Poisson_s ratio"                      , 1              , [nu])
-      CALL add_leaf_to_branch(params, 'Element order on macro scale'         , 1              , [elo_macro])
+      CALL add_leaf_to_branch(params, "Element order on macro scale"         , 1              , [elo_macro])
+      CALL add_leaf_to_branch(params, "Output amount"                        , len(out_amount), str_to_char(out_amount))
+      CALL add_leaf_to_branch(params, "Restart"                              , 1              , str_to_char(restart))
      
 
-     
-     !** Prepare output directory ****************************************
-     c_char_array(1:len(Trim(outpath)//Char(0))) = str_to_char(Trim(outpath)//Char(0))
 
-     Call Stat_Dir(c_char_array, stat_c_int)
+!------------------------------------------------------------------------------
+! Since the output directory may always stay the same like the input 
+! directory, this section becomes obsolete. However removing it too early 
+! may turn out negative.
+!------------------------------------------------------------------------------
 
-     If ( stat_c_int /= 0 ) Then
+      !------------------------------------------------------------------------------
+      ! Prepare output directory for calling the c function.
+      ! File exists if stat_c_int = 0 
+      !------------------------------------------------------------------------------
+      ! c_char_array(1:len(Trim(outpath)//Char(0))) = str_to_char(Trim(outpath)//Char(0))
+      ! Call Stat_Dir(c_char_array, stat_c_int)
 
-        Call execute_command_line("mkdir -p "//trim(outpath),CMDSTAT=stat)
+      ! If ( stat_c_int /= 0 ) Then
 
-        If ( stat /= 0 ) Then
-           Write(un_mon,*)"Could not execute syscall"
-           Write(un_mon,*)"mkpir -p "//trim(outpath)
-           Write(un_mon,*)"Program halted"
-           success = .FALSE.
-        End If
+      !    Call execute_command_line("mkdir -p "//trim(outpath),CMDSTAT=stat)
 
-        Call Stat_Dir(c_char_array, stat_c_int)
+      !    If ( stat /= 0 ) Then
+      !       Write(un_mon,*)"Could not execute syscall"
+      !       Write(un_mon,*)"mkpir -p "//trim(outpath)
+      !       Write(un_mon,*)"Program halted"
+      !       success = .FALSE.
+      !    End If
 
-        If ( stat_c_int /= 0 ) Then
-           Write(un_mon,*)"Could not create directory"
-           Write(un_mon,*)trim(outpath)
-           Write(un_mon,*)"Program halted"
-           success = .FALSE.
-        End If
+      !    Call Stat_Dir(c_char_array, stat_c_int)
 
-        success = .TRUE.
-        
-     Else If ( (stat_c_int == 0) .AND. (Restart == "Y") ) Then
+      !    If ( stat_c_int /= 0 ) Then
+      !       Write(un_mon,*)"Could not create directory"
+      !       Write(un_mon,*)trim(outpath)
+      !       Write(un_mon,*)"Program halted"
+      !       success = .FALSE.
+      !    End If
 
-        Write(un_mon,FMT_MSG_A)"Reusing the output directory"
-        Write(un_mon,FMT_MSG_A)trim(outpath)
-        success = .TRUE.
-        
-     Else
-        
-        Write(*,FMT_ERR_A)"The output directory"
-        Write(*,FMT_ERR_A)trim(outpath)
-        Write(*,FMT_ERR_A)"apparently exists already with restart not equal to Y !!!"
-        Write(*,FMT_ERR_A)"Please check your struct-process-parameters.sh file   !!!"
-        write(*,FMT_STOP)
-        success = .FALSE.
-        
-     End If
+      !    success = .TRUE.
+         
+      ! Else If ( (stat_c_int == 0) .AND. (Restart == "Y") ) Then
 
-     If (.NOT. success) CALL handle_err(std_out, "Something went wrong during init of the output dir.", 1)
+      !    Write(un_mon,FMT_MSG_A)"Reusing the output directory"
+      !    Write(un_mon,FMT_MSG_A)trim(outpath)
+      !    success = .TRUE.
 
-     Call link_start(link_name,.TRUE.,.FALSE., success)
-     
-     If (.NOT. success) CALL handle_err(std_out, "Something went wrong during link_start", 1)
+      ! Else
+
+      !    Write(*,FMT_ERR_A)"The output directory"
+      !    Write(*,FMT_ERR_A)trim(outpath)
+      !    Write(*,FMT_ERR_A)"apparently exists already with restart not equal to Y !!!"
+      !    Write(*,FMT_ERR_A)"Please check your struct-process-parameters.sh file   !!!"
+      !    write(*,FMT_STOP)
+      !    success = .FALSE.
+
+      ! End If
+
+      ! If (.NOT. success) CALL handle_err(std_out, "Something went wrong during init of the output dir.", 1)
+!------------------------------------------------------------------------------
+! See above for more explanations on commenting out this section
+!------------------------------------------------------------------------------
+
+     CALL link_start(link_name, .TRUE., .FALSE., success)
+     IF (.NOT. success) CALL handle_err(std_out, "Something went wrong during link_start", 1)
 
      !** Set project name and path of puredat root ***
      pro_path = outpath
@@ -1193,14 +1212,9 @@ Program main_struct_process
 
         !** Check whether there is already a project header *******************
         inquire(file=Trim(pro_path)//Trim(pro_name)//'.head',exist=fexist)
-        If (.not.fexist) then
 
-           CALL handle_err(std_out, 'Restart on job without PureDat root header ! This case is not supported', 1)
-           Call End_Timer("Init Process")
- 
-           Goto 1000
-           
-        End If
+        IF (.NOT. fexist) CALL handle_err(std_out, &
+        'Restart on job without PureDat root header ! This case is not supported.', 1)
         
         !** Read root branch ******************************
         root = read_tree()
@@ -1224,7 +1238,7 @@ Program main_struct_process
 
         Call get_stream_size(root, dsize)
         root%streams%dim_st = dsize
-        root%streams%ii_st = dsize+1
+        root%streams%ii_st  = dsize + 1
         
         Call read_streams(root)
      
@@ -1248,23 +1262,23 @@ Program main_struct_process
            STOP
         End If
 
-        !** Reset Output amount and Restart in loaded param branch ************
-        params%leaves(17)%p_char = str_to_char(out_amount)
-        params%leaves(18)%p_char = "Y"
+         !------------------------------------------------------------------------------
+         ! Reset Output amount and Restart in loaded param branch
+         ! Hardcoded, implicitly given order of the leafs. 
+         ! DO NOT CHANGE INDICES WITHOUT MODYFING THE »add_leaf_to_branch« SEQUENCES.
+         !------------------------------------------------------------------------------
+         params%leaves(14)%p_char = str_to_char(out_amount)
+         params%leaves(15)%p_char = "Y"
 
-        !**!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        !** TODO Check that existing parameters match with given ones !!!!!
-        !**!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-        !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-        If (out_amount == "DEBUG") THEN 
-           Write(un_lf,fmt_dbg_sep)
-           Write(un_lf,'(A)')"root right after restart and deletion of avg mat props branch"
-           Call log_tree(root,un_lf,.FALSE.)
-           Write(un_lf,fmt_dbg_sep)
-           flush(un_lf)
-        END If
-        !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<     
+         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+         If (out_amount == "DEBUG") THEN 
+            Write(un_lf,fmt_dbg_sep)
+            Write(un_lf,'(A)')"root right after restart and deletion of avg mat props branch"
+            Call log_tree(root,un_lf,.FALSE.)
+            Write(un_lf,fmt_dbg_sep)
+            flush(un_lf)
+         END If
+         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<     
         
      Else
         
@@ -1981,7 +1995,7 @@ Program main_struct_process
 
 IF(rank_mpi == 0) THEN
    CALL meta_close    (m_rry)
-   CALL meta_add_ascii(fh=fhl  , suf=log_suf, st='stop')
+   ! CALL meta_add_ascii(fh=fhl  , suf=log_suf, st='stop')
    CALL meta_add_ascii(fh=fhmon, suf=mon_suf, st='stop')
    ! CALL meta_add_ascii(fh=fhr, suf=res_suf, st='stop')
 END IF ! (rank_mpi == 0)

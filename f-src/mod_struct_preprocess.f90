@@ -158,18 +158,15 @@ Contains
 
     call open_stream_files(phi_desc, "read" , "old")
 
-    call pd_load_leaf(phi_desc%streams,phi_desc,"Grid spacings", &
-         delta)  
-    call pd_load_leaf(phi_desc%streams,phi_desc, &
-         "Number of voxels per direction", vdim)
+    call pd_load_leaf(phi_desc%streams,phi_desc, "Grid spacings"                 , delta)  
+    call pd_load_leaf(phi_desc%streams,phi_desc, "Number of voxels per direction", vdim)
 
     if ( out_amount /= "PRODUCTION" ) then
-       write(un_lf,FMT_MSG_A3F0)"Grid spacings",delta
-       write(un_lf,FMT_MSG_A3I0)"Number of voxels per direction",vdim
+       write(un_lf,FMT_MSG_A3F0) "Grid spacings", delta
+       write(un_lf,FMT_MSG_A3I0) "Number of voxels per direction", vdim
     End if
     
-    allocate(Phi(xa_n(1):xe_n(1), xa_n(2):xe_n(2), xa_n(3):xe_n(3)), &
-         stat=alloc_stat)
+    allocate(Phi(xa_n(1):xe_n(1), xa_n(2):xe_n(2), xa_n(3):xe_n(3)), stat=alloc_stat)
 
     call alloc_err("phi", alloc_stat)
 

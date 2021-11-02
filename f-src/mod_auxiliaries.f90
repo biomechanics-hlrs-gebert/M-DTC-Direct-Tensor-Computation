@@ -299,7 +299,7 @@ IF (err /= 0) THEN
 
     ! Color text red if on std out
     IF (fh .EQ. std_out) THEN
-        WRITE(fh, '(A)') "\x1B[31mProgram aborted.\x1B[0m"
+        WRITE(fh, '(A)') "\x1B[31mProgram halted.\x1B[0m"
     ELSE
         WRITE(fh, '(A)') "Program aborted."
         CLOSE(fh)

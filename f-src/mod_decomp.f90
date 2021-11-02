@@ -176,10 +176,8 @@ Contains
     !** Get phi description ***************************************************
     call open_stream_files(phi_desc, "read" , "old")
 
-    call pd_load_leaf(phi_desc%streams,phi_desc,"Grid spacings", &
-                delta)  
-    call pd_load_leaf(phi_desc%streams,phi_desc,"Number of voxels per direction", &
-                vdim)
+    call pd_load_leaf(phi_desc%streams,phi_desc,"Grid spacings",                  delta)  
+    call pd_load_leaf(phi_desc%streams,phi_desc,"Number of voxels per direction", vdim)
 
     call close_stream_files(phi_desc)
 
