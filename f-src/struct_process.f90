@@ -1121,62 +1121,53 @@ Program main_struct_process
      
 
 
-!------------------------------------------------------------------------------
-! Since the output directory may always stay the same like the input 
-! directory, this section becomes obsolete. However removing it too early 
-! may turn out negative.
-!------------------------------------------------------------------------------
-
       !------------------------------------------------------------------------------
       ! Prepare output directory for calling the c function.
       ! File exists if stat_c_int = 0 
       !------------------------------------------------------------------------------
-      ! c_char_array(1:len(Trim(outpath)//Char(0))) = str_to_char(Trim(outpath)//Char(0))
-      ! Call Stat_Dir(c_char_array, stat_c_int)
+      c_char_array(1:len(Trim(outpath)//Char(0))) = str_to_char(Trim(outpath)//Char(0))
+      Call Stat_Dir(c_char_array, stat_c_int)
 
-      ! If ( stat_c_int /= 0 ) Then
+      If ( stat_c_int /= 0 ) Then
 
-      !    Call execute_command_line("mkdir -p "//trim(outpath),CMDSTAT=stat)
+         Call execute_command_line("mkdir -p "//trim(outpath),CMDSTAT=stat)
 
-      !    If ( stat /= 0 ) Then
-      !       Write(un_mon,*)"Could not execute syscall"
-      !       Write(un_mon,*)"mkpir -p "//trim(outpath)
-      !       Write(un_mon,*)"Program halted"
-      !       success = .FALSE.
-      !    End If
+         If ( stat /= 0 ) Then
+            Write(un_mon,*)"Could not execute syscall"
+            Write(un_mon,*)"mkpir -p "//trim(outpath)
+            Write(un_mon,*)"Program halted"
+            success = .FALSE.
+         End If
 
-      !    Call Stat_Dir(c_char_array, stat_c_int)
+         Call Stat_Dir(c_char_array, stat_c_int)
 
-      !    If ( stat_c_int /= 0 ) Then
-      !       Write(un_mon,*)"Could not create directory"
-      !       Write(un_mon,*)trim(outpath)
-      !       Write(un_mon,*)"Program halted"
-      !       success = .FALSE.
-      !    End If
+         If ( stat_c_int /= 0 ) Then
+            Write(un_mon,*)"Could not create directory"
+            Write(un_mon,*)trim(outpath)
+            Write(un_mon,*)"Program halted"
+            success = .FALSE.
+         End If
 
-      !    success = .TRUE.
+         success = .TRUE.
          
-      ! Else If ( (stat_c_int == 0) .AND. (Restart == "Y") ) Then
+      Else If ( (stat_c_int == 0) .AND. (Restart == "Y") ) Then
 
-      !    Write(un_mon,FMT_MSG_A)"Reusing the output directory"
-      !    Write(un_mon,FMT_MSG_A)trim(outpath)
-      !    success = .TRUE.
+         Write(un_mon,FMT_MSG_A)"Reusing the output directory"
+         Write(un_mon,FMT_MSG_A)trim(outpath)
+         success = .TRUE.
 
-      ! Else
+      Else
 
-      !    Write(*,FMT_ERR_A)"The output directory"
-      !    Write(*,FMT_ERR_A)trim(outpath)
-      !    Write(*,FMT_ERR_A)"apparently exists already with restart not equal to Y !!!"
-      !    Write(*,FMT_ERR_A)"Please check your struct-process-parameters.sh file   !!!"
-      !    write(*,FMT_STOP)
-      !    success = .FALSE.
+         Write(*,FMT_ERR_A)"The output directory"
+         Write(*,FMT_ERR_A)trim(outpath)
+         Write(*,FMT_ERR_A)"apparently exists already with restart not equal to Y !!!"
+         Write(*,FMT_ERR_A)"Please check your struct-process-parameters.sh file   !!!"
+         write(*,FMT_STOP)
+         success = .FALSE.
 
-      ! End If
+      End If
 
-      ! If (.NOT. success) CALL handle_err(std_out, "Something went wrong during init of the output dir.", 1)
-!------------------------------------------------------------------------------
-! See above for more explanations on commenting out this section
-!------------------------------------------------------------------------------
+      If (.NOT. success) CALL handle_err(std_out, "Something went wrong during init of the output dir.", 1)
 
      CALL link_start(link_name, .TRUE., .FALSE., success)
      IF (.NOT. success) CALL handle_err(std_out, "Something went wrong during link_start", 1)

@@ -3337,7 +3337,7 @@ Contains
     call raise_tree('',tree)
 
     Inquire(file=Trim(pro_path)//Trim(pro_name)//'.head', &
-         exist=fexist,size=fsize)
+         exist=fexist, size=fsize)
 
     If (fexist) then
 
@@ -3349,7 +3349,7 @@ Contains
        Allocate(head(fsize), Stat=alloc_stat)
        Call alloc_error(alloc_stat,'head', 'read_tree', fsize)
 
-       read(un_head)head
+       read(un_head) head
 
        Close(un_head)
        pos = 1
