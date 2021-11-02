@@ -95,7 +95,7 @@
 * RVE_STRAIN            0.0000001                                    ! Strain on macro element
 * MACRO_ELMNT_ORDER     1                                            ! 1=linear (HEX08), 2=quadratic (HEX20)
 * MICRO_ELMNT_TYPE      HEX08                                        ! Element type  on micro scale
-* MESH_PER_SUB_DMN      2                                            ! No of mesh parts per subdomain
+* MESH_PER_SUB_DMN      2                                            ! Processors/Mesh parts per subdomain. Size_mpi-1! 
 * OUT_FMT               FMPS                                         ! Output Format
 * DBG_LVL               DEBUG                                        ! Output amount
 
@@ -106,4 +106,5 @@
 * PROJECT_NAME          SC00-0_tc_Dev_DDTC_isotropic-HEX08           ! Project name
 * MCT_PD_PRO_PATH    regression/SC00-0_tc_Dev_DDTC_isotropic-HEX08/  ! muCT puredat pro_path
 * MCT_PD_PRO_NAME       SC00-0_tc_Dev_DDTC_isotropic-HEX08           ! muCT puredat pro_name
+
 -------------------------------------------------------------------------------------------------------------

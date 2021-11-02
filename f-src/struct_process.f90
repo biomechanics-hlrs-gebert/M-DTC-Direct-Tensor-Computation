@@ -945,7 +945,7 @@ Program main_struct_process
  
   Character(LEN=mcl)             :: muCT_pd_path
   Character(LEN=mcl)             :: muCT_pd_name
-  Character(Len=mcl)             :: mesh_desc, domain_desc, rmndr
+  Character(Len=mcl)             :: mesh_desc, domain_desc
 
   Real(kind=rk)   , Dimension(3) :: pdsize
 
@@ -959,7 +959,7 @@ Program main_struct_process
 
   Integer(kind=ik), Allocatable, Dimension(:)   :: Domains, Domain_stats, act_domains
   Integer(kind=ik)                              :: Domain
-  Integer(kind=ik)                              :: llimit, parts, elo_macro, remainder
+  Integer(kind=ik)                              :: llimit, parts, elo_macro
   Integer(kind=ik)                              :: no_solver, pscratch
   Character(LEN=8)                              :: elt_micro
   Character(Len=8)                              :: output
@@ -1098,21 +1098,10 @@ Program main_struct_process
       ! Ideally, all processors are used. Therefore, MOD(size_mpi-1, parts) shall 
       ! resolve without a remainder. "-1" to take the master process into account.
       !------------------------------------------------------------------------------
-      remainder = MOD(size_mpi-1, parts)
-
-      IF (remainder .NE. 0) THEN
-         size_mpi = size_mpi - remainder
-
-         WRITE(rmndr, '(I15)') remainder
-
-         !------------------------------------------------------------------------------
-         ! Stop the program if more than max 1% of the processors are skipped.
-         !------------------------------------------------------------------------------
-         stat = -1                                                ! Just a warning, because reaminder .NE. 0
-         IF (remainder .GT. AINT(size_mpi/100._rk, ik)) stat = 1  ! Now it's an error
-         
-         CALL handle_err(std_out, TRIM(ADJUSTL(rmndr))//' processors are skipped due to a subdomain remainder.', stat)
+      IF (MOD(size_mpi-1, parts) .NE. 0) THEN
+         CALL handle_err(std_out, 'Skipping processors due to a subdomain remainder is not supported.', 1)
       END IF
+
       !------------------------------------------------------------------------------
       ! Raise and build params tree
       ! Hardcoded, implicitly given order of the leafs. 

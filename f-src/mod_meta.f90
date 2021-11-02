@@ -176,7 +176,7 @@ CALL parse(str=TRIM(in%bsnm), delims='_', args=tokens, nargs=ntokens)
 ! Check if the basename consists of exactly the 5 parts.
 IF(ntokens /= 5_ik) THEN   
    mssg='The basename »'//TRIM(in%bsnm)//'« of the meta-file was ill-defined. It may be parsed wrong.'
-   CALL handle_err(std_out, TRIM(ADJUSTL(mssg)), 0, .TRUE.)
+   CALL handle_err(std_out, TRIM(ADJUSTL(mssg)), 0)
 END IF
 
 !------------------------------------------------------------------------------
@@ -192,7 +192,7 @@ IF((ios ==1)) out%purpose = in%purpose             ! if ios = 1 --> no keyword f
 
 IF ((out%purpose == in%purpose) .AND. (out%features == in%features)) THEN
    mssg='The basename did not change. When in doubt, please check your meta file.'
-   CALL handle_err(std_out, mssg, 0, .TRUE.)
+   CALL handle_err(std_out, mssg, 0)
 END IF
 
 !------------------------------------------------------------------------------
@@ -339,7 +339,7 @@ IF (TRIM(st) == 'stop') THEN
 
    IF(ios /= 0_ik) THEN
       mssg='Can not rename the suffix_file from »'//TRIM(temp_f_suf)//'« to the proper basename.'
-      CALL handle_err(std_out, mssg, 0, .TRUE.)
+      CALL handle_err(std_out, mssg, 0)
    END IF
 END IF
 
@@ -438,7 +438,7 @@ IF(PRESENT(nd))     ndu      = nd
 IF(LEN_TRIM(keyword) .GT. LEN(kywd_lngth)) THEN
    WRITE(fh, '(A)') ''
    mssg = "The keyword »"//TRIM(keyword)//"« is longer than the convention allows and therefore truncated!"
-   CALL handle_err(fh, TRIM(ADJUSTL(mssg)), 0, .TRUE.)
+   CALL handle_err(fh, TRIM(ADJUSTL(mssg)), 0)
 
    kywd_lngth = keyword(1:LEN(kywd_lngth))
 ELSE
@@ -452,7 +452,7 @@ IF (PRESENT(unit)) THEN
    ! Check unit length for convention and proper formatting
    IF(LEN_TRIM(unit) .GT. LEN(unit_lngth)) THEN
       mssg = "The unit "//TRIM(unit)//" is longer than the convention allows and therefore truncated!"
-      CALL handle_err(fh, TRIM(ADJUSTL(mssg)), 0, .TRUE.)
+      CALL handle_err(fh, TRIM(ADJUSTL(mssg)), 0)
       unit_lngth = unit(1:LEN(unit_lngth))
    ELSE
       unit_lngth = unit
@@ -544,7 +544,7 @@ IF (PRESENT(m_in) .EQV. .TRUE.) THEN
    IF (kywd_found .EQ. 0_ik)  THEN
 
       mssg = "The keyword »"//TRIM(ADJUSTL(keyword))//"« was not found in the meta file!"
-      CALL handle_err(fh, TRIM(ADJUSTL(mssg)), kwabrt_u, .TRUE.)
+      CALL handle_err(fh, TRIM(ADJUSTL(mssg)), kwabrt_u)
       stat = 1
    END IF
 END IF

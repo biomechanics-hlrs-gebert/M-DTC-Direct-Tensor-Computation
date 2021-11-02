@@ -56,24 +56,24 @@ CHARACTER(len=8)   , PARAMETER :: rfmt          = '(F30.10)'    ! general real  
 CHARACTER(len=10)  , PARAMETER :: sfmt          = '(E23.15E2)'  ! general scientific format
 
 ! Character constants for nice output ---------------------------------------
-Character(Len=*), Parameter :: fmt_sep    = "('<',77('='),'>')"
-Character(LEN=*), Parameter :: fmt_inpsep = "('+',79('-'))"
+Character(Len=*), Parameter :: fmt_sep    = "('<',97('='),'>')"
+Character(LEN=*), Parameter :: fmt_inpsep = "('+',99('-'))"
 
-Character(Len=*), Parameter :: FMT_MSG     = "('MM ',A,T77,' MM')"
-Character(Len=*), Parameter :: FMT_MSG_BS  = "('MM ',A,T68,' ... ',$)"
+Character(Len=*), Parameter :: FMT_MSG     = "('MM ',A,T97,' MM')"
+Character(Len=*), Parameter :: FMT_MSG_BS  = "('MM ',A,T88,' ... ',$)"
 Character(Len=*), Parameter :: FMT_MSG_BE  = "('done MM')"
 
-Character(Len=*), Parameter :: FMT_WRN     = "('WW ',A,T77,' WW')"  
-Character(Len=*), Parameter :: FMT_ERR     = "('EE ',A,T77,' EE')"
-Character(Len=*), Parameter :: FMT_WRN_SO  = "('\x1B[35m','WW ','\x1B[0m',A,T77,'\x1B[35m',' WW','\x1B[0m')" ! std_out
-Character(Len=*), Parameter :: FMT_ERR_SO  = "('\x1B[31m','EE ','\x1B[0m',A,T77,'\x1B[31m',' EE','\x1B[0m')" ! std_out
-Character(Len=*), Parameter :: FMT_ERR_SOC = "('\x1B[31m','EE ',A,T77,' EE','\x1B[0m')" ! std_out - complete color
+Character(Len=*), Parameter :: FMT_WRN     = "('WW ',A,T97,' WW')"  
+Character(Len=*), Parameter :: FMT_ERR     = "('EE ',A,T97,' EE')"
+Character(Len=*), Parameter :: FMT_WRN_SO  = "('\x1B[35m','WW ','\x1B[0m',A,T97,'\x1B[35m',' WW','\x1B[0m')" ! std_out
+Character(Len=*), Parameter :: FMT_ERR_SO  = "('\x1B[31m','EE ','\x1B[0m',A,T97,'\x1B[31m',' EE','\x1B[0m')" ! std_out
+Character(Len=*), Parameter :: FMT_ERR_SOC = "('\x1B[31m','EE ',A,T97,' EE','\x1B[0m')" ! std_out - complete color
 
 Character(Len=*), Parameter :: FMT_ERR_AI0 = "('EE ',*(A,I0))"  
 CHARACTER(Len=*), PARAMETER :: FMT_ERR_A   = "('EE ',A)"
 
 Character(Len=*), Parameter :: FMT_STOP    = "('EE PROGRAM STOPPED ..... ',&
-                                             &T77,' EE',/,'<',77('='),'>')"
+                                             &T97,' EE',/,'<',97('='),'>')"
 
 Character(Len=*), Parameter :: FMT_TIME = "('MM ',A,1X,F0.6,' sec')"
 
@@ -101,12 +101,12 @@ CHARACTER(Len=*), PARAMETER :: FMT_MSG_A   = "('MM ',A)"
 ! Seperators
 CHARACTER(Len=*), PARAMETER :: FMT_HY_SEP  = "(100('-'))"
 CHARACTER(Len=*), PARAMETER :: FMT_EQ_SEP  = "(100('='))"
-CHARACTER(Len=*), PARAMETER :: FMT_DBG_SEP = "('#DBG#',75('='))"
+CHARACTER(Len=*), PARAMETER :: FMT_DBG_SEP = "('#DBG#',95('='))"
 
 ! PureDat Formatters
 Character(Len=*), Parameter :: PDF_E_A    = "('EE ',A)"
 Character(Len=*), Parameter :: PDF_E_AI0  = "('EE ',*(A,1X,I0))"
-Character(Len=*), Parameter :: PDF_E_STOP = "('EE PROGRAM STOPPED ..... ',/,'<',78('='),'>')"
+Character(Len=*), Parameter :: PDF_E_STOP = "('EE PROGRAM STOPPED ..... ',/,'<',98('='),'>')"
 
 Character(Len=*), Parameter :: PDF_W_A    = "('WW ',A)"
 Character(Len=*), Parameter :: PDF_W_AI0  = "('WW ',*(A,1X,I0))"
@@ -116,7 +116,7 @@ Character(Len=*), Parameter :: PDF_M_AI0  = "('MM ',A,1X,I0)"
 
 Character(Len=*), Parameter :: PDF_TIME   = "('MM ',A,1X,F0.6,' sec')"
 
-Character(Len=*), Parameter :: PDF_SEP    = "('<',78('='),'>')"
+Character(Len=*), Parameter :: PDF_SEP    = "('<',98('='),'>')"
 
 !-- Mpi-specific kinds
 INTEGER         , PARAMETER :: mpi_ik     = 4             ! MPI INTEGER Kind; Compile with corresponding mpi!!
