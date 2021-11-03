@@ -1262,10 +1262,10 @@ Program main_struct_process
        
      Call pd_get(ddc,"nn_D",nn_D)
 
-     !** Allocate and init field for selected domain numbers ******************
-     Domain_number = (xe_d(1)-xa_d(1)+1) * &
-                     (xe_d(2)-xa_d(2)+1) * &
-                     (xe_d(3)-xa_d(3)+1)
+      !------------------------------------------------------------------------------
+      ! Allocate and init field for selected domain range
+      !------------------------------------------------------------------------------
+      Domain_number = (xe_d(1)-xa_d(1)+1) * (xe_d(2)-xa_d(2)+1) * (xe_d(3)-xa_d(3)+1)
      
      Allocate(Domains(Domain_number),stat=alloc_stat)
      Call alloc_err("Domains",alloc_stat)
