@@ -145,7 +145,7 @@ END MODULE global_std
 
 
 !------------------------------------------------------------------------------
-! MODULE: mechanical_standards
+! MODULE: mechanical
 !------------------------------------------------------------------------------
 !> @author Johannes Gebert, gebert@hlrs.de, HLRS/vM
 !
@@ -155,11 +155,20 @@ END MODULE global_std
 ! REVISION HISTORY:
 ! 26 09 2021 - Initial Version
 !------------------------------------------------------------------------------
-MODULE mechanical_standards
+MODULE mechanical
 
 USE global_std
 
 IMPLICIT NONE
+
+! Add other parameters if necessary.
+TYPE materialcard
+    REAL(KIND=rk)               :: E
+    REAL(KIND=rk)               :: nu
+    ! For use with effective nummerical stiffness calculations 
+    REAL(KIND=rk), DIMENSION(3) :: pdsize ! Physical domain/ Macro element size 
+END TYPE materialcard
+
 CONTAINS
 
 !------------------------------------------------------------------------------
@@ -365,4 +374,4 @@ FUNCTION iso_stiffness_kelvin(E, v) RESULT (t_iso)
 
 END FUNCTION iso_stiffness_kelvin
 
-END MODULE mechanical_standards
+END MODULE mechanical

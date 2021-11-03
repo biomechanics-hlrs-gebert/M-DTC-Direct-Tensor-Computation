@@ -1,7 +1,7 @@
 module linFE
 
   USE global_std
-
+  USE mechanical
   implicit none
 
 contains
@@ -134,17 +134,36 @@ contains
 
   End Subroutine num_stiffness_to_stiffness
 
-  !--------------------------------------------------------------------------
-  Function Hexe08() Result(C_FE)
+!------------------------------------------------------------------------------
+! SUBROUTINE: Function Hexe08
+!------------------------------------------------------------------------------  
+!> @author Ralf Schneider, schneider@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Hexe8 finite element stiffness matrix.
+!
+!> @param[in] mc Material card
+!> @return    C_FE Error code1
+!------------------------------------------------------------------------------  
+  Function Hexe08(mc) Result(C_FE)
+    TYPE(materialcard)              :: mc
 
-    Real(kind=rk), Dimension(24,24) :: C_FE
-    Real(kind=rk), Parameter        :: E      = 5600._rk
-    Real(kind=rk), Parameter        :: nu     = 0.3_rk
-    Real(kind=rk), Parameter        :: a      = 2.0 ! 0.019362_rk
+    REAL(KIND=rk)                   :: E
+    REAL(KIND=rk)                   :: nu
+    REAL(KIND=rk)                   :: a 
+    REAL(KIND=rk), DIMENSION(24,24) :: C_FE
 
-    Real(kind=rk) :: factor
+    REAL(KIND=rk) :: factor
+
+    E  = mc%E
+    nu = mc%nu
+    a  = mc%pdsize(1) ! Ensure that only dim(1)=dim(2)=dim(3) is valid!
 
     factor = E*a / (144._rk*(2.0_rk * nu**2 + nu - 1.0_rk))
+
+    ! factor = E / (3*a*(nu+1)*(1-2*nu))
+    ! C_FE(1,1) = -(6*nu-4)/3
+
     C_FE(1,1) = 48*nu-32
     C_FE(1,2) = -6
     C_FE(1,3) = -6
