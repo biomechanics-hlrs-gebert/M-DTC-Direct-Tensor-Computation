@@ -1125,94 +1125,46 @@ Program main_struct_process
       CALL add_leaf_to_branch(params, "Element order on macro scale"         , 1              , [elo_macro])
       CALL add_leaf_to_branch(params, "Output amount"                        , len(out_amount), str_to_char(out_amount))
       CALL add_leaf_to_branch(params, "Restart"                              , 1              , str_to_char(restart))
-     
+
 
       !------------------------------------------------------------------------------
-      ! Prepare output directory for calling the c function.
+      ! Prepare output directory via calling the c function.
       ! File exists if stat_c_int = 0 
       !------------------------------------------------------------------------------
-      c_char_array(1:len(Trim(outpath)//Char(0))) = str_to_char(Trim(outpath)//Char(0))
-      Call Stat_Dir(c_char_array, stat_c_int)
+      c_char_array(1:LEN(TRIM(outpath)//CHAR(0))) = str_to_char(TRIM(outpath)//CHAR(0))
+      CALL Stat_Dir(c_char_array, stat_c_int)
 
-      If ( stat_c_int /= 0 ) Then
+      IF(stat_c_int /= 0) THEN
 
-         Call execute_command_line("mkdir -p "//trim(outpath),CMDSTAT=stat)
+         CALL execute_command_line("mkdir -p "//TRIM(outpath),CMDSTAT=stat)
 
-         If ( stat /= 0 ) Then
-            Write(un_mon,*)"Could not execute syscall"
-            Write(un_mon,*)"mkpir -p "//trim(outpath)
-            Write(un_mon,*)"Program halted"
-            success = .FALSE.
-         End If
+         IF(stat /= 0) CALL handle_err(std_out, 'Could not execute syscall »mkdir -p '//trim(outpath)//'«.', 1)
 
-         Call Stat_Dir(c_char_array, stat_c_int)
+         CALL Stat_Dir(c_char_array, stat_c_int)
 
-         If ( stat_c_int /= 0 ) Then
-            Write(un_mon,*)"Could not create directory"
-            Write(un_mon,*)trim(outpath)
-            Write(un_mon,*)"Program halted"
-            success = .FALSE.
-         End If
+         IF(stat_c_int /= 0) CALL handle_err(std_out,'Could not create the output directory »'//TRIM(outpath)//'«.', 1)
 
-         success = .TRUE.
-         
-      Else If ( (stat_c_int == 0) .AND. (Restart == "Y") ) Then
+      ELSE 
+         WRITE(un_mon, FMT_MSG_A) "Reusing the output directory"
+         WRITE(un_mon, FMT_MSG_A) TRIM(outpath)
+      END IF
 
-         Write(un_mon,FMT_MSG_A)"Reusing the output directory"
-         Write(un_mon,FMT_MSG_A)trim(outpath)
-         success = .TRUE.
+      CALL link_start(link_name, .TRUE., .FALSE., success)
+      IF (.NOT. success) CALL handle_err(std_out, "Something went wrong during link_start", 1)
 
-      Else
+      !------------------------------------------------------------------------------
+      ! Set project name and path of puredat root
+      !------------------------------------------------------------------------------
 
-         Write(*,FMT_ERR_A)"The output directory"
-         Write(*,FMT_ERR_A)trim(outpath)
-         Write(*,FMT_ERR_A)"apparently exists already with restart not equal to Y !!!"
-         Write(*,FMT_ERR_A)"Please check your struct-process-parameters.sh file   !!!"
-         write(*,FMT_STOP)
-         success = .FALSE.
+      pro_path = outpath
+      pro_name = project_name
+   
+      !------------------------------------------------------------------------------
+      ! Check whether there is already a project header
+      !------------------------------------------------------------------------------
+      INQUIRE(FILE=TRIM(pro_path)//TRIM(pro_name)//'.head',EXIST=fexist)
 
-      End If
-
-      If (.NOT. success) CALL handle_err(std_out, "Something went wrong during init of the output dir.", 1)
-
-     CALL link_start(link_name, .TRUE., .FALSE., success)
-     IF (.NOT. success) CALL handle_err(std_out, "Something went wrong during link_start", 1)
-
-     !** Set project name and path of puredat root ***
-     pro_path = outpath
-     pro_name = project_name
-        
-     If ( restart == "N" ) then 
-
-        !** Raise root branch *************************************************
-        Call raise_tree(Trim(project_name),root)
-
-        Call include_branch_into_branch(s_b=params, t_b=root, blind=.TRUE.)
-     
-        !** Load puredat tree of micro-CT data and calculate the global
-        !** parameters of the domain decomposition
-        pro_path = muCT_pd_path
-        pro_name = muCT_pd_name
-
-        phi_tree = read_tree()
-
-        !** Set project name and path of global domain decomposition     
-        pro_path = outpath
-        pro_name = project_name
-
-        allocate(ddc)
-        ddc = calc_general_ddc_params(pdsize, phi_tree)
-        
-        call include_branch_into_branch(s_b=ddc, t_b=root, blind=.TRUE.)
-     
-     Else if ( Restart == "Y" ) Then
-
-        !** Check whether there is already a project header *******************
-        inquire(file=Trim(pro_path)//Trim(pro_name)//'.head',exist=fexist)
-
-        IF (.NOT. fexist) CALL handle_err(std_out, &
-        'Restart on job without PureDat root header ! This case is not supported.', 1)
-        
+      IF (fexist) THEN ! Project header     available
         !** Read root branch ******************************
         root = read_tree()
 
@@ -1225,12 +1177,14 @@ Program main_struct_process
            flush(un_lf)
         END If
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-        !** !!! This calling sequence is only valid since "Averaged Material 
-        !** !!! Properties" only contains r8 data added at the end of the 
-        !** !!! r8-stream. More correct would be a routine that ensures data
-        !** !!! integrity and compresses potentially missing stream data in
-        !** !!! an efficient way.
+       
+        !------------------------------------------------------------------------------
+        ! This calling sequence is only valid since "Averaged Material 
+        ! Properties" only contains r8 data added at the end of the 
+        ! r8-stream. More correct would be a routine that ensures data
+        ! integrity and compresses potentially missing stream data in
+        ! an efficient way.
+        !------------------------------------------------------------------------------
         call delete_branch_from_branch("Averaged Material Properties", root, dsize)
 
         Call get_stream_size(root, dsize)
@@ -1276,15 +1230,36 @@ Program main_struct_process
             flush(un_lf)
          END If
          !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<     
+
+      ELSE ! Project header not available
+         ! restart = 'N'
+
+
+         ! Raise root branch 
+         Call raise_tree(Trim(project_name),root)
+
+         Call include_branch_into_branch(s_b=params, t_b=root, blind=.TRUE.)
+
+         !** Load puredat tree of micro-CT data and calculate the global
+         !** parameters of the domain decomposition
+         pro_path = muCT_pd_path
+         pro_name = muCT_pd_name
+
+         phi_tree = read_tree()
+
+         !** Set project name and path of global domain decomposition     
+         pro_path = outpath
+         pro_name = project_name
+
+         allocate(ddc)
+         ddc = calc_general_ddc_params(pdsize, phi_tree)
+         
+         call include_branch_into_branch(s_b=ddc, t_b=root, blind=.TRUE.)
+      END IF
+
+
         
-     Else
-        
-        Write(un_mon,FMT_ERR_A)"Only Y or N are support as input for the restart option !"
-        Write(un_mon,FMT_STOP)
-        STOP
-        
-     End If
-        
+       
      Call pd_get(ddc,"nn_D",nn_D)
 
      !** Allocate and init field for selected domain numbers ******************
@@ -1358,30 +1333,34 @@ Program main_struct_process
      
      !** Init restart and result files ****************************************
      aun = give_new_unit()
-     
-     If (restart == "Y") then
 
-        Open(aun, file=trim(outpath)//"/"//trim(project_name)//"_Activity.raw", &
-             action="read", status="old", access="stream")
+      IF (restart == "Y") THEN
 
-        read(aun)Domain_stats
+         !------------------------------------------------------------------------------
+         ! outpath --> Due to a "/" which is inserted after building the path.......
+         ! More like a workaround at the moment
+         !------------------------------------------------------------------------------
+         OPEN(aun, FILE=TRIM(outpath)//"/"//trim(project_name)//"_Activity.raw", &
+            ACTION="READ", STATUS="OLD", ACCESS="STREAM")
 
-        close(aun)
-        
-        Open(aun, file=trim(outpath)//"/"//trim(project_name)//"_Activity.raw", &
-             action="write", status="old", access="stream")
-        
-     Else
+         read(aun)Domain_stats
 
-        !** Init State tracker file *******************************************
-        Open(aun, file=trim(outpath)//"/"//trim(project_name)//"_Activity.raw", &
-             action="write", status="replace", access="stream")
-        
-        Domain_stats = 1
-        write(aun)Domain_stats
-        flush(aun)
+         close(aun)
 
-     End If
+         OPEN(aun, FILE=TRIM(outpath)//"/"//trim(project_name)//"_Activity.raw", &
+            ACTION="WRITE", STATUS="OLD", ACCESS="STREAM")
+
+      Else
+
+         !** Init State tracker file *******************************************
+         OPEN(aun, FILE=TRIM(outpath)//"/"//trim(project_name)//"_Activity.raw", &
+            ACTION="WRITE", STATUS="REPLACE", ACCESS="STREAM")
+
+         Domain_stats = 1_ik
+         write(aun)Domain_stats
+         flush(aun)
+
+      End If
 
      !** Init Domain Cross Reference and domain paths *************************
      dc = 0
@@ -1662,10 +1641,11 @@ Program main_struct_process
      Call Write_Tree(root)
      Call End_Timer("Write Root Branch")
      
-     Call MPI_WAITANY(size_mpi-1_mpi_ik,req_list,finished,status_mpi,ierr)
+     Call MPI_WAITANY(size_mpi-1_mpi_ik, req_list, finished, status_mpi, ierr)
      CALL handle_err(std_out, "MPI_WAITANY on req_list for IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
 
      ii = finished
+
      Domain_stats(act_domains(ii)) = Activity(ii)
      write(aun,pos=(act_domains(ii)-1)*8+1) Activity(ii)
      flush(aun)
@@ -1756,50 +1736,33 @@ Program main_struct_process
   !****************************************************************************
   Else 
 
-     !** Extend project_name and outpath with rank number ******************
-     Write(outpath     ,'(A,A,I7.7,A)') TRIM(outpath     ),"Rank_",rank_mpi,"/"
-     Write(project_name,'(A,A,I7.7)'  ) TRIM(project_name),"_"    ,rank_mpi
+      !------------------------------------------------------------------------------
+      ! Extend project_name and outpath with rank number
+      !------------------------------------------------------------------------------
+      WRITE(outpath     ,'(A,A,I7.7,A)') TRIM(outpath     ),"Rank_",rank_mpi,"/"
+      WRITE(project_name,'(A,A,I7.7)'  ) TRIM(project_name),"_"    ,rank_mpi
      
-     !** Prepare Rank output directory ****************************************
-     c_char_array(1:len(Trim(outpath)//Char(0))) = str_to_char(Trim(outpath)//Char(0))
+      !------------------------------------------------------------------------------
+      ! Prepare output directory via calling the c function.
+      ! File exists if stat_c_int = 0 
+      !------------------------------------------------------------------------------
+      c_char_array(1:LEN(TRIM(outpath)//CHAR(0))) = str_to_char(TRIM(outpath)//CHAR(0))
+      CALL Stat_Dir(c_char_array, stat_c_int)
 
-     Call Stat_Dir(c_char_array, stat_c_int)
+      IF(stat_c_int /= 0) THEN
 
-     If ( stat_c_int /= 0 ) Then
+         CALL execute_command_line("mkdir -p "//TRIM(outpath),CMDSTAT=stat)
 
-        Call execute_command_line("mkdir -p "//trim(outpath),CMDSTAT=stat)
+         IF(stat /= 0) CALL handle_err(std_out, 'Could not execute syscall »mkdir -p '//trim(outpath)//'«.', 1)
 
-        If ( stat /= 0 ) Then
-           Write(un_mon,*)"Could not execute syscall"
-           Write(un_mon,*)"mkpir -p "//trim(outpath)
-           Write(un_mon,*)"Program halted"
-           Stop
-        End If
+         CALL Stat_Dir(c_char_array, stat_c_int)
 
-        Call Stat_Dir(c_char_array, stat_c_int)
+         IF(stat_c_int /= 0) CALL handle_err(std_out,'Could not create the output directory »'//TRIM(outpath)//'«.', 1)
 
-        If ( stat_c_int /= 0 ) Then
-           Write(un_mon,*)"Could not create directory"
-           Write(un_mon,*)trim(outpath)
-           Write(un_mon,*)"Program halted"
-           Stop
-        End If
-        
-     Else If ( (stat_c_int == 0) .AND. (Restart == "Y") ) Then
-
-        Write(un_mon,FMT_MSG_A)"Reusing the output directory"
-        Write(un_mon,FMT_MSG_A)trim(outpath)
-        
-     Else
-        
-        Write(*,FMT_ERR_A)"The output directory"
-        Write(*,FMT_ERR_A)trim(outpath)
-        Write(*,FMT_ERR_A)"apparently exists already with restart not equal to Y !!!"
-        Write(*,FMT_ERR_A)"Please check your struct-process-parameters.sh file   !!!"
-        write(*,FMT_STOP)
-        Goto 1001
-        
-     End If
+      ELSE 
+         WRITE(un_mon, FMT_MSG_A) "Reusing the output directory"
+         WRITE(un_mon, FMT_MSG_A) TRIM(outpath)
+      END IF
 
      Call link_start(link_name,.True.,.True.)
 

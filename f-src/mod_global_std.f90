@@ -40,8 +40,10 @@ INTEGER(KIND=ik)   , PARAMETER :: fh_out        = 30, fho    = 30
 INTEGER(KIND=ik)   , PARAMETER :: fh_log        = 35, fhl    = 35
 INTEGER(KIND=ik)   , PARAMETER :: fh_res        = 40, fhr    = 40
 INTEGER(KIND=ik)   , PARAMETER :: fh_csv        = 45, fhc    = 45
+INTEGER(KIND=ik)   , PARAMETER :: fh_head       = 50, fhh    = 50
 CHARACTER(LEN=*)   , PARAMETER :: log_suf       = '.log'
 CHARACTER(LEN=*)   , PARAMETER :: lock_suf      = '.lock'
+CHARACTER(LEN=*)   , PARAMETER :: head_suf      = '.head'
 CHARACTER(LEN=*)   , PARAMETER :: meta_suf      = '.meta'
 CHARACTER(LEN=*)   , PARAMETER :: mon_suf       = '.mon'
 CHARACTER(LEN=*)   , PARAMETER :: res_suf       = '.result'
@@ -65,9 +67,9 @@ Character(Len=*), Parameter :: FMT_MSG_BE  = "('done MM')"
 
 Character(Len=*), Parameter :: FMT_WRN     = "('WW ',A,T97,' WW')"  
 Character(Len=*), Parameter :: FMT_ERR     = "('EE ',A,T97,' EE')"
-Character(Len=*), Parameter :: FMT_WRN_SO  = "('\x1B[35m','WW ','\x1B[0m',A,T97,'\x1B[35m',' WW','\x1B[0m')" ! std_out
-Character(Len=*), Parameter :: FMT_ERR_SO  = "('\x1B[31m','EE ','\x1B[0m',A,T97,'\x1B[31m',' EE','\x1B[0m')" ! std_out
-Character(Len=*), Parameter :: FMT_ERR_SOC = "('\x1B[31m','EE ',A,T97,' EE','\x1B[0m')" ! std_out - complete color
+CHARACTER(LEN=*), PARAMETER :: FMT_WRN_SO  = "('\x1B[35m','WW ','\x1B[0m',A,T97,'\x1B[35m',' WW','\x1B[0m')" ! std_out
+CHARACTER(LEN=*), PARAMETER :: FMT_ERR_SO  = "('\x1B[31m','EE ','\x1B[0m',A,T97,'\x1B[31m',' EE','\x1B[0m')" ! std_out
+CHARACTER(LEN=*), PARAMETER :: FMT_ERR_SOC = "('\x1B[31m','EE ',A,T97,' EE','\x1B[0m')" ! std_out - complete color
 
 Character(Len=*), Parameter :: FMT_ERR_AI0 = "('EE ',*(A,I0))"  
 CHARACTER(Len=*), PARAMETER :: FMT_ERR_A   = "('EE ',A)"
