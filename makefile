@@ -359,7 +359,9 @@ $(obj_dir)mod_OS$(obj_ext): $(mod_dir)global_std$(mod_ext) \
 
 # -----------------------------------------------------------------------------
 #-- Finite Element Routines ---------------------------------------------------
-$(obj_dir)mod_linfe$(obj_ext):$(mod_dir)global_std$(mod_ext) $(f_src_dir)mod_linfe$(f90_ext)
+$(obj_dir)mod_linfe$(obj_ext):$(mod_dir)global_std$(mod_ext)   \
+															$(mod_dir)mechanical$(mod_ext)   \
+															$(f_src_dir)mod_linfe$(f90_ext)
 	@echo "----- Compiling " mod_linfe$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_linfe$(f90_ext) -o $@
 	@echo 
@@ -450,7 +452,7 @@ $(obj_dir)mod_struct_preprocess$(obj_ext):$(mod_dir)global_std$(mod_ext)        
 
 # -----------------------------------------------------------------------------
 #-- Calculate effective stiffness parameters ----------------------------------
-$(obj_dir)mod_struct_calcmat$(obj_ext)::$(mod_dir)global_std$(mod_ext) $(mod_dir)tensors$(mod_ext)       \
+$(obj_dir)mod_struct_calcmat$(obj_ext)::$(mod_dir)global_std$(mod_ext)        $(mod_dir)tensors$(mod_ext)       \
                                         $(mod_dir)puredat$(mod_ext)           $(mod_dir)timer$(mod_ext)         \
                                         $(mod_dir)decomp$(mod_ext)            $(mod_dir)mat_matrices$(mod_ext)  \
                                         $(mod_dir)chain_routines$(mod_ext)    $(mod_dir)linfe$(mod_ext)         \
@@ -461,8 +463,8 @@ $(obj_dir)mod_struct_calcmat$(obj_ext)::$(mod_dir)global_std$(mod_ext) $(mod_dir
 
 # -----------------------------------------------------------------------------
 #-- MAIN Object ---------------------------------------------------------------
-$(obj_dir)struct_process$(obj_ext):$(mod_dir)global_std$(mod_ext) $(obj_dir)OS$(obj_ext)                       \
-                                   $(mod_dir)auxiliaries$(mod_ext)       \
+$(obj_dir)struct_process$(obj_ext):$(mod_dir)global_std$(mod_ext)        $(mod_dir)mechanical$(mod_ext)        \
+                                   $(mod_dir)auxiliaries$(mod_ext)       $(obj_dir)OS$(obj_ext)                \
                                    $(mod_dir)operating_system$(mod_ext)  $(mod_dir)puredat$(mod_ext)           \
                                    $(mod_dir)decomp$(mod_ext)            $(mod_dir)timer$(mod_ext)             \
                                    $(mod_dir)chain_routines$(mod_ext)    $(mod_dir)vtkio$(mod_ext)             \
