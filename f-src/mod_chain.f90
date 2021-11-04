@@ -269,7 +269,7 @@ Contains
        !** Message to std out *************************************************
        If (loc_stdio) then
           
-          Write(un_mon,FMT_MSG)'Opened new log-file :'
+          Write(un_mon,FMT_MSG)'Opened new log-file: '
           Write(lf,'(A)')trim(outpath)//trim(project_name)//'.log'
           
           If (Len_trim(lf) > 72) Then

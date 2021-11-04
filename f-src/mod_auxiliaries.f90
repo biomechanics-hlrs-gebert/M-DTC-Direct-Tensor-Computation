@@ -282,6 +282,7 @@ CHARACTER(LEN=scl)                        :: fmt
 text = TRIM(ADJUSTL(txt))
 fmt  = FMT_ERR
 
+! if err == 0 is a warning --> all "mpi-errors" are warnings :-)
 IF (err == 0) THEN
     CONTINUE
 ELSE
@@ -327,9 +328,12 @@ WRITE(std_out, FMT_HY_SEP)
 WRITE(std_out, '(A)') 'Directly Discretizing Tensor Computation | Usage:'
 WRITE(std_out, FMT_HY_SEP)
 WRITE(std_out, '(A)') './ddtc_vx.y.z_x86_64 »flags« »meta filename«'
-WRITE(std_out, '(A)') '-y       Restart'
-WRITE(std_out, '(A)') '-h       This message.'
-WRITE(std_out, '(A)') '*.meta   Meta input file.'
+WRITE(std_out, '(A)') '--restart       Overwrite restart keyword'
+WRITE(std_out, '(A)') '--no-restart    Overwrite restart keyword'
+WRITE(std_out, '(A)') '-h              This message.'
+WRITE(std_out, '(A)') '*.meta          Meta input file.'
+WRITE(std_out, '(A)') ''
+WRITE(std_out, '(A)') 'The meta-file must be the last command argument.'
 WRITE(std_out, FMT_HY_SEP)
 
 CALL handle_err(std_out, '', err)

@@ -1,26 +1,31 @@
+
+
+
+
+
 !------------------------------------------------------------------------------
-! MODULE: meta_file_auxiliaries
+! MODULE: meta
 !------------------------------------------------------------------------------
 !> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
 !
 ! DESCRIPTION:
-!> Module containing all routines to support the meta file read/write routines,
-!> which are encapsulated in the main meta files routine. 
+!> Module containing all meta file read/write routines.
 !
 ! REVISION HISTORY:
 ! 21 10 2021 - Initial refactored version
 !------------------------------------------------------------------------------
-MODULE meta_file_auxiliaries
+MODULE meta
 
 USE global_std
 USE auxiliaries
+USE strings
 
 IMPLICIT NONE
 
 CONTAINS
 
 !------------------------------------------------------------------------------
-! SUBROUTINE: handle_lock_file
+! SUBROUTINE: meta_handle_lock_file
 !---------------------------------------------------------------------------  
 !> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
 !
@@ -29,7 +34,7 @@ CONTAINS
 !
 !> @param[in] restart Whether to restart or not to.
 !---------------------------------------------------------------------------  
-SUBROUTINE handle_lock_file(restart)
+SUBROUTINE meta_handle_lock_file(restart)
 
 CHARACTER         , INTENT(IN)          :: restart
 
@@ -56,32 +61,9 @@ END IF
 
 IF((restart .EQ. 'Y') .AND. (exist .EQV. .TRUE.)) CONTINUE
 
-END SUBROUTINE handle_lock_file
-
-END MODULE meta_file_auxiliaries
+END SUBROUTINE meta_handle_lock_file
 
 
-!------------------------------------------------------------------------------
-! MODULE: meta
-!------------------------------------------------------------------------------
-!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
-!
-! DESCRIPTION:
-!> Module containing all meta file read/write routines.
-!
-! REVISION HISTORY:
-! 21 10 2021 - Initial refactored version
-!------------------------------------------------------------------------------
-MODULE meta
-
-USE global_std
-USE auxiliaries
-USE meta_file_auxiliaries
-USE strings
-
-IMPLICIT NONE
-
-CONTAINS
 
 !------------------------------------------------------------------------------
 ! SUBROUTINE: meta_append
@@ -91,12 +73,10 @@ CONTAINS
 !> @brief
 !> Subroutine to open a meta file to append data/ keywords
 !
-!> @param[in] restart Whether to restart or not to.
 !> @param[inout] meta_as_rry Meta data written into a character array
 !---------------------------------------------------------------------------  
-SUBROUTINE meta_append(restart, meta_as_rry)
+SUBROUTINE meta_append(meta_as_rry)
 
-CHARACTER                       , INTENT(IN)                 :: restart
 CHARACTER(LEN=mcl), DIMENSION(:), INTENT(INOUT), ALLOCATABLE :: meta_as_rry      
 
 ! Internal Variables
@@ -139,11 +119,6 @@ ELSE
 END IF
 
 !------------------------------------------------------------------------------
-! Lock file handling - this file may remain on the file system
-!------------------------------------------------------------------------------
-CALL handle_lock_file(restart)
-
-!------------------------------------------------------------------------------
 ! Open the meta input file
 !------------------------------------------------------------------------------
 OPEN(UNIT=fhmei, FILE=TRIM(in%full), ACTION='READWRITE', ACCESS='SEQUENTIAL', STATUS='OLD')
@@ -184,16 +159,18 @@ END IF
 ! The variable »alter« must be given and must be true, 
 ! because its a dangerous operation which may lead to data loss.
 !------------------------------------------------------------------------------
-CALL meta_io (fhmon, 'NEW_BSNM_FEATURE', '', meta_as_rry, chars= out%features, kwabrt=0, stat=ios, wl=.FALSE.)
+CALL meta_io (fhmon, 'NEW_BSNM_FEATURE', '', meta_as_rry, chars= out%features, kwabrt=0, stat=ios)
 IF((ios ==1)) out%features = in%features           ! if ios = 1 --> no keyword found
 
-CALL meta_io (fhmon, 'NEW_BSNM_PURPOSE', '', meta_as_rry, chars= out%purpose, kwabrt=0, stat=ios, wl=.FALSE.)
+CALL meta_io (fhmon, 'NEW_BSNM_PURPOSE', '', meta_as_rry, chars= out%purpose  , kwabrt=0, stat=ios)
 IF((ios ==1)) out%purpose = in%purpose             ! if ios = 1 --> no keyword found
+
 
 IF ((out%purpose == in%purpose) .AND. (out%features == in%features)) THEN
    mssg='The basename did not change. When in doubt, please check your meta file.'
    CALL handle_err(std_out, mssg, 0)
 END IF
+
 
 !------------------------------------------------------------------------------
 ! Build the new outfile path
@@ -379,7 +356,6 @@ END SUBROUTINE meta_add_ascii
 !> @param[in] real_1D3 Optional datatype to read in
 !> @param[in] stat Status
 !> @param[in] kwabrt Default -> .TRUE.; do abort
-!> @param[in] wl log the Keyword which was read from file
 !> @param[in] nd Suppress the time and date of the output
 !---------------------------------------------------------------------------
 SUBROUTINE meta_io (fh, keyword, unit, m_in, chars, &
@@ -389,7 +365,7 @@ SUBROUTINE meta_io (fh, keyword, unit, m_in, chars, &
                                              real_1D2, & 
                                               int_1D3, & 
                                              real_1D3, &
-                                             kwabrt, stat, wl, nd)
+                                             kwabrt, stat, nd)
    
 INTEGER  (KIND=ik)              , INTENT(IN)              :: fh 
 CHARACTER(LEN=*)                                          :: keyword
@@ -404,7 +380,6 @@ INTEGER  (KIND=ik), DIMENSION(3)               , OPTIONAL ::  int_1D3
 REAL     (KIND=rk), DIMENSION(3)               , OPTIONAL :: real_1D3
 INTEGER  (KIND=ik),               INTENT(IN)   , OPTIONAL :: kwabrt
 INTEGER  (KIND=ik),               INTENT(INOUT), OPTIONAL :: stat
-LOGICAL           ,               INTENT(IN)   , OPTIONAL :: wl 
 LOGICAL           ,               INTENT(IN)   , OPTIONAL :: nd 
 
 ! Internal variables
@@ -414,7 +389,7 @@ CHARACTER(LEN=mcl)                                        :: tokens(30), line
 INTEGER  (KIND=ik)                                        :: ntokens, datatype, ii, do_loop_counter
 INTEGER  (KIND=ik)                                        :: cntr, kywd_found, maxchars
 INTEGER  (KIND=ik)                                        :: unit_post_fill, kwabrt_u
-LOGICAL                                                   :: wlu,  ndu
+LOGICAL                                                   :: ndu
 
 !------------------------------------------------------------------------------
 ! Initialize variables
@@ -424,12 +399,10 @@ LOGICAL                                                   :: wlu,  ndu
 cntr           = 0
 kywd_found     = 0
 kwabrt_u = 1
-wlu      = .FALSE.
 ndu      = .FALSE.
 
 IF(PRESENT(kwabrt)) kwabrt_u = kwabrt
 IF(PRESENT(stat))   stat     = 0
-IF(PRESENT(wl))     wlu      = wl
 IF(PRESENT(nd))     ndu      = nd
 
 !------------------------------------------------------------------------------
@@ -553,7 +526,7 @@ END IF
 !------------------------------------------------------------------------------
 ! Write meta output
 !------------------------------------------------------------------------------
-IF ((PRESENT(m_in) .EQV. .FALSE.) .OR. (wlu .EQV. .TRUE.)) THEN
+IF (PRESENT(m_in) .EQV. .FALSE.) THEN
 
    maxchars = stdspc
 
@@ -603,23 +576,8 @@ END SUBROUTINE meta_io
 !> Subroutine to close a meta file and to alter its name.
 !> Assign out = in before calling this routine. Also define a new app_name :-)
 !
-!> @param[INOUT] m_in Array of lines of ascii meta file
-!> @param[INOUT] status In case the main program likes to get a status
 !------------------------------------------------------------------------------
-SUBROUTINE meta_close(m_in)
-
-CHARACTER(LEN=mcl), DIMENSION(:), INTENT(INOUT), OPTIONAL :: m_in      
-
-!------------------------------------------------------------------------------
-! Print log if requested
-!------------------------------------------------------------------------------
-IF (dbg_lvl .GE. 1) THEN
-   WRITE(fhmon, FMT_HY_SEP)
-   WRITE(fhmon,'( A)') "State of the meta basename:"
-   WRITE(fhmon,'(2A)') "Input  full path: ", TRIM(in%full)
-   WRITE(fhmon,'(2A)') "Output full path: ", TRIM(out%full)
-   WRITE(fhmon, FMT_HY_SEP)
-END IF
+SUBROUTINE meta_close()
 
 !------------------------------------------------------------------------------
 ! Check and close files - Routine: (fh, filename, abrt, stat)

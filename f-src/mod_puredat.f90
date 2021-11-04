@@ -2926,20 +2926,20 @@ Contains
     end Do
 
     If (.NOT. desc_found) then
-       Write(pd_umon,'(A)')"Something bad and unexpected happend during retrival&
+       Write(pd_umon,'( A)')"Something bad and unexpected happend during retrival&
             & of leaf data pointer"
-       Write(pd_umon,'(A)')trim(desc)
-       Write(pd_umon,'(A)')"In puredat function pd_get_4_scalar(branch,desc)"
-       Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+       Write(pd_umon,'( A)')trim(desc)
+       Write(pd_umon,'(3A)')"In puredat function pd_get_4_scalar(",TRIM(branch%desc),")"
+       Write(pd_umon,'( A)')"The specified leaf was not found in the passed branch" 
+       Write(pd_umon,'( A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
        stop
     End If
 
     If (branch%leaves(no)%dat_no > 1) then
-       Write(pd_umon,'(A)')"WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-       Write(pd_umon,'(A)')"In puredat function pd_get_4_scalar(branch,desc)"
-       Write(pd_umon,'(A)')"laef%dat_no > 1 for scalar retrival of laef data"
-       Write(pd_umon,'(A)')"You will only get the first data element as a scalar"
+       Write(pd_umon,'( A)')"WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+       Write(pd_umon,'(3A)')"In puredat function pd_get_4_scalar(",TRIM(branch%desc),")"
+       Write(pd_umon,'( A)')"leaf%dat_no > 1 for scalar retrival of leaf data"
+       Write(pd_umon,'( A)')"You will only get the first data element as a scalar"
     End If
 
   End Subroutine pd_get_4_scalar
@@ -2974,20 +2974,20 @@ Contains
     end Do
 
     If (.NOT. desc_found) then
-       Write(pd_umon,'(A)')"Something bad and unexpected happend during retrival&
+       Write(pd_umon,'( A)')"Something bad and unexpected happend during retrival&
             & of leaf data pointer"
-       Write(pd_umon,'(A)')trim(desc)
-       Write(pd_umon,'(A)')"In puredat function pd_get_5_scalar(branch,desc)"
-       Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+       Write(pd_umon,'( A)')trim(desc)
+       Write(pd_umon,'(3A)')"In puredat function pd_get_5_scalar(",TRIM(branch%desc),")"
+       Write(pd_umon,'( A)')"The specified leaf was not found in the passed branch" 
+       Write(pd_umon,'( A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
        stop
     End If
 
     If (branch%leaves(no)%dat_no > 1) then
-       Write(pd_umon,'(A)')"WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-       Write(pd_umon,'(A)')"In puredat function pd_get_5_scalar(branch,desc)"
-       Write(pd_umon,'(A)')"laef%dat_no > 1 for scalar retrival of leaf data"
-       Write(pd_umon,'(A)')"You will only get the first data element as a scalar"
+       Write(pd_umon,'( A)')"WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+       Write(pd_umon,'(5A)')"In puredat function pd_get_5_scalar(",TRIM(desc)," from ",TRIM(branch%desc),")"
+       Write(pd_umon,'( A)')"leaf%dat_no > 1 for scalar retrival of leaf data"
+       Write(pd_umon,'( A)')"You will only get the first data element as a scalar"
     End If
 
   End Subroutine pd_get_5_scalar
@@ -3062,13 +3062,13 @@ Contains
        If (trim(branch%leaves(ii)%desc) == trim(desc)) then
           
           If (size /= branch%leaves(ii)%dat_no)  then
-             Write(pd_umon,'(A)')"Something bad and unexpected happend during retrival&
+             Write(pd_umon,'( A)')"Something bad and unexpected happend during retrival&
                   & of leaf data pointer"
-             Write(pd_umon,'(A)')trim(desc)
-             Write(pd_umon,'(A)')"In puredat function pd_get_4(branch,desc)"
-             Write(pd_umon,'(A)')"The specified leaf size is not equal to the size  !!!"
-             Write(pd_umon,'(A)')"of the passed actual argument                     !!!"
-             Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+             Write(pd_umon,'( A)')trim(desc)
+             Write(pd_umon,'(3A)')"In puredat function pd_get_4(",TRIM(branch%desc),")"
+             Write(pd_umon,'( A)')"The specified leaf size is not equal to the size  !!!"
+             Write(pd_umon,'( A)')"of the passed actual argument                     !!!"
+             Write(pd_umon,'( A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
              stop
           End If
           
@@ -3115,8 +3115,7 @@ Contains
        If (trim(branch%leaves(ii)%desc) == trim(desc)) then    
 
           allocate(values(branch%leaves(ii)%dat_no),stat=alloc_stat)
-          Call alloc_error(alloc_stat,'values' ,&
-               'pd_get_5', branch%leaves(ii)%dat_no)
+          Call alloc_error(alloc_stat,'values' , 'pd_get_5', branch%leaves(ii)%dat_no)
           values = branch%leaves(ii)%p_real8
           desc_found = .TRUE.
 
@@ -3170,12 +3169,12 @@ Contains
     end Do
 
     If (.NOT. desc_found) then
-       Write(pd_umon,'(A)')"Something bad and unexpected happend during retrival&
+       Write(pd_umon,'( A)')"Something bad and unexpected happend during retrival&
             & of leaf data values"
-       Write(pd_umon,'(A)')trim(desc)
-       Write(pd_umon,'(A)')"In puredat function pd_get_6(branch,desc)"
-       Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+       Write(pd_umon,'( A)')trim(desc)
+       Write(pd_umon,'(3A)')"In puredat function pd_get_6(",TRIM(branch%desc),")"
+       Write(pd_umon,'( A)')"The specified leaf was not found in the passed branch" 
+       Write(pd_umon,'( A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
        stop
     End If
 
@@ -3256,12 +3255,12 @@ Contains
     end Do
 
     If (.NOT. desc_found) then
-       Write(pd_umon,'(A)')"Something bad and unexpected happend during retrival&
+       Write(pd_umon,'( A)')"Something bad and unexpected happend during retrival&
             & of leaf data pointer"
-       Write(pd_umon,'(A)')trim(desc)
-       Write(pd_umon,'(A)')"In puredat function pd_get_4_scalar(branch,desc)"
-       Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+       Write(pd_umon,'( A)')trim(desc)
+       Write(pd_umon,'(3A)')"In puredat function pd_get_4_scalar(",TRIM(branch%desc),")"
+       Write(pd_umon,'( A)')"The specified leaf was not found in the passed branch" 
+       Write(pd_umon,'( A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
        stop
     End If
 

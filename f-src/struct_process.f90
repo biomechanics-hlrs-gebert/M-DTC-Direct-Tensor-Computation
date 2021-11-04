@@ -945,7 +945,7 @@ Program main_struct_process
  
   Character(len=mcl)                                :: fmps_epp
   Character(LEN=4*mcl)                              :: job_dir, tmp_fn
-  CHARACTER                                         :: restart='N'
+  CHARACTER                                         :: restart='N', restart_cmdarg='U' ! U = undefined
   Character(LEN=4*mcl), Dimension(:), Allocatable   :: domain_path
 
   ! Meta file variable
@@ -962,7 +962,7 @@ Program main_struct_process
   Integer(kind=ik), Dimension(3) :: xe_d
   
   Integer(kind=ik)               :: nn, ii, jj, kk, dc
-  Integer(kind=ik)               :: Domain_number, path_count
+  Integer(kind=ik)               :: amount_domains, path_count
   Integer(kind=ik)               :: alloc_stat, iun, aun, tmp_un
   Integer(kind=ik), Dimension(2) :: data_size
 
@@ -1015,31 +1015,31 @@ Program main_struct_process
       IF (command_argument_count() == 0) CALL usage(1)
 
       DO ii=0, 15 ! Read up to 15 command arguments.
-
+         
          CALL GET_COMMAND_ARGUMENT(ii, cmd_arg)
 
+         IF (cmd_arg == '') EXIT
+
+         infile = TRIM(cmd_arg)
+          
          cmd_arg_history = TRIM(cmd_arg_history)//' '//TRIM(cmd_arg)
 
          IF (cmd_arg(1:1) .EQ. '-') THEN
             DO jj=2, LEN_TRIM(cmd_arg)
-                  SELECT CASE( cmd_arg(jj:jj) )
-                     CASE('y', 'Y')
-                        restart = 'Y'
+                  SELECT CASE( cmd_arg(5:LEN_TRIM(cmd_arg)) )
+                     CASE('-restart', '-Restart') ! Results in "--restart / --Restart"
+                        restart_cmdarg = 'Y'
                      ! It is highly recommended not to use this option on the cluster  :-)
                      CASE('h')       ! CASE ('-h', '--help')
                         CALL usage(1)
                   END SELECT
+                  !
+                  SELECT CASE( cmd_arg(3:4) )
+                     CASE('NO', 'no', 'No', 'nO') ! Results in "--restart / --Restart"
+                        restart_cmdarg = 'N'
+                  END SELECT
             END DO
          END IF
-
-         !------------------------------------------------------------------------------
-         ! Simple check whether the cmd arg can be a meta file since no other flag is 
-         ! longer than 3 characters. May crash when the flags are extended improperly :-)
-         ! The check against the meta suffix happens at the CALL meta_append routine.
-         !------------------------------------------------------------------------------
-         IF (LEN_TRIM(cmd_arg) .GT. 5_ik) infile=cmd_arg
-
-         IF(cmd_arg == '') EXIT           
       END DO
 
       IF(TRIM(infile) == '') CALL handle_err(std_out, 'No input file given via command argument.', 1)
@@ -1051,28 +1051,15 @@ Program main_struct_process
       ! Define the new application name first
       !------------------------------------------------------------------------------
       out%app = 'ddtc' 
-      CALL meta_append(restart, m_rry)
+      CALL meta_append(m_rry)
       
-
-      !------------------------------------------------------------------------------
-      ! Spawn a log file and a results file
-      !------------------------------------------------------------------------------
-      ! This log file may collide with the original log file (!)
-      ! The regular struct_process log file contains still has the "old" basename!
-      !------------------------------------------------------------------------------
-      ! CALL meta_add_ascii(fh=fhl  , suf=log_suf, st='start', restart=restart)
-      CALL meta_add_ascii(fh=fhmon, suf=mon_suf, st='start', restart=restart)
-      ! CALL meta_add_ascii(fh=fhr, suf=res_suf, st='start', restart=restart)
-
-
       !------------------------------------------------------------------------------
       ! Read input parameters
       !------------------------------------------------------------------------------
-      CALL meta_io (fhmon, 'MCT_PD_PRO_PATH'  , '(-)'  , m_rry, chars = muCT_pd_path , wl=.TRUE.)
-      CALL meta_io (fhmon, 'MCT_PD_PRO_NAME'  , '(-)'  , m_rry, chars = muCT_pd_name , wl=.TRUE.)
-      CALL meta_io (fhmon, 'BASE_PATH'        , '(-)'  , m_rry, chars = outpath      , wl=.TRUE.)
-      CALL meta_io (fhmon, 'PROJECT_NAME'     , '(-)'  , m_rry, chars = project_name , wl=.TRUE.)
-
+      CALL meta_io (std_out, 'MCT_PD_PRO_PATH'  , '(-)'  , m_rry, chars = muCT_pd_path)
+      CALL meta_io (std_out, 'MCT_PD_PRO_NAME'  , '(-)'  , m_rry, chars = muCT_pd_name)
+      CALL meta_io (std_out, 'BASE_PATH'        , '(-)'  , m_rry, chars = outpath     )
+      CALL meta_io (std_out, 'PROJECT_NAME'     , '(-)'  , m_rry, chars = project_name)
    
       !------------------------------------------------------------------------------
       ! Modify output directories and namings - Planned as a makeshift solution to 
@@ -1082,21 +1069,43 @@ Program main_struct_process
          outpath = trim(outpath)//"/"
       End if
 
-      CALL meta_io (fhmon, 'MICRO_ELMNT_TYPE' , '(-)'  , m_rry,    chars = elt_micro   , wl=.TRUE.)
-      CALL meta_io (fhmon, 'DBG_LVL'          , '(-)'  , m_rry,    chars = out_amount  , wl=.TRUE.)
-      CALL meta_io (fhmon, 'OUT_FMT'          , '(-)'  , m_rry,    chars = output      , wl=.TRUE.)
-      ! WHERE DOES THE GRID SPACING COME FROM? SIZE_DOMAIN/MES_PER_SUB_DMN?X
-      CALL meta_io (fhmon, 'SIZE_DOMAIN'      , '(mm)' , m_rry, real_1D3 = bone%pdsize , wl=.TRUE.)
-      CALL meta_io (fhmon, 'LO_BNDS_DMN_RANGE', '(-)'  , m_rry,  int_1D3 = xa_d        , wl=.TRUE.)
-      CALL meta_io (fhmon, 'UP_BNDS_DMN_RANGE', '(-)'  , m_rry,  int_1D3 = xe_d        , wl=.TRUE.)
-      CALL meta_io (fhmon, 'BINARIZE_LO'      , '(-)'  , m_rry,  int_0D  = llimit      , wl=.TRUE.)
-      CALL meta_io (fhmon, 'MESH_PER_SUB_DMN' , '(-)'  , m_rry,  int_0D  = parts       , wl=.TRUE.)
-      CALL meta_io (fhmon, 'RVE_STRAIN'       , '(mm)' , m_rry, real_0D  = strain      , wl=.TRUE.)
-      CALL meta_io (fhmon, 'YOUNG_MODULUS'    , '(MPa)', m_rry, real_0D  = bone%E      , wl=.TRUE.)
-      CALL meta_io (fhmon, 'POISSON_RATIO'    , '(-)'  , m_rry, real_0D  = bone%nu     , wl=.TRUE.)
-      CALL meta_io (fhmon, 'MACRO_ELMNT_ORDER', '(-)'  , m_rry,  int_0D  = elo_macro   , wl=.TRUE.)
+      CALL meta_io (std_out, 'MICRO_ELMNT_TYPE' , ''     , m_rry,    chars = elt_micro  )
+      CALL meta_io (std_out, 'DBG_LVL'          , ''     , m_rry,    chars = out_amount )
+      CALL meta_io (std_out, 'OUT_FMT'          , ''     , m_rry,    chars = output     )
+      CALL meta_io (std_out, 'RESTART'          , ''     , m_rry,    chars = restart    )
+      CALL meta_io (std_out, 'SIZE_DOMAIN'      , '(mm)' , m_rry, real_1D3 = bone%pdsize)
+      CALL meta_io (std_out, 'LO_BNDS_DMN_RANGE', '(-)'  , m_rry,  int_1D3 = xa_d       )
+      CALL meta_io (std_out, 'UP_BNDS_DMN_RANGE', '(-)'  , m_rry,  int_1D3 = xe_d       )
+      CALL meta_io (std_out, 'BINARIZE_LO'      , '(-)'  , m_rry,  int_0D  = llimit     )
+      CALL meta_io (std_out, 'MESH_PER_SUB_DMN' , '(-)'  , m_rry,  int_0D  = parts      )
+      CALL meta_io (std_out, 'RVE_STRAIN'       , '(mm)' , m_rry, real_0D  = strain     )
+      CALL meta_io (std_out, 'YOUNG_MODULUS'    , '(MPa)', m_rry, real_0D  = bone%E     )
+      CALL meta_io (std_out, 'POISSON_RATIO'    , '(-)'  , m_rry, real_0D  = bone%nu    )
+      CALL meta_io (std_out, 'MACRO_ELMNT_ORDER', '(-)'  , m_rry,  int_0D  = elo_macro  )
 
-      ! Error handling
+      !------------------------------------------------------------------------------
+      ! Restart handling
+      !------------------------------------------------------------------------------
+      IF (restart_cmdarg /= 'U') THEN
+         restart = restart_cmdarg
+         mssg="The keyword »restart« was overwritten by the command flag »"//FMT_Orng//"--(no)-restart"//FMT_noc//"«!"
+         CALL handle_err(std_out, mssg, -1)
+      END IF
+
+      CALL meta_handle_lock_file(restart)
+
+      !------------------------------------------------------------------------------
+      ! Spawn a log file and a results file
+      !------------------------------------------------------------------------------
+      ! This log file may collide with the original log file (!)
+      ! The regular struct_process log file contains still has the "old" basename!
+      !------------------------------------------------------------------------------
+      ! CALL meta_add_ascii(fh=fhl  , suf=log_suf, st='start', restart=restart_cmdarg)
+      CALL meta_add_ascii(fh=fhmon, suf=mon_suf, st='start', restart=restart_cmdarg)
+      ! CALL meta_add_ascii(fh=fhr, suf=res_suf, st='start', restart=restart_cmdarg)
+
+
+      ! Warning / Error handling
       IF ( (bone%pdsize(1) /= bone%pdsize(2)) .OR. (bone%pdsize(1) /= bone%pdsize(3)) ) THEN
          CALL handle_err(std_out, 'Currently, all 3 dimensions of the physical domain size must be equal!', 1)
       END IF
@@ -1176,7 +1185,38 @@ Program main_struct_process
       !------------------------------------------------------------------------------
       INQUIRE(FILE=TRIM(pro_path)//TRIM(pro_name)//'.head',EXIST=fexist)
 
-      IF (fexist) THEN ! Project header     available
+      IF (.NOT. fexist) THEN ! Project header not available
+         ! Raise root branch 
+
+         IF (restart == 'Y') THEN
+            mssg = 'Restart of partly computed results requested, but no project header found. Program behaves like there was none.'
+            CALL handle_err(std_out, mssg, -1)
+            restart = 'N'
+         END IF
+
+         Call raise_tree(Trim(project_name),root)
+
+         Call include_branch_into_branch(s_b=params, t_b=root, blind=.TRUE.)
+
+         !** Load puredat tree of micro-CT data and calculate the global
+         !** parameters of the domain decomposition
+         pro_path = muCT_pd_path
+         pro_name = muCT_pd_name
+
+         phi_tree = read_tree()
+
+         !** Set project name and path of global domain decomposition     
+         pro_path = outpath
+         pro_name = project_name
+
+         allocate(ddc)
+         ddc = calc_general_ddc_params(bone%pdsize, phi_tree)
+         
+         call include_branch_into_branch(s_b=ddc, t_b=root, blind=.TRUE.)
+
+      ELSE ! Project header available
+         ! restart = 'Y'
+
         !** Read root branch ******************************
         root = read_tree()
 
@@ -1242,31 +1282,6 @@ Program main_struct_process
             flush(un_lf)
          END If
          !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<     
-
-      ELSE ! Project header not available
-         ! restart = 'N'
-
-
-         ! Raise root branch 
-         Call raise_tree(Trim(project_name),root)
-
-         Call include_branch_into_branch(s_b=params, t_b=root, blind=.TRUE.)
-
-         !** Load puredat tree of micro-CT data and calculate the global
-         !** parameters of the domain decomposition
-         pro_path = muCT_pd_path
-         pro_name = muCT_pd_name
-
-         phi_tree = read_tree()
-
-         !** Set project name and path of global domain decomposition     
-         pro_path = outpath
-         pro_name = project_name
-
-         allocate(ddc)
-         ddc = calc_general_ddc_params(bone%pdsize, phi_tree)
-         
-         call include_branch_into_branch(s_b=ddc, t_b=root, blind=.TRUE.)
       END IF
 
 
@@ -1277,15 +1292,15 @@ Program main_struct_process
       !------------------------------------------------------------------------------
       ! Allocate and init field for selected domain range
       !------------------------------------------------------------------------------
-      Domain_number = (xe_d(1)-xa_d(1)+1) * (xe_d(2)-xa_d(2)+1) * (xe_d(3)-xa_d(3)+1)
+      amount_domains = (xe_d(1)-xa_d(1)+1) * (xe_d(2)-xa_d(2)+1) * (xe_d(3)-xa_d(3)+1)
      
-     Allocate(Domains(Domain_number),stat=alloc_stat)
+     Allocate(Domains(amount_domains),stat=alloc_stat)
      Call alloc_err("Domains",alloc_stat)
      
-     Allocate(Domain_stats(Domain_number),stat=alloc_stat)
+     Allocate(Domain_stats(amount_domains),stat=alloc_stat)
      Call alloc_err("Domain_stats",alloc_stat)
      
-     Allocate(domain_path(0:Domain_number))
+     Allocate(domain_path(0:amount_domains))
      domain_path = ''
 
      !** Init Result branch ***************************************************
@@ -1316,12 +1331,12 @@ Program main_struct_process
           "Effective density                                 "] , &
           dat_ty = [(5_1,ii=1,18)], &
           dat_no = [ &
-          Domain_number * 24*24, Domain_number * 24*24, Domain_number        , &
-          Domain_number *  6*24, Domain_number *  6*24, Domain_number *  6* 6, &
-          Domain_number        , Domain_number *  6* 6, Domain_number        , &
-          Domain_number        , Domain_number *     3, Domain_number *     9, &
-          Domain_number *  6* 6, Domain_number        , Domain_number *     3, &
-          Domain_number *     9, Domain_number *  6* 6, Domain_number           ], &
+          amount_domains * 24*24, amount_domains * 24*24, amount_domains        , &
+          amount_domains *  6*24, amount_domains *  6*24, amount_domains *  6* 6, &
+          amount_domains        , amount_domains *  6* 6, amount_domains        , &
+          amount_domains        , amount_domains *     3, amount_domains *     9, &
+          amount_domains *  6* 6, amount_domains        , amount_domains *     3, &
+          amount_domains *     9, amount_domains *  6* 6, amount_domains           ], &
           branch = res)
      
      res%leaves(:)%pstat = -1
@@ -1352,27 +1367,32 @@ Program main_struct_process
          ! outpath --> Due to a "/" which is inserted after building the path.......
          ! More like a workaround at the moment
          !------------------------------------------------------------------------------
+         CALL check_file_exist(aun, TRIM(outpath)//"/"//trim(project_name)//"_Activity.raw", .TRUE.)
+
          OPEN(aun, FILE=TRIM(outpath)//"/"//trim(project_name)//"_Activity.raw", &
             ACTION="READ", STATUS="OLD", ACCESS="STREAM")
 
-         read(aun)Domain_stats
+         READ(aun) Domain_stats
 
-         close(aun)
+         CLOSE(aun)
 
          OPEN(aun, FILE=TRIM(outpath)//"/"//trim(project_name)//"_Activity.raw", &
             ACTION="WRITE", STATUS="OLD", ACCESS="STREAM")
 
-      Else
+      ELSE
 
          !** Init State tracker file *******************************************
          OPEN(aun, FILE=TRIM(outpath)//"/"//trim(project_name)//"_Activity.raw", &
             ACTION="WRITE", STATUS="REPLACE", ACCESS="STREAM")
 
          Domain_stats = 1_ik
-         write(aun)Domain_stats
-         flush(aun)
 
-      End If
+         WRITE(*,*) "aun: ", Domain_stats
+
+         WRITE(aun) Domain_stats
+         FLUSH(aun)
+
+      END IF
 
      !** Init Domain Cross Reference and domain paths *************************
      dc = 0
@@ -1396,8 +1416,8 @@ Program main_struct_process
      End Do
 
      !** Generate Activity_List ***********************************************
-     Allocate(Activity(size_mpi-1),stat=alloc_stat)
-     Call alloc_err("Activity_List",alloc_stat)
+     Allocate(Activity(size_mpi-1), stat=alloc_stat)
+     Call alloc_err("Activity_List", alloc_stat)
 
      Activity=1
 
@@ -1406,20 +1426,22 @@ Program main_struct_process
 
      act_domains = 0
      
-     If ( (Domain_Number*parts < size_mpi-1) .OR. &
-          (count( Domain_stats < 10 ) == 0) .OR. &
+     If ( (amount_domains*parts < size_mpi-1) .OR. &
+          ( count( Domain_stats < 10 ) == 0 ) .OR. &
           ((count( Domain_stats < 10 )*parts) < size_mpi-1) ) Then
 
-        If (Domain_Number*parts < size_mpi-1) then
-           Write(un_mon,FMT_ERR_A)"Domain_Number < size_mpi-1"
+        If (amount_domains*parts < size_mpi-1) then
+           Write(un_mon,FMT_ERR_A)"amount_domains*parts < size_mpi-1"
+
         Else If ((count( Domain_stats < 10 )*parts) < size_mpi-1) then
-           Write(un_mon,FMT_ERR_A)"Remaining Domain_Number < Number of Solution Master"
-           Write(un_mon,FMT_ERR_AI0)"Remaining Domain_Number    :", count( Domain_stats < 10 )
-           Write(un_mon,FMT_ERR_AI0)"Number of solution masters :", (size_mpi-1)/parts
+           Write(un_mon, FMT_ERR_A)   "Remaining amount_domains < Number of Solution Master"
+           Write(un_mon, FMT_ERR_AI0) "Remaining amount_domains:   ", count( Domain_stats < 10 )
+           Write(un_mon, FMT_ERR_AI0) "Number of solution masters: ", (size_mpi-1)/parts
         Else
-           Write(un_mon,FMT_ERR_A)"Restart on fully finished job"
+
+           Write(un_mon, FMT_ERR_A)"Restart on fully finished job."
         End If
-        Write(un_mon,FMT_ERR_A)"This case is not supported"
+        Write(un_mon,FMT_ERR_A)"This case is not supported."
         
         Call mpi_bcast(pro_path, INT(mcl,mpi_ik), MPI_CHAR, 0_mpi_ik,&
                        MPI_COMM_WORLD, ierr)
@@ -1478,7 +1500,7 @@ Program main_struct_process
      Call mpi_bcast(project_name    , INT(mcl,mpi_ik), MPI_CHAR    , 0_mpi_ik, MPI_COMM_WORLD, ierr)
      Call mpi_bcast(serial_root_size, 1_mpi_ik       , MPI_INTEGER8, 0_mpi_ik, MPI_COMM_WORLD, ierr)
 
-     !** Serial_root_size == -1 ==> Signal that Domain_Number < size_mpi-1 ****
+     !** Serial_root_size == -1 ==> Signal that amount_domains < size_mpi-1 ****
      If ( serial_root_size == -1 ) then
 
         Call End_Timer("Broadcast Init Params")
@@ -1515,12 +1537,12 @@ Program main_struct_process
      Call pd_get(root%branches(1),"Lower bounds of selected domain range",xa_d,3)
      Call pd_get(root%branches(1),"Upper bounds of selected domain range",xe_d,3)
      
-     Domain_number = (xe_d(1)-xa_d(1)+1) * &
+     amount_domains = (xe_d(1)-xa_d(1)+1) * &
                      (xe_d(2)-xa_d(2)+1) * &
                      (xe_d(3)-xa_d(3)+1)
 
      
-     Allocate(Domains(Domain_number),stat=alloc_stat)
+     Allocate(Domains(amount_domains),stat=alloc_stat)
      Call alloc_err("Domains",alloc_stat)
 
      Call pd_get(root%branches(2),"nn_D",nn_D)
@@ -1595,154 +1617,154 @@ Program main_struct_process
      nn = 1
      ii = 1
 
-     !** Supply all worker masters  with their first work package *************
-     !** ii is incremented by ii = ii + parts                     *************
-     Do While (ii <= (size_mpi-1_mpi_ik))
+      !------------------------------------------------------------------------------
+      ! Supply all worker masters  with their first work package
+      ! ii is incremented by ii = ii + parts
+      !------------------------------------------------------------------------------
+      Do While (ii <= (size_mpi-1_mpi_ik))
 
-        if (nn > Domain_number) exit
-        
-        If ( Domain_stats(nn) /= 1 ) then
-           nn = nn + 1_mpi_ik
-           cycle
-        End If
+         if (nn > amount_domains) exit
 
-        act_domains(ii) = nn
+         If ( Domain_stats(nn) /= 1 ) then
+            nn = nn + 1_mpi_ik
+            cycle
+         End If
 
-        Do jj = ii, ii + parts-1
-           
-           !** Activity = 1 (Set above during init) ***
-           Call mpi_send(Activity(jj), 1_mpi_ik, mpi_integer, Int(jj,mpi_ik), Int(jj,mpi_ik), &
-             MPI_COMM_WORLD,ierr)
-           CALL handle_err(std_out, "MPI_SEND of activity didn't succeed", INT(ierr, KIND=ik))
+         act_domains(ii) = nn
 
-           Call mpi_send(nn, 1_mpi_ik, mpi_integer8, Int(jj,mpi_ik), Int(jj,mpi_ik), &
-                MPI_COMM_WORLD,ierr)
-           CALL handle_err(std_out, "MPI_SEND of Domain number didn't succeed", INT(ierr, KIND=ik))
-           
-           if (out_amount /= "PRODUCTION") then
-              Call mpi_send(domain_path(nn), Int(4_mpi_ik*mcl,mpi_ik), &
-                   MPI_CHARACTER, Int(jj,mpi_ik), Int(jj,mpi_ik), MPI_COMM_WORLD,ierr)
-              CALL handle_err(std_out, "MPI_SEND of Domain path didn't succeed", INT(ierr, KIND=ik))
-           End if
-        End Do
-        
-        !** Log to global stdout **********************************************
-        Write(un_mon,'(2(A,I10))')"MPI rank : ",ii, &
-                                  " ; Domain number : ",Domains(nn)
-        flush(un_mon)
-        
-        nn = nn + 1_mpi_ik
-        
-        Call MPI_IRECV(Activity(ii), 1_mpi_ik, MPI_INTEGER, Int(ii,mpi_ik), Int(ii,mpi_ik), &
-             MPI_COMM_WORLD, REQ_LIST(ii), IERR)
-        CALL handle_err(std_out, "MPI_IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
+         Do jj = ii, ii + parts-1
+            
+            !** Activity = 1 (Set above during init) ***
+            CALL mpi_send(Activity(jj), 1_mpi_ik, mpi_integer, Int(jj,mpi_ik), Int(jj,mpi_ik), MPI_COMM_WORLD,ierr)
+            CALL handle_err(std_out, "MPI_SEND of activity didn't succeed", INT(ierr, KIND=ik))
 
-        ii = ii + Int(parts,mpi_ik)
+            CALL mpi_send(nn, 1_mpi_ik, mpi_integer8, Int(jj,mpi_ik), Int(jj,mpi_ik), MPI_COMM_WORLD,ierr)
+            CALL handle_err(std_out, "MPI_SEND of Domain number didn't succeed", INT(ierr, KIND=ik))
+            
+            if (out_amount /= "PRODUCTION") then
+               Call mpi_send(domain_path(nn), Int(4_mpi_ik*mcl,mpi_ik), &
+                     MPI_CHARACTER, Int(jj,mpi_ik), Int(jj,mpi_ik), MPI_COMM_WORLD,ierr)
+               CALL handle_err(std_out, "MPI_SEND of Domain path didn't succeed", INT(ierr, KIND=ik))
+            End if
+         End Do
+         
+         !** Log to global stdout **********************************************
+         Write(un_mon,'(2(A,I10))')"MPI rank : ",ii, " ; Domain number : ",Domains(nn)
+         flush(un_mon)
+         
+         nn = nn + 1_mpi_ik
+         
+         Call MPI_IRECV(Activity(ii), 1_mpi_ik, MPI_INTEGER, Int(ii,mpi_ik), Int(ii,mpi_ik), &
+               MPI_COMM_WORLD, REQ_LIST(ii), IERR)
+         CALL handle_err(std_out, "MPI_IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
 
-     End Do
+         ii = ii + Int(parts,mpi_ik)
 
-     If ( restart == "N" ) then
-        !** Add leaf with analyzed cube numbers to root ***********************
-        Call add_leaf_to_branch(root, "Domain Numbers", Domain_number, Domains)
-        Call set_bounds_in_branch(root, root%streams)
-     End If
-     
-     !** Write Root header and input parameters *******************************
-     Call Start_Timer("Write Root Branch")
-     call store_parallel_branch(root, FH_MPI)
-     Call Write_Tree(root)
-     Call End_Timer("Write Root Branch")
-     
-     Call MPI_WAITANY(size_mpi-1_mpi_ik, req_list, finished, status_mpi, ierr)
-     CALL handle_err(std_out, "MPI_WAITANY on req_list for IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
+      End Do
 
-     ii = finished
+      If ( restart == "N" ) then
+         !** Add leaf with analyzed cube numbers to root ***********************
+         Call add_leaf_to_branch(root, "Domain Numbers", amount_domains, Domains)
+         Call set_bounds_in_branch(root, root%streams)
+      End If
 
-     Domain_stats(act_domains(ii)) = Activity(ii)
-     write(aun,pos=(act_domains(ii)-1)*8+1) Activity(ii)
-     flush(aun)
-     act_domains(ii) = nn
-     
-     Do While (nn <= Domain_number)
+      !** Write Root header and input parameters *******************************
+      Call Start_Timer("Write Root Branch")
+      call store_parallel_branch(root, FH_MPI)
+      Call Write_Tree(root)
+      Call End_Timer("Write Root Branch")
+         
+      Call MPI_WAITANY(size_mpi-1_mpi_ik, req_list, finished, status_mpi, ierr)
+      CALL handle_err(std_out, "MPI_WAITANY on req_list for IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
 
-        If ( Domain_stats(nn) /= 1 ) then
-           if (nn > Domain_number) exit
-           nn = nn + 1_mpi_ik
-           cycle
-        End If
+      ii = finished
 
-        Do jj = ii, ii + parts-1
+      Domain_stats(act_domains(ii)) = Activity(ii)
 
-           Activity(jj) = 1_mpi_ik
-           
-           Call mpi_send(Activity(jj), 1_mpi_ik, mpi_integer, Int(jj,mpi_ik), Int(jj,mpi_ik), &
-             MPI_COMM_WORLD,ierr)
-           CALL handle_err(std_out, "MPI_SEND of activity didn't succeed", INT(ierr, KIND=ik))
+      write(aun,pos=(act_domains(ii)-1)*ik+1) INT(Activity(ii), KIND=ik)
+      flush(aun)
+      act_domains(ii) = nn
 
-           Call mpi_send(nn, 1_mpi_ik, mpi_integer8, Int(jj,mpi_ik), Int(jj,mpi_ik), &
-                MPI_COMM_WORLD,ierr)
-           CALL handle_err(std_out, "MPI_SEND of Domain bone%number didn't succeed", INT(ierr, KIND=ik))
+      Do While (nn <= amount_domains)
 
-           if (out_amount /= "PRODUCTION") then
-              Call mpi_send(domain_path(nn), Int(4_mpi_ik*mcl,mpi_ik), &
-                   MPI_CHARACTER, Int(jj,mpi_ik), Int(jj,mpi_ik), MPI_COMM_WORLD,ierr)
-              CALL handle_err(std_out, "MPI_SEND of Domain path didn't succeed", INT(ierr, KIND=ik))
-           End if
-        End Do
-        
-        !** Log to global stdout **********************************************
-        Write(un_mon,'(2(A,I10))')"MPI rank : ",ii, " ; Domain bone%number: ",Domains(nn)
-        flush(un_mon)
-        
-        nn = nn + 1_mpi_ik
-        
-        Call MPI_IRECV(Activity(ii), 1_mpi_ik, MPI_INTEGER, Int(ii,mpi_ik), &
-                       Int(ii,mpi_ik), MPI_COMM_WORLD, REQ_LIST(ii), IERR)
-        CALL handle_err(std_out, "MPI_IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
+         If ( Domain_stats(nn) /= 1 ) then
+            if (nn > amount_domains) exit
+            nn = nn + 1_mpi_ik
+            cycle
+         End If
+
+         Do jj = ii, ii + parts-1
+
+            Activity(jj) = 1_mpi_ik
+            
+            Call mpi_send(Activity(jj), 1_mpi_ik, mpi_integer , Int(jj,mpi_ik), Int(jj,mpi_ik), MPI_COMM_WORLD,ierr)
+            CALL handle_err(std_out, "MPI_SEND of activity didn't succeed", INT(ierr, KIND=ik))
+
+            Call mpi_send(nn          , 1_mpi_ik, mpi_integer8, Int(jj,mpi_ik), Int(jj,mpi_ik), MPI_COMM_WORLD,ierr)
+            CALL handle_err(std_out, "MPI_SEND of Domain number didn't succeed", INT(ierr, KIND=ik))
+
+            if (out_amount /= "PRODUCTION") then
+               Call mpi_send(domain_path(nn), Int(4_mpi_ik*mcl,mpi_ik), &
+                     MPI_CHARACTER, Int(jj,mpi_ik), Int(jj,mpi_ik), MPI_COMM_WORLD,ierr)
+               CALL handle_err(std_out, "MPI_SEND of Domain path didn't succeed", INT(ierr, KIND=ik))
+            End if
+         End Do
+         
+         !** Log to global stdout **********************************************
+         Write(un_mon,'(2(A,I10))')"MPI rank : ",ii, " ; Domain number: ",Domains(nn)
+         flush(un_mon)
+         
+         nn = nn + 1_mpi_ik
+         
+         Call MPI_IRECV(Activity(ii), 1_mpi_ik, MPI_INTEGER, Int(ii,mpi_ik), &
+                        Int(ii,mpi_ik), MPI_COMM_WORLD, REQ_LIST(ii), IERR)
+         CALL handle_err(std_out, "MPI_IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
+
+         Call MPI_WAITANY(size_mpi-1_mpi_ik, req_list, finished, status_mpi, ierr)
+         CALL handle_err(std_out, "MPI_WAITANY on   for IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
+
+         ii = finished
+
+         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+         If (out_amount == "DEBUG") THEN
+            Write(un_mon,*)"Domain ",ii, Domains(act_domains(ii))," finished"
+         End If
+         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+         
+         Domain_stats(act_domains(ii)) = Activity(ii)
+
+         write(aun,pos=(act_domains(ii)-1)*ik+1) INT(Activity(ii), KIND=ik)
+         flush(aun)
+         act_domains(ii) = nn
+
+      End Do
+
+      !** Write last data element to ensure correct file size ******************
+      Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+            Int(res%leaves(18)%lbound-1+amount_domains, MPI_OFFSET_KIND), &
+            0_pd_rk, Int(1,pd_mpi_ik), MPI_Real8, status_mpi, ierr)
+
+         Call MPI_WAITALL(size_mpi-1_mpi_ik, req_list, statuses_mpi, ierr)
+         CALL handle_err(std_out, "MPI_WAITANY on req_list for IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
 
 
-        Call MPI_WAITANY(size_mpi-1_mpi_ik,req_list, finished, status_mpi, ierr)
-        CALL handle_err(std_out, "MPI_WAITANY on req_list for IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
+      !** TODO refactor domain_cross reference from size size_mpi-1 to *********
+      !** (size_mpi-1)/parts ***************************************************
+      Do ii = 1, size_mpi-1, parts
+         write(aun,pos=(act_domains(ii)-1)*ik+1) INT(Activity(ii), KIND=ik)
+      End Do
 
-        ii = finished
+      flush(aun)
 
-        !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-        If (out_amount == "DEBUG") THEN
-           Write(un_mon,*)"Domain ",ii, Domains(act_domains(ii))," finished"
-        End If
-        !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-        
-        Domain_stats(act_domains(ii)) = Activity(ii)
-        write(aun,pos=(act_domains(ii)-1)*8+1) Activity(ii)
-        flush(aun)
-        act_domains(ii) = nn
 
-     End Do
-
-     !** Write last data element to ensure correct file size ******************
-     Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-         Int(res%leaves(18)%lbound-1+Domain_number, MPI_OFFSET_KIND), &
-         0_pd_rk, Int(1,pd_mpi_ik), MPI_Real8, status_mpi, ierr)
-     
-     Call MPI_WAITALL(size_mpi-1_mpi_ik, req_list, statuses_mpi, ierr)
-     CALL handle_err(std_out, "MPI_WAITANY on req_list for IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
-
-     !** TODO refactor domain_cross reference from size size_mpi-1 to *********
-     !** (size_mpi-1)/parts ***************************************************
-     Do ii = 1, size_mpi-1, parts
-        write(aun,pos=(act_domains(ii)-1)*8+1) Activity(ii)
-     End Do
-     
-     flush(aun)
-
-     Activity = -1
-     
-     Do ii = 1_mpi_ik, size_mpi-1_mpi_ik
-        Call mpi_send(Activity(ii), 1_mpi_ik, mpi_integer, Int(ii,mpi_ik), &
-                      Int(ii,mpi_ik), MPI_COMM_WORLD,ierr)
-        CALL handle_err(std_out, "MPI_SEND of activity didn't succeed", INT(ierr, KIND=ik))
-     End Do
+   Activity = -1
    
+   Do ii = 1_mpi_ik, size_mpi-1_mpi_ik
+      Call mpi_send(Activity(ii), 1_mpi_ik, mpi_integer, Int(ii,mpi_ik), &
+                     Int(ii,mpi_ik), MPI_COMM_WORLD,ierr)
+      CALL handle_err(std_out, "MPI_SEND of activity didn't succeed", INT(ierr, KIND=ik))
+   End Do
+
   !****************************************************************************
   !** Ranks > 0 -- Workers ****************************************************
   !****************************************************************************
@@ -1772,8 +1794,7 @@ Program main_struct_process
          IF(stat_c_int /= 0) CALL handle_err(std_out,'Could not create the output directory »'//TRIM(outpath)//'«.', 1)
 
       ELSE 
-         WRITE(un_mon, FMT_MSG_A) "Reusing the output directory"
-         WRITE(un_mon, FMT_MSG_A) TRIM(outpath)
+         WRITE(un_mon, FMT_MSG_A) "Reusing the output directory "//TRIM(outpath)
       END IF
 
      Call link_start(link_name,.True.,.True.)
@@ -1945,7 +1966,7 @@ Program main_struct_process
 
      End Do
 
-     call PetscFinalize(petsc_ierr)
+     CALL PetscFinalize(petsc_ierr)
      
   End If
 
@@ -1966,7 +1987,8 @@ Program main_struct_process
 1001 Continue
 
 IF(rank_mpi == 0) THEN
-   CALL meta_close    (m_rry)
+   CALL meta_close()
+
    ! CALL meta_add_ascii(fh=fhl  , suf=log_suf, st='stop')
    CALL meta_add_ascii(fh=fhmon, suf=mon_suf, st='stop')
    ! CALL meta_add_ascii(fh=fhr, suf=res_suf, st='stop')

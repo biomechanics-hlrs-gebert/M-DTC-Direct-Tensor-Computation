@@ -67,9 +67,9 @@ Character(Len=*), Parameter :: FMT_MSG_BE  = "('done MM')"
 
 Character(Len=*), Parameter :: FMT_WRN     = "('WW ',A,T97,' WW')"  
 Character(Len=*), Parameter :: FMT_ERR     = "('EE ',A,T97,' EE')"
-CHARACTER(LEN=*), PARAMETER :: FMT_WRN_SO  = "('\x1B[35m','WW ','\x1B[0m',A,T97,'\x1B[35m',' WW','\x1B[0m')" ! std_out
-CHARACTER(LEN=*), PARAMETER :: FMT_ERR_SO  = "('\x1B[31m','EE ','\x1B[0m',A,T97,'\x1B[31m',' EE','\x1B[0m')" ! std_out
-CHARACTER(LEN=*), PARAMETER :: FMT_ERR_SOC = "('\x1B[31m','EE ',A,T97,' EE','\x1B[0m')" ! std_out - complete color
+CHARACTER(LEN=*), PARAMETER :: FMT_WRN_SO  = "('\x1B[35m','WW ','\x1B[0m',A,T97)" ! std_out
+CHARACTER(LEN=*), PARAMETER :: FMT_ERR_SO  = "('\x1B[31m','EE ','\x1B[0m',A,T97)" ! std_out
+CHARACTER(LEN=*), PARAMETER :: FMT_ERR_SOC = "('\x1B[31m','EE ',A,T97)" ! std_out - complete color
 
 Character(Len=*), Parameter :: FMT_ERR_AI0 = "('EE ',*(A,I0))"  
 CHARACTER(Len=*), PARAMETER :: FMT_ERR_A   = "('EE ',A)"
@@ -119,6 +119,17 @@ Character(Len=*), Parameter :: PDF_M_AI0  = "('MM ',A,1X,I0)"
 Character(Len=*), Parameter :: PDF_TIME   = "('MM ',A,1X,F0.6,' sec')"
 
 Character(Len=*), Parameter :: PDF_SEP    = "('<',98('='),'>')"
+
+! Provide colors on std_out (!)
+CHARACTER(LEN=*), PARAMETER ::  FMT_Blck  = "\x1B[30m"
+CHARACTER(LEN=*), PARAMETER ::  FMT_Red   = "\x1B[31m"
+CHARACTER(LEN=*), PARAMETER ::  FMT_Grn   = "\x1B[32m"
+CHARACTER(LEN=*), PARAMETER ::  FMT_Orng  = "\x1B[33m"
+CHARACTER(LEN=*), PARAMETER ::  FMT_Blue  = "\x1B[34m"
+CHARACTER(LEN=*), PARAMETER ::  FMT_Prpl  = "\x1B[35m"
+CHARACTER(LEN=*), PARAMETER ::  FMT_Cyan  = "\x1B[36m"
+CHARACTER(LEN=*), PARAMETER ::  FMT_Gray  = "\x1B[37m"
+CHARACTER(LEN=*), PARAMETER ::  FMT_noc   = "\x1B[0m"
 
 !-- Mpi-specific kinds
 INTEGER         , PARAMETER :: mpi_ik     = 4             ! MPI INTEGER Kind; Compile with corresponding mpi!!
