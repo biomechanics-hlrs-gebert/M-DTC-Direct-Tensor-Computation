@@ -177,12 +177,14 @@ END IF
 !------------------------------------------------------------------------------
 ! Nomenclature: dataset_type_purpose_app_features
 ! This assignment requres the out = in assignment before
-out%p_n_bsnm = TRIM(out%path)//&
-               TRIM(out%dataset)//&
+out%bsnm =     TRIM(out%dataset)//&
           '_'//TRIM(out%type)//&
           '_'//TRIM(out%purpose)//&
           '_'//TRIM(out%app)//&        ! out%app shall be defined in the main program!
           '_'//TRIM(out%features)
+
+out%p_n_bsnm = TRIM(out%path)//&
+               TRIM(out%bsnm)
 
 out%full = TRIM(out%p_n_bsnm)//meta_suf
 

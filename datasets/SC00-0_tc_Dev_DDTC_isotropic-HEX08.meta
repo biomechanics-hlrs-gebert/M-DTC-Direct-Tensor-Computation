@@ -102,11 +102,6 @@
 * NEW_BSNM_FEATURE      Tensors                                      ! Last segment of basename - NO '_'
 * NEW_BSNM_PURPOSE      Pro                                          ! 3rd segment of basename - NO '_'
 
-* BASE_PATH          regression/SC00-0_tc_Dev_DDTC_isotropic-HEX08_reg   ! Base path
-* PROJECT_NAME          SC00-0_tc_Dev_DDTC_isotropic-HEX08           ! Project name
-* MCT_PD_PRO_PATH    regression/SC00-0_tc_Dev_DDTC_isotropic-HEX08/  ! muCT puredat pro_path
-* MCT_PD_PRO_NAME       SC00-0_tc_Dev_DDTC_isotropic-HEX08           ! muCT puredat pro_name
-
 * RESTART               Y                                            ! Restart a (partly) computed project
 
 -------------------------------------------------------------------------------------------------------------
