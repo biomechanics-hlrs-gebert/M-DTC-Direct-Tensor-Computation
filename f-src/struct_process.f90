@@ -76,6 +76,7 @@
 Module sp_aux_routines
 
   Use ISO_C_BINDING
+  USE mechanical
   Use Operating_System
   USE global_std
   use puredat_com
@@ -97,6 +98,8 @@ Contains
   !> \todo FMPS read .epp and .err from file is not that a good idea
   Subroutine exec_single_domain(root, lin_nn, nn, job_dir, Active, fh_mpi, &
        rank_mpi, size_mpi, comm_mpi)
+
+    TYPE(materialcard)                :: mc
 
     LOGICAL, PARAMETER                :: DEBUG=.TRUE.
     
@@ -177,7 +180,10 @@ Contains
 
     !** Get basic infos ------------------------------------------
     Call Search_branch("Input parameters", root, params, success, DEBUG)
-    call pd_get(params,"No of mesh parts per subdomain",parts)
+    call pd_get(params,"No of mesh parts per subdomain", parts)
+    call pd_get(params,"Physical domain size"          , mc%pdsize(1))
+    call pd_get(params,"Young_s modulus"               , mc%E)
+    call pd_get(params,"Poisson_s ratio"               , mc%nu)
     
     !****************************************************************************
     !** Rank = 0 -- Local master of comm_mpi ************************************
@@ -403,7 +409,7 @@ Contains
 
     if (elt_micro == "HEX08") then
 
-       K_loc_08 = Hexe08()
+       K_loc_08 = Hexe08(mc)
 
        nn_elems = pb%leaves(5)%dat_no / 8
     
@@ -884,6 +890,7 @@ Contains
 Program main_struct_process
 
   USE global_std
+  USE mechanical
   USE puredat 
   USE auxiliaries
   USE meta
@@ -897,6 +904,10 @@ Program main_struct_process
   USE petsc_opt
   
   Implicit None
+
+
+  ! Always provide in/out for meta driven environments
+  TYPE(materialcard)                                 :: bone
 
   !-- MPI Variables -----------------------------------------------------------
   Integer(kind=mpi_ik)                               :: ierr
@@ -947,8 +958,6 @@ Program main_struct_process
   Character(LEN=mcl)             :: muCT_pd_name
   Character(Len=mcl)             :: mesh_desc, domain_desc
 
-  Real(kind=rk)   , Dimension(3) :: pdsize
-
   Integer(kind=ik), Dimension(3) :: xa_d
   Integer(kind=ik), Dimension(3) :: xe_d
   
@@ -963,7 +972,7 @@ Program main_struct_process
   Integer(kind=ik)                              :: no_solver, pscratch
   Character(LEN=8)                              :: elt_micro
   Character(Len=8)                              :: output
-  Real(kind=rk)                                 :: strain, e_modul, nu
+  Real(kind=rk)                                 :: strain
   
   Integer(kind=pd_ik), Dimension(:), Allocatable :: serial_root, epp_data
   Integer(kind=pd_ik)                            :: serial_root_size
@@ -1077,17 +1086,21 @@ Program main_struct_process
       CALL meta_io (fhmon, 'DBG_LVL'          , '(-)'  , m_rry,    chars = out_amount  , wl=.TRUE.)
       CALL meta_io (fhmon, 'OUT_FMT'          , '(-)'  , m_rry,    chars = output      , wl=.TRUE.)
       ! WHERE DOES THE GRID SPACING COME FROM? SIZE_DOMAIN/MES_PER_SUB_DMN?X
-      CALL meta_io (fhmon, 'SIZE_DOMAIN'      , '(mm)' , m_rry, real_1D3 = pdsize      , wl=.TRUE.)
+      CALL meta_io (fhmon, 'SIZE_DOMAIN'      , '(mm)' , m_rry, real_1D3 = bone%pdsize , wl=.TRUE.)
       CALL meta_io (fhmon, 'LO_BNDS_DMN_RANGE', '(-)'  , m_rry,  int_1D3 = xa_d        , wl=.TRUE.)
       CALL meta_io (fhmon, 'UP_BNDS_DMN_RANGE', '(-)'  , m_rry,  int_1D3 = xe_d        , wl=.TRUE.)
       CALL meta_io (fhmon, 'BINARIZE_LO'      , '(-)'  , m_rry,  int_0D  = llimit      , wl=.TRUE.)
       CALL meta_io (fhmon, 'MESH_PER_SUB_DMN' , '(-)'  , m_rry,  int_0D  = parts       , wl=.TRUE.)
       CALL meta_io (fhmon, 'RVE_STRAIN'       , '(mm)' , m_rry, real_0D  = strain      , wl=.TRUE.)
-      CALL meta_io (fhmon, 'YOUNG_MODULUS'    , '(MPa)', m_rry, real_0D  = e_modul     , wl=.TRUE.)
-      CALL meta_io (fhmon, 'POISSON_RATIO'    , '(-)'  , m_rry, real_0D  = nu          , wl=.TRUE.)
+      CALL meta_io (fhmon, 'YOUNG_MODULUS'    , '(MPa)', m_rry, real_0D  = bone%E      , wl=.TRUE.)
+      CALL meta_io (fhmon, 'POISSON_RATIO'    , '(-)'  , m_rry, real_0D  = bone%nu     , wl=.TRUE.)
       CALL meta_io (fhmon, 'MACRO_ELMNT_ORDER', '(-)'  , m_rry,  int_0D  = elo_macro   , wl=.TRUE.)
 
       ! Error handling
+      IF ( (bone%pdsize(1) /= bone%pdsize(2)) .OR. (bone%pdsize(1) /= bone%pdsize(3)) ) THEN
+         CALL handle_err(std_out, 'Currently, all 3 dimensions of the physical domain size must be equal!', 1)
+      END IF
+      
       IF ( (xa_d(1) > xe_d(1)) .OR. (xa_d(2) > xe_d(2)) .or. (xa_d(3) > xe_d(3)) ) THEN
          CALL handle_err(std_out, 'Input parameter error: Start value of domain range larger than end value.', 1)
       END IF
@@ -1112,7 +1125,7 @@ Program main_struct_process
 
       CALL add_leaf_to_branch(params, "muCT puredat pro_path"                , mcl            , str_to_char(muCT_pd_path))
       CALL add_leaf_to_branch(params, "muCT puredat pro_name"                , mcl            , str_to_char(muCT_pd_name))
-      CALL add_leaf_to_branch(params, "Physical domain size"                 , 3_ik           , pdsize)
+      CALL add_leaf_to_branch(params, "Physical domain size"                 , 3_ik           , bone%pdsize)
       CALL add_leaf_to_branch(params, "Lower bounds of selected domain range", 3_ik           , xa_d)
       CALL add_leaf_to_branch(params, "Upper bounds of selected domain range", 3_ik           , xe_d)     
       CALL add_leaf_to_branch(params, "Lower limit of iso value"             , 1_ik           , [llimit])     
@@ -1120,8 +1133,8 @@ Program main_struct_process
       CALL add_leaf_to_branch(params, "No of mesh parts per subdomain"       , 1              , [parts])
       CALL add_leaf_to_branch(params, "Output Format"                        , len(output)    , str_to_char(output))
       CALL add_leaf_to_branch(params, "Average strain on RVE"                , 1              , [strain])   
-      CALL add_leaf_to_branch(params, "Young_s modulus"                      , 1              , [e_modul])
-      CALL add_leaf_to_branch(params, "Poisson_s ratio"                      , 1              , [nu])
+      CALL add_leaf_to_branch(params, "Young_s modulus"                      , 1              , [bone%E])
+      CALL add_leaf_to_branch(params, "Poisson_s ratio"                      , 1              , [bone%nu])
       CALL add_leaf_to_branch(params, "Element order on macro scale"         , 1              , [elo_macro])
       CALL add_leaf_to_branch(params, "Output amount"                        , len(out_amount), str_to_char(out_amount))
       CALL add_leaf_to_branch(params, "Restart"                              , 1              , str_to_char(restart))
@@ -1155,7 +1168,6 @@ Program main_struct_process
       !------------------------------------------------------------------------------
       ! Set project name and path of puredat root
       !------------------------------------------------------------------------------
-
       pro_path = outpath
       pro_name = project_name
    
@@ -1252,7 +1264,7 @@ Program main_struct_process
          pro_name = project_name
 
          allocate(ddc)
-         ddc = calc_general_ddc_params(pdsize, phi_tree)
+         ddc = calc_general_ddc_params(bone%pdsize, phi_tree)
          
          call include_branch_into_branch(s_b=ddc, t_b=root, blind=.TRUE.)
       END IF
@@ -1669,7 +1681,7 @@ Program main_struct_process
 
            Call mpi_send(nn, 1_mpi_ik, mpi_integer8, Int(jj,mpi_ik), Int(jj,mpi_ik), &
                 MPI_COMM_WORLD,ierr)
-           CALL handle_err(std_out, "MPI_SEND of Domain number didn't succeed", INT(ierr, KIND=ik))
+           CALL handle_err(std_out, "MPI_SEND of Domain bone%number didn't succeed", INT(ierr, KIND=ik))
 
            if (out_amount /= "PRODUCTION") then
               Call mpi_send(domain_path(nn), Int(4_mpi_ik*mcl,mpi_ik), &
@@ -1679,7 +1691,7 @@ Program main_struct_process
         End Do
         
         !** Log to global stdout **********************************************
-        Write(un_mon,'(2(A,I10))')"MPI rank : ",ii, " ; Domain number: ",Domains(nn)
+        Write(un_mon,'(2(A,I10))')"MPI rank : ",ii, " ; Domain bone%number: ",Domains(nn)
         flush(un_mon)
         
         nn = nn + 1_mpi_ik
@@ -1737,7 +1749,7 @@ Program main_struct_process
   Else 
 
       !------------------------------------------------------------------------------
-      ! Extend project_name and outpath with rank number
+      ! Extend project_name and outpath with rank bone%number
       !------------------------------------------------------------------------------
       WRITE(outpath     ,'(A,A,I7.7,A)') TRIM(outpath     ),"Rank_",rank_mpi,"/"
       WRITE(project_name,'(A,A,I7.7)'  ) TRIM(project_name),"_"    ,rank_mpi
