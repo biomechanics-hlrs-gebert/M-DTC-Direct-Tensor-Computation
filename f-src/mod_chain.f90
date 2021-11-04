@@ -210,7 +210,7 @@ Contains
           
           Write(un_mon,FMT_MSG )"The log-file was already opened"
 
-          Write(un_mon,FMT_MSG)'Reusing open and existing log-file :'
+          Write(un_mon,FMT_MSG)'Reusing open and existing log-file: '
           Write(lf,'(A)')trim(outpath)//trim(project_name)//'.log'
 
           If (Len_trim(lf) > 72) Then

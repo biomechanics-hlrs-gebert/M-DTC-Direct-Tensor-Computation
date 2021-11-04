@@ -1100,9 +1100,9 @@ Program main_struct_process
       ! This log file may collide with the original log file (!)
       ! The regular struct_process log file contains still has the "old" basename!
       !------------------------------------------------------------------------------
-      ! CALL meta_add_ascii(fh=fhl  , suf=log_suf, st='start', restart=restart_cmdarg)
-      CALL meta_add_ascii(fh=fhmon, suf=mon_suf, st='start', restart=restart_cmdarg)
-      ! CALL meta_add_ascii(fh=fhr, suf=res_suf, st='start', restart=restart_cmdarg)
+      ! CALL meta_add_ascii(fh=fhl  , suf=log_suf, st='start', restart=restart)
+      CALL meta_add_ascii(fh=fhmon, suf=mon_suf, st='start', restart=restart)
+      ! CALL meta_add_ascii(fh=fhr, suf=res_suf, st='start', restart=restart)
 
 
       ! Warning / Error handling
@@ -1387,8 +1387,6 @@ Program main_struct_process
 
          Domain_stats = 1_ik
 
-         WRITE(*,*) "aun: ", Domain_stats
-
          WRITE(aun) Domain_stats
          FLUSH(aun)
 
@@ -1651,7 +1649,7 @@ Program main_struct_process
          !** Log to global stdout **********************************************
          Write(un_mon,'(2(A,I10))')"MPI rank : ",ii, " ; Domain number : ",Domains(nn)
          flush(un_mon)
-         
+
          nn = nn + 1_mpi_ik
          
          Call MPI_IRECV(Activity(ii), 1_mpi_ik, MPI_INTEGER, Int(ii,mpi_ik), Int(ii,mpi_ik), &
