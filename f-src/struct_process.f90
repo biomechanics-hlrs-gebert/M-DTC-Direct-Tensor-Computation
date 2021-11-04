@@ -97,7 +97,7 @@ Contains
   !>
   !> \todo FMPS read .epp and .err from file is not that a good idea
   Subroutine exec_single_domain(root, lin_nn, nn, job_dir, Active, fh_mpi, &
-       rank_mpi, size_mpi, comm_mpi, mc)
+       rank_mpi, size_mpi, comm_mpi)
 
     TYPE(materialcard)                :: mc
 
@@ -180,7 +180,10 @@ Contains
 
     !** Get basic infos ------------------------------------------
     Call Search_branch("Input parameters", root, params, success, DEBUG)
-    call pd_get(params,"No of mesh parts per subdomain",parts)
+    call pd_get(params,"No of mesh parts per subdomain", parts)
+    call pd_get(params,"Physical domain size"          , mc%pdsize(1))
+    call pd_get(params,"Young_s modulus"               , mc%E)
+    call pd_get(params,"Poisson_s ratio"               , mc%nu)
     
     !****************************************************************************
     !** Rank = 0 -- Local master of comm_mpi ************************************
@@ -1816,7 +1819,7 @@ Program main_struct_process
 
         !======================================================================
         Call exec_single_domain(root, nn, Domain, job_dir, Active, fh_mpi, &
-             worker_rank_mpi, worker_size_mpi, worker_comm, bone)
+             worker_rank_mpi, worker_size_mpi, worker_comm)
         !======================================================================
         
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
