@@ -159,12 +159,6 @@ contains
     nu = mc%nu
     a  = mc%pdsize(1) ! Ensure that only dim(1)=dim(2)=dim(3) is valid!
 
-WRITE(*,*) "E : ", E
-WRITE(*,*) "nu: ", nu 
-WRITE(*,*) "a : ", a
- 
-
-
     factor = E*a / (144._rk*(2.0_rk * nu**2 + nu - 1.0_rk))
 
     ! factor = E / (3*a*(nu+1)*(1-2*nu))
