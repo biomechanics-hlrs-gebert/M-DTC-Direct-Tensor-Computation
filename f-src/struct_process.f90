@@ -1056,10 +1056,6 @@ Program main_struct_process
       !------------------------------------------------------------------------------
       ! Set input parameters
       !------------------------------------------------------------------------------
-      ! CALL meta_io (std_out, 'MCT_PD_PRO_PATH'  , '(-)'  , m_rry, chars = muCT_pd_path)
-      ! CALL meta_io (std_out, 'MCT_PD_PRO_NAME'  , '(-)'  , m_rry, chars = muCT_pd_name)
-      ! CALL meta_io (std_out, 'BASE_PATH'        , '(-)'  , m_rry, chars = outpath     )
-      ! CALL meta_io (std_out, 'PROJECT_NAME'     , '(-)'  , m_rry, chars = project_name)
       ! Input data
       muCT_pd_path = TRIM(in%path)
       muCT_pd_name = TRIM(in%bsnm)
@@ -1067,32 +1063,11 @@ Program main_struct_process
       outpath      = TRIM(out%p_n_bsnm)//"/"
       project_name = TRIM(out%bsnm)
 
-
-write(*,*) "path: ", TRIM(in%path)
-write(*,*) "bsnm: ", TRIM(in%bsnm)
-write(*,*) "p_n_bsnm: ", TRIM(in%p_n_bsnm)
-write(*,*) "dataset: ", TRIM(in%dataset)
-write(*,*) "type: ", TRIM(in%type)
-write(*,*) "purpose: ", TRIM(in%purpose)
-write(*,*) "app: ", TRIM(in%app)
-write(*,*) "features: ", TRIM(in%features)
-write(*,*)
-write(*,*) "path: ", TRIM(out%path)
-write(*,*) "bsnm: ", TRIM(out%bsnm)
-write(*,*) "p_n_bsnm: ", TRIM(out%p_n_bsnm)
-write(*,*) "dataset: ", TRIM(out%dataset)
-write(*,*) "type: ", TRIM(out%type)
-write(*,*) "purpose: ", TRIM(out%purpose)
-write(*,*) "app: ", TRIM(out%app)
-write(*,*) "features: ", TRIM(out%features)
-
       !------------------------------------------------------------------------------
-      ! Modify output directories and namings - Planned as a makeshift solution to 
-      ! Connect PureDat and the meta/raw approach.
+      ! Not entirely clear, whether project_name and outpath may be obsolete....
       !------------------------------------------------------------------------------
-      ! if (outpath(len(outpath):len(outpath)) /= "/") then
-      !    outpath = trim(outpath)//"/"
-      ! End if
+      pro_path = outpath
+      pro_name = project_name
 
       CALL meta_io (std_out, 'MICRO_ELMNT_TYPE' , ''     , m_rry,    chars = elt_micro  )
       CALL meta_io (std_out, 'DBG_LVL'          , ''     , m_rry,    chars = out_amount )
@@ -1198,12 +1173,6 @@ write(*,*) "features: ", TRIM(out%features)
 
       CALL link_start(link_name, .TRUE., .FALSE., success)
       IF (.NOT. success) CALL handle_err(std_out, "Something went wrong during link_start", 1)
-
-      !------------------------------------------------------------------------------
-      ! Set project name and path of puredat root
-      !------------------------------------------------------------------------------
-      pro_path = outpath
-      pro_name = project_name
    
       !------------------------------------------------------------------------------
       ! Check whether there is already a project header
