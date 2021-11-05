@@ -196,25 +196,31 @@ END SUBROUTINE check_and_close
 !> @param[in] ti Time
 !> @param[in] zo Timezone
 !> @param[in] long Long or short notation
+!> @param[in] mssgdt Message to print before
 !------------------------------------------------------------------------------  
-SUBROUTINE date_time(fh, da, ti, zo, long)
+SUBROUTINE date_time(fh, da, ti, zo, long, mssgdt)
 
     INTEGER(KIND=ik)  , INTENT(IN), OPTIONAL :: fh 
     LOGICAL           , INTENT(IN), OPTIONAL :: da    
     LOGICAL           , INTENT(IN), OPTIONAL :: ti           
     LOGICAL           , INTENT(IN), OPTIONAL :: zo           
-    CHARACTER(LEN=*)  , INTENT(IN), OPTIONAL :: long           
+    LOGICAL           , INTENT(IN), OPTIONAL :: long           
+    CHARACTER(LEN=*)  , INTENT(IN), OPTIONAL :: mssgdt           
 
     CHARACTER(LEN=8)                         :: date
     CHARACTER(LEN=10)                        :: time
     CHARACTER(LEN=5)                         :: timezone
 
 CALL DATE_AND_TIME(DATE=date, TIME=time, ZONE=timezone)
-    
+
+IF(PRESENT(mssgdt)) WRITE(fh, "('MM ',A)", ADVANCE='NO') TRIM(mssgdt)
+
 IF(PRESENT(long)) THEN
-    IF (ti) WRITE(fh, '(A,".",A,".",A    )', ADVANCE='NO') date(7:8), date(5:6), date(1:4)
-    IF (da) WRITE(fh, '(x,A,":",A,":",A,x)', ADVANCE='NO') time(1:2), time(3:4), time(5:10)
-    IF (zo) WRITE(fh, '(A)'                              ) timezone
+    IF (long .EQV. .TRUE.) THEN
+        IF (ti) WRITE(fh, '(A,".",A,".",A    )', ADVANCE='NO') date(7:8), date(5:6), date(1:4)
+        IF (da) WRITE(fh, '(x,A,":",A,":",A,x)', ADVANCE='NO') time(1:2), time(3:4), time(5:10)
+        IF (zo) WRITE(fh, '(A)'                              ) timezone
+    END IF 
 ELSE
     IF (ti) WRITE(fh, '(A,".",A,".",A    )', ADVANCE='NO') date(7:8), date(5:6), date(3:4)
     IF (da) WRITE(fh, '(x,A,":",A,x)'                    ) time(1:2), time(3:4)
@@ -297,7 +303,10 @@ ELSE
 
     IF (err .GT. 0) THEN ! An error occured   
         fmt = FMT_ERR_SOC 
-        WRITE(fh, fmt) "Program halted."
+
+        WRITE(mssg, '(A,I4,A)') "Program halted with error code ", err, "."
+
+        WRITE(fh, fmt) TRIM(mssg)
         CALL stop_slaves(out%path, out%bsnm)
 
         CALL MPI_FINALIZE(ierr)

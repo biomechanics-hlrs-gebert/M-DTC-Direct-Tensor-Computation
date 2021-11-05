@@ -1,5 +1,4 @@
 Restart properly
-Remove unused variables
 meta/raw --> meta/.int4.st
 Connect linFE mit meta
     Check what is correct
@@ -11,3 +10,4 @@ Error messages
 replace alloc_err
 copy meta in to meta out
 how is the grid spacing determined?
+init stdot

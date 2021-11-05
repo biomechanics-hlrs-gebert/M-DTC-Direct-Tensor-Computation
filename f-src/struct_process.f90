@@ -196,23 +196,13 @@ Contains
 
           If ( stat_c_int /= 0 ) Then
 
-             Call execute_command_line("mkdir -p "//trim(job_dir), CMDSTAT=stat)
+             CALL execute_command_line("mkdir -p "//trim(job_dir), CMDSTAT=stat)
 
-             If ( stat /= 0 ) Then
-                Write(un_mon,*)"Could not execute syscall"
-                Write(un_mon,*)"mkpir -p "//trim(job_dir)
-                Write(un_mon,*)"Program halted"
-                Stop
-             End If
+             IF(stat /= 0) CALL handle_err(std_out, "Couldn't execute syscall mkpir -p "//FMT_Orng//TRIM(job_dir)//FMT_noc, 1)
 
-             Call Stat_Dir(c_char_array, stat_c_int)
+             CALL Stat_Dir(c_char_array, stat_c_int)
 
-             If ( stat_c_int /= 0 ) Then
-                Write(un_mon,*)"Could not create directory"
-                Write(un_mon,*)trim(job_dir)
-                Write(un_mon,*)"Program halted"
-                Stop
-             End If
+             IF(stat_c_int /= 0) CALL handle_err(std_out, "Couldn't create directory "//FMT_Orng//TRIM(job_dir)//FMT_noc, 1)
 
           Else
 
@@ -233,8 +223,8 @@ Contains
        Write(un_lf,fmt_msg_A  ) "Job_dir    : "//Trim(job_dir)
 
        Call date_and_Time(values=realt)
-       Write(un_lf,"('MM ',A,I0,2('.',I0),' - ',I0,2(':',I0),',',I0)") &
-            "Start time : ",realt(3),realt(2),realt(1),realt(5:8)
+
+       CALL date_time(un_lf, .TRUE., .TRUE., .TRUE., .FALSE., 'Start time:')
 
        Call get_environment_Variable("HOSTNAME", env_var)
        Write(un_lf,fmt_MSG_A) "Host       : "//Trim(env_var)
@@ -264,10 +254,8 @@ Contains
        End if
        Call end_timer(trim(timer_name))
 
-       Call date_and_Time(values=realt)
-       Write(un_lf,"('MM ',A,I0,2('.',I0),' - ',I0,2(':',I0),',',I0)") &
-            "End time   : ",realt(3),realt(2),realt(1),realt(5:8)    
-
+       CALL date_time(un_lf, .TRUE., .TRUE., .TRUE., .FALSE., 'End time:')
+       
        close(umon)
 
        !** Look for the Domain branch ****************************************
@@ -295,10 +283,8 @@ Contains
           !** serialize branch with mesh part *********************************
           Call search_branch(trim(part_desc), db, pb, success)
           If (.NOT. success) Then
-             Write(*,*)"Something bad and unexpected happend in exec_single_domain !!!"
-             Write(*,*)"Looking for branch of part ",ii," returned ",success
-             Write(*,*)"MPI proc ",rank_mpi," halted !!!"
-             stop
+            WRITE(mssg,'(2(A,I9))') "Exec_single_domain, rank ", rank_mpi ,": Branch of part ",ii
+            CALL handle_err(std_out, mssg, 1)
           End If
           
           Call serialize_branch(pb,serial_pb,serial_pb_size,.TRUE.)
@@ -1189,33 +1175,29 @@ Program main_struct_process
         ! integrity and compresses potentially missing stream data in
         ! an efficient way.
         !------------------------------------------------------------------------------
-        call delete_branch_from_branch("Averaged Material Properties", root, dsize)
+         CALL delete_branch_from_branch("Averaged Material Properties", root, dsize)
 
-        Call get_stream_size(root, dsize)
-        root%streams%dim_st = dsize
-        root%streams%ii_st  = dsize + 1
-        
-        Call read_streams(root)
-     
-        Call connect_pointers(root%streams, root)
+         CALL get_stream_size(root, dsize)
+         root%streams%dim_st = dsize
+         root%streams%ii_st  = dsize + 1
 
-        Call search_branch("Global domain decomposition", root, ddc, success)
-        
-        If (.not. success) then
-           Write(un_mon,FMT_ERR_A)"Found no branch named 'Global domain decomposition' !"
-           Write(un_mon,FMT_ERR_A)"with restart option set to Y                        !"
-           Write(un_mon,FMT_STOP)
-           STOP
-        End If
+         CALL read_streams(root)
 
-        Call search_branch("Input parameters", root, params, success)
-        
-        If (.not. success) then
-           Write(un_mon,FMT_ERR_A)"Found no branch named 'Input parameters' !"
-           Write(un_mon,FMT_ERR_A)"with restart option set to Y             !"
-           Write(un_mon,FMT_STOP)
-           STOP
-        End If
+         CALL connect_pointers(root%streams, root)
+
+         CALL search_branch("Global domain decomposition", root, ddc, success)
+
+         IF (.NOT. success) THEN
+            mssg = "No branch named 'Global domain decomposition', however a restart was requested."
+            CALL handle_err(std_out, mssg, 1)
+         END IF
+
+         CALL search_branch("Input parameters", root, params, success)
+
+         IF (.NOT. success) then
+            mssg = "No branch named 'Input parameters', however a restart was requested."
+            CALL handle_err(std_out, mssg, 1)
+         END IF
 
          !------------------------------------------------------------------------------
          ! Reset Output amount and Restart in loaded param branch
@@ -1782,8 +1764,8 @@ Program main_struct_process
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         If (out_amount == "DEBUG") THEN
            Write(un_lf, fmt_dbg_sep)
-           Write(un_lf, fmt_MSG_AI0)"Root pointer before exec_single_domain on proc",rank_mpi
-           Call log_tree(root,un_lf,.True.)
+           Write(un_lf, fmt_MSG_AI0)"Root pointer before exec_single_domain on proc ",rank_mpi
+           Call log_tree(root, un_lf, .True.)
            Write(un_lf, fmt_dbg_sep)
         END If
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -1796,7 +1778,7 @@ Program main_struct_process
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         If (out_amount == "DEBUG") THEN
            Write(un_lf, fmt_dbg_sep)
-           Write(un_lf, fmt_MSG_AI0)"Root pointer after exec_single_domain on proc",rank_mpi
+           Write(un_lf, fmt_MSG_AI0)"Root pointer after exec_single_domain on proc ",rank_mpi
            Call log_tree(root,un_lf,.True.)
            Write(un_lf, fmt_dbg_sep)
         END If

@@ -12,7 +12,8 @@
 Module chain_variables
  
   USE global_std
-  
+  USE auxiliaries
+
   Implicit None
  
   ! ---------------------------------------------------------------------------
@@ -94,58 +95,57 @@ Contains
   !============================================================================
   !> Subroutine that initializes the output to std-out according to the
   !> environment variable CHAIN_STDOUT
-  Subroutine init_std_out(success)
+!   Subroutine init_std_out(success)
 
-    Character(len=mcl)             :: env_var
-    Logical                        :: opened, exist
-    Logical, optional, intent(Out) :: success
+!     Character(len=mcl)             :: env_var
+!     Logical                        :: opened, exist
+!     Logical, optional, intent(Out) :: success
 
-    Integer                        :: io_stat
+!     Integer                        :: io_stat
     
-    Call get_environment_Variable("CHAIN_STDOUT", env_var)
+!     Call get_environment_Variable("CHAIN_STDOUT", env_var)
 
-    if (present(success)) success = .TRUE.
+!     if (present(success)) success = .TRUE.
 
-    !** If CHAIN_STDOUT is set to a value *************************************
-    If (Len_Trim(env_var) > 0) then
+!     !** If CHAIN_STDOUT is set to a value *************************************
+!     If (Len_Trim(env_var) > 0) then
 
-       Inquire(file=trim(env_var), opened = opened)
-       Inquire(file=trim(env_var), exist  = exist)
+!        Inquire(file=trim(env_var), opened = opened)
+!        Inquire(file=trim(env_var), exist  = exist)
 
-       IF (exist .AND. opened) Then
+!        IF (exist .AND. opened) Then
           
-          Inquire(file=trim(env_var), number=un_mon)
+!           Inquire(file=trim(env_var), number=un_mon)
 
-       Else if (exist .AND. (.NOT.opened)) then
+!        Else if (exist .AND. (.NOT.opened)) then
 
-          un_mon = give_new_unit()
-          Open(unit=un_mon,  file=trim(env_var), Action='Write', &
-               status='old', position='Append' )
+!           un_mon = give_new_unit()
+!           Open(unit=un_mon,  file=trim(env_var), Action='Write', &
+!                status='old', position='Append' )
 
-       Else if (.NOT. exist) then
+!        Else if (.NOT. exist) then
 
-          un_mon = give_new_unit()
-          Open(unit=un_mon,  file=trim(env_var), Action='Write', &
-               status='NEW', iostat = io_stat )
-          If (io_stat /= 0) then
-             if (present(success)) then
-                success = .FALSE.
-             Else
-                un_mon = std_out
-                Write(un_mon,fmt_sep)
-                Write(un_mon,FMT_WRN )"In init_std_out it was not possible to open the monitor file"
-                Write(un_mon,FMT_WRN_A)trim(env_var)
-                Write(un_mon,FMT_WRN_A)"Please check the value of the en CHAIN_STDOUT env variable"
-                Write(un_mon,FMT_WRN )"Monitoring will be redirected to std output"
-                Write(un_mon,fmt_sep)
-                
-             End if
-          End IF
-       End IF
+!           un_mon = give_new_unit()
+!           Open(unit=un_mon,  file=trim(env_var), Action='Write', &
+!                status='NEW', iostat = io_stat )
+!           If (io_stat /= 0) then
+!              if (present(success)) then
+!                 success = .FALSE.
+!              Else
+!                 un_mon = std_out
+!                 Write(un_mon,fmt_sep)
+!                 Write(un_mon,FMT_WRN )"In init_std_out it was not possible to open the monitor file"
+!                 Write(un_mon,FMT_WRN_A)trim(env_var)
+!                 Write(un_mon,FMT_WRN_A)"Please check the value of the en CHAIN_STDOUT env variable"
+!                 Write(un_mon,FMT_WRN )"Monitoring will be redirected to std output"
+!                 Write(un_mon,fmt_sep)
+!              End if
+!           End IF
+!        End IF
        
-    End If
+!     End If
    
-  End Subroutine init_std_out
+!   End Subroutine init_std_out
   
   !============================================================================
   !> Subroutine for writing link start tag and opening the global log-file
@@ -166,7 +166,7 @@ Contains
     Character(len=mcl) :: lf=''
     !--------------------------------------------------------------------------
 
-    Call init_std_out()
+   !  Call init_std_out()
       
     !** Check Outpath ********************************************
     If (outpath(len_trim(outpath):len_trim(outpath)) /= "/") then
@@ -334,18 +334,17 @@ Contains
     call end_timer(trim(link_name))
 
     if (loc_stdio) then
-       Write(un_mon    ,FMT_EQ_SEP)
-       Write(un_mon    ,FMT_MSG_A)'Program terminated correctly !'
-       Write(un_mon    ,FMT_EQ_SEP)
+       Write(un_mon, FMT_EQ_SEP)
+       Write(un_mon, FMT_MSG_A) 'Program terminated correctly !'
+       Write(un_mon, FMT_EQ_SEP)
     End if
 
     INQUIRE(unit=un_lf, opened=opened)
 
-    if (.not.opened) then
+    IF (.not.opened) THEN
        un_lf = give_new_unit()
-       Open(unit=un_lf, file=trim(outpath)//trim(project_name)//'.log', &
-            Action='Write', status='replace')
-    End if
+       OPEN(UNIT=un_lf, FILE=TRIM(outpath)//TRIM(project_name)//'.log', ACTION='WRITE', STATUS='REPLACE')
+    END IF
 
     call write_timelist(unit=un_lf)
        
@@ -360,37 +359,26 @@ Contains
   !> Subroutine for writing link error and stop message if something fails
   Subroutine link_stop(link_name,msg)
 
-    Character(Len=*), Intent(in)      :: link_name, msg
-    Logical                           :: opened
+   Character(Len=*), Intent(in)      :: link_name, msg
+   Logical                           :: opened
 
-    !--------------------------------------------------------------------------
+   !--------------------------------------------------------------------------
 
-    call end_timer(trim(link_name))
+   call end_timer(trim(link_name))
 
-    Write(un_mon    ,FMT_EQ_SEP)
-    Write(un_mon    ,FMT_ERR_A)'Program was halted with ERROR !!'
-    Write(un_mon    ,FMT_ERR_A)'Error message was:'
-    Write(un_mon    ,FMT_ERR_A)msg
-    Write(un_mon    ,FMT_EQ_SEP)
+   CALL handle_err(un_mon, 'Program will be halted, error message was: '//msg, 0)
 
-    INQUIRE(unit=un_lf, opened=opened)
+   INQUIRE(UNIT=un_lf, opened=opened)
 
-    if (.not.opened) then
-       un_lf = give_new_unit()
-       Open(unit=un_lf, file=trim(outpath)//trim(project_name)//'.log', &
-            Action='Write', status='replace')
-    End if
+   IF (.not.opened) THEN
+      un_lf = give_new_unit()
+      OPEN(UNIT=un_lf, FILE=TRIM(outpath)//TRIM(project_name)//'.log', ACTION='WRITE', STATUS='REPLACE')
+   END IF
 
-    call write_timelist(unit=un_lf)
-       
-    Write(un_lf,FMT_ERR_A)'Program was halted with ERROR !!'
-    Write(un_lf,FMT_ERR_A)'Error message was:'
-    Write(un_lf,FMT_ERR_A)msg 
-    Write(un_lf,fmt_sep)
-    Write(un_lf,*)
-    close(un_lf)
-    
-    STOP
+   call write_timelist(unit=un_lf)
+      
+   CALL handle_err(un_lf,   'Program will be halted, error message was: '//msg, 0)
+   CALL handle_err(std_out, 'Program halted. View Log.', 1)
 
   End Subroutine link_stop
 
@@ -439,102 +427,80 @@ Contains
   !> Subroutine for reading strings when parsing user input data
   Subroutine read_char_in(var,name,un)
 
-    Integer(Kind=ik), Intent(In), Optional :: un
-    Character(Len=*), Intent(IN)  :: name
-    Character(Len=*), Intent(OUT) :: var
+   Integer(Kind=ik), Intent(In), Optional :: un
+   Character(Len=*), Intent(IN)  :: name
+   Character(Len=*), Intent(OUT) :: var
+   
+   Integer                       :: io_stat=0
+
+   !==========================================================================
+
+   If (present(un)) then
+      Read (un,*,iostat=io_stat) var
+   else
+      Read (std_in,*,iostat=io_stat) var
+   end If
     
-    Integer                       :: io_stat=0
 
-    !==========================================================================
+   If (io_stat /=0) Then
+      WRITE(mssg,'(3A)') "Reading character var ", TRIM(name), " failed."
+      CALL handle_err(un_mon, mssg, io_stat)
+   Else
 
-    If (present(un)) then
-       Read (un,*,iostat=io_stat) var
-    else
-       Read (std_in,*,iostat=io_stat) var
-    end If
-    
+      Write(un_mon,fmt_inpsep)
 
-    If (io_stat /=0) Then
+      If (Len_trim(name) > 75) Then
+         Write(un_mon,"('+--: ',A75)") name
+      Else
+         Write(un_mon,"('+--: ',A)") Trim(name)
+      End If
+      
+      If (Len_trim(var) > 75) Then
+         Write(un_mon,"('+--> ',A75)") var(1:75)
+         Write(un_mon,"('+    ',A75)") var(76:150)
+      Else
+         Write(un_mon,"('+--> ',A)") Trim(var)
+      End If
 
-       Write(un_mon,fmt_sep)
-       Write(un_mon,'(A)')'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-       Write(un_mon,'(A)')'!! ERROR while reading user input with read_char_in(var,name) !!'
-       Write(un_mon,'(A)')'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-       Write(un_mon,*)
-       Write(un_mon,'(A,A)')'For variable : ',Trim(name)
-       Write(un_mon,'(A)')'Something went wrong during read                              !!'
-       Write(un_mon,*)
-       Write(un_mon,'(A,I0)')'Program halted with I/O read status = ',io_stat
-       Write(un_mon,fmt_sep)
-       Stop
-
-    Else
-
-       Write(un_mon,fmt_inpsep)
-
-       If (Len_trim(name) > 75) Then
-          Write(un_mon,"('+--: ',A75)") name
-       Else
-          Write(un_mon,"('+--: ',A)") Trim(name)
-       End If
-       
-       If (Len_trim(var) > 75) Then
-          Write(un_mon,"('+--> ',A75)") var(1:75)
-          Write(un_mon,"('+    ',A75)") var(76:150)
-       Else
-          Write(un_mon,"('+--> ',A)") Trim(var)
-       End If
-
-    End If
+   End If
 
   End Subroutine read_char_in
 
-  !============================================================================
-  !> Subroutine for reading Integer kind=4 values when parsing user input data
-  Subroutine read_int4_in(var,name,un)
+!============================================================================
+!> Subroutine for reading Integer kind=4 values when parsing user input data
+Subroutine read_int4_in(var,name,un)
 
-    Integer(Kind=ik), Intent(In), Optional :: un
+   Integer(Kind=ik), Intent(In), Optional :: un
 
-    Character(Len=*)   , Intent(IN)  :: name
-    Integer(kind=4)    , Intent(OUT) :: var
+   Character(Len=*)   , Intent(IN)  :: name
+   Integer(kind=4)    , Intent(OUT) :: var
 
-    Integer                       :: io_stat
+   Integer                       :: io_stat
 
-    !==========================================================================
+   !==========================================================================
 
-    If (present(un)) then
-       Read (un,*,iostat=io_stat) var
-    else
-       Read (std_in,*,iostat=io_stat) var
-    end If
+   If (present(un)) then
+      Read (un,*,iostat=io_stat) var
+   else
+      Read (std_in,*,iostat=io_stat) var
+   end If
 
-    If (io_stat /=0) Then
+   If (io_stat /=0) Then
+      WRITE(mssg,'(3A)') "Reading var ", TRIM(name), " failed. 1 integer expected."
+      CALL handle_err(un_mon, mssg, io_stat)
+   Else
 
-       Write(un_mon,fmt_sep)
-       Write(un_mon,'(A)')'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-       Write(un_mon,'(A)')'!! ERROR while reading user input !!'
-       Write(un_mon,'(A)')'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-       Write(un_mon,*)
-       Write(un_mon,'(A,A)')'For variable : ',Trim(name)
-       Write(un_mon,'(A)')'A INTEGER value is expected !!'
-       Write(un_mon,*)
-       Write(un_mon,'(A,I0)')'Program halted with I/O read status = ',io_stat
-       Write(un_mon,fmt_sep)
-       Stop
+      Write(un_mon,fmt_inpsep)
 
-    Else
+      If (Len_trim(name) > 75) Then
+         Write(un_mon,"('+--: ',A75)") name
+      Else
+         Write(un_mon,"('+--: ',A)") Trim(name)
+      End If
 
-       Write(un_mon,fmt_inpsep)
+      Write(un_mon,"('+--> ',I0)") var
 
-       If (Len_trim(name) > 75) Then
-          Write(un_mon,"('+--: ',A75)") name
-       Else
-          Write(un_mon,"('+--: ',A)") Trim(name)
-       End If
-
-       Write(un_mon,"('+--> ',I0)") var
-
-    End If
+   End If
 
   End Subroutine read_int4_in
 
@@ -542,48 +508,37 @@ Contains
   !> Subroutine for reading Integer Kind=8 values when parsing user input data
   Subroutine read_int8_in(var,name,un)
 
-    Integer(Kind=ik), Intent(In), Optional :: un
+   Integer(Kind=ik), Intent(In), Optional :: un
 
-    Character(Len=*)   , Intent(IN)  :: name
-    Integer(Kind=8)   , Intent(OUT) :: var
+   Character(Len=*)   , Intent(IN)  :: name
+   Integer(Kind=8)   , Intent(OUT) :: var
 
-    Integer                       :: io_stat
+   Integer                       :: io_stat
 
-    !==========================================================================
+   !==========================================================================
 
-    If (present(un)) then
-       Read (un,*,iostat=io_stat) var
-    else
-       Read (std_in,*,iostat=io_stat) var
-    end If
+   If (present(un)) then
+      Read (un,*,iostat=io_stat) var
+   else
+      Read (std_in,*,iostat=io_stat) var
+   end If
 
-    If (io_stat /=0) Then
-
-       Write(un_mon,fmt_sep)
-       Write(un_mon,'(A)')'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-       Write(un_mon,'(A)')'!! ERROR while reading user input !!'
-       Write(un_mon,'(A)')'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-       Write(un_mon,*)
-       Write(un_mon,'(A,A)')'For variable : ',Trim(name)
-       Write(un_mon,'(A)')'A INTEGER value is expected !!'
-       Write(un_mon,*)
-       Write(un_mon,'(A,I0)')'Program halted with I/O read status = ',io_stat
-       Write(un_mon,fmt_sep)
-       Stop
-
-    Else
+   If (io_stat /=0) Then
+      WRITE(mssg,'(3A)') "Reading var ", TRIM(name), " failed. 1 integer expected."
+      CALL handle_err(un_mon, mssg, io_stat)
+   Else
 
        Write(un_mon,fmt_inpsep)
 
-       If (Len_trim(name) > 75) Then
-          Write(un_mon,"('+--: ',A75)") name
-       Else
-          Write(un_mon,"('+--: ',A)") Trim(name)
-       End If
+      If (Len_trim(name) > 75) Then
+         Write(un_mon,"('+--: ',A75)") name
+      Else
+         Write(un_mon,"('+--: ',A)") Trim(name)
+      End If
 
-       Write(un_mon,"('+--> ',I0)") var
+      Write(un_mon,"('+--> ',I0)") var
 
-    End If
+   End If
 
   End Subroutine read_int8_in
 
@@ -592,48 +547,37 @@ Contains
   !> data
   Subroutine read_real_in(var,name,un)
 
-    Integer(Kind=ik), Intent(In), Optional :: un
+   Integer(Kind=ik), Intent(In), Optional :: un
 
-    Character(Len=*)   , Intent(IN)  :: name
-    Real(Kind=rk)   , Intent(OUT) :: var
+   Character(Len=*)   , Intent(IN)  :: name
+   Real(Kind=rk)   , Intent(OUT) :: var
 
-    Integer                       :: io_stat
+   Integer                       :: io_stat
 
-    !==========================================================================
+   !==========================================================================
 
-    If (present(un)) then
-       Read (un,*,iostat=io_stat) var
-    else
-       Read (std_in,*,iostat=io_stat) var
-    end If
+   If (present(un)) then
+      Read (un,*,iostat=io_stat) var
+   else
+      Read (std_in,*,iostat=io_stat) var
+   end If
 
-    If (io_stat /=0) Then
+   If (io_stat /=0) Then
+      WRITE(mssg,'(3A)') "Reading var ", TRIM(name), " failed. 1 floating point value expected."
+      CALL handle_err(un_mon, mssg, io_stat)
+   Else
 
-       Write(un_mon,fmt_sep)
-       Write(un_mon,'(A)')'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-       Write(un_mon,'(A)')'!! ERROR while reading user input !!'
-       Write(un_mon,'(A)')'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-       Write(un_mon,*)
-       Write(un_mon,'(A,A)')'For variable : ',Trim(name)
-       Write(un_mon,'(A)')'A FLOATING POINT VALUE value is expected !!'
-       Write(un_mon,*)
-       Write(un_mon,'(A,I0)')'Program halted with I/O read status = ',io_stat
-       Write(un_mon,fmt_sep)
-       Stop
+      Write(un_mon,fmt_inpsep)
 
-    Else
+      If (Len_trim(name) > 75) Then
+         Write(un_mon,"('+--: ',A75)") name
+      Else
+         Write(un_mon,"('+--: ',A)") Trim(name)
+      End If
 
-       Write(un_mon,fmt_inpsep)
+      Write(un_mon,"('+--> ',F0.3)") var
 
-       If (Len_trim(name) > 75) Then
-          Write(un_mon,"('+--: ',A75)") name
-       Else
-          Write(un_mon,"('+--: ',A)") Trim(name)
-       End If
-
-       Write(un_mon,"('+--> ',F0.3)") var
-
-    End If
+   End If
 
   End Subroutine read_real_in
 
@@ -650,39 +594,28 @@ Contains
 
     !==========================================================================
 
-    If (present(un)) then
-       Read (un,*,iostat=io_stat) var
-    else
-       Read (std_in,*,iostat=io_stat) var
-    end If
+   If (present(un)) then
+      Read (un,*,iostat=io_stat) var
+   else
+      Read (std_in,*,iostat=io_stat) var
+   end If
 
-    If (io_stat /=0) Then
+      If (io_stat /=0) Then
+         WRITE(mssg,'(3A)') "Reading var ", TRIM(name), " failed. A logical value expected."
+         CALL handle_err(un_mon, mssg, io_stat)
+      Else
 
-       Write(un_mon,fmt_sep)
-       Write(un_mon,'(A)')'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-       Write(un_mon,'(A)')'!! ERROR while reading user input !!'
-       Write(un_mon,'(A)')'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-       Write(un_mon,*)
-       Write(un_mon,'(A,A)')'For variable : ',Trim(name)
-       Write(un_mon,'(A)')'A Logical VALUE value is expected !!'
-       Write(un_mon,*)
-       Write(un_mon,'(A,I0)')'Program halted with I/O read status = ',io_stat
-       Write(un_mon,fmt_sep)
-       Stop
+      Write(un_mon,fmt_inpsep)
 
-    Else
+      If (Len_trim(name) > 75) Then
+         Write(un_mon,"('+--: ',A75)") name
+      Else
+         Write(un_mon,"('+--: ',A)") Trim(name)
+      End If
 
-       Write(un_mon,fmt_inpsep)
+      Write(un_mon,"('+--> ',L4)") var
 
-       If (Len_trim(name) > 75) Then
-          Write(un_mon,"('+--: ',A75)") name
-       Else
-          Write(un_mon,"('+--: ',A)") Trim(name)
-       End If
-
-       Write(un_mon,"('+--> ',L4)") var
-
-    End If
+   End If
 
   End Subroutine read_log_in
 
@@ -700,39 +633,28 @@ Contains
 
     !==========================================================================
 
-    If (present(un)) then
-       Read (un,*,iostat=io_stat) var
-    else
-       Read (std_in,*,iostat=io_stat) var
-    end If
+   If (present(un)) then
+      Read (un,*,iostat=io_stat) var
+   else
+      Read (std_in,*,iostat=io_stat) var
+   end If
 
-    If (io_stat /=0) Then
-
-       Write(un_mon,fmt_sep)
-       Write(un_mon,'(A)')'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-       Write(un_mon,'(A)')'!! ERROR while reading user input !!'
-       Write(un_mon,'(A)')'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-       Write(un_mon,*)
-       Write(un_mon,'(A,A)')'For variable : ',Trim(name)
-       Write(un_mon,'(A)')'3 FLOATING POINT VALUES are expected !!'
-       Write(un_mon,*)
-       Write(un_mon,'(A,I0)')'Program halted with I/O read status = ',io_stat
-       Write(un_mon,fmt_sep)
-       Stop
-
-    Else
+      If (io_stat /=0) Then
+         WRITE(mssg,'(3A)') "Reading var ", TRIM(name), " failed. 3 floating point values expected."
+         CALL handle_err(un_mon, mssg, io_stat)
+      Else
 
        Write(un_mon,fmt_inpsep)
 
-       If (Len_trim(name) > 75) Then
-          Write(un_mon,"('+--: ',A75)") name
-       Else
-          Write(un_mon,"('+--: ',A)") Trim(name)
-       End If
+      If (Len_trim(name) > 75) Then
+         Write(un_mon,"('+--: ',A75)") name
+      Else
+         Write(un_mon,"('+--: ',A)") Trim(name)
+      End If
 
-       Write(un_mon,"('+--> ',F0.3,2(' ,',F0.3))") var
+      Write(un_mon,"('+--> ',F0.3,2(' ,',F0.3))") var
 
-    End If
+   End If
 
   End Subroutine read_real_3vector_in
 
@@ -757,19 +679,8 @@ Contains
     end If
 
     If (io_stat /=0) Then
-
-       Write(un_mon,fmt_sep)
-       Write(un_mon,'(A)')'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-       Write(un_mon,'(A)')'!! ERROR while reading user input !!'
-       Write(un_mon,'(A)')'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-       Write(un_mon,*)
-       Write(un_mon,'(A,A)')'For variable : ',Trim(name)
-       Write(un_mon,'(A)')'3 INTEGER VALUES are expected !!'
-       Write(un_mon,*)
-       Write(un_mon,'(A,I0)')'Program halted with I/O read status = ',io_stat
-       Write(un_mon,fmt_sep)
-       Stop
-
+      WRITE(mssg,'(3A)') "Reading var ", TRIM(name), " failed. 3 integers expected."
+      CALL handle_err(un_mon, mssg, io_stat)
     Else
 
        Write(un_mon,fmt_inpsep)
@@ -791,48 +702,37 @@ Contains
   !> input data
   Subroutine read_int8_3vector_in(var,name,un)
 
-    Integer(Kind=ik), Intent(In), Optional :: un
+   Integer(Kind=ik), Intent(In), Optional :: un
 
-    Character(Len=*)               , Intent(IN)  :: name
-    Integer(Kind=8),  Dimension(3) , Intent(OUT) :: var
+   Character(Len=*)               , Intent(IN)  :: name
+   Integer(Kind=8),  Dimension(3) , Intent(OUT) :: var
 
-    Integer                       :: io_stat
+   Integer                       :: io_stat
 
-    !==========================================================================
+   !==========================================================================
 
-    If (present(un)) then
-       Read (un,*,iostat=io_stat) var
-    else
-       Read (std_in,*,iostat=io_stat) var
-    end If
+   If (present(un)) then
+      Read (un,*,iostat=io_stat) var
+   else
+      Read (std_in,*,iostat=io_stat) var
+   end If
 
-    If (io_stat /=0) Then
+   If (io_stat /=0) Then
+      WRITE(mssg,'(3A)') "Reading var ", TRIM(name), " failed. 3 integers expected."
+      CALL handle_err(un_mon, mssg, io_stat)
+   Else
 
-       Write(un_mon,fmt_sep)
-       Write(un_mon,'(A)')'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-       Write(un_mon,'(A)')'!! ERROR while reading user input !!'
-       Write(un_mon,'(A)')'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-       Write(un_mon,*)
-       Write(un_mon,'(A,A)')'For variable : ',Trim(name)
-       Write(un_mon,'(A)')'3 INTEGER VALUES are expected !!'
-       Write(un_mon,*)
-       Write(un_mon,'(A,I0)')'Program halted with I/O read status = ',io_stat
-       Write(un_mon,fmt_sep)
-       Stop
+      Write(un_mon,fmt_inpsep)
 
-    Else
+      If (Len_trim(name) > 75) Then
+         Write(un_mon,"('+--: ',A75)") name
+      Else
+         Write(un_mon,"('+--: ',A)") Trim(name)
+      End If
 
-       Write(un_mon,fmt_inpsep)
+      Write(un_mon,"('+--> ',I0,2(' ,',I0))") var
 
-       If (Len_trim(name) > 75) Then
-          Write(un_mon,"('+--: ',A75)") name
-       Else
-          Write(un_mon,"('+--: ',A)") Trim(name)
-       End If
-
-       Write(un_mon,"('+--> ',I0,2(' ,',I0))") var
-
-    End If
+   End If
 
   End Subroutine read_int8_3vector_in
 
@@ -852,72 +752,55 @@ Contains
 
     !==========================================================================
 
-    If (present(un)) then
-       Read (un,*,iostat=io_stat) var
-    else
-       Read (std_in,*,iostat=io_stat) var
-    end If
+   If (present(un)) then
+      Read (un,*,iostat=io_stat) var
+   else
+      Read (std_in,*,iostat=io_stat) var
+   end If
 
-    If (io_stat /=0) Then
+   If (io_stat /=0) Then
+      WRITE(mssg,'(3A,I15,A)') "Reading matrix var ", TRIM(name), " of size ", SIZE(var)," failed. Floating points expected."
+      CALL handle_err(un_mon, mssg, io_stat)
+   Else
 
-       Write(un_mon,fmt_sep)
-       Write(un_mon,'(A)')'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-       Write(un_mon,'(A)')'!! ERROR while reading user input !!'
-       Write(un_mon,'(A)')'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-       Write(un_mon,*)
-       Write(un_mon,'(A,A)')'For matrix variable : ',Trim(name)
-       Write(un_mon,'(I0,A)')size(var),' FLOATING POINT VALUES are expected !!'
-       Write(un_mon,*)
-       Write(un_mon,'(A,I0)')'Program halted with I/O read status = ',io_stat
-       Write(un_mon,fmt_sep)
-       Stop
+      Write(un_mon,fmt_inpsep)
 
-    Else
+      If (Len_trim(name) > 75) Then
+         Write(un_mon,"('+--: ',A75)") name
+      Else
+         Write(un_mon,"('+--: ',A)") Trim(name)
+      End If
 
-       Write(un_mon,fmt_inpsep)
+      sp_var = shape(var)
 
-       If (Len_trim(name) > 75) Then
-          Write(un_mon,"('+--: ',A75)") name
-       Else
-          Write(un_mon,"('+--: ',A)") Trim(name)
-       End If
+      If ((sp_var(1) > 10) .Or. (sp_var(2) > 10)) then
+         Write(un_mon,"('+--> ',A)")"Repetiton of input data is suppressed &
+                              &due to their amount"
+      Else
+         Write(un_mon,"('+--> +',T80,'+')")
+         Write(fmt,"(A,I0,A,I0,A)")"(",sp_var(2),"('     |',",sp_var(1),&
+            "('  ',E10.4),' |',/),'     +',T80,'+')"
+         Write(un_mon,fmt) var
 
-       sp_var = shape(var)
+      End If
 
-       If ((sp_var(1) > 10) .Or. (sp_var(2) > 10)) then
-          Write(un_mon,"('+--> ',A)")"Repetiton of input data is suppressed &
-                                 &due to their amount"
-       Else
-          Write(un_mon,"('+--> +',T80,'+')")
-          Write(fmt,"(A,I0,A,I0,A)")"(",sp_var(2),"('     |',",sp_var(1),&
-               "('  ',E10.4),' |',/),'     +',T80,'+')"
-          Write(un_mon,fmt) var
-
-       End If
-
-    End If
+   End If
 
   End Subroutine read_real_matrix_in
 
-  !============================================================================
-  !> Subroutine for allocation error handling
-  SUBROUTINE alloc_err(in_var,io_stat)
+   !============================================================================
+   !> Subroutine for allocation error handling
+   SUBROUTINE alloc_err(in_var,io_stat)
 
-    INTEGER             :: io_stat
-    CHARACTER (LEN=*)   :: in_var
+   INTEGER             :: io_stat
+   CHARACTER (LEN=*)   :: in_var
 
-    IF (io_stat /= 0) Then
-       write(un_mon,*)
-       WRITE(un_mon,fmt_sep)
-       WRITE(un_mon,FMT_ERR)'Allocation of var :'       
-       WRITE(un_mon,FMT_ERR) in_var
-       WRITE(un_mon,FMT_ERR)'faild !!'
-       WRITE(un_mon,FMT_ERR_AI0)'With Allocation Status ',io_stat
-       WRITE(un_mon,FMT_STOP)
-       STOP       
-    End IF
+   IF (io_stat /= 0) Then
+      WRITE(mssg, '(A,I4,A)') "Allocation of var ", TRIM(in_var), " failed."
+      CALL handle_err(un_mon, mssg, io_stat)
+   End IF
 
-  END SUBROUTINE alloc_err
+   END SUBROUTINE alloc_err
 
 
   !============================================================================

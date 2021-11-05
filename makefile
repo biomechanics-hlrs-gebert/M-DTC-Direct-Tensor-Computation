@@ -178,8 +178,8 @@ f-objects = $(obj_dir)mod_global_std$(obj_ext)         \
             $(obj_dir)mod_parameters$(obj_ext)         \
             $(obj_dir)mod_times$(obj_ext)              \
             $(obj_dir)mod_strings$(obj_ext)            \
-            $(obj_dir)mod_chain$(obj_ext)              \
             $(obj_dir)mod_auxiliaries$(obj_ext)        \
+            $(obj_dir)mod_chain$(obj_ext)              \
             $(obj_dir)mod_puredat$(obj_ext)            \
             $(obj_dir)mod_meta$(obj_ext)               \
             $(obj_dir)mod_eispack$(obj_ext)            \
@@ -202,8 +202,8 @@ f-objects = $(obj_dir)mod_global_std$(obj_ext)         \
 #
 # For linking
 pd-ld-objects = $(obj_dir)mod_global_std$(obj_ext)     \
-		            $(obj_dir)mod_auxiliaries$(obj_ext)    \
-		            $(obj_dir)mod_puredat$(obj_ext)        \
+				$(obj_dir)mod_auxiliaries$(obj_ext)    \
+				$(obj_dir)mod_puredat$(obj_ext)        \
 #
 # For cleaning
 pd-objects = $(obj_dir)pd_dump_leaf$(obj_ext)            \
@@ -251,7 +251,6 @@ $(obj_dir)mod_global_std$(obj_ext):$(f_src_dir)mod_global_std$(f90_ext)
 	$(compiler) $(c_flags_f90) -c $< -o $@
 	@echo 
 
-
 # -----------------------------------------------------------------------------
 #-- Strings Module ------------------------------------------------------------
 $(obj_dir)mod_strings$(obj_ext):$(ext_f-src)strings$(f90_ext)
@@ -267,9 +266,19 @@ $(obj_dir)mod_times$(obj_ext):$(f_src_dir)mod_times$(f90_ext)
 	@echo 
 
 # -----------------------------------------------------------------------------
+#-- Auxiliaries Module --------------------------------------------------------
+$(obj_dir)mod_auxiliaries$(obj_ext):$(mod_dir)global_std$(mod_ext) \
+									$(f_src_dir)mod_auxiliaries$(f90_ext)
+	@echo "----- Compiling " $(f_src_dir)mod_auxiliaries$(f90_ext) " -----"
+	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_auxiliaries$(f90_ext) -o $@
+	@echo 
+	
+# -----------------------------------------------------------------------------
 #-- Chain modules -------------------------------------------------------------
-$(obj_dir)mod_chain$(obj_ext):$(mod_dir)global_std$(mod_ext) $(mod_dir)timer$(mod_ext) \
-                              $(f_src_dir)mod_chain$(f90_ext)
+$(obj_dir)mod_chain$(obj_ext):$(mod_dir)global_std$(mod_ext) \
+							$(mod_dir)auxiliaries$(mod_ext) \
+							$(mod_dir)timer$(mod_ext) \
+							$(f_src_dir)mod_chain$(f90_ext)
 	@echo "----- Compiling " mod_chain$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_chain$(f90_ext) -o $@
 	@echo 
@@ -280,20 +289,6 @@ $(mod_dir)chain_routines$(mod_ext):$(mod_dir)chain_variables$(mod_ext)
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_chain$(f90_ext) -o $@
 	@echo 
 
-# $(mod_dir)chain_variables$(mod_ext):$(mod_dir)chain_constants$(mod_ext)
-# 	$(clean_cmd) $(mod_dir)chain_variables$(mod_ext)
-# 	@echo "----- Compiling " mod_chain$(f90_ext) " -----"
-# 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_chain$(f90_ext) -o $@
-# 	@echo 
-
-# -----------------------------------------------------------------------------
-#-- Auxiliaries Module --------------------------------------------------------
-$(obj_dir)mod_auxiliaries$(obj_ext):$(mod_dir)global_std$(mod_ext) $(mod_dir)chain_variables$(mod_ext)	\
-																		$(f_src_dir)mod_auxiliaries$(f90_ext)
-	@echo "----- Compiling " $(f_src_dir)mod_auxiliaries$(f90_ext) " -----"
-	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_auxiliaries$(f90_ext) -o $@
-	@echo 
-	
 # -----------------------------------------------------------------------------
 #-- Meta Module ---------------------------------------------------------------
 $(obj_dir)mod_meta$(obj_ext):$(mod_dir)global_std$(mod_ext)     \
