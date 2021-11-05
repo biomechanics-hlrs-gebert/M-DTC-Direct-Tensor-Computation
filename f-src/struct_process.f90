@@ -900,88 +900,60 @@ Program main_struct_process
   
   Implicit None
 
-
   ! Always provide in/out for meta driven environments
   TYPE(materialcard)                                 :: bone
 
-  !-- MPI Variables -----------------------------------------------------------
-  Integer(kind=mpi_ik)                               :: ierr
-  Integer(kind=mpi_ik)                               :: rank_mpi, size_mpi
-  Integer(kind=mpi_ik)                               :: worker_rank_mpi, worker_size_mpi
+  !-- MPI Variables -------------------------------------------------------------------------------
+  INTEGER(KIND=mpi_ik)                               :: ierr, petsc_ierr, rank_mpi, size_mpi
+  INTEGER(KIND=mpi_ik)                               :: worker_rank_mpi, worker_size_mpi
+  INTEGER(KIND=mpi_ik)                               :: Active, request, finished
+  INTEGER(KIND=mpi_ik)                               :: worker_comm
+  INTEGER(KIND=mpi_ik), Dimension(no_streams)        :: fh_mpi
+
+  INTEGER(KIND=mpi_ik), Dimension(MPI_STATUS_SIZE)   :: status_mpi
+  INTEGER(KIND=mpi_ik), Dimension(:,:), Allocatable  :: statuses_mpi
+  INTEGER(KIND=mpi_ik), Dimension(:)  , Allocatable  :: Activity, req_list
+  !------------------------------------------------------------------------------------------------
+  CHARACTER(Len=mcl)                                :: link_name = 'struct process'
+  INTEGER  (kind=c_int )                            :: stat_c_int
+  INTEGER                                           :: stat
+  Type(tBranch)                                     :: root, phi_tree
+  Type(tBranch), pointer                            :: ddc, params, res
   
-  Integer(kind=mpi_ik)                               :: Active
+  CHARACTER(LEN=4*mcl)                              :: job_dir
+  CHARACTER           , DIMENSION(4*mcl)            :: c_char_array
+  CHARACTER           , DIMENSION(:), ALLOCATABLE   :: char_arr
+  CHARACTER(LEN=4*mcl), DIMENSION(:), ALLOCATABLE   :: domain_path
+  CHARACTER(LEN=mcl)  , DIMENSION(:), ALLOCATABLE   :: m_rry      
+  CHARACTER(LEN=1)                                  :: restart='N', restart_cmdarg='U' ! U = 'undefined'
+  CHARACTER(LEN=mcl)                                :: infile=''  , cmd_arg='notempty', cmd_arg_history=''
+  CHARACTER(LEN=mcl)                                :: muCT_pd_path, muCT_pd_name, domain_desc
 
-  Integer(kind=mpi_ik)                               :: request
+  INTEGER  (KIND=ik)  , DIMENSION(:), ALLOCATABLE   :: Domains, Domain_stats, act_domains, nn_D
+  INTEGER  (KIND=ik)  , DIMENSION(3)                :: xa_d, xe_d
 
-  Integer(kind=mpi_ik)                               :: finished
-
-  Integer(kind=mpi_ik), Dimension(no_streams)        :: fh_mpi
-
-  Integer(kind=mpi_ik), Dimension(MPI_STATUS_SIZE)   :: status_mpi
-  Integer(kind=mpi_ik), Allocatable, Dimension(:,:)  :: statuses_mpi
-
-  Integer(kind=mpi_ik), Allocatable, Dimension(:)    :: Activity
-  Integer(kind=mpi_ik), Allocatable, Dimension(:)    :: req_list
-
-  Integer(kind=mpi_ik)                               :: worker_comm
-
-  !----------------------------------------------------------------------------
-  Character(Len=mcl)                                :: link_name = 'struct process'
-  Character, Dimension(4*mcl)                       :: c_char_array
-  Integer  (kind=c_int )                            :: stat_c_int
-  Integer                                           :: stat
-  Type(tBranch)                                     :: root
-  Type(tBranch)                                     :: phi_tree
-  Type(tBranch), pointer                            :: ddc
-  Type(tBranch), Pointer                            :: params, res
+  INTEGER  (KIND=ik)                                :: nn, ii, jj, kk, dc
+  INTEGER  (KIND=ik)                                :: amount_domains, path_count
+  INTEGER  (KIND=ik)                                :: alloc_stat, aun
+  INTEGER  (KIND=ik)                                :: Domain, llimit, parts, elo_macro
+  CHARACTER(LEN=8)                                  :: elt_micro, output
+  REAL     (KIND=rk)                                :: strain
   
-  Integer(kind=ik)    , Allocatable, Dimension(:)   :: nn_D
- 
-  Character(LEN=4*mcl)                              :: job_dir
-  CHARACTER                                         :: restart='N', restart_cmdarg='U' ! U = undefined
-  Character(LEN=4*mcl), Dimension(:), Allocatable   :: domain_path
+  INTEGER   (KIND=pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
+  INTEGER   (KIND=pd_ik)                            :: serial_root_size
 
-  ! Meta file variable
-  CHARACTER(LEN=mcl), DIMENSION(:), ALLOCATABLE     :: m_rry      
-  CHARACTER(LEN=mcl)                                :: infile=''
-  CHARACTER(LEN=mcl)                                :: cmd_arg='notempty', cmd_arg_history=''
-
- 
-  Character(LEN=mcl)             :: muCT_pd_path
-  Character(LEN=mcl)             :: muCT_pd_name
-  Character(Len=mcl)             :: domain_desc
-
-  Integer(kind=ik), Dimension(3) :: xa_d
-  Integer(kind=ik), Dimension(3) :: xe_d
-  
-  Integer(kind=ik)               :: nn, ii, jj, kk, dc
-  Integer(kind=ik)               :: amount_domains, path_count
-  Integer(kind=ik)               :: alloc_stat, aun
-
-  Integer(kind=ik), Allocatable, Dimension(:)   :: Domains, Domain_stats, act_domains
-  Integer(kind=ik)                              :: Domain
-  Integer(kind=ik)                              :: llimit, parts, elo_macro
-  Character(LEN=8)                              :: elt_micro
-  Character(Len=8)                              :: output
-  Real(kind=rk)                                 :: strain
-  
-  Integer(kind=pd_ik), Dimension(:), Allocatable :: serial_root
-  Integer(kind=pd_ik)                            :: serial_root_size
-  Integer(kind=mpi_ik)                           :: petsc_ierr
-
-  Logical                                        :: success, fexist
-  Integer(kind=pd_ik), Dimension(no_streams)     :: dsize
-  Character, Dimension(:), Allocatable           :: char_arr
+  Logical                                           :: success, fexist
+  INTEGER   (KIND=pd_ik), Dimension(no_streams)     :: dsize
  
   !----------------------------------------------------------------------------
  
-  Call mpi_init(ierr)
+  CALL mpi_init(ierr)
   CALL handle_err(std_out, "MPI_INIT didn't succeed", INT(ierr, KIND=ik))
 
-  Call MPI_COMM_RANK(MPI_COMM_WORLD, rank_mpi, ierr)
+  CALL MPI_COMM_RANK(MPI_COMM_WORLD, rank_mpi, ierr)
   CALL handle_err(std_out, "MPI_COMM_RANK couldn't be retrieved", INT(ierr, KIND=ik))
  
-  Call MPI_COMM_SIZE(MPI_COMM_WORLD, size_mpi, ierr)
+  CALL MPI_COMM_SIZE(MPI_COMM_WORLD, size_mpi, ierr)
   CALL handle_err(std_out, "MPI_COMM_SIZE couldn't be retrieved", INT(ierr, KIND=ik))
  
   If (size_mpi < 2) CALL handle_err(std_out, "We need at least 2 MPI processes to execute this program.", 1)
@@ -1146,11 +1118,11 @@ Program main_struct_process
 
          CALL execute_command_line("mkdir -p "//TRIM(outpath),CMDSTAT=stat)
 
-         IF(stat /= 0) CALL handle_err(std_out, 'Could not execute syscall »mkdir -p '//trim(outpath)//'«.', 1)
+         IF(stat       /= 0) CALL handle_err(std_out, 'Could not execute syscall »mkdir -p '//trim(outpath)//'«.', 1)
 
          CALL Stat_Dir(c_char_array, stat_c_int)
 
-         IF(stat_c_int /= 0) CALL handle_err(std_out,'Could not create the output directory »'//TRIM(outpath)//'«.', 1)
+         IF(stat_c_int /= 0) CALL handle_err(std_out, 'Could not create the output directory »'//TRIM(outpath)//'«.', 1)
 
       ELSE 
          WRITE(un_mon, FMT_MSG_A) "Reusing the output directory"
