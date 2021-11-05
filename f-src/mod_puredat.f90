@@ -6955,7 +6955,7 @@ Contains
     CHARACTER (LEN=*), optional, Intent(in)   :: called, routine
 
     IF (io_stat /= 0) Then
-
+    
        WRITE(pd_umon,*)
        WRITE(pd_umon,"(80('='))")
        WRITE(pd_umon,"('EE ',A,T77,' EE')")   'Operation on file: '       
@@ -6986,26 +6986,15 @@ Contains
   !> Subroutine for allocation error handling
   Subroutine alloc_error(alloc_stat, field, routine, dim)
 
-    Integer(kind=pd_ik), Intent(in)           :: alloc_stat
-    Character(Len=*)   , Intent(in)           :: field, routine
-    Integer(kind=pd_ik), Intent(in) ,optional :: dim
+   Integer(kind=pd_ik), Intent(in)           :: alloc_stat
+   Character(Len=*)   , Intent(in)           :: field, routine
+   Integer(kind=pd_ik), Intent(in) ,optional :: dim
 
-    If (alloc_stat /= 0) Then
-
-       WRITE(pd_umon,*)
-       WRITE(pd_umon,PDF_SEP)
-       WRITE(pd_umon,PDF_E_A)   'Allocation of the field/structure :'
-       WRITE(pd_umon,PDF_E_A)   field
-       WRITE(pd_umon,PDF_E_A)   'faild !!'
-       WRITE(pd_umon,PDF_E_A)   'The error occured in routine      :'
-       WRITE(pd_umon,PDF_E_A)   routine
-       if (present(dim)) then
-          WRITE(pd_umon,PDF_E_AI0) 'The requested dimension was : ',dim
-       End if
-       WRITE(pd_umon,PDF_E_STOP)
-       STOP
-
-    End If
+   IF (alloc_stat /= 0) Then
+      WRITE(mssg, '(3A,I2,3A)') "Allocation of the field/structure ", field, &
+      " of dimension ", dim," in routine ", TRIM(routine), " failed."
+      CALL handle_err(pd_umon, mssg, io_stat)
+   End IF
 
   End Subroutine alloc_error
 
@@ -7016,19 +7005,11 @@ Contains
     Integer(kind=pd_ik), Intent(in)           :: alloc_stat
     Character(Len=*)   , Intent(in)           :: field, routine
 
-    If (alloc_stat /= 0) Then
-
-       WRITE(pd_umon,*)
-       WRITE(pd_umon,PDF_SEP)
-       WRITE(pd_umon,PDF_E_A)   'DeAllocation of the field/structure :'
-       WRITE(pd_umon,PDF_E_A)   field
-       WRITE(pd_umon,PDF_E_A)   'faild !!'
-       WRITE(pd_umon,PDF_E_A)   'The error occured in routine      :'
-       WRITE(pd_umon,PDF_E_A)   routine
-       WRITE(pd_umon,PDF_E_STOP)
-       STOP
-
-    End If
+   IF (alloc_stat /= 0) Then
+      WRITE(mssg, '(5A)') "Dellocation of the field/structure ", field, &
+      " in routine ", TRIM(routine), " failed."
+      CALL handle_err(pd_umon, mssg, io_stat)
+   End IF
 
   End Subroutine dealloc_error
 
@@ -7036,17 +7017,11 @@ Contains
   !> Subroutine for consistency error handling
   Subroutine cons_error(routine, msg)
 
-    Character(Len=*)   , Intent(in)           :: routine, msg
+   Character(Len=*)   , Intent(in)           :: routine, msg
 
-    WRITE(pd_umon,*)
-    WRITE(pd_umon,PDF_SEP)
-    WRITE(pd_umon,PDF_E_A)   'A consistency error occoured in routine :'
-    WRITE(pd_umon,PDF_E_A)   routine
-    WRITE(pd_umon,PDF_E_A)   trim(msg)
-    
-    WRITE(pd_umon,PDF_E_STOP)
-    STOP
-    
+   WRITE(mssg, '(4A)') "A consistency error occoured in routine: ", TRIM(routine), " ", TRIM(msg)
+   CALL handle_err(pd_umon, mssg, 1)
+   
   End Subroutine cons_error
 
   !----------------------------------------------------------------------------
