@@ -15,28 +15,23 @@ Module calcmat
 
 contains
  
-  subroutine calc_effective_material_parameters(root, nn, ddc_nn, job_dir, fh_mpi) 
+
+  subroutine calc_effective_material_parameters(root, ddc_nn) 
 
     !> \todo Make scaling and backrotation process correct!
     
     !==========================================================================
     !** Declarations **********************************************************
     Type(tBranch), Intent(InOut)          :: root
-    Character(LEN=*), Intent(in)          :: job_dir
-    integer(Kind=ik), Intent(in)          :: ddc_nn, nn
-    Integer(kind=mpi_ik), Dimension(no_streams), Intent(in) :: fh_mpi
-    
-    Integer(kind=mpi_ik)                                    :: ierr
-    Integer(kind=mpi_ik), Dimension(MPI_STATUS_SIZE)        :: status_mpi
-    
+    integer(Kind=ik), Intent(in)          :: ddc_nn
+      
     Character(len=*), Parameter                :: link_name="struct_calcmat_fmps"
 
     Integer(Kind=8)                                    :: no_dat, no_nodes,no_cnodes
     Integer(Kind=8), Dimension(:), Allocatable         :: no_cnodes_pp
     Integer(Kind=8)                                    :: macro_order
-    CHARACTER(LEN=8)                                   :: el_type
 
-    integer(Kind=8), Dimension(:), allocatable         :: cref_cnodes, tmp_ar_int8
+    integer(Kind=8), Dimension(:), allocatable         :: cref_cnodes
     Real(kind=8)   , Dimension(:)  , allocatable       :: tmp_nn
     Real(kind=8)   , Dimension(:,:), allocatable       :: nodes, vv, ff, stiffness
 
@@ -45,11 +40,10 @@ contains
     Real(kind=8)   , Dimension(:,:,:)    , allocatable :: calc_rforces
     Real(kind=8)   , Dimension(6)                :: ro_stress
     Real(kind=8)   , Dimension(6,6)              :: CC
-    Real(kind=8)   , Dimension(6,6)              :: cc_mean, tmp_r6x6, EE, fv,meps
+    Real(kind=8)   , Dimension(6,6)              :: cc_mean, EE, fv,meps
     Real(kind=8)   , Dimension( 8)               :: tmp_r8 
     Real(kind=8)   , Dimension(12)               :: tmp_r12
 
-    Real(Kind=rk)  , Dimension(6,24)             :: int_strain, int_stress
     Real(kind=8)                                 :: E_div, nu_div, G_div
     Real(kind=8)                                 :: E_Modul, nu, rve_strain
     Real(kind=8)                                 :: v_elem, v_cube
@@ -62,7 +56,7 @@ contains
 
     Real(kind=rk), Dimension(1)                  :: tmp_real_fd1
 
-    Type(tBranch),pointer                        :: mesh, res_tree
+    Type(tBranch),pointer                        :: mesh
     Type(tLeaf),  pointer                        :: node_leaf_pointer
     Real(kind=rk)                                   :: alpha, phi, eta
     Integer                                         :: ii_phi,ii_eta,kk_phi,kk_eta
@@ -81,7 +75,6 @@ contains
     Real(kind=rk)                                   :: n12, n13, n23
 
     Real(kind=rk), Dimension(:), Allocatable :: delta, x_D_phy
-    Character    , Allocatable, Dimension(:) :: EL_TYPE_ARR
     Integer                                  :: num_leaves, alloc_stat
     Type(tLeaf), Allocatable, Dimension(:)   :: leaf_list
     Real(kind=8)   , Dimension(:,:,:), allocatable      :: edat

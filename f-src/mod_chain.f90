@@ -11,7 +11,6 @@
 !> Global Variables for the chain process library
 Module chain_variables
  
-  USE ISO_FORTRAN_ENV
   USE global_std
   
   Implicit None
@@ -20,7 +19,7 @@ Module chain_variables
   !> Logfile unit
   Integer                     :: un_lf   = 10000
   !> Monitor file unit (default = stdout)
-  Integer                     :: un_mon  = OUTPUT_UNIT
+  Integer                     :: un_mon  = std_out
   
   Character(len=mcl)          :: outpath = "./"
   Character(len=mcl)          :: inpath  = "./"
@@ -50,7 +49,6 @@ Module chain_routines
 
   Use chain_variables
   Use timer
-  Use ISO_FORTRAN_ENV
 
   Implicit None
 
@@ -133,7 +131,7 @@ Contains
              if (present(success)) then
                 success = .FALSE.
              Else
-                un_mon = OUTPUT_UNIT
+                un_mon = std_out
                 Write(un_mon,fmt_sep)
                 Write(un_mon,FMT_WRN )"In init_std_out it was not possible to open the monitor file"
                 Write(un_mon,FMT_WRN_A)trim(env_var)
@@ -360,10 +358,9 @@ Contains
 
   !============================================================================
   !> Subroutine for writing link error and stop message if something fails
-  Subroutine link_stop(link_name,time,msg)
+  Subroutine link_stop(link_name,msg)
 
     Character(Len=*), Intent(in)      :: link_name, msg
-    Real(kind=rk),Intent(in),optional :: time
     Logical                           :: opened
 
     !--------------------------------------------------------------------------
@@ -453,7 +450,7 @@ Contains
     If (present(un)) then
        Read (un,*,iostat=io_stat) var
     else
-       Read (INPUT_UNIT,*,iostat=io_stat) var
+       Read (std_in,*,iostat=io_stat) var
     end If
     
 
@@ -508,7 +505,7 @@ Contains
     If (present(un)) then
        Read (un,*,iostat=io_stat) var
     else
-       Read (INPUT_UNIT,*,iostat=io_stat) var
+       Read (std_in,*,iostat=io_stat) var
     end If
 
     If (io_stat /=0) Then
@@ -557,7 +554,7 @@ Contains
     If (present(un)) then
        Read (un,*,iostat=io_stat) var
     else
-       Read (INPUT_UNIT,*,iostat=io_stat) var
+       Read (std_in,*,iostat=io_stat) var
     end If
 
     If (io_stat /=0) Then
@@ -607,7 +604,7 @@ Contains
     If (present(un)) then
        Read (un,*,iostat=io_stat) var
     else
-       Read (INPUT_UNIT,*,iostat=io_stat) var
+       Read (std_in,*,iostat=io_stat) var
     end If
 
     If (io_stat /=0) Then
@@ -656,7 +653,7 @@ Contains
     If (present(un)) then
        Read (un,*,iostat=io_stat) var
     else
-       Read (INPUT_UNIT,*,iostat=io_stat) var
+       Read (std_in,*,iostat=io_stat) var
     end If
 
     If (io_stat /=0) Then
@@ -706,7 +703,7 @@ Contains
     If (present(un)) then
        Read (un,*,iostat=io_stat) var
     else
-       Read (INPUT_UNIT,*,iostat=io_stat) var
+       Read (std_in,*,iostat=io_stat) var
     end If
 
     If (io_stat /=0) Then
@@ -756,7 +753,7 @@ Contains
     If (present(un)) then
        Read (un,*,iostat=io_stat) var
     else
-       Read (INPUT_UNIT,*,iostat=io_stat) var
+       Read (std_in,*,iostat=io_stat) var
     end If
 
     If (io_stat /=0) Then
@@ -806,7 +803,7 @@ Contains
     If (present(un)) then
        Read (un,*,iostat=io_stat) var
     else
-       Read (INPUT_UNIT,*,iostat=io_stat) var
+       Read (std_in,*,iostat=io_stat) var
     end If
 
     If (io_stat /=0) Then
@@ -858,7 +855,7 @@ Contains
     If (present(un)) then
        Read (un,*,iostat=io_stat) var
     else
-       Read (INPUT_UNIT,*,iostat=io_stat) var
+       Read (std_in,*,iostat=io_stat) var
     end If
 
     If (io_stat /=0) Then

@@ -21,9 +21,9 @@ Program pd_dump_leaf
   !-- Chain Variables ---------------------------------------------------------
   Real(Kind=pd_rk)            :: gstart_time, gend_time
 
-  Integer                     :: num_args, leaf_no, un, alloc_stat
+  Integer                     :: num_args, leaf_no, alloc_stat
 
-  Character(len=pd_mcl)       :: outpath, outfile, arg
+  Character(len=pd_mcl)       :: arg
 
   Type(tBranch)               :: tree
   Type(tLeaf),   Pointer      :: leaf

@@ -15,7 +15,6 @@
 
 MODULE auxiliaries
 
-USE ISO_FORTRAN_ENV
 USE global_std
 USE MPI
 

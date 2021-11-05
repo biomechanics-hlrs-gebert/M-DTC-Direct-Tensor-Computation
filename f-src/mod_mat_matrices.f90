@@ -148,13 +148,12 @@ Contains
 
   End Subroutine order_eval_evec
 
-  Function write_disk_case(un_lf,disk,zzi,case,r) Result(prod)
+  Function write_disk_case(un_lf,disk,zzi,r) Result(prod)
 
     Real(kind=rk), dimension(3)  , intent(in) :: r
     Integer                      , intent(in) :: un_lf
     real(kind=rk), dimension(3)  , intent(in) :: disk
     real(kind=rk), dimension(6)  , intent(in) :: zzi
-    Character(Len=*)             , intent(in) :: case
     
     Real(kind=rk)                             :: prod
 
@@ -333,17 +332,14 @@ Contains
 
     End If
     
-1000 Continue
-
   end Function write_disk_case
 
-  Function write_disk_case_zero(un_lf,disk,zzi,case,r) Result(prod)
+  Function write_disk_case_zero(un_lf,disk,zzi,r) Result(prod)
 
     Real(kind=rk), dimension(3)  , intent(in) :: r
     Integer                      , intent(in) :: un_lf
     real(kind=rk), dimension(3)  , intent(in) :: disk
     real(kind=rk), dimension(6)  , intent(in) :: zzi
-    Character(Len=*)             , intent(in) :: case
        
     Real(kind=rk)                             :: prod
 

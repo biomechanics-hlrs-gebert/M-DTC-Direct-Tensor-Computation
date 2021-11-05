@@ -40,8 +40,6 @@ Contains
     
 
     !* Format Strings -------------------------------
-    Character(Len=5)  :: fmt_str      = '(A,/)'
-    Character(Len=5)  :: fmt_str_AdNo = '(A,$)'
     Character(Len=*), Parameter :: fmt_str_F    = '(A,E20.9,/)'
     !*-----------------------------------------------
 

@@ -128,11 +128,8 @@ Contains
     Integer, Dimension(8)             :: realt
     Character(len=mcl)                :: env_var
 
-    Character(Len=mcl)                :: out_file
-
     Integer(kind=ik)                  :: m_size
 
-    Character(len=2)                  :: ii_char
     Character(len=9)                  :: nn_char
 
     logical                           :: success
@@ -146,21 +143,19 @@ Contains
     TYPE(tPETScViewer)                :: V
     Type(tKSP)                        :: KSP
     Integer(Kind=ik)                  :: Istart,Iend, parts, IVstart, IVend
-    Integer(Kind=ik), Dimension(:), Allocatable :: nodes_in_mesh, elems_in_mesh
+    Integer(Kind=ik), Dimension(:), Allocatable :: nodes_in_mesh
 
     Integer(kind=pd_ik), Dimension(:), Allocatable :: serial_pb
     Integer(kind=pd_ik)                            :: serial_pb_size
 
     Integer(Kind=pd_ik)  , Dimension(no_streams)  :: no_data
     Integer(kind=ik)                              :: nn_elems, ii, jj, kk, id
-    Integer(kind=ik), Dimension(:), Allocatable   :: gnid_cref,loc_nn_cref
-    Integer(kind=ik), Dimension(:,:), Allocatable :: vtk_topo, res_sizes
+    Integer(kind=ik), Dimension(:), Allocatable   :: gnid_cref
+    Integer(kind=ik), Dimension(:,:), Allocatable :: res_sizes
     Real   (kind=rk), Dimension(:), Pointer       :: displ, force
     Real   (kind=rk), Dimension(:), Allocatable   :: glob_displ, glob_force
     Real   (kind=rk), Dimension(:), Allocatable   :: zeros_R8
-    Integer(kind=ik)                              :: cr, idum, tmp_i8
 
-    Integer(kind=mpi_ik)                           :: rank_mpi_tmp, size_mpi_tmp
     Character, Dimension(:), Allocatable           :: char_arr
     
     !--------------------------------------------------------------------------
@@ -847,7 +842,7 @@ Contains
        Deallocate(glob_displ, res_sizes, glob_force)
        
        Call start_timer(trim(timer_name), .FALSE.)
-       call calc_effective_material_parameters(root, lin_nn, nn, job_dir, fh_mpi)
+       call calc_effective_material_parameters(root, nn)
        Call end_timer(trim(timer_name))
        
     End if
@@ -927,7 +922,6 @@ Program main_struct_process
 
   Integer(kind=mpi_ik), Allocatable, Dimension(:)    :: Activity
   Integer(kind=mpi_ik), Allocatable, Dimension(:)    :: req_list
-  Integer(kind=mpi_ik), Allocatable, Dimension(:)    :: members
 
   Integer(kind=mpi_ik)                               :: worker_comm
 
@@ -939,55 +933,46 @@ Program main_struct_process
   Type(tBranch)                                     :: root
   Type(tBranch)                                     :: phi_tree
   Type(tBranch), pointer                            :: ddc
-  Type(tBranch), Pointer                            :: params, epp, meshb, db, res
+  Type(tBranch), Pointer                            :: params, res
   
   Integer(kind=ik)    , Allocatable, Dimension(:)   :: nn_D
  
-  Character(len=mcl)                                :: fmps_epp
-  Character(LEN=4*mcl)                              :: job_dir, tmp_fn
+  Character(LEN=4*mcl)                              :: job_dir
   CHARACTER                                         :: restart='N', restart_cmdarg='U' ! U = undefined
   Character(LEN=4*mcl), Dimension(:), Allocatable   :: domain_path
 
   ! Meta file variable
   CHARACTER(LEN=mcl), DIMENSION(:), ALLOCATABLE     :: m_rry      
-  CHARACTER(LEN=mcl)                                :: infile='', int_id, file_hrdcd
+  CHARACTER(LEN=mcl)                                :: infile=''
   CHARACTER(LEN=mcl)                                :: cmd_arg='notempty', cmd_arg_history=''
 
  
   Character(LEN=mcl)             :: muCT_pd_path
   Character(LEN=mcl)             :: muCT_pd_name
-  Character(Len=mcl)             :: mesh_desc, domain_desc
+  Character(Len=mcl)             :: domain_desc
 
   Integer(kind=ik), Dimension(3) :: xa_d
   Integer(kind=ik), Dimension(3) :: xe_d
   
   Integer(kind=ik)               :: nn, ii, jj, kk, dc
   Integer(kind=ik)               :: amount_domains, path_count
-  Integer(kind=ik)               :: alloc_stat, iun, aun, tmp_un
-  Integer(kind=ik), Dimension(2) :: data_size
+  Integer(kind=ik)               :: alloc_stat, aun
 
   Integer(kind=ik), Allocatable, Dimension(:)   :: Domains, Domain_stats, act_domains
   Integer(kind=ik)                              :: Domain
   Integer(kind=ik)                              :: llimit, parts, elo_macro
-  Integer(kind=ik)                              :: no_solver, pscratch
   Character(LEN=8)                              :: elt_micro
   Character(Len=8)                              :: output
   Real(kind=rk)                                 :: strain
   
-  Integer(kind=pd_ik), Dimension(:), Allocatable :: serial_root, epp_data
+  Integer(kind=pd_ik), Dimension(:), Allocatable :: serial_root
   Integer(kind=pd_ik)                            :: serial_root_size
-  Integer(kind=pd_ik)                            :: npos,mxpt,mpnu
-  Integer(kind=pd_ik)                            :: ipos, i, ip
   Integer(kind=mpi_ik)                           :: petsc_ierr
 
   Logical                                        :: success, fexist
-  Integer(kind=pd_ik), Dimension(no_streams)     :: removed_data, dsize
+  Integer(kind=pd_ik), Dimension(no_streams)     :: dsize
   Character, Dimension(:), Allocatable           :: char_arr
-
-  !type(Mat)                         :: A
-  Integer(Kind=ik)                  :: A
-  Integer(Kind=ik)                  :: Istart,Iend,ione
-  
+ 
   !----------------------------------------------------------------------------
  
   Call mpi_init(ierr)
@@ -1064,7 +1049,8 @@ Program main_struct_process
       project_name = TRIM(out%bsnm)
 
       !------------------------------------------------------------------------------
-      ! Not entirely clear, whether project_name and outpath may be obsolete....
+      ! It is strongly recommended not to play around with these paths carelessly.
+      ! Some of the dependencies are easily overlooked.
       !------------------------------------------------------------------------------
       pro_path = outpath
       pro_name = project_name

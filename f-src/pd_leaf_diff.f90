@@ -20,19 +20,12 @@ Program pd_leaf_diff
 
   !-- Chain Variables ---------------------------------------------------------
   Real(Kind=pd_rk)            :: gstart_time, gend_time
-
-  Integer                     :: num_args, un
-
+  Integer                     :: num_args
   Character(len=pd_mcl)       :: pro_path_A,pro_path_B,pro_name_A,pro_name_B
-
   Type(tBranch)               :: tree_A, tree_B
 
-  Type(tBranch), Pointer      :: branch_A, branch_B
-
   !== Code ====================================================================
-
   Call Cpu_time(gstart_time)
-
   !============================================================================
 
   num_args = command_argument_count()

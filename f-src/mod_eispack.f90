@@ -68,9 +68,6 @@ contains
 !     this version dated august 1983.
 !
 !     ------------------------------------------------------------------
-      Character(Len=5) :: fmt_str      = '(A,/)'
-      Character(Len=5) :: fmt_str_AdNo = '(A,$)'
-!     ------------------------------------------------------------------
 !
       if (n .le. nm) go to 10
       ierr = 10 * n

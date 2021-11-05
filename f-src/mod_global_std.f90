@@ -8,8 +8,6 @@
 !------------------------------------------------------------------------------
 MODULE global_std
 
-USE ISO_FORTRAN_ENV
-
 IMPLICIT NONE
 
 ! General constants

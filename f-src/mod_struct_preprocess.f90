@@ -42,7 +42,6 @@ Contains
     Type(tBranch)                                   :: phi_desc
 
     !-- Decomp Variables ------------------------------------------------------
-    Type(tBranch)                                   :: loc_scalf
     Type(tBranch), Pointer                          :: loc_ddc, ddc, bounds_b
 
     !-- Branch pointers -------------------------------------------------------
@@ -53,39 +52,30 @@ Contains
     Integer(Kind=ik) , Dimension(:)   , Allocatable :: elem_col,node_col, cref
     Integer(Kind=ik) , Dimension(:,:) , Allocatable :: elems
     Character(Len=mcl)                              :: elt_micro, desc, filename
-    Integer                                         :: elo_macro,alloc_stat
-    !** Parted Mesh ***********************************************************
+    Integer(Kind=ik)                                :: elo_macro,alloc_stat
+    !-- Parted Mesh -----------------------------------------------------------
     Type(tBranch), Pointer                          :: PMesh
     INTEGER(kind=ik)                                :: parts
 
     !--------------------------------------------------------------------------
     Integer(Kind=4)  , Dimension(:,:,:), Allocatable :: Phi
-    Real(Kind=rk)                                    :: strain,e_modul,nu
 
     Integer(Kind=ik)                                 :: llimit, no_nodes=0, no_elems=0
-    Character(Len=8)                                 :: output
 
     Character(len=*), Parameter                      :: inpsep = "('#',79('='))"
-    Character(Len=mcl)                               :: phi_pro_path, phi_pro_name
 
     Real(Kind=rk)      , Dimension(:), Allocatable   :: delta
     Integer(kind=4)    , Dimension(:), Allocatable   :: vdim
     Integer(kind=8)    , Allocatable, Dimension(:)   :: bpoints,x_D,nn_D
     Integer(kind=8)                 , Dimension(3)   :: xa_n, xe_n, xa_n_ext, xe_n_ext
     Integer(kind=8)                                  :: nn_1,nn_2,nn_3, ii,jj
-    Integer(kind=8)                                  :: pos_f, no_solver, pscratch
-    Character, Dimension(78)                         :: tmp_char_78
+    Integer(kind=8)                                  :: pos_f
 
     Logical                                          :: success
 
     Character, Dimension(:), Allocatable             :: char_arr
     
     Character(len=9)                                 :: nn_char
-    Integer                                          :: un_abq
-
-    !============================================================================
-    !== Code ====================================================================
-    !============================================================================
 
     write(nn_char,'(I0)')ddc_nn
     glob_success = .TRUE.
@@ -397,7 +387,7 @@ Contains
     Integer         , Intent(In)       :: elo_macro
 
     !--------------------------------------------------------------------------
-    Type(tBranch), Pointer             :: part_b, bounds_b, conn_b
+    Type(tBranch), Pointer             :: part_b, bounds_b
     
     Real(Kind=rk)     , Dimension(:), Allocatable         :: dim_c, delta
     Integer(Kind=ik)  , Dimension(:), Allocatable         :: xa_n, xe_n
@@ -413,12 +403,7 @@ Contains
     Integer(Kind=ik), Dimension(:), Allocatable      :: no_cdofs_all
     
     Integer(Kind=ik), Dimension(:)  , Allocatable      :: bnode_ids
-    Real(Kind=rk)   , Dimension(:,:), Allocatable      :: bnode_vals, displ
-
-    Character(len=mcl)                                 :: filename
-    !===========================================================================
-    !== Code ===================================================================
-    !===========================================================================
+    Real(Kind=rk)   , Dimension(:,:), Allocatable      :: bnode_vals
 
     !** Get Parameters of domain decomposition *******
     call pd_get(loc_ddc, "nn",      ddc_nn)

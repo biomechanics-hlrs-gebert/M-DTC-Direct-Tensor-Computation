@@ -134,29 +134,32 @@ contains
   !>
   subroutine opt_mono(EE_orig, EE, fdir, fcrit)
 
-    Real(kind=rk)    , Dimension(6,6), intent(in)    :: EE_orig
-    Real(kind=rk)    , Dimension(6,6), intent(out)   :: EE     
-    real(kind=rk)                    , intent(out)   :: fcrit
-    Real(kind=rk)    , Dimension(3,3), intent(out)   :: fdir
+    Real(kind=rk)    , Dimension(6,6), intent(in)      :: EE_orig
+    Real(kind=rk)    , Dimension(6,6), intent(out)     :: EE     
+    real(kind=rk)                    , intent(out)     :: fcrit
+    Real(kind=rk)    , Dimension(3,3), intent(out)     :: fdir
 
-    Integer(kind=ik)                                 :: kk_eta, kk_phi, kk
-    Integer(kind=ik)                                 :: ii_eta, ii_phi, ii, jj
+    Integer(kind=ik)                                   :: kk_eta, kk_phi, kk
+    Integer(kind=ik)                                   :: ii_eta, ii_phi, ii, jj
 
-    Real(kind=rk)                                    :: alpha, phi, eta
+    Real(kind=rk)                                      :: alpha, phi, eta
 
-    Real(kind=rk)    , Dimension(3)                  :: n
-    Real(kind=rk)    , Dimension(3,3)                :: aa
-    Real(kind=rk)    , Dimension(6,6)                :: BB, tmp_r6x6
+    Real(kind=rk)    , Dimension(3)                    :: n
+    Real(kind=rk)    , Dimension(3,3)                  :: aa
+    Real(kind=rk)    , Dimension(6,6)                  :: BB, tmp_r6x6
 
-    Integer          , Dimension(3,0:180,0:180,0:90) :: ang
-    Real(kind=rk)    , Dimension(0:180,0:180,0:90)   :: crit
-    Real(kind=rk)    , Dimension(0 :16)              :: crit_min
-    Integer          , Dimension(3)                  :: s_loop,e_loop, mlc
+    Integer          , Dimension(:,:,:,:), ALLOCATABLE :: ang
+    Real(kind=rk)    , Dimension(:,:,:)  , ALLOCATABLE :: crit
+    Real(kind=rk)    , Dimension(0 :16)                :: crit_min
+    Integer          , Dimension(3)                    :: s_loop,e_loop, mlc
 
     Real(kind=rk), Parameter :: num_zero = 1.E-9_rk
     Real(kind=rk), Parameter :: pi  = acos(-1._rk)
     !**************************************************************************
 
+    ALLOCATE(ang(3,0:180,0:180,0:90))
+    ALLOCATE(crit( 0:180,0:180,0:90))
+    
     ee = ee_orig
 
     kk_eta = 0
@@ -424,28 +427,31 @@ contains
   !>
   subroutine opt_ortho(EE_orig, EE, fdir, fcrit)
 
-    Real(kind=rk)    , Dimension(6,6), intent(in)    :: EE_orig
-    Real(kind=rk)    , Dimension(6,6), intent(out)   :: EE     
-    real(kind=rk)                    , intent(out)   :: fcrit
-    Real(kind=rk)    , Dimension(3,3), intent(out)   :: fdir
+    Real(kind=rk)   , Dimension(6,6)    , intent(in)  :: EE_orig
+    Real(kind=rk)   , Dimension(6,6)    , intent(out) :: EE     
+    real(kind=rk)                       , intent(out) :: fcrit
+    Real(kind=rk)   , Dimension(3,3)    , intent(out) :: fdir
 
-    Integer(kind=ik)                                 :: kk_eta, kk_phi, kk
-    Integer(kind=ik)                                 :: ii_eta, ii_phi, ii, jj
+    Integer(kind=ik)                                   :: kk_eta, kk_phi, kk
+    Integer(kind=ik)                                   :: ii_eta, ii_phi, ii, jj
+ 
+   Real(kind=rk)                                       :: alpha, phi, eta
 
-    Real(kind=rk)                                    :: alpha, phi, eta
+    Real   (kind=rk), Dimension(3)                    :: n
+    Real   (kind=rk), Dimension(3,3)                  :: aa
+    Real   (kind=rk), Dimension(6,6)                  :: BB, tmp_r6x6
 
-    Real(kind=rk)    , Dimension(3)                  :: n
-    Real(kind=rk)    , Dimension(3,3)                :: aa
-    Real(kind=rk)    , Dimension(6,6)                :: BB, tmp_r6x6
+    Integer(kind=ik), Dimension(:,:,:,:), ALLOCATABLE :: ang
+    Real   (kind=rk), Dimension(:,:,:)  , ALLOCATABLE :: crit
+    Real   (kind=rk), Dimension(0 :16)                :: crit_min
+    Integer         , Dimension(3)                    :: s_loop,e_loop, mlc
 
-    Integer          , Dimension(3,0:180,0:180,0:90) :: ang
-    Real(kind=rk)    , Dimension(0:180,0:180,0:90)   :: crit
-    Real(kind=rk)    , Dimension(0 :16)              :: crit_min
-    Integer          , Dimension(3)                  :: s_loop,e_loop, mlc
-
-    Real(kind=rk), Parameter :: num_zero = 1.E-9_rk
-    Real(kind=rk), Parameter :: pi  = acos(-1._rk)
+    Real   (kind=rk), Parameter                       :: num_zero = 1.E-9_rk
+    Real   (kind=rk), Parameter                       :: pi  = acos(-1._rk)
     !**************************************************************************
+
+    ALLOCATE(ang(3,0:180,0:180,0:90))
+    ALLOCATE(crit( 0:180,0:180,0:90))
 
     ee = ee_orig
 
@@ -779,12 +785,11 @@ contains
 
   !============================================================================
   !> Subroutine which sorts a number of arrays acccording to a leading one
-  Subroutine sort_arrays(lead,Real_1D,Real_2D)
+  Subroutine sort_arrays(lead,Real_1D)
 
     Integer(kind=ik), Dimension(:)      , Intent(inOut) :: lead
 
     Real(kind=rk), Dimension(:,:)  , optional, Intent(inOut) :: Real_1D
-    Real(kind=rk), Dimension(:,:,:), optional, Intent(inOut) :: Real_2D
 
     Integer(kind=ik), Dimension(3)                      :: lb
 
@@ -793,7 +798,6 @@ contains
     Logical                                  :: unsorted
     Integer                                  :: ii,dim
     Real(Kind=rk)                            :: tmp_r
-    Integer(Kind=ik)                         :: tmp_i
 
     !==========================================================================
 
@@ -845,8 +849,6 @@ write(*,*)lb(1:2)
        End Do
 
     End Do
-
-1000 Continue
 
   End Subroutine sort_arrays
 

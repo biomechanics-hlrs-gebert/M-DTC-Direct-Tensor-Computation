@@ -39,10 +39,10 @@ contains
 
     Character(Len=mcl)                 :: desc, line
 
-    integer                            :: no_elem_nodes, un_inp_n
+    integer                            :: no_elem_nodes
     integer                            :: no_nodes_macro
 
-    integer(Kind=ik)                                 :: ii, jj, kk
+    integer(Kind=ik)                                 :: ii, jj
     integer(Kind=ik), Dimension(128)                 :: crp
     Character, Dimension(:), Allocatable             :: char_arr
     Character(Len=:), Allocatable                    :: alloc_str

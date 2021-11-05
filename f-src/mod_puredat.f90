@@ -17,8 +17,6 @@
 !>
 Module puredat_precision
 
-  Use ISO_FORTRAN_ENV
-
   Implicit none
   
   Integer, Parameter :: pd_ik = 8         !** Puredat Integer kind parameter
@@ -56,8 +54,6 @@ End Module puredat_constants
 !> \date 22.01.2010
 !>
 Module puredat_globals
-  
-  Use ISO_FORTRAN_ENV
   
   Use puredat_constants
 
@@ -1084,7 +1080,6 @@ Contains
     Character(len=*), Intent(in)               :: desc
     Type(tBranch), intent(InOut)               :: br
 
-    Type(tBranch),Pointer                      :: subb
     Logical                                    :: success, skip
     Type(tBranch), Dimension(:), Pointer       :: branches
     Integer(kind=pd_ik), Dimension(no_streams) :: rem_data
@@ -3016,8 +3011,7 @@ Contains
        If (trim(branch%leaves(ii)%desc) == trim(desc)) then    
 
           allocate(values(branch%leaves(ii)%dat_no),stat=alloc_stat)
-          Call alloc_error(alloc_stat,'values' ,&
-               'pd_get_4', branch%leaves(ii)%dat_no)
+          Call alloc_error(alloc_stat,'values', 'pd_get_4', branch%leaves(ii)%dat_no)
           values = branch%leaves(ii)%p_int8
           desc_found = .TRUE.
 
@@ -3052,7 +3046,7 @@ Contains
     
     Integer(kind=8) , Intent(out), Dimension(size) :: values
 
-    Integer              :: ii, alloc_stat
+    Integer              :: ii
     Logical              :: desc_found
 
     desc_found=.FALSE.

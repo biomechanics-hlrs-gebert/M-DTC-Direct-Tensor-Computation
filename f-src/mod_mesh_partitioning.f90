@@ -30,7 +30,6 @@ contains
     !** Parted Mesh *************************************************************
     Type(tBranch)   , intent(Inout)       :: PMesh
     Character(LEN=*), Intent(in)          :: job_dir
-    Type(tLeaf)     , Pointer             :: lTopo
     Integer(kind=ik), intent(in)          :: ddc_nn
 
     !** Metis variables *********************************************************
@@ -52,13 +51,12 @@ contains
     Real     (kind=C_double)  , Dimension(:,:), intent(in)  :: nodes
 
     !****************************************************************************
-    Integer(kind=ik)  , Dimension(:), Allocatable :: nnodes_pp, nelems_pp, nouter_nds_pp
-    INTEGER(kind=ik)                              :: ii,jj,kk,ll, idum, un_vtk, tmp_i8
-    INTEGER(kind=ik)                              :: max_neigh
-    INTEGER(kind=ik)  , Dimension(:), Allocatable :: celems, cref, ncolor
-    Character(Len=mcl)                            :: desc, filename
-    INTEGER(kind=ik)  , Dimension(1,2)            :: bounds
-    Character(len=mcl)                            :: vtk_file
+    Integer(kind=ik)  , Dimension(:)  , Allocatable :: nnodes_pp, nelems_pp, nouter_nds_pp
+    INTEGER(kind=ik)                                :: ii,jj,kk,idum, tmp_i8
+    INTEGER(kind=ik)  , Dimension(:)  , Allocatable :: cref
+    Character(Len=mcl)                              :: desc, filename
+    INTEGER(kind=ik)  , Dimension(1,2)              :: bounds
+    Character(len=mcl)                              :: vtk_file
     Integer  (kind=ik), Dimension(:,:), Allocatable :: elems
     Integer  (kind=ik)                              :: nn_el
     

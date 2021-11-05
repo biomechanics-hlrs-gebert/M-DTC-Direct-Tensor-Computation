@@ -15,7 +15,6 @@ Program pd_leaf_to_file
 
   Use puredat         ! From libpuredat
   Use vtkio
-  USE ISO_FORTRAN_ENV
 
   Implicit None
 
@@ -211,7 +210,7 @@ Program pd_leaf_to_file
            log_file_name = Trim(arg(char_pos+1:len_Trim(arg)))
            un_log = pd_give_new_unit()
         Else
-           un_log = OUTPUT_UNIT
+           un_log = std_out
         End If
 
      Case ("-lt")
@@ -329,7 +328,7 @@ Program pd_leaf_to_file
   tree = read_tree()
 
   !** If the tree structure should be dumped to std out ***
-  If (logtree) Call log_tree(tree,OUTPUT_UNIT)
+  If (logtree) Call log_tree(tree,std_out)
 
   !** Assign branch from which to dump the leafs **********
   If (Trim(branch_desc) == "_MAIN_") Then
