@@ -198,13 +198,12 @@ END SUBROUTINE check_and_close
 !> @param[in] long Long or short notation
 !> @param[in] mssgdt Message to print before
 !------------------------------------------------------------------------------  
-SUBROUTINE date_time(fh, da, ti, zo, long, mssgdt)
+SUBROUTINE date_time(fh, da, ti, zo, mssgdt)
 
     INTEGER(KIND=ik)  , INTENT(IN), OPTIONAL :: fh 
     LOGICAL           , INTENT(IN), OPTIONAL :: da    
     LOGICAL           , INTENT(IN), OPTIONAL :: ti           
     LOGICAL           , INTENT(IN), OPTIONAL :: zo           
-    LOGICAL           , INTENT(IN), OPTIONAL :: long           
     CHARACTER(LEN=*)  , INTENT(IN), OPTIONAL :: mssgdt           
 
     CHARACTER(LEN=8)                         :: date
@@ -215,16 +214,9 @@ CALL DATE_AND_TIME(DATE=date, TIME=time, ZONE=timezone)
 
 IF(PRESENT(mssgdt)) WRITE(fh, "('MM ',A)", ADVANCE='NO') TRIM(mssgdt)
 
-IF(PRESENT(long)) THEN
-    IF (long .EQV. .TRUE.) THEN
-        IF (ti) WRITE(fh, '(A,".",A,".",A    )', ADVANCE='NO') date(7:8), date(5:6), date(1:4)
-        IF (da) WRITE(fh, '(x,A,":",A,":",A,x)', ADVANCE='NO') time(1:2), time(3:4), time(5:10)
-        IF (zo) WRITE(fh, '(A)'                              ) timezone
-    END IF 
-ELSE
-    IF (ti) WRITE(fh, '(A,".",A,".",A    )', ADVANCE='NO') date(7:8), date(5:6), date(3:4)
-    IF (da) WRITE(fh, '(x,A,":",A,x)'                    ) time(1:2), time(3:4)
-END IF  
+IF(da) WRITE(fh, FMT_DA, ADVANCE='NO') date(7:8), date(5:6), date(1:4)
+IF(ti) WRITE(fh, FMT_TI, ADVANCE='NO') time(1:2), time(3:4), time(5:10)
+IF(zo) WRITE(fh, FMT_ZO) timezone
 
 END SUBROUTINE date_time
 

@@ -77,7 +77,12 @@ Character(Len=*), Parameter :: FMT_STOP    = "('EE PROGRAM STOPPED ..... ',&
 
 Character(Len=*), Parameter :: FMT_TIME = "('MM ',A,1X,F0.6,' sec')"
 
-! Warning fromats
+! Time/ date formats
+CHARACTER(Len=*), PARAMETER :: FMT_DA       = "(A,'.',A,'.',A    )"
+CHARACTER(Len=*), PARAMETER :: FMT_TI       = "(x,A,':',A,':',A,x)"
+CHARACTER(Len=*), PARAMETER :: FMT_ZO       = "(A)"
+
+! Warning formats
 CHARACTER(Len=*), PARAMETER :: FMT_WRN_A    = "('WW ',A)"
 CHARACTER(Len=*), PARAMETER :: FMT_WRN_AI0  = "('WW ',A,1X,I0)"
 CHARACTER(Len=*), PARAMETER :: FMT_WRN_AI0A = "('WW ',A,1X,I0,1X,A)"
@@ -99,8 +104,8 @@ CHARACTER(Len=*), PARAMETER :: FMT_MSG_AL  = "('MM ',A,L1)"
 CHARACTER(Len=*), PARAMETER :: FMT_MSG_A   = "('MM ',A)"
 
 ! Seperators
-CHARACTER(Len=*), PARAMETER :: FMT_HY_SEP  = "(100('-'))"
-CHARACTER(Len=*), PARAMETER :: FMT_EQ_SEP  = "(100('='))"
+CHARACTER(Len=*), PARAMETER :: FMT_HY_SEP  = "(112('-'))"
+CHARACTER(Len=*), PARAMETER :: FMT_EQ_SEP  = "(112('='))"
 CHARACTER(Len=*), PARAMETER :: FMT_DBG_SEP = "('#DBG#',95('='))"
 
 ! PureDat Formatters

@@ -224,7 +224,7 @@ Contains
 
        Call date_and_Time(values=realt)
 
-       CALL date_time(un_lf, .TRUE., .TRUE., .TRUE., .FALSE., 'Start time:')
+       CALL date_time(un_lf, .TRUE., .TRUE., .TRUE., 'Start time:')
 
        Call get_environment_Variable("HOSTNAME", env_var)
        Write(un_lf,fmt_MSG_A) "Host       : "//Trim(env_var)
@@ -254,7 +254,7 @@ Contains
        End if
        Call end_timer(trim(timer_name))
 
-       CALL date_time(un_lf, .TRUE., .TRUE., .TRUE., .FALSE., 'End time:')
+       CALL date_time(un_lf, .TRUE., .TRUE., .TRUE., 'End time:')
        
        close(umon)
 
@@ -1029,6 +1029,7 @@ Program main_struct_process
 
       !------------------------------------------------------------------------------
       ! Restart handling
+      ! Done after meta_io to decide based on keywords
       !------------------------------------------------------------------------------
       IF (restart_cmdarg /= 'U') THEN
          restart = restart_cmdarg
@@ -1048,6 +1049,20 @@ Program main_struct_process
       CALL meta_add_ascii(fh=fhmon, suf=mon_suf, st='start', restart=restart)
       ! CALL meta_add_ascii(fh=fhr, suf=res_suf, st='start', restart=restart)
 
+
+      CALL meta_io (fhmon,   'MICRO_ELMNT_TYPE' , ''     ,           chars = elt_micro  )
+      CALL meta_io (fhmon,   'DBG_LVL'          , ''     ,           chars = out_amount )
+      CALL meta_io (fhmon,   'OUT_FMT'          , ''     ,           chars = output     )
+      CALL meta_io (fhmon,   'RESTART'          , ''     ,           chars = restart    )
+      CALL meta_io (fhmon,   'SIZE_DOMAIN'      , '(mm)' ,        real_1D3 = bone%pdsize)
+      CALL meta_io (fhmon,   'LO_BNDS_DMN_RANGE', '(-)'  ,         int_1D3 = xa_d       )
+      CALL meta_io (fhmon,   'UP_BNDS_DMN_RANGE', '(-)'  ,         int_1D3 = xe_d       )
+      CALL meta_io (fhmon,   'BINARIZE_LO'      , '(-)'  ,         int_0D  = llimit     )
+      CALL meta_io (fhmon,   'MESH_PER_SUB_DMN' , '(-)'  ,         int_0D  = parts      )
+      CALL meta_io (fhmon,   'RVE_STRAIN'       , '(mm)' ,        real_0D  = strain     )
+      CALL meta_io (fhmon,   'YOUNG_MODULUS'    , '(MPa)',        real_0D  = bone%E     )
+      CALL meta_io (fhmon,   'POISSON_RATIO'    , '(-)'  ,        real_0D  = bone%nu    )
+      CALL meta_io (fhmon,   'MACRO_ELMNT_ORDER', '(-)'  ,         int_0D  = elo_macro  )
 
       ! Warning / Error handling
       IF ( (bone%pdsize(1) /= bone%pdsize(2)) .OR. (bone%pdsize(1) /= bone%pdsize(3)) ) THEN

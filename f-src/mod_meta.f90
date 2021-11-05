@@ -197,10 +197,8 @@ CALL handle_err(std_out, 'The update of the meta filename went wrong.', ios)
 !------------------------------------------------------------------------------
 ! Open the meta output file
 !------------------------------------------------------------------------------
-OPEN(UNIT=fhmeo, FILE=TRIM(out%full), ACTION='READWRITE', ACCESS='SEQUENTIAL', STATUS='OLD')
+OPEN(UNIT=fhmeo, FILE=TRIM(out%full), ACTION='WRITE', ACCESS='APPEND', STATUS='OLD')
 
-WRITE(fhmeo, '(A)')
-WRITE(fhmeo, FMT_HY_SEP)
 WRITE(fhmeo, '(A)')
 
 END SUBROUTINE meta_append
@@ -532,7 +530,7 @@ IF (PRESENT(m_in) .EQV. .FALSE.) THEN
 
    maxchars = stdspc
 
-   WRITE(fh, '(A)', ADVANCE='NO') kywd_lngth
+   WRITE(fh, '(2A)', ADVANCE='NO') "* ", kywd_lngth
 
    ! Build format specifier and write the output
    SELECT CASE( datatype )
@@ -578,8 +576,14 @@ END SUBROUTINE meta_io
 !> Subroutine to close a meta file and to alter its name.
 !> Assign out = in before calling this routine. Also define a new app_name :-)
 !
+!> @param[in] m_in Array of lines of ascii meta file
 !------------------------------------------------------------------------------
 SUBROUTINE meta_close()
+
+CALL meta_io (fhmeo, 'COMPUTATION_FINISHED' , chars = '')
+
+WRITE(fhmeo, '(A)')
+WRITE(fhmeo, FMT_HY_SEP)
 
 !------------------------------------------------------------------------------
 ! Check and close files - Routine: (fh, filename, abrt, stat)
