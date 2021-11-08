@@ -1,0 +1,118 @@
+# HLRS|NUM Dataset Batch Record
+* CT_SCAN                                                         FH01s3           ! HLRS internal nomenclature
+
+## General Information
+* OWNER                                                  Johannes_Gebert
+* OWNER_CONTACT                                           gebert@hlrs.de
+* DATE_CREATED                                                04.09.2021                                   
+* INTERNAL_ID                                               Testszenario           ! Briefly describe the goal of the study
+
+## Binary Data Parameters
+* HISTORY                                                              1           ! Number of consecutive images within binary data
+* TYPE                                                             uint2           ! Data type of the binary image
+* DATA_BYTE_ORDER                                              BigEndian           ! BigEndian, LittleEndian
+* DIMENSIONALITY                                                       3           ! Dimensions within the image
+* DIMENSIONS                          2940           2940           2141           ! (Voxels)
+* NO_SCALAR_CMPNNTS                                                    1           ! Number of components per scalar (paraview requirement)
+* SPACING                         1.000000       1.000000       1.000000 (mm)
+* ORIGIN                          3.575640       2.863500       2.584620 (mm)
+* FIELD_OF_VIEW                  43.953000      43.953000      32.007950 (mm)
+* ENTRIES                                                    18505947600           ! Typically the amount of voxels
+
+* SIZE_DOMAIN                    2.0000000      2.0000000      2.0000000 (mm)      ! mm per dim
+
+----------------------------------------------------------------------------------------------------------------
+
+## 3D Convolusional Filter
+* DBG_LVL                                                          DEBUG           ! Output amount
+* FILTER_DIM                                                           3 (-)       ! 2, 3
+* FILTER_SIZE                                                         31 (-)       ! odd numbers (Sum of Voxel +/- Voxels)
+* FILTER_KERNEL                                                 Gaussian           ! Identity, Gaussian
+* FILTER_SIGMA                                                       2.0 (-)       ! Real number
+* SCALING                                                            1.0 (-)       ! Scaling of the image
+
+----------------------------------------------------------------------------------------------------------------
+
+## 3D Convolusional Filter Results
+* PROCESSORS                                                         120 (-)       05.11.2021 10:23:25.406 +0100
+* WALLTIME                                                        87.320 (h)       05.11.2021 10:23:25.406 +0100
+* CPU_TIME                                                        5239.2 (h)       05.11.2021 10:23:25.406 +0100
+
+----------------------------------------------------------------------------------------------------------------
+
+## Spatial Registration
+* SR_PATH_M_LOW_RES                            /home/user/testdata1.meta           ! Absolute file path
+* SR_PATH_R_LOW_RES                             /home/user/testdata1.raw           ! Absolute file path, maybe it will be parsed
+* SR_FIXED_CMPNN                                                     cCT           ! cCT, mCT
+
+### Spatial Registration Steering Parameters 
+* SR_TR_STEP                                                        10.0 (-)       ! Translatory Steps (Voxel shift of hi res within low res)
+* SR_RO_STEP                                                        10.0 (-)       ! Rotary      Steps (basically 90°/Steps)
+
+----------------------------------------------------------------------------------------------------------------
+
+## Spatial Registration Results
+* PROCESSORS                                                         120 (-)       06.11.2021 10:23:25.406 +0100
+* WALLTIME                                                        87.320 (h)       06.11.2021 10:23:25.406 +0100
+* CPU_TIME                                                        5239.2 (h)       06.11.2021 10:23:25.406 +0100
+* VECTOR_ORIGIN                  0.0000000      0.0000000      0.0000000 (mm)      06.11.2021 10:23:25.406 +0100
+* VECTOR_CMPNNTS                 2.0000000      2.0000000      2.0000000 (mm)      06.11.2021 10:23:25.406 +0100
+
+----------------------------------------------------------------------------------------------------------------
+
+## Binarization and Decomposition
+* DBG_LVL                                                          DEBUG           ! Output amount
+* WR_VTK_OUT                                                          No           ! Yes, No  
+                        
+### Binarize                           
+* BINARIZE                                                            No           ! Yes, No  
+* HU_THRESH_HI                                                     65000 (HU)      ! Typically Hounsfield units
+* HU_THRESH_LO                                                    -32767 (HU)      ! Typically Hounsfield units
+* BINARIZE_LO                                                          0 (HU)      ! Typically 0 or 1
+* BIN_INVERT                                                          No           ! Yes, No  
+* CALC_DENSITY                                                       Yes           ! Yes, No  
+
+### Decomposition                           
+### Split volume of interest into same and eqal domains in case a computation with different approaches 
+### (i.e. 3D Graph and DM) is requested for comparisons 
+* SIZE_DOMAIN                    2.0000000      2.0000000      2.0000000 (mm)      ! mm per dim
+* LO_BNDS_DMN_RANGE                      0              0              0 (-)       ! Domain range per dimension
+* UP_BNDS_DMN_RANGE                      0              0              0 (-)       ! Domain range per dimension
+* SPLIT_DMNS                                                        BOTH           ! Yes, No
+                        
+----------------------------------------------------------------------------------------------------------------
+
+## Binarization and Decomposition Results
+* PROCESSORS                                                         120 (-)       07.11.2021 10:23:25.406 +0100
+* WALLTIME                                                        87.320 (h)       07.11.2021 10:23:25.406 +0100
+* CPU_TIME                                                        5239.2 (h)       07.11.2021 10:23:25.406 +0100
+* SPLITTED                                                             1           07.11.2021 10:23:25.406 +0100
+* GLOBAL_DOMAIN_NO                                                    42 (-)       07.11.2021 10:23:25.406 +0100
+
+----------------------------------------------------------------------------------------------------------------
+
+## Struct process parametrization
+* YOUNG_MODULUS                                                   5600.0 (MPa)     ! Monolithical parameter
+* POISSON_RATIO                                                      0.3 (-)       ! Monolithical parameter
+* RVE_STRAIN                                                   0.0000001 (mm)      ! Strain on macro element
+* MACRO_ELMNT_ORDER                                                    1 (-)       ! 1=linear (HEX08), 2=quadratic (HEX20)
+* MICRO_ELMNT_TYPE                                                 HEX08           ! Element type  on micro scale
+* MESH_PER_SUB_DMN                                                     2 (-)       ! Processors/Mesh parts per subdomain. Size_mpi-1! 
+* OUT_FMT                                                           FMPS           ! Output Format
+* DBG_LVL                                                          DEBUG           ! Output amount
+
+* NEW_BSNM_FEATURE                                               Tensors           ! Last segment of basename - NO '_'
+* NEW_BSNM_PURPOSE                                                   Pro           ! 3rd segment of basename - NO '_'
+
+* RESTART                                                              Y           ! Restart a (partly) computed project
+
+* LO_BNDS_DMN_RANGE                      0              0              0 (-)       08.11.2021 10:23:25.406 +0100
+* UP_BNDS_DMN_RANGE                      0              0              0 (-)       08.11.2021 10:23:25.406 +0100
+* BINARIZE_LO                                                          0 (-)       08.11.2021 10:23:25.406 +0100
+* MESH_PER_SUB_DMN                                                     2 (-)       08.11.2021 10:23:25.406 +0100
+
+----------------------------------------------------------------------------------------------------------------
+
+* COMPUTATION_FINISHED                                                             08.11.2021 10:23:26.611 +0100
+
+----------------------------------------------------------------------------------------------------------------
