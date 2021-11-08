@@ -294,9 +294,9 @@ text = TRIM(ADJUSTL(txt))
 fmt  = FMT_ERR
      
 mode = 0                ! Absolute or relative path
-sw=2
-ntokens         = 0
-path_ntokens    = 0
+sw=2                    ! Whether it's the beginning or within a path
+ntokens         = 0     ! Amount of words in message
+path_ntokens    = 0     ! Amount of words in a path
 delim = '/'
 ii = 1
 jj = 1

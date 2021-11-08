@@ -988,7 +988,15 @@ Program main_struct_process
       IF(TRIM(infile) == '') CALL handle_err(std_out, 'No input file given via command argument.', 1)
 
       in%full = TRIM(infile)
-
+    
+   mssg = "This is an extraordinary long text to check out how my new subroutine might behave. &
+   & "//TRIM(infile)//"&
+   & The goal is to demonstrate the limit of five hundred twelve characters while computing the proper &
+   &line breaks for a nice look onto all the error "//TRIM(infile)//" messages and warnings the struct-process might print &
+   &to the command line or to a file."
+   write(*,*) mssg
+   CALL handle_err (std_out, mssg,-1)
+   CALL handle_err (std_out, mssg, 1)
       !------------------------------------------------------------------------------
       ! Check and open the input file; Modify the Meta-Filename / Basename
       ! Define the new application name first
