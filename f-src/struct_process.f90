@@ -212,7 +212,7 @@ Contains
 
           End If
 
-          Write(un_lf,fmt_sep)
+          Write(un_lf,SEP_STD)
 
        End If
 
@@ -950,7 +950,7 @@ Program main_struct_process
   If (rank_mpi==0) Then
 
       Call Start_Timer("Init Process")
-    
+
       !------------------------------------------------------------------------------
       ! Parse the command arguments
       !------------------------------------------------------------------------------

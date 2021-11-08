@@ -133,12 +133,12 @@ Contains
 !                 success = .FALSE.
 !              Else
 !                 un_mon = std_out
-!                 Write(un_mon,fmt_sep)
+!                 Write(un_mon,SEP_STD)
 !                 Write(un_mon,FMT_WRN )"In init_std_out it was not possible to open the monitor file"
 !                 Write(un_mon,FMT_WRN_A)trim(env_var)
 !                 Write(un_mon,FMT_WRN_A)"Please check the value of the en CHAIN_STDOUT env variable"
 !                 Write(un_mon,FMT_WRN )"Monitoring will be redirected to std output"
-!                 Write(un_mon,fmt_sep)
+!                 Write(un_mon,SEP_STD)
 !              End if
 !           End IF
 !        End IF
@@ -191,7 +191,7 @@ Contains
     
     If (loc_stdio) then
        Write(un_mon,*)
-       Write(un_mon,fmt_sep)
+       Write(un_mon,SEP_STD)
        Write(un_mon,'(A,A)')'Starting chain link: ',trim(link_name)
        Write(un_mon,*)
     End If
@@ -249,7 +249,7 @@ Contains
             Action='Write', status='new', iostat=io_stat)
 
        If (io_stat /= 0) then
-          Write(un_mon,fmt_sep)
+          Write(un_mon,SEP_STD)
           Write(un_mon,FMT_ERR )"In link_start it was not possible to open the file"
           Write(un_mon,FMT_ERR_A)trim(outpath)//trim(project_name)//'.log'
           Write(un_mon,FMT_ERR )"Please check the path and file naming conventions"
@@ -306,7 +306,7 @@ Contains
     If (loc_stdio) write(un_mon,*)
 
 1000 Continue
-    !Write(un_lf,fmt_sep)
+    !Write(un_lf,SEP_STD)
     !Write(un_lf,FMT_MSG_A)'Starting chain link :'//link_name
     !Write(un_lf,*)
 
@@ -349,7 +349,7 @@ Contains
     call write_timelist(unit=un_lf)
        
     !Write(un_lf,FMT_MSG_A)'Program terminated correctly !' 
-    !Write(un_lf,fmt_sep)
+    !Write(un_lf,SEP_STD)
     !Write(un_lf,*)
     close(un_lf)
     
@@ -826,7 +826,7 @@ Subroutine read_int4_in(var,name,un)
     
     if ( unit_is_open ) then
        
-       WRITE(un_mon,fmt_sep)
+       WRITE(un_mon,SEP_STD)
        WRITE(un_mon,FMT_ERR)'Something bad and unexpected happened during search for free unit'
        WRITE(un_mon,FMT_ERR)'Could not find a new unit between 100 and huge(Int(kind=4))'
        WRITE(un_mon,FMT_ERR)' '

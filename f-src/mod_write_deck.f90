@@ -3,7 +3,7 @@ Module write_deck
   use linFE
   use mesh_partitioning
   use strings
-
+  
   implicit none
 
   Real(Kind=rk), Parameter     :: delta_b = 1.E-9_rk

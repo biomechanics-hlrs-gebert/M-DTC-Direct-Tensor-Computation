@@ -1,14 +1,10 @@
 Restart properly
 meta/raw --> meta/.int4.st
-Connect linFE mit meta
-    Check what is correct
 Seperated master process?
 Macro Hex20
 understand Tensor to FE matrix
 recap stiffnessmatrix of Diss RS
 Error messages
-replace alloc_err
-copy meta in to meta out
 how is the grid spacing determined?
 init stdot
 

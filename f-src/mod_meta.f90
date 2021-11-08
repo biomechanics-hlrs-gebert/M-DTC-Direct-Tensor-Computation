@@ -583,7 +583,7 @@ SUBROUTINE meta_close()
 CALL meta_io (fhmeo, 'COMPUTATION_FINISHED' , chars = '')
 
 WRITE(fhmeo, '(A)')
-WRITE(fhmeo, FMT_HY_SEP)
+WRITE(fhmeo, SEP_STD)
 
 !------------------------------------------------------------------------------
 ! Check and close files - Routine: (fh, filename, abrt, stat)

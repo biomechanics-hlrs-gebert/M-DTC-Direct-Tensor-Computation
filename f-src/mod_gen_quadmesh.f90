@@ -85,7 +85,7 @@ contains
 
     If (out_amount /= "PRODUCTION" ) then
        !Write(*,    FMT_MSG_BS)'Generating Quadmesh'
-       Write(un_lf,FMT_HY_SEP)
+       Write(un_lf,SEP_STD)
        Write(un_lf,FMT_MSG_A )'Generating Quadmesh'
        Write(un_lf,*)
     End If
@@ -103,11 +103,11 @@ contains
     !If ( (min_val_phi > llimit) .Or. (max_val_phi < llimit) ) Then
     If ( (max_val_phi < llimit) ) Then
 
-       If (out_amount /= "PRODUCTION" ) Write(un_lf,FMT_SEP)
+       If (out_amount /= "PRODUCTION" ) Write(un_lf,SEP_STD)
        Write(un_lf,"('EE ',A,I0,A,T77,' EE')")'Isovalue = ',llimit,' not enclosed in field'
        Write(un_lf,"('EE ',A,I0,T77,  ' EE')")'Minimum value in PHI = ',min_val_phi
        Write(un_lf,"('EE ',A,I0,T77,  ' EE')")'Maximum value in PHI = ',max_val_phi
-       If (out_amount /= "PRODUCTION" ) Write(un_lf,FMT_SEP)
+       If (out_amount /= "PRODUCTION" ) Write(un_lf,SEP_STD)
 
        no_nodes = 0
        no_elems = 0
@@ -326,7 +326,7 @@ contains
     End Select
 
     !Write(*,    FMT_MSG_BS)'Coloring connected domains'
-    Write(un_lf,FMT_HY_SEP)
+    Write(un_lf,SEP_STD)
     Write(un_lf,FMT_MSG_A )'Coloring connected domains'
 
     !** Color nodes *************************************************************
@@ -635,7 +635,7 @@ contains
     call start_timer("+-- Generating quadmesh")
 
     !Write(*,    FMT_MSG_BS)'Generating Quadmesh'
-    Write(un_lf,FMT_HY_SEP)
+    Write(un_lf,SEP_STD)
     Write(un_lf,FMT_MSG_A )'Generating Quadmesh'
     Write(un_lf,*)
     GOTO 1000
@@ -652,11 +652,11 @@ contains
     !If ( (min_val_phi > llimit) .Or. (max_val_phi < llimit) ) Then
     If ( (max_val_phi < llimit) ) Then
 
-       Write(un_lf,FMT_SEP)
+       Write(un_lf,SEP_STD)
        Write(un_lf,"('EE ',A,I0,A,T77,' EE')")'Isovalue = ',llimit,' not enclosed in field'
        Write(un_lf,"('EE ',A,I0,T77,  ' EE')")'Minimum value in PHI = ',min_val_phi
        Write(un_lf,"('EE ',A,I0,T77,  ' EE')")'Maximum value in PHI = ',max_val_phi
-       Write(un_lf,FMT_SEP)
+       Write(un_lf,SEP_STD)
 
        no_nodes = 0
        no_elems = 0
@@ -866,7 +866,7 @@ contains
 
     !Write(*,    FMT_MSG_BS)'Coloring connected domains'
     If (out_amount /= "PRODUCTION" ) then
-       Write(un_lf,FMT_HY_SEP)
+       Write(un_lf,SEP_STD)
        Write(un_lf,FMT_MSG_A )'Coloring connected domains'
     End If
     

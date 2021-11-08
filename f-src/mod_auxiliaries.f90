@@ -16,6 +16,7 @@
 MODULE auxiliaries
 
 USE global_std
+USE strings
 USE MPI
 
 IMPLICIT NONE
@@ -259,7 +260,11 @@ END SUBROUTINE stop_slaves
 !> Ralf Schneider.
 !
 !> @Description
-!> Aborts if err /= 0. Colorized output in case it's printing to std_out.
+!> Aborts with errors.
+!> Errors:  err > 0
+!> Warings: err < 0
+!> Colorized output in case it's printing to std_out.
+!> 
 !
 !> @param[in] fh Handle of file to print to
 !> @param[in] txt Error message to print
@@ -274,10 +279,27 @@ INTEGER  (KIND=ik)                        :: err
 !> Internal variables 
 INTEGER(KIND=mpi_ik)                      :: ierr = 0
 CHARACTER(LEN=mcl)                        :: text
-CHARACTER(LEN=scl)                        :: fmt
+CHARACTER(LEN=mcl)                        :: fmt
+CHARACTER(LEN=scl)                        :: sub_mssg, errnmbr
+
+! String parsing 
+INTEGER  (KIND=ik)                        :: ii, jj, sw, mode
+
+CHARACTER(LEN=mcl)                        :: delim
+CHARACTER(LEN=mcl)                        :: tokens(100), path_tokens(50)
+CHARACTER(LEN=mcl+1)                      :: next_token
+INTEGER  (KIND=ik)                        :: ntokens    ,  path_ntokens
 
 text = TRIM(ADJUSTL(txt))
 fmt  = FMT_ERR
+     
+mode = 0                ! Absolute or relative path
+sw=2
+ntokens         = 0
+path_ntokens    = 0
+delim = '/'
+ii = 1
+jj = 1
 
 ! if err == 0 is a warning --> all "mpi-errors" are warnings :-)
 IF (err == 0) THEN
@@ -289,16 +311,83 @@ ELSE
     IF ((err == -1) .AND. (fh /= std_out)) fmt = FMT_WRN
     IF ((err == -1) .AND. (fh == std_out)) fmt = FMT_WRN_SO
 
-    WRITE(fh, fmt)
-    WRITE(fh, fmt) TRIM(ADJUSTL(text))
-    FLUSH(fh)
+    IF (txt  /= '') THEN
+        ! Parse error message
+        CALL parse(str=text, delims=' ', args = tokens, nargs=ntokens)
+  
+        ! next_token  = tokens(1) 
+        next_token = ''
+        WRITE(fh, fmt) REPEAT('-',scl)
+
+        DO WHILE (ii .LT. ntokens) 
+        
+            sub_mssg = REPEAT(' ', scl)
+            sub_mssg = TRIM(next_token)
+
+            DO           
+                ! path_ntokens = 1
+                IF (sw==2) CALL parse(str = tokens(ii), delims='/', args = path_tokens, nargs = path_ntokens)
+
+                IF (path_ntokens .GT. 1) sw=1
+                
+                IF (sw == 1) THEN
+                    IF (TRIM(ADJUSTL(path_tokens(1))) =='') mode = 2
+                    
+                    IF ((mode == 2) .AND. (jj == 1)) jj = jj + 1
+                    IF ((mode == 2) .AND. (jj == 2)) THEN
+                        delim = ' /'
+                    ELSE
+                        delim = '/'
+                    END IF
+
+                    next_token = TRIM(delim)//ADJUSTL(path_tokens(jj))
+
+                    jj = jj + 1                         
+                    IF (jj .GT. path_ntokens) THEN
+                        sw   = 2
+                        jj   = 1
+                        mode = 1
+                        ii   = ii + 1
+                    END IF
+                ELSE
+                    next_token = ' '//tokens(ii)
+                    ii = ii + 1
+                    IF (ii .GT. ntokens+1) EXIT
+                END IF
+                           
+                IF ((LEN_TRIM(ADJUSTL(sub_mssg)) + LEN_TRIM(next_token)) .LT. scl) THEN
+                    sub_mssg = TRIM(ADJUSTL(sub_mssg))//TRIM(next_token)
+                ELSE
+                    EXIT ! Finishes the current line with scl characters
+                END IF
+            END DO
+
+            WRITE(fh, fmt) sub_mssg
+
+        END DO
+        FLUSH(fh)
+
+    END IF ! (txt  /= '') THEN
 
     IF (err .GT. 0) THEN ! An error occured   
-        fmt = FMT_ERR_SOC 
+        WRITE(fh, fmt) REPEAT('-',scl)
 
-        WRITE(mssg, '(A,I4,A)') "Program halted with error code ", err, "."
+        WRITE(errnmbr, '(I15)') INT(err, KIND=ik)
 
-        WRITE(fh, fmt) TRIM(mssg)
+        mssg = " with error code "//TRIM(ADJUSTL(errnmbr))//"."
+
+        IF (fh == std_out) THEN
+            WRITE(fmt,'(A,I5,A)') "('\x1B[31m','EE Program halted ','\x1B[0m',A, T",&
+                scl+LEN('\x1B[31m'//'EE '//'\x1B[0m'),",'\x1B[31m',' EE','\x1B[0m')"
+            WRITE(fh, fmt) TRIM(mssg)
+        ELSE
+            WRITE(fmt,'(A,I5,A)') "('EE Program halted ',A, T",scl + LEN('EE ') + 1,",' EE')"
+            WRITE(fh, fmt) TRIM(mssg)
+        END IF
+    
+               
+
+
         CALL stop_slaves(out%path, out%bsnm)
 
         CALL MPI_FINALIZE(ierr)
@@ -324,9 +413,9 @@ SUBROUTINE usage(err)
 
 INTEGER, INTENT(IN) :: err
 
-WRITE(std_out, FMT_HY_SEP)
+WRITE(std_out, SEP_STD)
 WRITE(std_out, '(A)') 'Directly Discretizing Tensor Computation | Usage:'
-WRITE(std_out, FMT_HY_SEP)
+WRITE(std_out, SEP_STD)
 WRITE(std_out, '(A)') './ddtc_vx.y.z_x86_64 »flags« »meta filename«'
 WRITE(std_out, '(A)') '--restart       Overwrite restart keyword'
 WRITE(std_out, '(A)') '--no-restart    Overwrite restart keyword'
@@ -334,7 +423,7 @@ WRITE(std_out, '(A)') '-h              This message.'
 WRITE(std_out, '(A)') '*.meta          Meta input file.'
 WRITE(std_out, '(A)') ''
 WRITE(std_out, '(A)') 'The meta-file must be the last command argument.'
-WRITE(std_out, FMT_HY_SEP)
+WRITE(std_out, SEP_STD)
 
 CALL handle_err(std_out, '', err)
 

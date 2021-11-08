@@ -21,60 +21,6 @@ USE global_std
 
 CONTAINS
 
-!----------------------------------------------------------------------------
-Function char_to_str(char_arr) result(str)
-
-  character, dimension(:) , intent(in) :: char_arr
-
-  character(len=size(char_arr))        :: str
-
-  Integer :: ii
-  
-  str = ''
-
-  Do ii = 1, size(char_arr)
-      str(ii:ii) = char_arr(ii)
-  End Do
-
-End Function char_to_str
-
-!----------------------------------------------------------------------------
-Function char_to_linestr(char_arr) result(str)
-
-  character, dimension(:) , intent(in) :: char_arr
-
-  character(len=size(char_arr))        :: str
-
-  Integer :: ii
-  
-  str = ''
-
-  Do ii = 1, size(char_arr)
-      if (char_arr(ii) == Char(10)) exit
-      str(ii:ii) = char_arr(ii)
-  End Do
-
-End Function char_to_linestr
-
-!----------------------------------------------------------------------------
-Function str_to_char(str) result(char_arr)
-
-  character(len=*)  , intent(in) :: str
-
-  character, dimension(len(str)) :: char_arr
-
-  Integer :: ii
-  
-  char_arr = ''
-
-  Do ii = 1, size(char_arr)
-      char_arr(ii) = str(ii:ii)
-  End Do
-
-End Function str_to_char
-
-!----------------------------------------------------------------------------
-
 subroutine parse(str,delims,args,nargs)
 
 ! Parses the string 'str' into arguments args(1), ..., args(nargs) based on
@@ -84,7 +30,7 @@ subroutine parse(str,delims,args,nargs)
 
 character(len=*) :: str,delims
 character(len=len_trim(str)) :: strsav
-character(len=*),dimension(:) :: args
+character(len=mcl),dimension(:) :: args
 
 strsav=str
 call compact(str)
@@ -430,10 +376,11 @@ subroutine split(str,delims,before,sep)
 ! character if it is preceded by a backslash (\). If the backslash 
 ! character is desired in 'str', then precede it with another backslash.
 
-character(len=*) :: str,delims,before
+character(len=*) :: str,delims
 character,optional :: sep
 logical :: pres
 character :: ch,cha
+character(len=mcl) :: before
 
 pres=present(sep)
 str=adjustl(str)

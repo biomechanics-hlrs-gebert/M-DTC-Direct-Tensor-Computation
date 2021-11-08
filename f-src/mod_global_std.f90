@@ -55,19 +55,23 @@ CHARACTER(len=5)   , PARAMETER :: ifmt          = '(I10)'       ! general intege
 CHARACTER(len=8)   , PARAMETER :: rfmt          = '(F30.10)'    ! general real       format
 CHARACTER(len=10)  , PARAMETER :: sfmt          = '(E23.15E2)'  ! general scientific format
 
+! Seperators
+CHARACTER(Len=*), PARAMETER :: SEP_STD= "(112('-'))" ! FMT_HY_SEP
+CHARACTER(Len=*), PARAMETER :: FMT_EQ_SEP  = "(112('='))"
+CHARACTER(Len=*), PARAMETER :: FMT_DBG_SEP = "('#DBG#',95('='))"
+
 ! Character constants for nice output ---------------------------------------
-Character(Len=*), Parameter :: fmt_sep    = "('<',97('='),'>')"
 Character(LEN=*), Parameter :: fmt_inpsep = "('+',99('-'))"
 
 Character(Len=*), Parameter :: FMT_MSG     = "('MM ',A,T97,' MM')"
 Character(Len=*), Parameter :: FMT_MSG_BS  = "('MM ',A,T88,' ... ',$)"
 Character(Len=*), Parameter :: FMT_MSG_BE  = "('done MM')"
 
-Character(Len=*), Parameter :: FMT_WRN     = "('WW ',A,T97,' WW')"  
-Character(Len=*), Parameter :: FMT_ERR     = "('EE ',A,T97,' EE')"
-CHARACTER(LEN=*), PARAMETER :: FMT_WRN_SO  = "('\x1B[35m','WW ','\x1B[0m',A,T97)" ! std_out
-CHARACTER(LEN=*), PARAMETER :: FMT_ERR_SO  = "('\x1B[31m','EE ','\x1B[0m',A,T97)" ! std_out
-CHARACTER(LEN=*), PARAMETER :: FMT_ERR_SOC = "('\x1B[31m','EE ',A,T97)" ! std_out - complete color
+! Best while containing scl characters! scl = 64 + "EE " + 2
+Character(Len=*), Parameter :: FMT_WRN     = "('WW ',A,T68,' WW')"  
+Character(Len=*), Parameter :: FMT_ERR     = "('EE ',A,T68,' EE')"
+CHARACTER(LEN=*), PARAMETER :: FMT_WRN_SO  = "('\x1B[33m','WW ','\x1B[0m',A, T76,'\x1B[33m',' WW','\x1B[0m')" ! std_out
+CHARACTER(LEN=*), PARAMETER :: FMT_ERR_SO  = "('\x1B[31m','EE ','\x1B[0m',A, T76,'\x1B[31m',' EE','\x1B[0m')" ! std_out
 
 Character(Len=*), Parameter :: FMT_ERR_AI0 = "('EE ',*(A,I0))"  
 CHARACTER(Len=*), PARAMETER :: FMT_ERR_A   = "('EE ',A)"
@@ -103,10 +107,7 @@ CHARACTER(Len=*), PARAMETER :: FMT_MSG_A3F0 = "('MM ',A,3(',',F0.6))"
 CHARACTER(Len=*), PARAMETER :: FMT_MSG_AL  = "('MM ',A,L1)"
 CHARACTER(Len=*), PARAMETER :: FMT_MSG_A   = "('MM ',A)"
 
-! Seperators
-CHARACTER(Len=*), PARAMETER :: FMT_HY_SEP  = "(112('-'))"
-CHARACTER(Len=*), PARAMETER :: FMT_EQ_SEP  = "(112('='))"
-CHARACTER(Len=*), PARAMETER :: FMT_DBG_SEP = "('#DBG#',95('='))"
+
 
 ! PureDat Formatters
 Character(Len=*), Parameter :: PDF_E_A    = "('EE ',A)"
@@ -141,15 +142,15 @@ INTEGER         , PARAMETER :: mpi_ik     = 4             ! MPI INTEGER Kind; Co
 TYPE basename
    ! For the use in filenames, a max. length of a part of a basename of kcl characters must suffice.
    ! Nomenclature: dataset_type_purpose_app_features
-   CHARACTER(LEN=mcl)         :: full          = ''            ! Including suffix and path
-   CHARACTER(LEN=mcl)         :: path          = ''            ! Only the path to the file
-   CHARACTER(LEN=mcl)         :: p_n_bsnm      = ''            ! Just the path and the basename
-   CHARACTER(LEN=mcl)         :: bsnm          = ''            ! Just the basename
-   CHARACTER(LEN=kcl)         :: dataset       = ''            ! For example FH01-1 (Femoral Head 1, Scan1)
-   CHARACTER(LEN=2)           :: type          = ''            ! 'cl' - clinical or 'mu' - microfocus
-   CHARACTER(LEN=3)           :: purpose       = ''            ! 'Dev' or 'Pro' (Development or Production)
-   CHARACTER(LEN=kcl)         :: app           = ''            ! Application. For example "Binarization"
-   CHARACTER(LEN=kcl)         :: features      = ''            ! Features. For example the parametrization
+   CHARACTER(LEN=mcl) :: full     = '' ! Including suffix and path
+   CHARACTER(LEN=mcl) :: path     = '' ! Only the path to the file
+   CHARACTER(LEN=mcl) :: p_n_bsnm = '' ! Just the path and the basename
+   CHARACTER(LEN=mcl) :: bsnm     = '' ! Just the basename
+   CHARACTER(LEN=kcl) :: dataset  = '' ! For example FH01-1 (Femoral Head 1, Scan1)
+   CHARACTER(LEN=2)   :: type     = '' ! 'cl' - clinical or 'mu' - microfocus
+   CHARACTER(LEN=3)   :: purpose  = '' ! 'Dev' or 'Pro' (Development or Production)
+   CHARACTER(LEN=kcl) :: app      = '' ! Application. For example "Binarization"
+   CHARACTER(LEN=kcl) :: features = '' ! Features. For example the parametrization
 END TYPE basename
 
 ! Always provide in/out for meta driven environments

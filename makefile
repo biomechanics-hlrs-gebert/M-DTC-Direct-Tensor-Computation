@@ -202,6 +202,7 @@ f-objects = $(obj_dir)mod_global_std$(obj_ext)         \
 #
 # For linking
 pd-ld-objects = $(obj_dir)mod_global_std$(obj_ext)     \
+				$(obj_dir)mod_strings$(obj_ext)        \
 				$(obj_dir)mod_auxiliaries$(obj_ext)    \
 				$(obj_dir)mod_puredat$(obj_ext)        \
 #
@@ -300,9 +301,9 @@ $(obj_dir)mod_meta$(obj_ext):$(mod_dir)global_std$(mod_ext)     \
 
 # -----------------------------------------------------------------------------
 #-- PureDat -------------------------------------------------------------------
-$(obj_dir)mod_puredat$(obj_ext):$(mod_dir)global_std$(mod_ext)   \
-																$(mod_dir)auxiliaries$(mod_ext)  \
-																$(f_src_dir)mod_puredat$(f90_ext)
+$(obj_dir)mod_puredat$(obj_ext):$(mod_dir)global_std$(mod_ext) \
+							$(mod_dir)auxiliaries$(mod_ext) \
+							$(f_src_dir)mod_puredat$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_puredat$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_puredat$(f90_ext) -o $@
 	@echo 
@@ -476,8 +477,8 @@ $(obj_dir)struct_process$(obj_ext):$(mod_dir)global_std$(mod_ext)        $(mod_d
 
 # -----------------------------------------------------------------------------
 #-- PureDat auxiliary executables ---------------------------------------------
-$(obj_dir)pd_dump_leaf$(obj_ext):$(mod_dir)puredat$(mod_ext) $(mod_dir)puredat_com$(mod_ext)   \
-                                 $(f_src_dir)pd_dump_leaf$(f90_ext)
+$(obj_dir)pd_dump_leaf$(obj_ext):$(mod_dir)puredat$(mod_ext) $(mod_dir)puredat_com$(mod_ext) \
+                                $(f_src_dir)pd_dump_leaf$(f90_ext)
 	@echo "***** Compiling " pd_dump_leaf$(f90_ext) " *****"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)pd_dump_leaf$(f90_ext) -o $@
 	@echo 

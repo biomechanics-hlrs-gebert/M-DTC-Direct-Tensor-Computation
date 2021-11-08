@@ -278,7 +278,7 @@ contains
        Write(pd_umon,*)"Program halted                   !!!!"
        Write(pd_umon,*)"!-!-!-!-!-!-!-!-!_!-!-!-!-!-!-!-!-!-!"
        Stop
-       
+
     End if
 
   End Subroutine get_pd_root
@@ -301,7 +301,7 @@ End Module puredat_com
 !>
 Module puredat
 
-USE global_std
+USE auxiliaries
 USE puredat_types
 USE puredat_com
 USE mpi
@@ -311,9 +311,6 @@ Implicit None
   !============================================================================
   !== Private routines
   Private alloc_error
-  Private file_err
-  Private char_to_str
-  Private str_to_char
   Private copy_leaves_to_streams
   
   !============================================================================
@@ -576,12 +573,10 @@ Contains
     branchl%no_leaves   =  branchr%no_leaves
 
     If (allocated(branchr%streams) .AND. allocated(branchl%streams)) then
-       Write(pd_umon,*)"In Subroutine Assign_branches"
-       Write(pd_umon,*)"Component streams is allocated for both left and"
-       Write(pd_umon,*)"right hand side branches"
-       write(pd_umon,*)"This usecase is not supported at the moment"
-       Write(pd_umon,*)"PROGRAM STOPPED !!"
-       stop
+      mssg = "In Subroutine Assign_branches Component streams is allocated for both left and&
+       &right hand side branches. This usecase is not supported at the moment"
+
+      CALL handle_err(pd_umon, mssg, 1)
     End If
 
     If (allocated(branchr%streams)) then
@@ -1967,10 +1962,8 @@ Contains
          associated(streams%char_st ) .OR. &
          associated(streams%log_st  )       ) then
 
-       Write(pd_umon,PDF_E_A)"In homogenize_branch : "
-       Write(pd_umon,PDF_E_A)"One or more of the stream pointers are allready allocated"
-       Write(pd_umon,PDF_E_STOP)
-       STOP
+      mssg = "In homogenize_branch: One or more of the stream pointers are allready allocated."
+      CALL handle_err(pd_umon, mssg, 1)
 
     End If
 
@@ -3296,10 +3289,9 @@ Contains
           success = .TRUE.
           call read_branch_ws(un_head,tree,success)
        Else
-!          call read_branch(un_head,tree)
-          write(pd_umon,PDF_E_A)"call read_branch(un_head,tree) is not implemented"
-          write(pd_umon,PDF_E_STOP)
-          stop
+!         call read_branch(un_head,tree)
+         CALL handle_err(pd_umon, "Call read_branch(un_head,tree) is not implemented.", 1)
+
        End if
 
        Close(un_head)
@@ -3881,17 +3873,10 @@ Contains
 
     end Do
 
-    If (.NOT. desc_found) then
-       Write(pd_umon,'(A)')"Something bad and unexpected happend during load of &
-            &leaf data"
-       Write(pd_umon,'(A)')trim(desc)
-       Write(pd_umon,'(A)')"In puredat subroutine pd_load_leaf_1&
-            &(streams,branch,desc,values)"
-       Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-       stop
-    End If
-
+   IF (.NOT. desc_found) THEN
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_load_leaf_1«."
+      CALL handle_err(pd_umon, mssg, 1)
+   END IF 
   End Subroutine pd_load_leaf_1
 
   !============================================================================
@@ -3930,17 +3915,10 @@ Contains
 
     end Do
 
-    If (.NOT. desc_found) then
-       Write(pd_umon,'(A)')"Something bad and unexpected happend during load of &
-            &leaf data"
-       Write(pd_umon,'(A)')trim(desc)
-       Write(pd_umon,'(A)')"In puredat subroutine pd_load_leaf_2&
-            &(streams,branch,desc,values)"
-       Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-       stop
-    End If
-
+   IF (.NOT. desc_found) THEN
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_load_leaf_2«."
+      CALL handle_err(pd_umon, mssg, 1)
+   END IF 
   End Subroutine pd_load_leaf_2
 
   !============================================================================
@@ -3979,17 +3957,10 @@ Contains
 
     end Do
 
-    If (.NOT. desc_found) then
-       Write(pd_umon,'(A)')"Something bad and unexpected happend during load of &
-            &leaf data"
-       Write(pd_umon,'(A)')trim(desc)
-       Write(pd_umon,'(A)')"In puredat subroutine pd_load_leaf_3&
-            &(streams,branch,desc,values)"
-       Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-       stop
-    End If
-
+   IF (.NOT. desc_found) THEN
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_load_leaf_3«."
+      CALL handle_err(pd_umon, mssg, 1)
+   END IF 
   End Subroutine pd_load_leaf_3
 
   !============================================================================
@@ -4028,17 +3999,10 @@ Contains
 
     end Do
 
-    If (.NOT. desc_found) then
-       Write(pd_umon,'(A)')"Something bad and unexpected happend during load of &
-            &leaf data"
-       Write(pd_umon,'(A)')trim(desc)
-       Write(pd_umon,'(A)')"In puredat subroutine pd_load_leaf_4&
-            &(streams,branch,desc,values)"
-       Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-       stop
-    End If
-
+   IF (.NOT. desc_found) THEN
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_load_leaf_4«."
+      CALL handle_err(pd_umon, mssg, 1)
+   END IF 
   End Subroutine pd_load_leaf_4
 
   !============================================================================
@@ -4077,17 +4041,10 @@ Contains
 
     end Do
 
-    If (.NOT. desc_found) then
-       Write(pd_umon,'(A)')"Something bad and unexpected happend during load of &
-            &leaf data"
-       Write(pd_umon,'(A)')trim(desc)
-       Write(pd_umon,'(A)')"In puredat subroutine pd_load_leaf_5&
-            &(streams,branch,desc,values)"
-       Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-       stop
-    End If
-
+   IF (.NOT. desc_found) THEN
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_load_leaf_5«."
+      CALL handle_err(pd_umon, mssg, 1)
+   END IF 
   End Subroutine pd_load_leaf_5
 
   !============================================================================
@@ -4126,17 +4083,10 @@ Contains
 
     end Do
 
-    If (.NOT. desc_found) then
-       Write(pd_umon,'(A)')"Something bad and unexpected happend during load of &
-            &leaf data"
-       Write(pd_umon,'(A)')trim(desc)
-       Write(pd_umon,'(A)')"In puredat subroutine pd_load_leaf_6&
-            &(streams,branch,desc,values)"
-       Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-       stop
-    End If
-
+   IF (.NOT. desc_found) THEN
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_load_leaf_6«."
+      CALL handle_err(pd_umon, mssg, 1)
+   END IF 
   End Subroutine pd_load_leaf_6
 
   !============================================================================
@@ -4178,15 +4128,9 @@ Contains
              read(streams%units(4),pos=(branch%leaves(ii)%lbound-1)*8+1 )&
                   values
           Else
-             Write(pd_umon,'(A)')"Something bad and unexpected happend during load of &
-                  &leaf data"
-             Write(pd_umon,'(A)')trim(desc)
-             Write(pd_umon,'(A)')"In puredat subroutine pd_load_leaf_4_2D&
-                  &(streams,branch,desc,values,factor)"
-             Write(pd_umon,'(A)')"The specified specified factor didn't lead to even"
-             Write(pd_umon,'(A)')"integer division" 
-             Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-             stop
+            mssg='Load of leaf '//TRIM(desc)//' in '//TRIM(branch%desc)//" by »subroutine pd_load_leaf_4_2D«. &
+            &The specified specified factor didn't lead to even integer division"
+            CALL handle_err(pd_umon, mssg, 1)
           End if
 
           desc_found = .TRUE.
@@ -4195,17 +4139,10 @@ Contains
 
     end Do
 
-    If (.NOT. desc_found) then
-       Write(pd_umon,'(A)')"Something bad and unexpected happend during load of &
-            &leaf data"
-       Write(pd_umon,'(A)')trim(desc)
-       Write(pd_umon,'(A)')"In puredat subroutine pd_load_leaf_4_2D&
-            &(streams,branch,desc,values,factor)"
-       Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-       stop
-    End If
-
+   IF (.NOT. desc_found) THEN
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_load_leaf_4_2D«."
+      CALL handle_err(pd_umon, mssg, 1)
+   END IF 
   End Subroutine pd_load_leaf_4_2D
 
   !============================================================================
@@ -4246,15 +4183,9 @@ Contains
              read(streams%units(5),pos=(branch%leaves(ii)%lbound-1)*8+1 )&
                   values
           Else
-             Write(pd_umon,'(A)')"Something bad and unexpected happend during load of &
-                  &leaf data"
-             Write(pd_umon,'(A)')trim(desc)
-             Write(pd_umon,'(A)')"In puredat subroutine pd_load_leaf_5_2D&
-                  &(streams,branch,desc,values,factor)"
-             Write(pd_umon,'(A)')"The specified specified factor didn't lead to even"
-             Write(pd_umon,'(A)')"integer division" 
-             Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-             stop
+            mssg='Load of leaf '//TRIM(desc)//' in '//TRIM(branch%desc)//" by »subroutine pd_load_leaf_5_2D«. &
+            &The specified specified factor didn't lead to even integer division"
+            CALL handle_err(pd_umon, mssg, 1)
           End if
 
           desc_found = .TRUE.
@@ -4263,17 +4194,10 @@ Contains
 
     end Do
 
-    If (.NOT. desc_found) then
-       Write(pd_umon,'(A)')"Something bad and unexpected happend during load of &
-            &leaf data"
-       Write(pd_umon,'(A)')trim(desc)
-       Write(pd_umon,'(A)')"In puredat subroutine pd_load_leaf_5_2D&
-            &(streams,branch,desc,values,factor)"
-       Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-       stop
-    End If
-
+   IF (.NOT. desc_found) THEN
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_load_leaf_5_2D«."
+      CALL handle_err(pd_umon, mssg, 1)
+   END IF 
   End Subroutine pd_load_leaf_5_2D
 
   !============================================================================
@@ -4402,8 +4326,7 @@ Contains
 
     un_head = pd_give_new_unit()
 
-    Open(unit=un_head, file=Trim(pro_path)//Trim(pro_name)//'.head', status='replace', &
-         action='write')
+    Open(UNIT=un_head, FILE=TRIM(pro_path)//TRIM(pro_name)//'.head', STATUS='REPLACE', ACTION='WRITE')
 
     Call write_branch(tree,un_head)
 
@@ -4510,15 +4433,10 @@ Contains
 
     end Do
 
-    If (.NOT. desc_found) then
-       Write(pd_umon,'(A)')"Something bad and unexpected happend during storage of data to leaf"
-       Write(pd_umon,'(A)')trim(desc)
-       Write(pd_umon,'(A)')"In puredat subroutine pd_store_1(streams,branch,desc,values)"
-       Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-       stop
-    End If
-
+   IF (.NOT. desc_found) THEN
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_store_1«."
+      CALL handle_err(pd_umon, mssg, 1)
+   END IF 
   End Subroutine pd_store_1
 
   !============================================================================
@@ -4566,15 +4484,10 @@ Contains
 
     end Do
 
-    If (.NOT. desc_found) then
-       Write(pd_umon,'(A)')"Something bad and unexpected happend during storage of data to leaf"
-       Write(pd_umon,'(A)')trim(desc)
-       Write(pd_umon,'(A)')"In puredat subroutine pd_store_2(streams,branch,desc,values)"
-       Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-       stop
-    End If
-
+   IF (.NOT. desc_found) THEN
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_store_2«."
+      CALL handle_err(pd_umon, mssg, 1)
+   END IF 
   End Subroutine pd_store_2
 
   !============================================================================
@@ -4622,15 +4535,10 @@ Contains
 
     end Do
 
-    If (.NOT. desc_found) then
-       Write(pd_umon,'(A)')"Something bad and unexpected happend during storage of data to leaf"
-       Write(pd_umon,'(A)')trim(desc)
-       Write(pd_umon,'(A)')"In puredat subroutine pd_store_3(streams,branch,desc,values)"
-       Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-       stop
-    End If
-
+   IF (.NOT. desc_found) THEN
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_store_3«."
+      CALL handle_err(pd_umon, mssg, 1)
+   END IF 
   End Subroutine pd_store_3
 
   !============================================================================
@@ -4678,15 +4586,10 @@ Contains
 
     end Do
 
-    If (.NOT. desc_found) then
-       Write(pd_umon,'(A)')"Something bad and unexpected happend during storage of data to leaf"
-       Write(pd_umon,'(A)')trim(desc)
-       Write(pd_umon,'(A)')"In puredat subroutine pd_store_4(streams,branch,desc,values)"
-       Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-       stop
-    End If
-
+   IF (.NOT. desc_found) THEN
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_store_4«."
+      CALL handle_err(pd_umon, mssg, 1)
+   END IF 
   End Subroutine pd_store_4
 
   !============================================================================
@@ -4739,15 +4642,10 @@ Contains
 
     end Do
 
-    If (.NOT. desc_found) then
-       Write(pd_umon,'(A)')"Something bad and unexpected happend during storage of data to leaf"
-       Write(pd_umon,'(A)')trim(desc)
-       Write(pd_umon,'(A)')"In puredat subroutine pd_store_4_2D(streams,branch,desc,values)"
-       Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-       stop
-    End If
-
+   IF (.NOT. desc_found) THEN
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_store_4_2D«."
+      CALL handle_err(pd_umon, mssg, 1)
+   END IF 
   End Subroutine pd_store_4_2D
 
   !============================================================================
@@ -4795,15 +4693,10 @@ Contains
 
     end Do
 
-    If (.NOT. desc_found) then
-       Write(pd_umon,'(A)')"Something bad and unexpected happend during storage of data to leaf"
-       Write(pd_umon,'(A)')trim(desc)
-       Write(pd_umon,'(A)')"In puredat subroutine pd_store_5(streams,branch,desc,values)"
-       Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch with desc"
-       Write(pd_umon,'(A)')trim(branch%desc)
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-       stop
-    End If
+   IF (.NOT. desc_found) THEN
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_store_5«."
+      CALL handle_err(pd_umon, mssg, 1)
+   END IF 
 
   End Subroutine pd_store_5
 
@@ -4857,14 +4750,10 @@ Contains
 
     end Do
 
-    If (.NOT. desc_found) then
-       Write(pd_umon,'(A)')"Something bad and unexpected happend during storage of data to leaf"
-       Write(pd_umon,'(A)')trim(desc)
-       Write(pd_umon,'(A)')"In puredat subroutine pd_store_5_2D(streams,branch,desc,values)"
-       Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-       stop
-    End If
+    IF (.NOT. desc_found) THEN
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_store_5_2D«."
+      CALL handle_err(pd_umon, mssg, 1)
+    END IF 
 
   End Subroutine pd_store_5_2D
 
@@ -4915,14 +4804,10 @@ Contains
 
     end Do
 
-    If (.NOT. desc_found) then
-       Write(pd_umon,'(A)')"Something bad and unexpected happend during storage of data to leaf"
-       Write(pd_umon,'(A)')trim(desc)
-       Write(pd_umon,'(A)')"In puredat subroutine pd_store_6(streams,branch,desc,values)"
-       Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-       stop
-    End If
+    IF (.NOT. desc_found) THEN
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_store_6«."
+      CALL handle_err(pd_umon, mssg, 1)
+    END IF 
 
   End Subroutine pd_store_6
 
@@ -4973,14 +4858,10 @@ Contains
 
     end Do
 
-    If (.NOT. desc_found) then
-       Write(pd_umon,'(A)')"Something bad and unexpected happend during storage of data to leaf"
-       Write(pd_umon,'(A)')trim(desc)
-       Write(pd_umon,'(A)')"In puredat subroutine pd_store_6_str(streams,branch,desc,values)"
-       Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-       stop
-    End If
+    IF (.NOT. desc_found) THEN
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_store_6_str«."
+      CALL handle_err(pd_umon, mssg, 1)
+    END IF 
 
   End Subroutine pd_store_6_str
 
@@ -6061,11 +5942,9 @@ Contains
        
     End If
 
-    If (wrn .AND. (.NOT.success)) then
-       write(*,PDF_W_A)"Branch with descr"
-       write(*,PDF_W_A)trim(descr)
-       write(*,PDF_W_A)"was not found in branch with descr"
-       write(*,PDF_W_A)trim(branch%desc)
+    IF (wrn .AND. (.NOT.success)) then
+      mssg = 'The branch with description: '//TRIM(descr)//' was not found in branch '//TRIM(branch%desc)
+      CALL handle_err(pd_umon, mssg, -1)
     End If
     
   End Subroutine Search_branch_wrn
@@ -6192,25 +6071,16 @@ Contains
 
        Branch_Cycle : Do ii = 1, branch%no_branches
           call get_branch_with_num_rec(descr, branch%branches(ii), num, out_branch, count, success)
-          if (success) exit
+          IF (success) EXIT
        End Do Branch_Cycle
 
     Else
 
-       If ( trim(descr) /= trim(branch%desc) ) then
-
-          WRITE(pd_umon,*)
-          WRITE(pd_umon,PDF_SEP)
-          WRITE(pd_umon,PDF_E_A)   'An error occured in routine : get_branch_with_num_rec'
-          WRITE(pd_umon,PDF_E_AI0) 'The branch with number      : ',num
-          WRITE(pd_umon,PDF_E_A)   'has description :'
-          WRITE(pd_umon,PDF_E_A)   trim(branch%desc)
-          WRITE(pd_umon,PDF_E_A)   'but it was searched for description :'
-          WRITE(pd_umon,PDF_E_A)   descr
-          WRITE(pd_umon,PDF_E_STOP)
-          STOP
-
-       end If
+      If ( TRIM(descr) /= TRIM(branch%desc) ) then
+         WRITE(mssg, '(A,I15,4A)') 'The branch with number: ',num, ' has description ', TRIM(branch%desc), &
+            'but it was searched for description: ', TRIM(descr)
+         CALL handle_err(pd_umon, mssg, 1)
+      end If
 
        success = .TRUE.
        out_branch => branch
@@ -6393,20 +6263,14 @@ Contains
           End Do Branch_Cycle
        End if
 
-    Else
+   Else
 
-       WRITE(pd_umon,*)
-       WRITE(pd_umon,PDF_SEP)
-       WRITE(pd_umon,PDF_E_A)   'An error occured in routine : get_branch_with_num_rec'
-       WRITE(pd_umon,PDF_E_AI0) 'The element with number     : ',num
-       WRITE(pd_umon,PDF_E_A)   'was found but is a branch with description :'
-       WRITE(pd_umon,PDF_E_A)   trim(tree%desc)
-       WRITE(pd_umon,PDF_E_A)   'To get a tBranch structure by number please use the'
-       WRITE(pd_umon,PDF_E_A)   'PureDat subroutine get_branch_with_num.'
-       WRITE(pd_umon,PDF_E_STOP)
-       STOP
+   WRITE(mssg, '(A,I15, 4A)') "»get_branch_with_num_rec«: Element number ", num, &
+   " is a branch with description ", TRIM(tree%desc), &
+   " To get a tBranch structure by number please use the PureDat »subroutine get_branch_with_num«."
+   CALL handle_err(pd_umon, mssg, 1)
 
-    end If
+   end If
     
   End Subroutine get_leaf_with_num_rec
 
@@ -6681,26 +6545,19 @@ Contains
                
                Select Case (leaf%dat_ty)
                   
-               Case (1)
-                  Write(un_lf, "(I16,' ')", ADVANCE='NO')leaf%p_int1(ii)
-               Case (2)
-                  Write(un_lf, "(I16,' ')", ADVANCE='NO')leaf%p_int2(ii)
-               Case (3)
-                  Write(un_lf, "(I16,' ')", ADVANCE='NO')leaf%p_int4(ii)
-               Case (4)
-                  Write(un_lf, "(I16,' ')", ADVANCE='NO')leaf%p_int8(ii)
-               Case (5)
-                  Write(un_lf, "(E16.6,' ')", ADVANCE='NO')leaf%p_real8(ii)
-               Case (6)
+               CASE (1); WRITE(un_lf, "(I16  ,' ')", ADVANCE='NO')leaf%p_int1(ii)
+               CASE (2); WRITE(un_lf, "(I16  ,' ')", ADVANCE='NO')leaf%p_int2(ii)
+               CASE (3); WRITE(un_lf, "(I16  ,' ')", ADVANCE='NO')leaf%p_int4(ii)
+               CASE (4); WRITE(un_lf, "(I16  ,' ')", ADVANCE='NO')leaf%p_int8(ii)
+               CASE (5); WRITE(un_lf, "(E16.6,' ')", ADVANCE='NO')leaf%p_real8(ii)
+               CASE (6)
                   if (Ichar(leaf%p_char(ii)) /= 10) then
-                     Write(un_lf, "(A1)", ADVANCE='NO')leaf%p_char(ii)
+                     WRITE(un_lf, "(A1)", ADVANCE='NO') leaf%p_char(ii)
                   Else
-                     Write(un_lf, "(A1)", ADVANCE='NO')'_'
+                     WRITE(un_lf, "(A1)", ADVANCE='NO') '_'
                   End if
-               Case (7)
-                  Write(un_lf, "(L1,' ')", ADVANCE='NO')leaf%p_log(ii)
-                  
-               End Select
+               CASE (7); WRITE(un_lf, "(L1,' ')", ADVANCE='NO')leaf%p_log(ii)
+               END SELECT
                
                If ( mod(pos,10) == 0) then
                   Write(un_lf, "('|')")
@@ -6708,7 +6565,6 @@ Contains
                   pos = 0
                End If
                pos = pos + 1
-               
             End Do
             
             Do ii = 1, 10-mod(leaf%dat_no,10_pd_ik)
@@ -6727,22 +6583,14 @@ Contains
                pos = 1
                Do ii = 1, leaf%dat_no
                   
-                  Select Case (leaf%dat_ty)
-                     
-                  Case (1)
-                     Write(un_lf, "(I16,' ')", ADVANCE='NO')leaf%p_int1(ii)
-                  Case (2)
-                     Write(un_lf, "(I16,' ')", ADVANCE='NO')leaf%p_int2(ii)
-                  Case (3)
-                     Write(un_lf, "(I16,' ')", ADVANCE='NO')leaf%p_int4(ii)
-                  Case (4)
-                     Write(un_lf, "(I16,' ')", ADVANCE='NO')leaf%p_int8(ii)
-                  Case (5)
-                     Write(un_lf, "(E16.6,' ')", ADVANCE='NO')leaf%p_real8(ii)
-                  Case (7)
-                     Write(un_lf, "(L16,' ')", ADVANCE='NO')leaf%p_log(ii)
-                     
-                  End Select
+                  SELECT CASE (leaf%dat_ty)
+                     CASE (1); WRITE(un_lf, "(I16  ,' ')", ADVANCE='NO')leaf%p_int1(ii)
+                     CASE (2); WRITE(un_lf, "(I16  ,' ')", ADVANCE='NO')leaf%p_int2(ii)
+                     CASE (3); WRITE(un_lf, "(I16  ,' ')", ADVANCE='NO')leaf%p_int4(ii)
+                     CASE (4); WRITE(un_lf, "(I16  ,' ')", ADVANCE='NO')leaf%p_int8(ii)
+                     CASE (5); WRITE(un_lf, "(E16.6,' ')", ADVANCE='NO')leaf%p_real8(ii)
+                     CASE (7); WRITE(un_lf, "(L16  ,' ')", ADVANCE='NO')leaf%p_log(ii)
+                  END SELECT
                   
                   If ( mod(pos,10) == 0) then
                      Write(un_lf, "('|')")
@@ -6811,16 +6659,11 @@ Contains
             Do ii = 1, 9
                Select Case (leaf%dat_ty)
                   
-               Case (1)
-                  Write(un_lf, "(I16,' ')", ADVANCE='NO')leaf%p_int1(ii)
-               Case (2)
-                  Write(un_lf, "(I16,' ')", ADVANCE='NO')leaf%p_int2(ii)
-               Case (3)
-                  Write(un_lf, "(I16,' ')", ADVANCE='NO')leaf%p_int4(ii)
-               Case (4)
-                  Write(un_lf, "(I16,' ')", ADVANCE='NO')leaf%p_int8(ii)
-               Case (5)
-                  Write(un_lf, "(E16.6,' ')", ADVANCE='NO')leaf%p_real8(ii)
+               CASE (1); WRITE(un_lf, "(I16  ,' ')", ADVANCE='NO')leaf%p_int1(ii)
+               CASE (2); WRITE(un_lf, "(I16  ,' ')", ADVANCE='NO')leaf%p_int2(ii)
+               CASE (3); WRITE(un_lf, "(I16  ,' ')", ADVANCE='NO')leaf%p_int4(ii)
+               CASE (4); WRITE(un_lf, "(I16  ,' ')", ADVANCE='NO')leaf%p_int8(ii)
+               CASE (5); WRITE(un_lf, "(E16.6,' ')", ADVANCE='NO')leaf%p_real8(ii)
                Case (6)
                   if (Ichar(leaf%p_char(ii)) /= 10) then
                      Write(un_lf, "(A1)", ADVANCE='NO')leaf%p_char(ii)
@@ -6840,16 +6683,11 @@ Contains
             Do ii = ( leaf%dat_no-1)/2-3, ( leaf%dat_no-1)/2+4
                Select Case (leaf%dat_ty)
                   
-               Case (1)
-                  Write(un_lf, "(I16,' ')", ADVANCE='NO')leaf%p_int1(ii)
-               Case (2)
-                  Write(un_lf, "(I16,' ')", ADVANCE='NO')leaf%p_int2(ii)
-               Case (3)
-                  Write(un_lf, "(I16,' ')", ADVANCE='NO')leaf%p_int4(ii)
-               Case (4)
-                  Write(un_lf, "(I16,' ')", ADVANCE='NO')leaf%p_int8(ii)
-               Case (5)
-                  Write(un_lf, "(E16.6,' ')", ADVANCE='NO')leaf%p_real8(ii)
+               CASE (1); WRITE(un_lf, "(I16  ,' ')", ADVANCE='NO')leaf%p_int1(ii)
+               CASE (2); WRITE(un_lf, "(I16  ,' ')", ADVANCE='NO')leaf%p_int2(ii)
+               CASE (3); WRITE(un_lf, "(I16  ,' ')", ADVANCE='NO')leaf%p_int4(ii)
+               CASE (4); WRITE(un_lf, "(I16  ,' ')", ADVANCE='NO')leaf%p_int8(ii)
+               CASE (5); WRITE(un_lf, "(E16.6,' ')", ADVANCE='NO')leaf%p_real8(ii)
                Case (6)
                   if (Ichar(leaf%p_char(ii)) /= 10) then
                      Write(un_lf, "(A1)", ADVANCE='NO')leaf%p_char(ii)
@@ -6869,16 +6707,11 @@ Contains
             Do ii = leaf%dat_no - 8,  leaf%dat_no
                Select Case (leaf%dat_ty)
                   
-               Case (1)
-                  Write(un_lf, "(I16,' ')", ADVANCE='NO')leaf%p_int1(ii)
-               Case (2)
-                  Write(un_lf, "(I16,' ')", ADVANCE='NO')leaf%p_int2(ii)
-               Case (3)
-                  Write(un_lf, "(I16,' ')", ADVANCE='NO')leaf%p_int4(ii)
-               Case (4)
-                  Write(un_lf, "(I16,' ')", ADVANCE='NO')leaf%p_int8(ii)
-               Case (5)
-                  Write(un_lf, "(E16.6,' ')", ADVANCE='NO')leaf%p_real8(ii)
+               CASE (1); WRITE(un_lf, "(I16  ,' ')", ADVANCE='NO')leaf%p_int1(ii)
+               CASE (2); WRITE(un_lf, "(I16  ,' ')", ADVANCE='NO')leaf%p_int2(ii)
+               CASE (3); WRITE(un_lf, "(I16  ,' ')", ADVANCE='NO')leaf%p_int4(ii)
+               CASE (4); WRITE(un_lf, "(I16  ,' ')", ADVANCE='NO')leaf%p_int8(ii)
+               CASE (5); WRITE(un_lf, "(E16.6,' ')", ADVANCE='NO')leaf%p_real8(ii)
                Case (6)
                   if (Ichar(leaf%p_char(ii)) /= 10) then
                      Write(un_lf, "(A1)", ADVANCE='NO')leaf%p_char(ii)
@@ -6914,37 +6747,26 @@ Contains
    
   !============================================================================
   !> Function which returns new free unit
-  function pd_give_new_unit() result(new_unit)
+  FUNCTION pd_give_new_unit() result(new_unit)
 
-    Integer :: new_unit
+    INTEGER :: new_unit
+    INTEGER :: ii
+    LOGICAL :: unit_is_open
 
-    Integer :: ii
+    DO ii = 3000, HUGE(new_unit)-1
 
-    Logical :: unit_is_open
+       INQUIRE(unit=ii, opened=unit_is_open)
 
-    Do ii = 3000, huge(new_unit)-1
-
-       inquire(unit=ii, opened=unit_is_open)
-
-       if( .not.unit_is_open ) then
+       IF( .NOT. unit_is_open ) THEN
           new_unit = ii
           Exit
-       end if
+       END IF
 
-    End Do
+    END DO
 
-    if ( unit_is_open ) then
-
-       WRITE(pd_umon,*)
-       WRITE(pd_umon,*)'Something bad and unexpected happened during search ',&
-            'for free unit'
-       WRITE(pd_umon,*)'Could not find a new unit between 3000 and huge(Int(kind=4))'
-       WRITE(pd_umon,*)' '
-       WRITE(pd_umon,*)'PROGRAM STOPPED'
-       STOP
-    END IF
-
-  End function pd_give_new_unit
+    IF (unit_is_open)  CALL handle_err(pd_umon, 'No new unit found with function »pd_give_new_unit«.', 1)
+    
+  End FUNCTION pd_give_new_unit
 
   !============================================================================
   !> Subroutine for I/O error handling while operating on files
@@ -6954,30 +6776,15 @@ Contains
     CHARACTER (LEN=*)          , Intent(in)   :: in_file
     CHARACTER (LEN=*), optional, Intent(in)   :: called, routine
 
-    IF (io_stat /= 0) Then
-    
-       WRITE(pd_umon,*)
-       WRITE(pd_umon,"(80('='))")
-       WRITE(pd_umon,"('EE ',A,T77,' EE')")   'Operation on file: '       
-       WRITE(pd_umon,"('EE ',A          )")   in_file
-       WRITE(pd_umon,"('EE ',A,T77,' EE')",Advance="NO") 'faild'
+    IF (io_stat /= 0) THEN
 
-       If (present(called)) then
-          Write(pd_umon,"('EE ',A,T77,' EE')")'during call to'
-          Write(pd_umon,"('EE ',A,T77,' EE')")called
-       Else
-          Write(pd_umon,*)
-          Write(pd_umon,"('EE ',A,T77,' EE')")'!!'
-       End If
-       If (present(routine)) then
-          Write(pd_umon,"('EE ',A,T77,' EE')")'in '
-          Write(pd_umon,"('EE ',A,T77,' EE')")routine
-       End If
+      mssg = "Operation on file »"//TRIM(in_file)//"« failed"
+
+      IF (present(called))  mssg = TRIM(mssg)//" during call to "//TRIM(called)
+      IF (present(routine)) mssg = TRIM(mssg)//" in routine: "//TRIM(routine)//"."
        
-       WRITE(pd_umon,"('EE ',A,I0,T77,' EE')")'With I/O Status ',io_stat
-       WRITE(pd_umon,"('EE PROGRAM STOPPED ..... ',T77,' EE',/,'<',77('='),'>')")
-       STOP
-       
+      CALL handle_err(pd_umon, mssg, io_stat)
+
     End IF
 
   END SUBROUTINE file_err
@@ -6991,9 +6798,10 @@ Contains
    Integer(kind=pd_ik), Intent(in) ,optional :: dim
 
    IF (alloc_stat /= 0) Then
-      WRITE(mssg, '(3A,I2,3A)') "Allocation of the field/structure ", field, &
+      WRITE(mssg, '(3A,I2,3A)') "Allocation of the field/ structure ", field, &
       " of dimension ", dim," in routine ", TRIM(routine), " failed."
-      CALL handle_err(pd_umon, mssg, io_stat)
+      
+      CALL handle_err(pd_umon, mssg, alloc_stat)
    End IF
 
   End Subroutine alloc_error
@@ -7008,7 +6816,7 @@ Contains
    IF (alloc_stat /= 0) Then
       WRITE(mssg, '(5A)') "Dellocation of the field/structure ", field, &
       " in routine ", TRIM(routine), " failed."
-      CALL handle_err(pd_umon, mssg, io_stat)
+      CALL handle_err(pd_umon, mssg, alloc_stat)
    End IF
 
   End Subroutine dealloc_error
