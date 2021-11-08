@@ -1,12 +1,33 @@
-Restart properly
 meta/raw --> meta/.int4.st
-Seperated master process?
 Macro Hex20
 understand Tensor to FE matrix
 recap stiffnessmatrix of Diss RS
-Error messages
 how is the grid spacing determined?
-init stdot
+highlight error messages
+init format specifiers Write warnings?
 
 Layout meta in like meta out :-)
 puredat file error
+
+
+
+
+
+        RS - Rechenrraum für 29.11.2021
+
+        RS - Derived types auf puredat
+        RS - Restart - Was genau war hier das Ziel
+        RS - Restart - Was genau macht die activity list? --> Welche Werte bedeuten was?
+        RS - Restart - Macht ein einfaches löschen der bisherigen Daten nicht mehr Sinn? Klar ist Rechenzeit, aber viele Datensätze haben wir nicht
+        RS - Init Stdout
+        RS - Braucht ein PureDat ein eigenes Error handling?!
+        RS - Separated Master Process ?! Passt kaum zu den Knoten 
+
+        RS - Warum C-Interoperabilität statt INQUIRE und execute command line für mkdir und stat_dir?        
+        RS - Bearbeitete Daten auf dem Quobyte
+
+        RS - WCCM - Paper 3D Graph
+            - Ist ok?
+            - Guckt er mit drauf?
+            - Andere Konferenz?
+            - Ggf. Ablauf und Kosten?
