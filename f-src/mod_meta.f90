@@ -28,10 +28,10 @@ IMPLICIT NONE
   Interface meta_read
 
      Module Procedure meta_read_C 
-   !   Module Procedure meta_read_I0D 
-   !   Module Procedure meta_read_I1D2
-   !   Module Procedure meta_read_I1D3 
-     Module Procedure meta_read_R
+     Module Procedure meta_read_I0D 
+     Module Procedure meta_read_I1D
+     Module Procedure meta_read_R0D
+     Module Procedure meta_read_R1D
 
   End Interface meta_read
 
@@ -485,7 +485,7 @@ DO ii=SIZE(m_in), 1_ik, -1_ik
       IF (tokens(2) .EQ. TRIM(keyword)) THEN
          kywd_found = 1
 
-         READ(tokens(3  ), ifmt)   int_0D 
+         READ(tokens(3), ifmt) int_0D 
          
          !------------------------------------------------------------------------------
          ! Exit the loop after parsing the first occurance as its the last 
@@ -551,9 +551,8 @@ END DO
 IF (kywd_found .EQ. 0_ik)  CALL keyword_error(fh, keyword)
 END SUBROUTINE meta_read_R0D
 
-
 !------------------------------------------------------------------------------
-! SUBROUTINE: meta_read_I1D2
+! SUBROUTINE: meta_read_I1D
 !---------------------------------------------------------------------------  
 !> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
 !
@@ -567,14 +566,14 @@ END SUBROUTINE meta_read_R0D
 !> @param[in] fh File handle to write a log/mon or text to.
 !> @param[in] keyword Data to read from the meta files
 !> @param[in] m_in Array of lines of ascii meta file
-!> @param[in] int_1D2    Optional datatype to read in
+!> @param[in] int_1D    Optional datatype to read in
 !---------------------------------------------------------------------------
-SUBROUTINE meta_read_I1D2 (fh, keyword, m_in, int_1D2)
+SUBROUTINE meta_read_I1D (fh, keyword, m_in, int_1D)
 
 INTEGER  (KIND=ik)              , INTENT(IN)  :: fh 
 CHARACTER(LEN=*)                , INTENT(IN)  :: keyword
 CHARACTER(LEN=mcl), DIMENSION(:), INTENT(IN)  :: m_in      
-INTEGER  (KIND=ik), DIMENSION(2), INTENT(OUT) :: int_1D2 
+INTEGER  (KIND=ik), DIMENSION(:), INTENT(OUT) :: int_1D 
 
 ! Internal variables
 CHARACTER(LEN=mcl)   :: tokens(30), line
@@ -594,121 +593,18 @@ DO ii=SIZE(m_in), 1_ik, -1_ik
 
       IF (tokens(2) .EQ. TRIM(keyword)) THEN
          kywd_found = 1
-         READ(tokens(3:4), ifmt) int_1D2
+         READ(tokens(3:2+SIZE(int_1D)), ifmt) int_1D
          EXIT
       END IF
    END IF
 END DO
 
 IF (kywd_found .EQ. 0_ik)  CALL keyword_error(fh, keyword)
-END SUBROUTINE meta_read_I1D2
+END SUBROUTINE meta_read_I1D
 
 
 !------------------------------------------------------------------------------
-! SUBROUTINE: meta_read_R1D2
-!---------------------------------------------------------------------------  
-!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
-!
-!> @brief
-!> Module to parse keywords. 
-!
-!> @Description
-!> Module to parse information of keywords. 
-!> An arbitrary Keyword with up to »kcl« characters may be specified.
-! 
-!> @param[in] fh File handle to write a log/mon or text to.
-!> @param[in] keyword Data to read from the meta files
-!> @param[in] m_in Array of lines of ascii meta file
-!> @param[in] real_1D2    Optional datatype to read in
-!---------------------------------------------------------------------------
-SUBROUTINE meta_read_R1D2 (fh, keyword, m_in, real_1D2)
-
-INTEGER  (KIND=ik)              , INTENT(IN)  :: fh 
-CHARACTER(LEN=*)                , INTENT(IN)  :: keyword
-CHARACTER(LEN=mcl), DIMENSION(:), INTENT(IN)  :: m_in      
-REAL     (KIND=rk), DIMENSION(2), INTENT(OUT) :: real_1D2 
-
-! Internal variables
-CHARACTER(LEN=mcl)   :: tokens(30), line
-INTEGER  (KIND=ik)   :: ntokens, ii
-INTEGER  (KIND=ik)   :: kywd_found
-
-kywd_found = 0
-
-CALL check_keyword(fh, keyword)
-
-DO ii=SIZE(m_in), 1_ik, -1_ik 
-   line = m_in(ii)
-
-   IF (line(1:1) .EQ. '*') THEN ! it's a keyword
-
-      CALL parse(str=line, delims=' ', args=tokens, nargs=ntokens)
-
-      IF (tokens(2) .EQ. TRIM(keyword)) THEN
-         kywd_found = 1
-         READ(tokens(3:4), rfmt) real_1D2 
-         EXIT
-      END IF
-   END IF
-END DO
-
-IF (kywd_found .EQ. 0_ik)  CALL keyword_error(fh, keyword)
-END SUBROUTINE meta_read_R1D2
-
-!------------------------------------------------------------------------------
-! SUBROUTINE: meta_read_I1D3
-!---------------------------------------------------------------------------  
-!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
-!
-!> @brief
-!> Module to parse keywords. 
-!
-!> @Description
-!> Module to parse information of keywords. 
-!> An arbitrary Keyword with up to »kcl« characters may be specified.
-! 
-!> @param[in] fh File handle to write a log/mon or text to.
-!> @param[in] keyword Data to read from the meta files
-!> @param[in] m_in Array of lines of ascii meta file
-!> @param[in] int_1D2    Optional datatype to read in
-!---------------------------------------------------------------------------
-SUBROUTINE meta_read_I1D3 (fh, keyword, m_in, int_1D3)
-
-INTEGER  (KIND=ik)              , INTENT(IN)  :: fh 
-CHARACTER(LEN=*)                , INTENT(IN)  :: keyword
-CHARACTER(LEN=mcl), DIMENSION(:), INTENT(IN)  :: m_in      
-INTEGER  (KIND=ik), DIMENSION(3), INTENT(OUT) :: int_1D3 
-
-! Internal variables
-CHARACTER(LEN=mcl)   :: tokens(30), line
-INTEGER  (KIND=ik)   :: ntokens, ii
-INTEGER  (KIND=ik)   :: kywd_found
-
-kywd_found = 0
-
-CALL check_keyword(fh, keyword)
-
-DO ii=SIZE(m_in), 1_ik, -1_ik 
-   line = m_in(ii)
-
-   IF (line(1:1) .EQ. '*') THEN ! it's a keyword
-
-      CALL parse(str=line, delims=' ', args=tokens, nargs=ntokens)
-
-      IF (tokens(2) .EQ. TRIM(keyword)) THEN
-         kywd_found = 1
-         READ(tokens(3:5), ifmt) int_1D3
-         EXIT
-      END IF
-   END IF
-END DO
-
-IF (kywd_found .EQ. 0_ik)  CALL keyword_error(fh, keyword)
-END SUBROUTINE meta_read_I1D3
-
-
-!------------------------------------------------------------------------------
-! SUBROUTINE: meta_read_R
+! SUBROUTINE: meta_read_R1D
 !---------------------------------------------------------------------------  
 !> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
 !
@@ -724,7 +620,7 @@ END SUBROUTINE meta_read_I1D3
 !> @param[in] m_in Array of lines of ascii meta file
 !> @param[in] real_1D    Optional datatype to read in
 !---------------------------------------------------------------------------
-SUBROUTINE meta_read_R (fh, keyword, m_in, real_1D)
+SUBROUTINE meta_read_R1D (fh, keyword, m_in, real_1D)
 
 INTEGER  (KIND=ik)              , INTENT(IN)  :: fh 
 CHARACTER(LEN=*)                , INTENT(IN)  :: keyword
@@ -749,14 +645,14 @@ DO ii=SIZE(m_in), 1_ik, -1_ik
 
       IF (tokens(2) .EQ. TRIM(keyword)) THEN
          kywd_found = 1
-         READ(tokens(3:3+SIZE(real_1D)), rfmt) real_1D
+         READ(tokens(3:2+SIZE(real_1D)), rfmt) real_1D
          EXIT
       END IF
    END IF
 END DO
 
 IF (kywd_found .EQ. 0_ik)  CALL keyword_error(fh, keyword)
-END SUBROUTINE meta_read_R
+END SUBROUTINE meta_read_R1D
 
 
 
