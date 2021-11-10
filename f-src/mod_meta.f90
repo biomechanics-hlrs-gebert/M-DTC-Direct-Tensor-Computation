@@ -36,11 +36,11 @@ CONTAINS
 !---------------------------------------------------------------------------  
 SUBROUTINE meta_handle_lock_file(restart)
 
-CHARACTER         , INTENT(IN)          :: restart
+CHARACTER, INTENT(IN) :: restart
 
-LOGICAL                                 :: exist=.FALSE.
-INTEGER  (KIND=ik)                      :: ios
-CHARACTER(LEN=mcl)                      :: lockname
+LOGICAL               :: exist=.FALSE.
+INTEGER  (KIND=ik)    :: ios
+CHARACTER(LEN=mcl)    :: lockname
 
 !------------------------------------------------------------------------------
 ! Automatically aborts if there is no input file found on the drive
@@ -80,10 +80,10 @@ SUBROUTINE meta_append(meta_as_rry)
 CHARACTER(LEN=mcl), DIMENSION(:), INTENT(INOUT), ALLOCATABLE :: meta_as_rry      
 
 ! Internal Variables
-CHARACTER(LEN=mcl)                                           :: line
-INTEGER  (KIND=ik)                                           :: ios, lines, ii
-CHARACTER(LEN=mcl)                                           :: tokens(30)
-INTEGER  (KIND=ik)                                           :: ntokens
+CHARACTER(LEN=mcl) :: line
+INTEGER  (KIND=ik) :: ios, lines, ii
+CHARACTER(LEN=mcl) :: tokens(30)
+INTEGER  (KIND=ik) :: ntokens
 
 !------------------------------------------------------------------------------
 ! Automatically aborts if there is no input file found on the drive
@@ -238,14 +238,14 @@ END SUBROUTINE meta_append
 !---------------------------------------------------------------------------  
 SUBROUTINE meta_add_ascii(fh, suf, st, restart)
 
-INTEGER  (KIND=ik)              , INTENT(IN)              :: fh
-CHARACTER(LEN=*)                , INTENT(IN)              :: suf
-CHARACTER(LEN=*)                , INTENT(IN)              :: st
-CHARACTER                       , INTENT(IN)   , OPTIONAL :: restart
+INTEGER  (KIND=ik), INTENT(IN)            :: fh
+CHARACTER(LEN=*)  , INTENT(IN)            :: suf
+CHARACTER(LEN=*)  , INTENT(IN)            :: st
+CHARACTER         , INTENT(IN) , OPTIONAL :: restart
 
-CHARACTER(LEN=mcl)                                        :: temp_f_suf, perm_f_suf
-INTEGER  (KIND=ik)                                        :: ios, stat_t, stat_p
-CHARACTER                                                 :: restart_u='N'
+CHARACTER(LEN=mcl) :: temp_f_suf, perm_f_suf
+INTEGER  (KIND=ik) :: ios, stat_t, stat_p
+CHARACTER          :: restart_u='N'
 
 
 ! The temporaray file is a hidden one.
@@ -383,13 +383,13 @@ INTEGER  (KIND=ik),               INTENT(INOUT), OPTIONAL :: stat
 LOGICAL           ,               INTENT(IN)   , OPTIONAL :: nd 
 
 ! Internal variables
-CHARACTER(LEN=kcl)                                        :: kywd_lngth
-CHARACTER(LEN=ucl)                                        :: unit_lngth
-CHARACTER(LEN=mcl)                                        :: tokens(30), line
-INTEGER  (KIND=ik)                                        :: ntokens, datatype, ii, do_loop_counter
-INTEGER  (KIND=ik)                                        :: cntr, kywd_found, maxchars
-INTEGER  (KIND=ik)                                        :: unit_post_fill, kwabrt_u
-LOGICAL                                                   :: ndu
+CHARACTER(LEN=kcl)   :: kywd_lngth
+CHARACTER(LEN=ucl)   :: unit_lngth
+CHARACTER(LEN=mcl)   :: tokens(30), line
+INTEGER  (KIND=ik)   :: ntokens, datatype, ii, do_loop_counter
+INTEGER  (KIND=ik)   :: cntr, kywd_found, maxchars
+INTEGER  (KIND=ik)   :: unit_post_fill, kwabrt_u
+LOGICAL              :: ndu
 
 !------------------------------------------------------------------------------
 ! Initialize variables

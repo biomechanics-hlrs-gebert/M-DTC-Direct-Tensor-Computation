@@ -10,10 +10,11 @@ Layout meta in like meta out :-)
 puredat file error
 
 
-
+Polymorphism of routines
 
 
         RS - Rechenrraum für 29.11.2021
+            1030 Abt Leiter --> RS also eher Mittags
 
         RS - Derived types auf puredat
         RS - Restart - Was genau war hier das Ziel
@@ -22,9 +23,13 @@ puredat file error
         RS - Init Stdout
         RS - Braucht ein PureDat ein eigenes Error handling?!
         RS - Separated Master Process ?! Passt kaum zu den Knoten 
+            
 
         RS - Warum C-Interoperabilität statt INQUIRE und execute command line für mkdir und stat_dir?        
+            directories 
+
         RS - Bearbeitete Daten auf dem Quobyte
+            Müsste jetzt zu lesen sein
 
         RS - WCCM - Paper 3D Graph
             - Ist ok?

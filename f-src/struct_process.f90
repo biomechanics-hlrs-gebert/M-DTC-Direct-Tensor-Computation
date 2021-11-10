@@ -989,14 +989,14 @@ Program main_struct_process
 
       in%full = TRIM(infile)
     
-   mssg = "This is an extraordinary long text to check out how my new subroutine might behave. &
-   & "//TRIM(infile)//"&
-   & The goal is to demonstrate the limit of five hundred twelve characters while computing the proper &
-   &line breaks for a nice look onto all the error "//TRIM(infile)//" messages and warnings the struct-process might print &
-   &to the command line or to a file."
-   write(*,*) mssg
-   CALL handle_err (std_out, mssg,-1)
-   CALL handle_err (std_out, mssg, 1)
+   ! mssg = "This is an extraordinary long text to check out how my new subroutine might behave. &
+   ! & "//TRIM(infile)//"&
+   ! & The goal is to demonstrate the limit of five hundred twelve characters while computing the proper &
+   ! &line breaks for a nice look onto all the error "//TRIM(infile)//" messages and warnings the struct-process might print &
+   ! &to the command line or to a file."
+   ! write(*,*) mssg
+   ! CALL handle_err (std_out, mssg,-1)
+   ! CALL handle_err (std_out, mssg, 1)
       !------------------------------------------------------------------------------
       ! Check and open the input file; Modify the Meta-Filename / Basename
       ! Define the new application name first
@@ -1058,19 +1058,19 @@ Program main_struct_process
       ! CALL meta_add_ascii(fh=fhr, suf=res_suf, st='start', restart=restart)
 
 
-      CALL meta_io (fhmon,   'MICRO_ELMNT_TYPE' , ''     ,           chars = elt_micro  )
-      CALL meta_io (fhmon,   'DBG_LVL'          , ''     ,           chars = out_amount )
-      CALL meta_io (fhmon,   'OUT_FMT'          , ''     ,           chars = output     )
-      CALL meta_io (fhmon,   'RESTART'          , ''     ,           chars = restart    )
-      CALL meta_io (fhmon,   'SIZE_DOMAIN'      , '(mm)' ,        real_1D3 = bone%pdsize)
-      CALL meta_io (fhmon,   'LO_BNDS_DMN_RANGE', '(-)'  ,         int_1D3 = xa_d       )
-      CALL meta_io (fhmon,   'UP_BNDS_DMN_RANGE', '(-)'  ,         int_1D3 = xe_d       )
-      CALL meta_io (fhmon,   'BINARIZE_LO'      , '(-)'  ,         int_0D  = llimit     )
-      CALL meta_io (fhmon,   'MESH_PER_SUB_DMN' , '(-)'  ,         int_0D  = parts      )
-      CALL meta_io (fhmon,   'RVE_STRAIN'       , '(mm)' ,        real_0D  = strain     )
-      CALL meta_io (fhmon,   'YOUNG_MODULUS'    , '(MPa)',        real_0D  = bone%E     )
-      CALL meta_io (fhmon,   'POISSON_RATIO'    , '(-)'  ,        real_0D  = bone%nu    )
-      CALL meta_io (fhmon,   'MACRO_ELMNT_ORDER', '(-)'  ,         int_0D  = elo_macro  )
+      CALL meta_io (fhmeo,   'MICRO_ELMNT_TYPE' , ''     ,           chars = elt_micro  )
+      CALL meta_io (fhmeo,   'DBG_LVL'          , ''     ,           chars = out_amount )
+      CALL meta_io (fhmeo,   'OUT_FMT'          , ''     ,           chars = output     )
+      CALL meta_io (fhmeo,   'RESTART'          , ''     ,           chars = restart    )
+      CALL meta_io (fhmeo,   'SIZE_DOMAIN'      , '(mm)' ,        real_1D3 = bone%pdsize)
+      CALL meta_io (fhmeo,   'LO_BNDS_DMN_RANGE', '(-)'  ,         int_1D3 = xa_d       )
+      CALL meta_io (fhmeo,   'UP_BNDS_DMN_RANGE', '(-)'  ,         int_1D3 = xe_d       )
+      CALL meta_io (fhmeo,   'BINARIZE_LO'      , '(-)'  ,         int_0D  = llimit     )
+      CALL meta_io (fhmeo,   'MESH_PER_SUB_DMN' , '(-)'  ,         int_0D  = parts      )
+      CALL meta_io (fhmeo,   'RVE_STRAIN'       , '(mm)' ,        real_0D  = strain     )
+      CALL meta_io (fhmeo,   'YOUNG_MODULUS'    , '(MPa)',        real_0D  = bone%E     )
+      CALL meta_io (fhmeo,   'POISSON_RATIO'    , '(-)'  ,        real_0D  = bone%nu    )
+      CALL meta_io (fhmeo,   'MACRO_ELMNT_ORDER', '(-)'  ,         int_0D  = elo_macro  )
 
       ! Warning / Error handling
       IF ( (bone%pdsize(1) /= bone%pdsize(2)) .OR. (bone%pdsize(1) /= bone%pdsize(3)) ) THEN
@@ -1630,7 +1630,8 @@ Program main_struct_process
       Call End_Timer("Write Root Branch")
          
       Call MPI_WAITANY(size_mpi-1_mpi_ik, req_list, finished, status_mpi, ierr)
-      CALL handle_err(std_out, "MPI_WAITANY on req_list for IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
+      CALL handle_err(std_out, &
+      "MPI_WAITANY on req_list for IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
 
       ii = finished
 
@@ -1700,7 +1701,8 @@ Program main_struct_process
             0_pd_rk, Int(1,pd_mpi_ik), MPI_Real8, status_mpi, ierr)
 
          Call MPI_WAITALL(size_mpi-1_mpi_ik, req_list, statuses_mpi, ierr)
-         CALL handle_err(std_out, "MPI_WAITANY on req_list for IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
+         CALL handle_err(std_out, &
+         "MPI_WAITANY on req_list for IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
 
 
       !** TODO refactor domain_cross reference from size size_mpi-1 to *********
@@ -1742,12 +1744,14 @@ Program main_struct_process
 
          CALL execute_command_line("mkdir -p "//TRIM(outpath),CMDSTAT=stat)
 
-         IF(stat /= 0) CALL handle_err(std_out, 'Could not execute syscall »mkdir -p '//trim(outpath)//'«.', 1)
+         IF(stat /= 0) CALL handle_err(std_out, &
+         'Could not execute syscall »mkdir -p '//trim(outpath)//'«.', 1)
 
          CALL Stat_Dir(c_char_array, stat_c_int)
 
-         IF(stat_c_int /= 0) CALL handle_err(std_out,'Could not create the output directory »'//TRIM(outpath)//'«.', 1)
-
+         IF(stat_c_int /= 0) THEN
+            CALL handle_err(std_out,'Could not create the output directory »'//TRIM(outpath)//'«.', 1)
+         END IF
       ELSE 
          WRITE(un_mon, FMT_MSG_A) "Reusing the output directory "//TRIM(outpath)
       END IF
