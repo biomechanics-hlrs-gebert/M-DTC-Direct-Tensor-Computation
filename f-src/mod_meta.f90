@@ -22,6 +22,21 @@ USE strings
 
 IMPLICIT NONE
 
+  !> Interface: meta_write
+  !> \author Johannes Gebert
+  !> \date 10.11.2021
+  Interface meta_write
+
+     Module Procedure meta_write_C 
+     Module Procedure meta_write_I0D 
+     Module Procedure meta_write_R0D 
+     Module Procedure meta_write_I1D2
+     Module Procedure meta_write_R1D2
+     Module Procedure meta_write_I1D3 
+     Module Procedure meta_write_R1D3
+
+  End Interface meta_write
+
 CONTAINS
 
 !------------------------------------------------------------------------------
@@ -325,7 +340,7 @@ END SUBROUTINE meta_add_ascii
 
 
 !------------------------------------------------------------------------------
-! SUBROUTINE: meta_io
+! SUBROUTINE: read_meta
 !---------------------------------------------------------------------------  
 !> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
 !
@@ -358,7 +373,7 @@ END SUBROUTINE meta_add_ascii
 !> @param[in] kwabrt Default -> .TRUE.; do abort
 !> @param[in] nd Suppress the time and date of the output
 !---------------------------------------------------------------------------
-SUBROUTINE meta_io (fh, keyword, unit, m_in, chars, &
+SUBROUTINE read_meta (fh, keyword, unit, m_in, chars, &
                                               int_0D,  &
                                              real_0D,  & 
                                               int_1D2, & 
@@ -521,51 +536,111 @@ IF (PRESENT(m_in) .EQV. .TRUE.) THEN
       stat = 1
    END IF
 END IF
+END SUBROUTINE read_meta
 
 
 !------------------------------------------------------------------------------
-! Write meta output
-!------------------------------------------------------------------------------
-IF (PRESENT(m_in) .EQV. .FALSE.) THEN
+! SUBROUTINE: meta_write_C
+!---------------------------------------------------------------------------  
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Module to write keywords with character output. 
+!
+!> @param[in] fh File handle to write a log/mon or text to.
+!> @param[in] keyword Data to read from the meta files
+!> @param[in] chars    Datatype to write
+!> @param[in] kwabrt Default -> .TRUE.; do abort
+!---------------------------------------------------------------------------
 
-   maxchars = stdspc
+SUBROUTINE meta_write_C (fh, keyword, chars, kwabrt)
+   
+INTEGER  (KIND=ik), INTENT(IN)              :: fh 
+CHARACTER(LEN=*)  , INTENT(IN)              :: keyword
+CHARACTER(LEN=*)  , INTENT(IN)              :: chars 
+INTEGER  (KIND=ik), INTENT(IN)   , OPTIONAL :: kwabrt
 
-   WRITE(fh, '(2A)', ADVANCE='NO') "* ", kywd_lngth
+! Internal variables
+CHARACTER(LEN=kcl)   :: kywd_lngth
+CHARACTER(LEN=ucl)   :: unit_lngth
+INTEGER  (KIND=ik)   :: maxchars
+INTEGER  (KIND=ik)   :: unit_post_fill, kwabrt_u
 
-   ! Build format specifier and write the output
-   SELECT CASE( datatype )
-      CASE(1); WRITE(fh, "(30(' '),   I15   )", ADVANCE='NO')  int_0D
-      CASE(2); WRITE(fh, "(30(' '),   F15.7 )", ADVANCE='NO') real_0D
-      CASE(3); WRITE(fh, "(15(' '), 2(I15)  )", ADVANCE='NO')  int_1D2
-      CASE(4); WRITE(fh, "(15(' '), 2(F15.7))", ADVANCE='NO') real_1D2
-      CASE(5); WRITE(fh, "(         3(I15)  )", ADVANCE='NO')  int_1D3
-      CASE(6); WRITE(fh, "(         3(F15.7))", ADVANCE='NO') real_1D3
-      CASE(7)
-         ! The width is adjusted to 3x 20 chars (3 dimensions with 15 places each).
-         ! above 60 chars, the width is essentially overflowing.
-         IF (LEN_TRIM(ADJUSTL(chars)) .GT. stdspc) maxchars = LEN_TRIM(ADJUSTL(chars))+1 
-         WRITE(fh, "(2A)", ADVANCE='NO') REPEAT(' ', maxchars-LEN_TRIM(ADJUSTL(chars))), TRIM(ADJUSTL(chars))
-   END SELECT
+maxchars = stdspc
+
+IF(PRESENT(kwabrt)) kwabrt_u = kwabrt
+
+WRITE(fh, '(2A)', ADVANCE='NO') "* ", kywd_lngth
+
+! The width is adjusted to 3x 20 chars (3 dimensions with 15 places each).
+! above 60 chars, the width is essentially overflowing.
+IF (LEN_TRIM(ADJUSTL(chars)) .GT. stdspc) maxchars = LEN_TRIM(ADJUSTL(chars))+1 
+WRITE(fh, "(2A)", ADVANCE='NO') REPEAT(' ', maxchars-LEN_TRIM(ADJUSTL(chars))), TRIM(ADJUSTL(chars))
 
 
-   IF ((PRESENT(unit)) .AND. (datatype /= 7)) THEN
-      WRITE(fh, '(A)', ADVANCE='NO') ' '
-      WRITE(fh, '(A)', ADVANCE='NO') unit_lngth
-   ELSE
-      IF (((maxchars-stdspc .GT. 0) .AND. (maxchars-stdspc .LE. ucl)) .OR. (maxchars == stdspc)) THEN
-         WRITE(fh, '(A)', ADVANCE='NO') REPEAT(' ', LEN(unit_lngth)+1-(maxchars-stdspc))
-      END IF
-   END IF
-     
-   IF ((ndu .EQV. .FALSE.) .AND. (maxchars-stdspc-ucl .LT. 0)) THEN
-      CALL date_time(fh, da=.TRUE., ti=.TRUE., zo=.TRUE.)
-   ELSE
-      WRITE(fh, '(A)') '' ! In this case, a linebreak is required
+IF ((PRESENT(unit)) .AND. (datatype /= 7)) THEN
+   WRITE(fh, '(A)', ADVANCE='NO') ' '
+   WRITE(fh, '(A)', ADVANCE='NO') unit_lngth
+ELSE
+   IF (((maxchars-stdspc .GT. 0) .AND. (maxchars-stdspc .LE. ucl)) .OR. (maxchars == stdspc)) THEN
+      WRITE(fh, '(A)', ADVANCE='NO') REPEAT(' ', LEN(unit_lngth)+1-(maxchars-stdspc))
    END IF
 END IF
 
-END SUBROUTINE meta_io
+CALL date_time(fh, da=.TRUE., ti=.TRUE., zo=.TRUE.)
 
+END SUBROUTINE meta_write_C
+
+!------------------------------------------------------------------------------
+! SUBROUTINE: meta_write_I0D
+!---------------------------------------------------------------------------  
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Module to write keywords of type integer kind 1. 
+!
+!> @param[in] fh File handle to write a log/mon or text to.
+!> @param[in] keyword Data to read from the meta files
+!> @param[in] unit Unit of the value in case a text output is requested.
+!> @param[in] int__0D  Optional datatype to read in
+!> @param[in] kwabrt Default -> .TRUE.; do abort
+!---------------------------------------------------------------------------
+
+SUBROUTINE meta_write_I0D (fh, keyword, unit, int_0D, kwabrt)
+   
+INTEGER  (KIND=ik), INTENT(IN)              :: fh 
+CHARACTER(LEN=*)  , INTENT(IN)              :: keyword
+CHARACTER(LEN=*)  , INTENT(IN)   , OPTIONAL :: unit
+INTEGER  (KIND=ik), INTENT(IN)              :: int_0D 
+INTEGER  (KIND=ik), INTENT(IN)   , OPTIONAL :: kwabrt
+
+! Internal variables
+CHARACTER(LEN=kcl)   :: kywd_lngth
+CHARACTER(LEN=ucl)   :: unit_lngth
+INTEGER  (KIND=ik)   :: maxchars
+INTEGER  (KIND=ik)   :: unit_post_fill, kwabrt_u
+
+IF(PRESENT(kwabrt)) kwabrt_u = kwabrt
+
+maxchars = stdspc
+
+
+WRITE(fh, '(2A)', ADVANCE='NO') "* ", kywd_lngth
+
+WRITE(fh, "(30(' '),I15)", ADVANCE='NO')  int_0D
+
+IF ((PRESENT(unit)) THEN
+   WRITE(fh, '(A)', ADVANCE='NO') ' '
+   WRITE(fh, '(A)', ADVANCE='NO') unit_lngth
+ELSE
+   IF (((maxchars-stdspc .GT. 0) .AND. (maxchars-stdspc .LE. ucl)) .OR. (maxchars == stdspc)) THEN
+      WRITE(fh, '(A)', ADVANCE='NO') REPEAT(' ', LEN(unit_lngth)+1-(maxchars-stdspc))
+   END IF
+END IF
+   
+CALL date_time(fh, da=.TRUE., ti=.TRUE., zo=.TRUE.)
+
+END SUBROUTINE meta_write_I0D
 
 !------------------------------------------------------------------------------
 ! SUBROUTINE: meta_close
