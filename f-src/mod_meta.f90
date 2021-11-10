@@ -22,18 +22,31 @@ USE strings
 
 IMPLICIT NONE
 
+  !> Interface: meta_read
+  !> \author Johannes Gebert
+  !> \date 10.11.2021
+  Interface meta_read
+
+     Module Procedure meta_read_C 
+   !   Module Procedure meta_read_I0D 
+   !   Module Procedure meta_read_I1D2
+   !   Module Procedure meta_read_I1D3 
+     Module Procedure meta_read_R
+
+  End Interface meta_read
+
   !> Interface: meta_write
   !> \author Johannes Gebert
   !> \date 10.11.2021
   Interface meta_write
 
      Module Procedure meta_write_C 
-     Module Procedure meta_write_I0D 
-     Module Procedure meta_write_R0D 
-     Module Procedure meta_write_I1D2
-     Module Procedure meta_write_R1D2
-     Module Procedure meta_write_I1D3 
-     Module Procedure meta_write_R1D3
+   !   Module Procedure meta_write_I0D 
+   !   Module Procedure meta_write_R0D 
+   !   Module Procedure meta_write_I1D2
+   !   Module Procedure meta_write_R1D2
+   !   Module Procedure meta_write_I1D3 
+   !   Module Procedure meta_write_R1D3
 
   End Interface meta_write
 
@@ -174,10 +187,10 @@ END IF
 ! The variable »alter« must be given and must be true, 
 ! because its a dangerous operation which may lead to data loss.
 !------------------------------------------------------------------------------
-CALL meta_io (fhmon, 'NEW_BSNM_FEATURE', '', meta_as_rry, chars= out%features, kwabrt=0, stat=ios)
+CALL meta_read (fhmon, 'NEW_BSNM_FEATURE', meta_as_rry, out%features)
 IF((ios ==1)) out%features = in%features           ! if ios = 1 --> no keyword found
 
-CALL meta_io (fhmon, 'NEW_BSNM_PURPOSE', '', meta_as_rry, chars= out%purpose  , kwabrt=0, stat=ios)
+CALL meta_read (fhmon, 'NEW_BSNM_PURPOSE', meta_as_rry, out%purpose)
 IF((ios ==1)) out%purpose = in%purpose             ! if ios = 1 --> no keyword found
 
 
@@ -338,94 +351,28 @@ END IF
 END SUBROUTINE meta_add_ascii
 
 
-
 !------------------------------------------------------------------------------
-! SUBROUTINE: read_meta
-!---------------------------------------------------------------------------  
+! SUBROUTINE: check_keyword
+!------------------------------------------------------------------------------  
 !> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
 !
 !> @brief
-!> Module to parse keywords. 
+!> Routine to truncate a keyword which was too long. Could do other stuff 
+!> as well.
 !
-!> @Description
-!> Module to parse and to write information in context of a keyword. 
-!> An arbitrary Keyword with up to »kcl« characters may be specified.
-!> The presence of m_in determines whether to read or write.
-!> Depending on the datatype given, the routine reads and writes with the
-!> appropriate type. The variable data types are not given as INTEN(INOUT)
-!> since unspecified - and therefore allocated - variables in context of
-!> the call lead to an error. 
-!> Please ensure, the datatype and the content of a meta input file match.
-!> The routine will not check against it and the program may crash.
-!> 
-!> @param[in] fh File handle to write a log/mon or text to.
-!> @param[in] keyword Data to read from the meta files
-!> @param[in] unit Unit of the value in case a text output is requested.
-!> @param[in] m_in Array of lines of ascii meta file
-!> @param[in] chars    Optional datatype to read in
-!> @param[in] int__0D  Optional datatype to read in
-!> @param[in] real_0D  Optional datatype to read in
-!> @param[in] int__1D2 Optional datatype to read in
-!> @param[in] real_1D2 Optional datatype to read in
-!> @param[in] int__1D3 Optional datatype to read in
-!> @param[in] real_1D3 Optional datatype to read in
-!> @param[in] stat Status
-!> @param[in] kwabrt Default -> .TRUE.; do abort
-!> @param[in] nd Suppress the time and date of the output
-!---------------------------------------------------------------------------
-SUBROUTINE read_meta (fh, keyword, unit, m_in, chars, &
-                                              int_0D,  &
-                                             real_0D,  & 
-                                              int_1D2, & 
-                                             real_1D2, & 
-                                              int_1D3, & 
-                                             real_1D3, &
-                                             kwabrt, stat, nd)
-   
-INTEGER  (KIND=ik)              , INTENT(IN)              :: fh 
-CHARACTER(LEN=*)                                          :: keyword
-CHARACTER(LEN=*)                               , OPTIONAL :: unit
-CHARACTER(LEN=mcl), DIMENSION(:), INTENT(INOUT), OPTIONAL :: m_in      
-CHARACTER(LEN=*)                               , OPTIONAL :: chars 
-INTEGER  (KIND=ik)                             , OPTIONAL ::  int_0D 
-REAL     (KIND=rk)                             , OPTIONAL :: real_0D 
-INTEGER  (KIND=ik), DIMENSION(2)               , OPTIONAL ::  int_1D2
-REAL     (KIND=rk), DIMENSION(2)               , OPTIONAL :: real_1D2
-INTEGER  (KIND=ik), DIMENSION(3)               , OPTIONAL ::  int_1D3 
-REAL     (KIND=rk), DIMENSION(3)               , OPTIONAL :: real_1D3
-INTEGER  (KIND=ik),               INTENT(IN)   , OPTIONAL :: kwabrt
-INTEGER  (KIND=ik),               INTENT(INOUT), OPTIONAL :: stat
-LOGICAL           ,               INTENT(IN)   , OPTIONAL :: nd 
+!> @param[in] fh File handle 
+!> @param[in] keyword Keyword to check
+!------------------------------------------------------------------------------  
+SUBROUTINE check_keyword(fh, keyword)
 
-! Internal variables
-CHARACTER(LEN=kcl)   :: kywd_lngth
-CHARACTER(LEN=ucl)   :: unit_lngth
-CHARACTER(LEN=mcl)   :: tokens(30), line
-INTEGER  (KIND=ik)   :: ntokens, datatype, ii, do_loop_counter
-INTEGER  (KIND=ik)   :: cntr, kywd_found, maxchars
-INTEGER  (KIND=ik)   :: unit_post_fill, kwabrt_u
-LOGICAL              :: ndu
+INTEGER  (KIND=ik) :: fh 
+CHARACTER(LEN=*)   :: keyword
+CHARACTER(LEN=kcl) :: kywd_lngth
 
-!------------------------------------------------------------------------------
-! Initialize variables
-! Should be defined from new each time the program enters the routine. 
-! Otherwise some errors may occur.
-!------------------------------------------------------------------------------
-cntr           = 0
-kywd_found     = 0
-kwabrt_u = 1
-ndu      = .FALSE.
-
-IF(PRESENT(kwabrt)) kwabrt_u = kwabrt
-IF(PRESENT(stat))   stat     = 0
-IF(PRESENT(nd))     ndu      = nd
-
-!------------------------------------------------------------------------------
-! Check unit keyword for convention and proper formatting
-!------------------------------------------------------------------------------
 IF(LEN_TRIM(keyword) .GT. LEN(kywd_lngth)) THEN
    WRITE(fh, '(A)') ''
-   mssg = "The keyword »"//TRIM(keyword)//"« is longer than the convention allows and therefore truncated!"
+   mssg = "The keyword »"//TRIM(keyword)//"« is longer than the &
+   &convention allows and therefore truncated!"
    CALL handle_err(fh, TRIM(ADJUSTL(mssg)), 0)
 
    kywd_lngth = keyword(1:LEN(kywd_lngth))
@@ -433,110 +380,451 @@ ELSE
    kywd_lngth = keyword
 END IF
 
-!------------------------------------------------------------------------------
-! Write unit if it is given.
-!------------------------------------------------------------------------------
-IF (PRESENT(unit)) THEN
-   ! Check unit length for convention and proper formatting
-   IF(LEN_TRIM(unit) .GT. LEN(unit_lngth)) THEN
-      mssg = "The unit "//TRIM(unit)//" is longer than the convention allows and therefore truncated!"
-      CALL handle_err(fh, TRIM(ADJUSTL(mssg)), 0)
-      unit_lngth = unit(1:LEN(unit_lngth))
-   ELSE
-      unit_lngth = unit
-
-      ! Length MUST match Charater declaration of the length of the variable. Otherwise the calculation and the formatting are corrupted.
-      unit_post_fill = 10 - LEN_TRIM(unit)
-   END IF
-END IF
-
-IF(PRESENT(int_0D )) THEN
-   datatype = 1 
-   cntr = cntr +1_ik
-END IF
-IF(PRESENT(real_0D )) THEN
-   datatype = 2 
-   cntr = cntr +1_ik
-END IF
-IF(PRESENT(int_1D2)) THEN
-   datatype = 3 
-   cntr = cntr +1_ik
-END IF
-IF(PRESENT(real_1D2)) THEN
-   datatype = 4 
-   cntr = cntr +1_ik
-END IF
-IF(PRESENT(int_1D3)) THEN
-   datatype = 5 
-   cntr = cntr +1_ik
-END IF
-IF(PRESENT(real_1D3)) THEN
-   datatype = 6 
-   cntr = cntr +1_ik
-END IF
-IF(PRESENT(chars)) THEN
-   datatype = 7
-   cntr = cntr +1_ik
-END IF
+END SUBROUTINE check_keyword
 
 !------------------------------------------------------------------------------
-! Check amount of given datatypes 
-!------------------------------------------------------------------------------
-mssg=''
-IF (cntr .LT. 1_ik) mssg = "The datatype of keyword »"//TRIM(keyword)//"« was not defined!"
-IF (cntr .GT. 1_ik) mssg = "Too many datatypes for keyword »"//TRIM(keyword)//"« were defined!"
-IF (mssg .NE. '') CALL handle_err(fh, TRIM(ADJUSTL(mssg)), 1)
+! SUBROUTINE: check_unit
+!------------------------------------------------------------------------------  
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Routine to truncate a keyword which was too long. Could do other stuff 
+!> as well.
+!
+!> @param[in] fh File handle 
+!> @param[in] keyword Keyword to check
+!------------------------------------------------------------------------------  
+SUBROUTINE check_unit(fh, unit)
+
+INTEGER  (KIND=ik) :: fh 
+CHARACTER(LEN=*)   :: unit
+CHARACTER(LEN=ucl) :: unit_lngth
+
+! Check unit length for convention and proper formatting
+IF(LEN_TRIM(unit) .GT. LEN(unit_lngth)) THEN
+   mssg = "The unit "//TRIM(unit)//" is longer than the convention allows and therefore truncated!"
+   CALL handle_err(fh, TRIM(ADJUSTL(mssg)), 0)
+   unit_lngth = unit(1:LEN(unit_lngth))
+ELSE
+   unit_lngth = unit
+END IF
+
+END SUBROUTINE check_unit
+
 
 !------------------------------------------------------------------------------
-! Read meta input
+! SUBROUTINE: keyword_error
+!------------------------------------------------------------------------------  
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Wrapper of handle_err
+!
+!> @param[in] fh File handle 
+!> @param[in] keyword Keyword 
+!------------------------------------------------------------------------------  
+SUBROUTINE keyword_error(fh, keyword)
+
+INTEGER  (KIND=ik) :: fh 
+CHARACTER(LEN=*)   :: keyword
+
+   mssg = "The keyword »"//TRIM(ADJUSTL(keyword))//"« was not found in the meta file!"
+   CALL handle_err(fh, TRIM(ADJUSTL(mssg)), 1)
+
+END SUBROUTINE keyword_error
+
+
 !------------------------------------------------------------------------------
-IF (PRESENT(m_in) .EQV. .TRUE.) THEN
+! SUBROUTINE: meta_read_I0D
+!---------------------------------------------------------------------------  
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Module to parse keywords. 
+!
+!> @Description
+!> Module to parse information of keywords. 
+!> An arbitrary Keyword with up to »kcl« characters may be specified.
+! 
+!> @param[in] fh File handle to write a log/mon or text to.
+!> @param[in] keyword Data to read from the meta files
+!> @param[in] m_in Array of lines of ascii meta file
+!> @param[in] chars    Optional datatype to read in
+!---------------------------------------------------------------------------
+SUBROUTINE meta_read_I0D (fh, keyword, m_in, int_0D)
+     
+INTEGER  (KIND=ik)              , INTENT(IN)  :: fh 
+CHARACTER(LEN=*)                , INTENT(IN)  :: keyword
+CHARACTER(LEN=mcl), DIMENSION(:), INTENT(IN)  :: m_in      
+INTEGER  (KIND=ik)              , INTENT(OUT) :: int_0D 
 
-   IF(.NOT. PRESENT(m_in) ) THEN
-      mssg = 'No array of lines to parse keyword »'//TRIM(keyword)//'« given. Check subroutine »read_write_meta«.' 
-      CALL handle_err(fh, TRIM(ADJUSTL(mssg)), 1)
-   ELSE
-      do_loop_counter = SIZE(m_in)
-   END IF
+! Internal variables
+CHARACTER(LEN=mcl)   :: tokens(30), line
+INTEGER  (KIND=ik)   :: ntokens, ii
+INTEGER  (KIND=ik)   :: kywd_found
 
-   !------------------------------------------------------------------------------
-   ! Parse Data out of the input array
-   !------------------------------------------------------------------------------
-   lineloop: DO ii=SIZE(m_in), 1_ik, -1_ik 
-      line = m_in(ii)
-   
-      IF (line(1:1) .EQ. '*') THEN ! it's a keyword
+!------------------------------------------------------------------------------
+! Initialize variables
+! Should be defined from new each time the program enters the routine. 
+! Otherwise some errors may occur.
+!------------------------------------------------------------------------------
+kywd_found     = 0
 
-         CALL parse(str=line, delims=' ', args=tokens, nargs=ntokens)
+CALL check_keyword(fh, keyword)
 
-         IF (tokens(2) .EQ. TRIM(keyword)) THEN
-            kywd_found = 1
+!------------------------------------------------------------------------------
+! Parse Data out of the input array
+!------------------------------------------------------------------------------
+DO ii=SIZE(m_in), 1_ik, -1_ik 
+   line = m_in(ii)
 
-            SELECT CASE( datatype )
-               CASE(1); READ(tokens(3  ), ifmt)   int_0D 
-               CASE(2); READ(tokens(3  ), rfmt)  real_0D 
-               CASE(3); READ(tokens(3:4), ifmt)   int_1D2
-               CASE(4); READ(tokens(3:4), rfmt)  real_1D2
-               CASE(5); READ(tokens(3:5), ifmt)   int_1D3
-               CASE(6); READ(tokens(3:5), rfmt)  real_1D3
-               CASE(7); chars = TRIM(ADJUSTL(tokens(3))) !(stdspc-LEN_TRIM(tokens(3)) : stdspc)
-            END SELECT
-            
-            ! Exit the loop after parsing the first occurance as its the last mentioning of the keyword. (File is read beginning from the last line)
-            EXIT ! NOT CYCLE!!
-         END IF
+   IF (line(1:1) .EQ. '*') THEN ! it's a keyword
+
+      CALL parse(str=line, delims=' ', args=tokens, nargs=ntokens)
+
+      IF (tokens(2) .EQ. TRIM(keyword)) THEN
+         kywd_found = 1
+
+         READ(tokens(3  ), ifmt)   int_0D 
+         
+         !------------------------------------------------------------------------------
+         ! Exit the loop after parsing the first occurance as its the last 
+         ! mentioning of the keyword. (File is read beginning from the last line)
+         !------------------------------------------------------------------------------
+         EXIT
       END IF
-   END DO lineloop
-
-   ! If the keyword is not in the file: kwabrt controls whether to stop the program or not
-   IF (kywd_found .EQ. 0_ik)  THEN
-
-      mssg = "The keyword »"//TRIM(ADJUSTL(keyword))//"« was not found in the meta file!"
-      CALL handle_err(fh, TRIM(ADJUSTL(mssg)), kwabrt_u)
-      stat = 1
    END IF
+END DO
+
+IF (kywd_found .EQ. 0_ik)  CALL keyword_error(fh, keyword)
+END SUBROUTINE meta_read_I0D
+
+
+!------------------------------------------------------------------------------
+! SUBROUTINE: meta_read_R0D
+!---------------------------------------------------------------------------  
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Module to parse keywords. 
+!
+!> @Description
+!> Module to parse information of keywords. 
+!> An arbitrary Keyword with up to »kcl« characters may be specified.
+! 
+!> @param[in] fh File handle to write a log/mon or text to.
+!> @param[in] keyword Data to read from the meta files
+!> @param[in] m_in Array of lines of ascii meta file
+!> @param[in] real_0D    Optional datatype to read in
+!---------------------------------------------------------------------------
+SUBROUTINE meta_read_R0D (fh, keyword, m_in, real_0D)
+     
+INTEGER  (KIND=ik)              , INTENT(IN)  :: fh 
+CHARACTER(LEN=*)                , INTENT(IN)  :: keyword
+CHARACTER(LEN=mcl), DIMENSION(:), INTENT(IN)  :: m_in      
+REAL     (KIND=rk)              , INTENT(OUT) :: real_0D 
+
+! Internal variables
+CHARACTER(LEN=mcl)   :: tokens(30), line
+INTEGER  (KIND=ik)   :: ntokens, ii
+INTEGER  (KIND=ik)   :: kywd_found
+
+kywd_found = 0
+
+CALL check_keyword(fh, keyword)
+
+DO ii=SIZE(m_in), 1_ik, -1_ik 
+   line = m_in(ii)
+
+   IF (line(1:1) .EQ. '*') THEN ! it's a keyword
+
+      CALL parse(str=line, delims=' ', args=tokens, nargs=ntokens)
+
+      IF (tokens(2) .EQ. TRIM(keyword)) THEN
+         kywd_found = 1
+         READ(tokens(3), rfmt) real_0D 
+         EXIT
+      END IF
+   END IF
+END DO
+
+IF (kywd_found .EQ. 0_ik)  CALL keyword_error(fh, keyword)
+END SUBROUTINE meta_read_R0D
+
+
+!------------------------------------------------------------------------------
+! SUBROUTINE: meta_read_I1D2
+!---------------------------------------------------------------------------  
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Module to parse keywords. 
+!
+!> @Description
+!> Module to parse information of keywords. 
+!> An arbitrary Keyword with up to »kcl« characters may be specified.
+! 
+!> @param[in] fh File handle to write a log/mon or text to.
+!> @param[in] keyword Data to read from the meta files
+!> @param[in] m_in Array of lines of ascii meta file
+!> @param[in] int_1D2    Optional datatype to read in
+!---------------------------------------------------------------------------
+SUBROUTINE meta_read_I1D2 (fh, keyword, m_in, int_1D2)
+
+INTEGER  (KIND=ik)              , INTENT(IN)  :: fh 
+CHARACTER(LEN=*)                , INTENT(IN)  :: keyword
+CHARACTER(LEN=mcl), DIMENSION(:), INTENT(IN)  :: m_in      
+INTEGER  (KIND=ik), DIMENSION(2), INTENT(OUT) :: int_1D2 
+
+! Internal variables
+CHARACTER(LEN=mcl)   :: tokens(30), line
+INTEGER  (KIND=ik)   :: ntokens, ii
+INTEGER  (KIND=ik)   :: kywd_found
+
+kywd_found = 0
+
+CALL check_keyword(fh, keyword)
+
+DO ii=SIZE(m_in), 1_ik, -1_ik 
+   line = m_in(ii)
+
+   IF (line(1:1) .EQ. '*') THEN ! it's a keyword
+
+      CALL parse(str=line, delims=' ', args=tokens, nargs=ntokens)
+
+      IF (tokens(2) .EQ. TRIM(keyword)) THEN
+         kywd_found = 1
+         READ(tokens(3:4), ifmt) int_1D2
+         EXIT
+      END IF
+   END IF
+END DO
+
+IF (kywd_found .EQ. 0_ik)  CALL keyword_error(fh, keyword)
+END SUBROUTINE meta_read_I1D2
+
+
+!------------------------------------------------------------------------------
+! SUBROUTINE: meta_read_R1D2
+!---------------------------------------------------------------------------  
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Module to parse keywords. 
+!
+!> @Description
+!> Module to parse information of keywords. 
+!> An arbitrary Keyword with up to »kcl« characters may be specified.
+! 
+!> @param[in] fh File handle to write a log/mon or text to.
+!> @param[in] keyword Data to read from the meta files
+!> @param[in] m_in Array of lines of ascii meta file
+!> @param[in] real_1D2    Optional datatype to read in
+!---------------------------------------------------------------------------
+SUBROUTINE meta_read_R1D2 (fh, keyword, m_in, real_1D2)
+
+INTEGER  (KIND=ik)              , INTENT(IN)  :: fh 
+CHARACTER(LEN=*)                , INTENT(IN)  :: keyword
+CHARACTER(LEN=mcl), DIMENSION(:), INTENT(IN)  :: m_in      
+REAL     (KIND=rk), DIMENSION(2), INTENT(OUT) :: real_1D2 
+
+! Internal variables
+CHARACTER(LEN=mcl)   :: tokens(30), line
+INTEGER  (KIND=ik)   :: ntokens, ii
+INTEGER  (KIND=ik)   :: kywd_found
+
+kywd_found = 0
+
+CALL check_keyword(fh, keyword)
+
+DO ii=SIZE(m_in), 1_ik, -1_ik 
+   line = m_in(ii)
+
+   IF (line(1:1) .EQ. '*') THEN ! it's a keyword
+
+      CALL parse(str=line, delims=' ', args=tokens, nargs=ntokens)
+
+      IF (tokens(2) .EQ. TRIM(keyword)) THEN
+         kywd_found = 1
+         READ(tokens(3:4), rfmt) real_1D2 
+         EXIT
+      END IF
+   END IF
+END DO
+
+IF (kywd_found .EQ. 0_ik)  CALL keyword_error(fh, keyword)
+END SUBROUTINE meta_read_R1D2
+
+!------------------------------------------------------------------------------
+! SUBROUTINE: meta_read_I1D3
+!---------------------------------------------------------------------------  
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Module to parse keywords. 
+!
+!> @Description
+!> Module to parse information of keywords. 
+!> An arbitrary Keyword with up to »kcl« characters may be specified.
+! 
+!> @param[in] fh File handle to write a log/mon or text to.
+!> @param[in] keyword Data to read from the meta files
+!> @param[in] m_in Array of lines of ascii meta file
+!> @param[in] int_1D2    Optional datatype to read in
+!---------------------------------------------------------------------------
+SUBROUTINE meta_read_I1D3 (fh, keyword, m_in, int_1D3)
+
+INTEGER  (KIND=ik)              , INTENT(IN)  :: fh 
+CHARACTER(LEN=*)                , INTENT(IN)  :: keyword
+CHARACTER(LEN=mcl), DIMENSION(:), INTENT(IN)  :: m_in      
+INTEGER  (KIND=ik), DIMENSION(3), INTENT(OUT) :: int_1D3 
+
+! Internal variables
+CHARACTER(LEN=mcl)   :: tokens(30), line
+INTEGER  (KIND=ik)   :: ntokens, ii
+INTEGER  (KIND=ik)   :: kywd_found
+
+kywd_found = 0
+
+CALL check_keyword(fh, keyword)
+
+DO ii=SIZE(m_in), 1_ik, -1_ik 
+   line = m_in(ii)
+
+   IF (line(1:1) .EQ. '*') THEN ! it's a keyword
+
+      CALL parse(str=line, delims=' ', args=tokens, nargs=ntokens)
+
+      IF (tokens(2) .EQ. TRIM(keyword)) THEN
+         kywd_found = 1
+         READ(tokens(3:5), ifmt) int_1D3
+         EXIT
+      END IF
+   END IF
+END DO
+
+IF (kywd_found .EQ. 0_ik)  CALL keyword_error(fh, keyword)
+END SUBROUTINE meta_read_I1D3
+
+
+!------------------------------------------------------------------------------
+! SUBROUTINE: meta_read_R
+!---------------------------------------------------------------------------  
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Module to parse keywords. 
+!
+!> @Description
+!> Module to parse information of keywords. 
+!> An arbitrary Keyword with up to »kcl« characters may be specified.
+! 
+!> @param[in] fh File handle to write a log/mon or text to.
+!> @param[in] keyword Data to read from the meta files
+!> @param[in] m_in Array of lines of ascii meta file
+!> @param[in] real_1D    Optional datatype to read in
+!---------------------------------------------------------------------------
+SUBROUTINE meta_read_R (fh, keyword, m_in, real_1D)
+
+INTEGER  (KIND=ik)              , INTENT(IN)  :: fh 
+CHARACTER(LEN=*)                , INTENT(IN)  :: keyword
+CHARACTER(LEN=mcl), DIMENSION(:), INTENT(IN)  :: m_in      
+REAL     (KIND=rk), DIMENSION(:), INTENT(OUT) :: real_1D 
+
+! Internal variables
+CHARACTER(LEN=mcl)   :: tokens(30), line
+INTEGER  (KIND=ik)   :: ntokens, ii
+INTEGER  (KIND=ik)   :: kywd_found
+
+kywd_found = 0
+
+CALL check_keyword(fh, keyword)
+
+DO ii=SIZE(m_in), 1_ik, -1_ik 
+   line = m_in(ii)
+
+   IF (line(1:1) .EQ. '*') THEN ! it's a keyword
+
+      CALL parse(str=line, delims=' ', args=tokens, nargs=ntokens)
+
+      IF (tokens(2) .EQ. TRIM(keyword)) THEN
+         kywd_found = 1
+         READ(tokens(3:3+SIZE(real_1D)), rfmt) real_1D
+         EXIT
+      END IF
+   END IF
+END DO
+
+IF (kywd_found .EQ. 0_ik)  CALL keyword_error(fh, keyword)
+END SUBROUTINE meta_read_R
+
+
+
+!------------------------------------------------------------------------------
+! SUBROUTINE: meta_read_C
+!---------------------------------------------------------------------------  
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Module to parse keywords. 
+!
+!> @Description
+!> Module to parse information of keywords. 
+!> An arbitrary Keyword with up to »kcl« characters may be specified.
+! 
+!> @param[in] fh File handle to write a log/mon or text to.
+!> @param[in] keyword Data to read from the meta files
+!> @param[in] m_in Array of lines of ascii meta file
+!> @param[in] chars    Optional datatype to read in
+!---------------------------------------------------------------------------
+SUBROUTINE meta_read_C (fh, keyword, m_in, chars)
+   
+INTEGER  (KIND=ik)              , INTENT(IN)  :: fh 
+CHARACTER(LEN=*)                , INTENT(IN)  :: keyword
+CHARACTER(LEN=mcl), DIMENSION(:), INTENT(IN)  :: m_in      
+CHARACTER(LEN=*)                , INTENT(OUT) :: chars 
+
+! Internal variables
+CHARACTER(LEN=mcl)   :: tokens(30), line
+INTEGER  (KIND=ik)   :: ntokens, ii
+INTEGER  (KIND=ik)   :: kywd_found
+
+kywd_found     = 1
+
+CALL check_keyword(fh, keyword)
+
+!------------------------------------------------------------------------------
+! Parse Data out of the input array
+!------------------------------------------------------------------------------
+DO ii = SIZE(m_in), 1_ik, -1_ik 
+   line = m_in(ii)
+
+   IF (line(1:1) .EQ. '*') THEN ! it's a keyword
+
+      CALL parse(str=line, delims=' ', args=tokens, nargs=ntokens)
+
+      IF (tokens(2) .EQ. TRIM(keyword)) THEN
+         kywd_found = 0
+
+         chars = TRIM(ADJUSTL(tokens(3))) !(stdspc-LEN_TRIM(tokens(3)) : stdspc)
+         
+         !------------------------------------------------------------------------------
+         ! Exit the loop after parsing the first occurance as its the last 
+         ! mentioning of the keyword. (File is read beginning from the last line)
+         !------------------------------------------------------------------------------
+         EXIT 
+      END IF
+   END IF
+END DO
+
+!------------------------------------------------------------------------------
+! If the keyword is not in the file:
+!------------------------------------------------------------------------------
+IF (kywd_found .EQ. 1_ik)  THEN
+   mssg = "The keyword »"//TRIM(ADJUSTL(keyword))//"« was not found in the meta file!"
+   CALL handle_err(fh, TRIM(ADJUSTL(mssg)), kywd_found)
 END IF
-END SUBROUTINE read_meta
+END SUBROUTINE meta_read_C
 
 
 !------------------------------------------------------------------------------
@@ -553,24 +841,21 @@ END SUBROUTINE read_meta
 !> @param[in] kwabrt Default -> .TRUE.; do abort
 !---------------------------------------------------------------------------
 
-SUBROUTINE meta_write_C (fh, keyword, chars, kwabrt)
+SUBROUTINE meta_write_C (fh, keyword, chars)
    
-INTEGER  (KIND=ik), INTENT(IN)              :: fh 
-CHARACTER(LEN=*)  , INTENT(IN)              :: keyword
-CHARACTER(LEN=*)  , INTENT(IN)              :: chars 
-INTEGER  (KIND=ik), INTENT(IN)   , OPTIONAL :: kwabrt
+INTEGER  (KIND=ik), INTENT(IN) :: fh 
+CHARACTER(LEN=*)  , INTENT(IN) :: keyword
+CHARACTER(LEN=*)  , INTENT(IN) :: chars 
 
 ! Internal variables
-CHARACTER(LEN=kcl)   :: kywd_lngth
 CHARACTER(LEN=ucl)   :: unit_lngth
 INTEGER  (KIND=ik)   :: maxchars
-INTEGER  (KIND=ik)   :: unit_post_fill, kwabrt_u
 
 maxchars = stdspc
 
-IF(PRESENT(kwabrt)) kwabrt_u = kwabrt
+CALL check_keyword(fh, keyword)
 
-WRITE(fh, '(2A)', ADVANCE='NO') "* ", kywd_lngth
+WRITE(fh, '(2A)', ADVANCE='NO') "* ", keyword
 
 ! The width is adjusted to 3x 20 chars (3 dimensions with 15 places each).
 ! above 60 chars, the width is essentially overflowing.
@@ -578,13 +863,8 @@ IF (LEN_TRIM(ADJUSTL(chars)) .GT. stdspc) maxchars = LEN_TRIM(ADJUSTL(chars))+1
 WRITE(fh, "(2A)", ADVANCE='NO') REPEAT(' ', maxchars-LEN_TRIM(ADJUSTL(chars))), TRIM(ADJUSTL(chars))
 
 
-IF ((PRESENT(unit)) .AND. (datatype /= 7)) THEN
-   WRITE(fh, '(A)', ADVANCE='NO') ' '
-   WRITE(fh, '(A)', ADVANCE='NO') unit_lngth
-ELSE
-   IF (((maxchars-stdspc .GT. 0) .AND. (maxchars-stdspc .LE. ucl)) .OR. (maxchars == stdspc)) THEN
-      WRITE(fh, '(A)', ADVANCE='NO') REPEAT(' ', LEN(unit_lngth)+1-(maxchars-stdspc))
-   END IF
+IF (((maxchars-stdspc .GT. 0) .AND. (maxchars-stdspc .LE. ucl)) .OR. (maxchars == stdspc)) THEN
+   WRITE(fh, '(A)', ADVANCE='NO') REPEAT(' ', LEN(unit_lngth)+1-(maxchars-stdspc))
 END IF
 
 CALL date_time(fh, da=.TRUE., ti=.TRUE., zo=.TRUE.)
@@ -606,41 +886,69 @@ END SUBROUTINE meta_write_C
 !> @param[in] kwabrt Default -> .TRUE.; do abort
 !---------------------------------------------------------------------------
 
-SUBROUTINE meta_write_I0D (fh, keyword, unit, int_0D, kwabrt)
+! SUBROUTINE meta_write_I0D (fh, keyword, unit, int_0D, kwabrt)
    
-INTEGER  (KIND=ik), INTENT(IN)              :: fh 
-CHARACTER(LEN=*)  , INTENT(IN)              :: keyword
-CHARACTER(LEN=*)  , INTENT(IN)   , OPTIONAL :: unit
-INTEGER  (KIND=ik), INTENT(IN)              :: int_0D 
-INTEGER  (KIND=ik), INTENT(IN)   , OPTIONAL :: kwabrt
+! INTEGER  (KIND=ik), INTENT(IN)              :: fh 
+! CHARACTER(LEN=*)  , INTENT(IN)              :: keyword
+! CHARACTER(LEN=*)  , INTENT(IN)   , OPTIONAL :: unit
+! INTEGER  (KIND=ik), INTENT(IN)              :: int_0D 
+! INTEGER  (KIND=ik), INTENT(IN)   , OPTIONAL :: kwabrt
 
-! Internal variables
-CHARACTER(LEN=kcl)   :: kywd_lngth
-CHARACTER(LEN=ucl)   :: unit_lngth
-INTEGER  (KIND=ik)   :: maxchars
-INTEGER  (KIND=ik)   :: unit_post_fill, kwabrt_u
+! ! Internal variables
+! CHARACTER(LEN=kcl)   :: kywd_lngth
+! CHARACTER(LEN=ucl)   :: unit_lngth
+! INTEGER  (KIND=ik)   :: maxchars
+! INTEGER  (KIND=ik)   :: unit_post_fill, kwabrt_u
 
-IF(PRESENT(kwabrt)) kwabrt_u = kwabrt
+! IF(PRESENT(kwabrt)) kwabrt_u = kwabrt
 
-maxchars = stdspc
+! maxchars = stdspc
 
+! !------------------------------------------------------------------------------
+! ! Check unit keyword for convention and proper formatting
+! !------------------------------------------------------------------------------
+! IF(LEN_TRIM(keyword) .GT. LEN(kywd_lngth)) THEN
+!    mssg = "»"//TRIM(keyword)//"« is to long and therefore truncated before reading!"
+!    CALL handle_err(fh, TRIM(ADJUSTL(mssg)), 0)
 
-WRITE(fh, '(2A)', ADVANCE='NO') "* ", kywd_lngth
+!    kywd_lngth = keyword(1:LEN(kywd_lngth))
+! ELSE
+!    kywd_lngth = keyword
+! END IF
 
-WRITE(fh, "(30(' '),I15)", ADVANCE='NO')  int_0D
+! !------------------------------------------------------------------------------
+! ! Write unit if it is given.
+! !------------------------------------------------------------------------------
+! IF (PRESENT(unit)) THEN
+!    ! Check unit length for convention and proper formatting
+!    IF(LEN_TRIM(unit) .GT. LEN(unit_lngth)) THEN
+!       mssg = "The unit "//TRIM(unit)//" is to long and therefore truncated!"
+!       CALL handle_err(fh, TRIM(ADJUSTL(mssg)), 0)
+!       unit_lngth = unit(1:LEN(unit_lngth))
+!    ELSE
+!       unit_lngth = unit
 
-IF ((PRESENT(unit)) THEN
-   WRITE(fh, '(A)', ADVANCE='NO') ' '
-   WRITE(fh, '(A)', ADVANCE='NO') unit_lngth
-ELSE
-   IF (((maxchars-stdspc .GT. 0) .AND. (maxchars-stdspc .LE. ucl)) .OR. (maxchars == stdspc)) THEN
-      WRITE(fh, '(A)', ADVANCE='NO') REPEAT(' ', LEN(unit_lngth)+1-(maxchars-stdspc))
-   END IF
-END IF
+!       ! Length MUST match Charater declaration of the length of the variable. Otherwise the calculation and the formatting are corrupted.
+!       unit_post_fill = 10 - LEN_TRIM(unit)
+!    END IF
+! END IF
+
+! WRITE(fh, '(2A)', ADVANCE='NO') "* ", kywd_lngth
+
+! WRITE(fh, "(30(' '),I15)", ADVANCE='NO')  int_0D
+
+! IF ((PRESENT(unit)) THEN
+!    WRITE(fh, '(A)', ADVANCE='NO') ' '
+!    WRITE(fh, '(A)', ADVANCE='NO') unit_lngth
+! ELSE
+!    IF (((maxchars-stdspc .GT. 0) .AND. (maxchars-stdspc .LE. ucl)) .OR. (maxchars == stdspc)) THEN
+!       WRITE(fh, '(A)', ADVANCE='NO') REPEAT(' ', LEN(unit_lngth)+1-(maxchars-stdspc))
+!    END IF
+! END IF
    
-CALL date_time(fh, da=.TRUE., ti=.TRUE., zo=.TRUE.)
+! CALL date_time(fh, da=.TRUE., ti=.TRUE., zo=.TRUE.)
 
-END SUBROUTINE meta_write_I0D
+! END SUBROUTINE meta_write_I0D
 
 !------------------------------------------------------------------------------
 ! SUBROUTINE: meta_close
@@ -655,7 +963,7 @@ END SUBROUTINE meta_write_I0D
 !------------------------------------------------------------------------------
 SUBROUTINE meta_close()
 
-CALL meta_io (fhmeo, 'COMPUTATION_FINISHED' , chars = '')
+CALL meta_write (fhmeo, 'COMPUTATION_FINISHED' , '')
 
 WRITE(fhmeo, '(A)')
 WRITE(fhmeo, SEP_STD)

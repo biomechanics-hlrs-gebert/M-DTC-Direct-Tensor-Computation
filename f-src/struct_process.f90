@@ -1021,19 +1021,19 @@ Program main_struct_process
       pro_path = outpath
       pro_name = project_name
 
-      CALL meta_io (std_out, 'MICRO_ELMNT_TYPE' , ''     , m_rry,    chars = elt_micro  )
-      CALL meta_io (std_out, 'DBG_LVL'          , ''     , m_rry,    chars = out_amount )
-      CALL meta_io (std_out, 'OUT_FMT'          , ''     , m_rry,    chars = output     )
-      CALL meta_io (std_out, 'RESTART'          , ''     , m_rry,    chars = restart    )
-      CALL meta_io (std_out, 'SIZE_DOMAIN'      , '(mm)' , m_rry, real_1D3 = bone%pdsize)
-      CALL meta_io (std_out, 'LO_BNDS_DMN_RANGE', '(-)'  , m_rry,  int_1D3 = xa_d       )
-      CALL meta_io (std_out, 'UP_BNDS_DMN_RANGE', '(-)'  , m_rry,  int_1D3 = xe_d       )
-      CALL meta_io (std_out, 'BINARIZE_LO'      , '(-)'  , m_rry,  int_0D  = llimit     )
-      CALL meta_io (std_out, 'MESH_PER_SUB_DMN' , '(-)'  , m_rry,  int_0D  = parts      )
-      CALL meta_io (std_out, 'RVE_STRAIN'       , '(mm)' , m_rry, real_0D  = strain     )
-      CALL meta_io (std_out, 'YOUNG_MODULUS'    , '(MPa)', m_rry, real_0D  = bone%E     )
-      CALL meta_io (std_out, 'POISSON_RATIO'    , '(-)'  , m_rry, real_0D  = bone%nu    )
-      CALL meta_io (std_out, 'MACRO_ELMNT_ORDER', '(-)'  , m_rry,  int_0D  = elo_macro  )
+      CALL meta_read (std_out, 'MICRO_ELMNT_TYPE' , m_rry, elt_micro  )
+      CALL meta_read (std_out, 'DBG_LVL'          , m_rry, out_amount )
+      CALL meta_read (std_out, 'OUT_FMT'          , m_rry, output     )
+      CALL meta_read (std_out, 'RESTART'          , m_rry, restart    )
+      ! CALL meta_io (std_out, 'SIZE_DOMAIN'      , '(mm)' , m_rry, real_1D3 = bone%pdsize)
+      ! CALL meta_io (std_out, 'LO_BNDS_DMN_RANGE', '(-)'  , m_rry,  int_1D3 = xa_d       )
+      ! CALL meta_io (std_out, 'UP_BNDS_DMN_RANGE', '(-)'  , m_rry,  int_1D3 = xe_d       )
+      ! CALL meta_io (std_out, 'BINARIZE_LO'      , '(-)'  , m_rry,  int_0D  = llimit     )
+      ! CALL meta_io (std_out, 'MESH_PER_SUB_DMN' , '(-)'  , m_rry,  int_0D  = parts      )
+      ! CALL meta_io (std_out, 'RVE_STRAIN'       , '(mm)' , m_rry, real_0D  = strain     )
+      ! CALL meta_io (std_out, 'YOUNG_MODULUS'    , '(MPa)', m_rry, real_0D  = bone%E     )
+      ! CALL meta_io (std_out, 'POISSON_RATIO'    , '(-)'  , m_rry, real_0D  = bone%nu    )
+      ! CALL meta_io (std_out, 'MACRO_ELMNT_ORDER', '(-)'  , m_rry,  int_0D  = elo_macro  )
 
       !------------------------------------------------------------------------------
       ! Restart handling
@@ -1058,19 +1058,19 @@ Program main_struct_process
       ! CALL meta_add_ascii(fh=fhr, suf=res_suf, st='start', restart=restart)
 
 
-      CALL meta_io (fhmeo,   'MICRO_ELMNT_TYPE' , ''     ,           chars = elt_micro  )
-      CALL meta_io (fhmeo,   'DBG_LVL'          , ''     ,           chars = out_amount )
-      CALL meta_io (fhmeo,   'OUT_FMT'          , ''     ,           chars = output     )
-      CALL meta_io (fhmeo,   'RESTART'          , ''     ,           chars = restart    )
-      CALL meta_io (fhmeo,   'SIZE_DOMAIN'      , '(mm)' ,        real_1D3 = bone%pdsize)
-      CALL meta_io (fhmeo,   'LO_BNDS_DMN_RANGE', '(-)'  ,         int_1D3 = xa_d       )
-      CALL meta_io (fhmeo,   'UP_BNDS_DMN_RANGE', '(-)'  ,         int_1D3 = xe_d       )
-      CALL meta_io (fhmeo,   'BINARIZE_LO'      , '(-)'  ,         int_0D  = llimit     )
-      CALL meta_io (fhmeo,   'MESH_PER_SUB_DMN' , '(-)'  ,         int_0D  = parts      )
-      CALL meta_io (fhmeo,   'RVE_STRAIN'       , '(mm)' ,        real_0D  = strain     )
-      CALL meta_io (fhmeo,   'YOUNG_MODULUS'    , '(MPa)',        real_0D  = bone%E     )
-      CALL meta_io (fhmeo,   'POISSON_RATIO'    , '(-)'  ,        real_0D  = bone%nu    )
-      CALL meta_io (fhmeo,   'MACRO_ELMNT_ORDER', '(-)'  ,         int_0D  = elo_macro  )
+      CALL meta_write (fhmeo,   'MICRO_ELMNT_TYPE' , elt_micro  )
+      CALL meta_write (fhmeo,   'DBG_LVL'          , out_amount )
+      CALL meta_write (fhmeo,   'OUT_FMT'          , output     )
+      CALL meta_write (fhmeo,   'RESTART'          , restart    )
+      ! CALL meta_io (fhmeo,   'SIZE_DOMAIN'      , '(mm)' ,        real_1D3 = bone%pdsize)
+      ! CALL meta_io (fhmeo,   'LO_BNDS_DMN_RANGE', '(-)'  ,         int_1D3 = xa_d       )
+      ! CALL meta_io (fhmeo,   'UP_BNDS_DMN_RANGE', '(-)'  ,         int_1D3 = xe_d       )
+      ! CALL meta_io (fhmeo,   'BINARIZE_LO'      , '(-)'  ,         int_0D  = llimit     )
+      ! CALL meta_io (fhmeo,   'MESH_PER_SUB_DMN' , '(-)'  ,         int_0D  = parts      )
+      ! CALL meta_io (fhmeo,   'RVE_STRAIN'       , '(mm)' ,        real_0D  = strain     )
+      ! CALL meta_io (fhmeo,   'YOUNG_MODULUS'    , '(MPa)',        real_0D  = bone%E     )
+      ! CALL meta_io (fhmeo,   'POISSON_RATIO'    , '(-)'  ,        real_0D  = bone%nu    )
+      ! CALL meta_io (fhmeo,   'MACRO_ELMNT_ORDER', '(-)'  ,         int_0D  = elo_macro  )
 
       ! Warning / Error handling
       IF ( (bone%pdsize(1) /= bone%pdsize(2)) .OR. (bone%pdsize(1) /= bone%pdsize(3)) ) THEN
