@@ -117,7 +117,7 @@ Contains
     Type(tBranch), pointer            :: bb, db, pb, mb, params,resb
 
     Character(Len=mcl)                :: desc, mesh_desc, filename
-    Character(Len=mcl)                :: elt_micro
+    Character(Len=mcl)                :: elt_micro, dtti
     
     Character, Dimension(4*mcl)       :: c_char_array
 
@@ -224,7 +224,8 @@ Contains
 
        Call date_and_Time(values=realt)
 
-       CALL date_time(un_lf, .TRUE., .TRUE., .TRUE., 'Start time:')
+       CALL date_time(.TRUE., .TRUE., .TRUE., dtti)
+       WRITE(un_lf, '(2A)') 'Start time: ', TRIM(dtti)
 
        Call get_environment_Variable("HOSTNAME", env_var)
        Write(un_lf,fmt_MSG_A) "Host       : "//Trim(env_var)
@@ -253,9 +254,10 @@ Contains
           write(*,FMT_WRN)"generate_geometry() returned .FALSE."
        End if
        Call end_timer(trim(timer_name))
+     
+       CALL date_time(.TRUE., .TRUE., .TRUE., dtti)
+       WRITE(un_lf, '(2A)') 'End time: ', TRIM(dtti)
 
-       CALL date_time(un_lf, .TRUE., .TRUE., .TRUE., 'End time:')
-       
        close(umon)
 
        !** Look for the Domain branch ****************************************
@@ -1057,20 +1059,19 @@ Program main_struct_process
       CALL meta_add_ascii(fh=fhmon, suf=mon_suf, st='start', restart=restart)
       ! CALL meta_add_ascii(fh=fhr, suf=res_suf, st='start', restart=restart)
 
-
-      CALL meta_write (fhmeo,   'MICRO_ELMNT_TYPE' , elt_micro  )
-      CALL meta_write (fhmeo,   'DBG_LVL'          , out_amount )
-      CALL meta_write (fhmeo,   'OUT_FMT'          , output     )
-      CALL meta_write (fhmeo,   'RESTART'          , restart    )
-      ! CALL meta_io (fhmeo,   'SIZE_DOMAIN'      , '(mm)' ,        real_1D3 = bone%pdsize)
-      ! CALL meta_io (fhmeo,   'LO_BNDS_DMN_RANGE', '(-)'  ,         int_1D3 = xa_d       )
-      ! CALL meta_io (fhmeo,   'UP_BNDS_DMN_RANGE', '(-)'  ,         int_1D3 = xe_d       )
-      ! CALL meta_io (fhmeo,   'BINARIZE_LO'      , '(-)'  ,         int_0D  = llimit     )
-      ! CALL meta_io (fhmeo,   'MESH_PER_SUB_DMN' , '(-)'  ,         int_0D  = parts      )
-      ! CALL meta_io (fhmeo,   'RVE_STRAIN'       , '(mm)' ,        real_0D  = strain     )
-      ! CALL meta_io (fhmeo,   'YOUNG_MODULUS'    , '(MPa)',        real_0D  = bone%E     )
-      ! CALL meta_io (fhmeo,   'POISSON_RATIO'    , '(-)'  ,        real_0D  = bone%nu    )
-      ! CALL meta_io (fhmeo,   'MACRO_ELMNT_ORDER', '(-)'  ,         int_0D  = elo_macro  )
+      CALL meta_write (fhmeo, 'MICRO_ELMNT_TYPE' , elt_micro  )
+      CALL meta_write (fhmeo, 'DBG_LVL'          , out_amount )
+      CALL meta_write (fhmeo, 'OUT_FMT'          , output     )
+      CALL meta_write (fhmeo, 'RESTART'          , restart    )
+      CALL meta_write (fhmeo, 'SIZE_DOMAIN'      , '(mm)' , bone%pdsize)
+      CALL meta_write (fhmeo, 'LO_BNDS_DMN_RANGE', '(-)'  , xa_d)
+      CALL meta_write (fhmeo, 'UP_BNDS_DMN_RANGE', '(-)'  , xe_d)
+      CALL meta_write (fhmeo, 'BINARIZE_LO'      , '(-)'  , llimit)
+      CALL meta_write (fhmeo, 'MESH_PER_SUB_DMN' , '(-)'  , parts)
+      CALL meta_write (fhmeo, 'RVE_STRAIN'       , '(mm)' , strain)
+      CALL meta_write (fhmeo, 'YOUNG_MODULUS'    , '(MPa)', bone%E)
+      CALL meta_write (fhmeo, 'POISSON_RATIO'    , '(-)'  , bone%nu)
+      CALL meta_write (fhmeo, 'MACRO_ELMNT_ORDER', '(-)'  , elo_macro)
 
       ! Warning / Error handling
       IF ( (bone%pdsize(1) /= bone%pdsize(2)) .OR. (bone%pdsize(1) /= bone%pdsize(3)) ) THEN

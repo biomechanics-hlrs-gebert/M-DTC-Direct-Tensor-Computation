@@ -11,15 +11,15 @@ MODULE global_std
 IMPLICIT NONE
 
 ! General constants
-INTEGER            , PARAMETER :: sik           = 2    ! INTEGER Kind
-INTEGER            , PARAMETER :: ik            = 8    ! INTEGER Kind
-INTEGER            , PARAMETER :: rk            = 8    ! Real    Kind
-INTEGER            , PARAMETER :: mcl           = 512  ! Maximal character  length
-INTEGER            , PARAMETER :: hcl           = 256  ! Half    character  length
-INTEGER            , PARAMETER :: scl           = 64   ! Short   character  length
-INTEGER            , PARAMETER :: kcl           = 25   ! Keyword character  length
-INTEGER            , PARAMETER :: ucl           = 10   ! Unit    character  length
-INTEGER            , PARAMETER :: stdspc        = 45   ! Keyword standard space
+INTEGER, PARAMETER :: sik    = 2    ! INTEGER Kind
+INTEGER, PARAMETER :: ik     = 8    ! INTEGER Kind
+INTEGER, PARAMETER :: rk     = 8    ! Real    Kind
+INTEGER, PARAMETER :: mcl    = 512  ! Maximal character  length
+INTEGER, PARAMETER :: hcl    = 256  ! Half    character  length
+INTEGER, PARAMETER :: scl    = 64   ! Short   character  length
+INTEGER, PARAMETER :: kcl    = 25   ! Keyword character  length
+INTEGER, PARAMETER :: ucl    = 10   ! Unit    character  length
+INTEGER, PARAMETER :: stdspc = 45   ! Keyword standard space
 
 !-- File handles, debug_lvl and suffix
 INTEGER(KIND=ik)   , PARAMETER :: timer_level   = 3 ! 1 ! 2
@@ -81,10 +81,6 @@ Character(Len=*), Parameter :: FMT_STOP    = "('EE PROGRAM STOPPED ..... ',&
 
 Character(Len=*), Parameter :: FMT_TIME = "('MM ',A,1X,F0.6,' sec')"
 
-! Time/ date formats
-CHARACTER(Len=*), PARAMETER :: FMT_DA       = "(A,'.',A,'.',A    )"
-CHARACTER(Len=*), PARAMETER :: FMT_TI       = "(x,A,':',A,':',A,x)"
-CHARACTER(Len=*), PARAMETER :: FMT_ZO       = "(A)"
 
 ! Warning formats
 CHARACTER(Len=*), PARAMETER :: FMT_WRN_A    = "('WW ',A)"

@@ -192,32 +192,29 @@ END SUBROUTINE check_and_close
 !> @brief
 !> Subroutine to print the date and time
 !
-!> @param[in] fh File handle to write to
 !> @param[in] da Date
 !> @param[in] ti Time
 !> @param[in] zo Timezone
 !> @param[in] long Long or short notation
-!> @param[in] mssgdt Message to print before
+!> @param[in] str String to feed back
 !------------------------------------------------------------------------------  
-SUBROUTINE date_time(fh, da, ti, zo, mssgdt)
+SUBROUTINE date_time(da, ti, zo, str)
 
-    INTEGER(KIND=ik)  , INTENT(IN), OPTIONAL :: fh 
-    LOGICAL           , INTENT(IN), OPTIONAL :: da    
-    LOGICAL           , INTENT(IN), OPTIONAL :: ti           
-    LOGICAL           , INTENT(IN), OPTIONAL :: zo           
-    CHARACTER(LEN=*)  , INTENT(IN), OPTIONAL :: mssgdt           
+LOGICAL, INTENT(IN) :: da    
+LOGICAL, INTENT(IN) :: ti           
+LOGICAL, INTENT(IN) :: zo           
+CHARACTER(LEN=scl), INTENT(OUT) :: str           
 
-    CHARACTER(LEN=8)                         :: date
-    CHARACTER(LEN=10)                        :: time
-    CHARACTER(LEN=5)                         :: timezone
+CHARACTER(LEN=8)  :: date
+CHARACTER(LEN=10) :: time
+CHARACTER(LEN=5)  :: timezone
 
 CALL DATE_AND_TIME(DATE=date, TIME=time, ZONE=timezone)
 
-IF(PRESENT(mssgdt)) WRITE(fh, "('MM ',A)", ADVANCE='NO') TRIM(mssgdt)
-
-IF(da) WRITE(fh, FMT_DA, ADVANCE='NO') date(7:8), date(5:6), date(1:4)
-IF(ti) WRITE(fh, FMT_TI, ADVANCE='NO') time(1:2), time(3:4), time(5:10)
-IF(zo) WRITE(fh, FMT_ZO) timezone
+str = ''
+IF(da) str = date(7:8)//'.'//date(5:6)//'.'//date(1:4)
+IF(ti) str = TRIM(str)//' '//time(1:2)//':'//time(3:4)//':'//time(5:10)
+IF(zo) str = TRIM(str)//' '//timezone
 
 END SUBROUTINE date_time
 
