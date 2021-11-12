@@ -279,33 +279,6 @@ IF(zo) str = TRIM(str)//' '//timezone
 
 END SUBROUTINE date_time
 
-!------------------------------------------------------------------------------
-! SUBROUTINE: stop_slaves
-!------------------------------------------------------------------------------  
-!> @author Johannes Gebert,   gebert@hlrs.de, HLRS/NUM
-!> @author Ralf Schneider, schneider@hlrs.de, HLRS/NUM
-!
-!> @brief
-!> Stop slaves properly
-!
-!> @param[in] fh Handle of file to print to
-!> @param[in] pro_path Project Path
-!> @param[in] pro_name Project Name
-!> @param[in] ierr Error code1
-!------------------------------------------------------------------------------  
-SUBROUTINE stop_slaves(pro_path, pro_name)
- 
-    CHARACTER(LEN=*), INTENT(IN) :: pro_path
-    CHARACTER(LEN=*), INTENT(IN) :: pro_name
-    Integer(mpi_ik)              :: ierr
-
-    CALL MPI_BCAST(pro_path, INT(mcl,mpi_ik), MPI_CHAR, 0_mpi_ik, MPI_COMM_WORLD, ierr)
-
-    CALL MPI_BCAST(pro_name, INT(mcl,mpi_ik), MPI_CHAR, 0_mpi_ik,MPI_COMM_WORLD, ierr)
-    !** Bcast Serial_root_size = -1 ==> Signal for slave to stop ***
-    CALL MPI_BCAST(-1_ik, 1_mpi_ik, MPI_INTEGER8, 0_mpi_ik, MPI_COMM_WORLD, ierr)   
-
-END SUBROUTINE stop_slaves
 
 !------------------------------------------------------------------------------
 ! SUBROUTINE: handle_err
@@ -328,11 +301,13 @@ END SUBROUTINE stop_slaves
 !> @param[in] txt Error message to print
 !> @param[in] err Errorcode / status of the message
 !------------------------------------------------------------------------------  
-SUBROUTINE handle_err(fh, txt, err)
+SUBROUTINE handle_err(fh, txt, err) ! , pro_path, pro_name
  
-INTEGER  (KIND=ik)                        :: fh 
-CHARACTER(LEN=*)  , INTENT(IN)            :: txt
-INTEGER  (KIND=ik)                        :: err
+INTEGER(KIND=ik)             :: fh 
+CHARACTER(LEN=*), INTENT(IN) :: txt
+INTEGER(KIND=ik)             :: err
+! CHARACTER(LEN=*), INTENT(IN) :: pro_path
+! CHARACTER(LEN=*), INTENT(IN) :: pro_name
 
 !> Internal variables 
 INTEGER(KIND=mpi_ik)                      :: ierr = 0
@@ -442,12 +417,9 @@ ELSE
             WRITE(fmt,'(A,I5,A)') "('EE Program halted ',A, T",scl + LEN('EE ') + 1,",' EE')"
             WRITE(fh, fmt) TRIM(mssg)
         END IF
+
+        ! CALL stop_slaves(pro_path, pro_name)
     
-               
-
-
-        CALL stop_slaves(out%path, out%bsnm)
-
         CALL MPI_FINALIZE(ierr)
         IF ( ierr /= 0 ) WRITE(fh,'(A)') "MPI_FINALIZE did not succeed"
         STOP 
@@ -456,6 +428,33 @@ ELSE
 END IF
 
 END SUBROUTINE handle_err
+
+
+!------------------------------------------------------------------------------
+! SUBROUTINE: stop_slaves
+!------------------------------------------------------------------------------  
+!> @author Johannes Gebert,   gebert@hlrs.de, HLRS/NUM
+!> @author Ralf Schneider, schneider@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Stop slaves properly
+!
+!> @param[in] fh Handle of file to print to
+!> @param[in] ierr Error code1
+!------------------------------------------------------------------------------  
+! SUBROUTINE stop_slaves(pro_path, pro_name)
+
+!     CHARACTER(LEN=*), INTENT(IN) :: pro_path
+!     CHARACTER(LEN=*), INTENT(IN) :: pro_name
+!     Integer(mpi_ik)              :: ierr
+
+!     CALL MPI_BCAST(pro_path, INT(mcl,mpi_ik), MPI_CHAR, 0_mpi_ik, MPI_COMM_WORLD, ierr)
+
+!     CALL MPI_BCAST(pro_name, INT(mcl,mpi_ik), MPI_CHAR, 0_mpi_ik,MPI_COMM_WORLD, ierr)
+!     !** Bcast Serial_root_size = -1 ==> Signal for slave to stop ***
+!     CALL MPI_BCAST(-1_ik, 1_mpi_ik, MPI_INTEGER8, 0_mpi_ik, MPI_COMM_WORLD, ierr)   
+
+! END SUBROUTINE stop_slaves
 
 
 !------------------------------------------------------------------------------
@@ -733,19 +732,20 @@ END SUBROUTINE checksym
 !> @param[out] maout Input 6x6 Matrix
 !> @param[out] status whether the matrix is symmetric
 !------------------------------------------------------------------------------ 
-SUBROUTINE checksym6x6(main, maout, status)
+SUBROUTINE checksym6x6(fh, main, maout, status)
 
-REAL    (KIND=rk), DIMENSION(6,6), INTENT(IN)            :: main
-REAL    (KIND=rk), DIMENSION(6,6), INTENT(OUT), OPTIONAL :: maout
-LOGICAL                          , INTENT(OUT), OPTIONAL :: status
+INTEGER(KIND=ik)             , INTENT(IN)            :: fh   
+REAL(KIND=rk), DIMENSION(6,6), INTENT(IN)            :: main
+REAL(KIND=rk), DIMENSION(6,6), INTENT(OUT), OPTIONAL :: maout
+LOGICAL                      , INTENT(OUT), OPTIONAL :: status
 
-REAL    (KIND=rk), DIMENSION(6,6)                        :: norm_mat
-LOGICAL                                                  :: status_u
+REAL(KIND=rk), DIMENSION(6,6) :: norm_mat
+LOGICAL                       :: status_u
 
 ! Initialize 
 status_u = .FALSE.
 norm_mat = 0._rk
-CALL write_matrix (fhr, 6, 6, 'main', fmt='spl', unit='MPa', mat_real=main)
+CALL write_matrix (fh, 6, 6, 'main', fmt='spl', unit='MPa', mat_real=main)
 
 norm_mat(2:6,1) = [ main(2,1)-main(1,2), main(3,1)-main(1,3), main(4,1)-main(1,4), main(5,1)-main(1,5), main(6,1)-main(1,6) ]
 norm_mat(3:6,2) =                      [ main(3,2)-main(2,3), main(4,2)-main(2,4), main(5,2)-main(2,5), main(6,2)-main(2,6) ]

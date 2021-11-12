@@ -850,7 +850,6 @@ Contains
     End if
     
   End Subroutine exec_single_domain
-
   End Module sp_aux_routines
 
 !==============================================================================
