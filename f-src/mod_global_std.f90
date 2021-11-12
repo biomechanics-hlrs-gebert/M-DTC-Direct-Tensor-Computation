@@ -17,9 +17,6 @@ INTEGER, PARAMETER :: rk     = 8    ! Real    Kind
 INTEGER, PARAMETER :: mcl    = 512  ! Maximal character  length
 INTEGER, PARAMETER :: hcl    = 256  ! Half    character  length
 INTEGER, PARAMETER :: scl    = 64   ! Short   character  length
-INTEGER, PARAMETER :: kcl    = 25   ! Keyword character  length
-INTEGER, PARAMETER :: ucl    = 10   ! Unit    character  length
-INTEGER, PARAMETER :: stdspc = 45   ! Keyword standard space
 
 !-- File handles, debug_lvl and suffix
 INTEGER(KIND=ik)   , PARAMETER :: timer_level   = 3 ! 1 ! 2
@@ -30,23 +27,6 @@ INTEGER(KIND=ik)   , PARAMETER :: std_in        = 5
 INTEGER(KIND=ik)   , PARAMETER :: std_out       = 6
 INTEGER(KIND=ik)   , PARAMETER :: std_err       = 0
 
-! Standard files
-INTEGER(KIND=ik)   , PARAMETER :: fh_meta_in    = 20, fhmei  = 20
-INTEGER(KIND=ik)   , PARAMETER :: fh_meta_put   = 21, fhmeo  = 21
-INTEGER(KIND=ik)   , PARAMETER :: fh_mon        = 25, fhmon  = 25
-INTEGER(KIND=ik)   , PARAMETER :: fh_out        = 30, fho    = 30
-INTEGER(KIND=ik)   , PARAMETER :: fh_log        = 35, fhl    = 35
-INTEGER(KIND=ik)   , PARAMETER :: fh_res        = 40, fhr    = 40
-INTEGER(KIND=ik)   , PARAMETER :: fh_csv        = 45, fhc    = 45
-INTEGER(KIND=ik)   , PARAMETER :: fh_head       = 50, fhh    = 50
-CHARACTER(LEN=*)   , PARAMETER :: log_suf       = '.log'
-CHARACTER(LEN=*)   , PARAMETER :: lock_suf      = '.lock'
-CHARACTER(LEN=*)   , PARAMETER :: head_suf      = '.head'
-CHARACTER(LEN=*)   , PARAMETER :: meta_suf      = '.meta'
-CHARACTER(LEN=*)   , PARAMETER :: mon_suf       = '.mon'
-CHARACTER(LEN=*)   , PARAMETER :: res_suf       = '.result'
-CHARACTER(LEN=*)   , PARAMETER :: csv_suf       = '.csv'
- 
 !------------------------------------------------------------------------------
 ! Standard formats
 !------------------------------------------------------------------------------
@@ -134,23 +114,6 @@ CHARACTER(LEN=*), PARAMETER ::  FMT_noc   = "\x1B[0m"
 !-- Mpi-specific kinds
 INTEGER         , PARAMETER :: mpi_ik     = 4             ! MPI INTEGER Kind; Compile with corresponding mpi!!
 
-! Meta data basename handling
-TYPE basename
-   ! For the use in filenames, a max. length of a part of a basename of kcl characters must suffice.
-   ! Nomenclature: dataset_type_purpose_app_features
-   CHARACTER(LEN=mcl) :: full     = '' ! Including suffix and path
-   CHARACTER(LEN=mcl) :: path     = '' ! Only the path to the file
-   CHARACTER(LEN=mcl) :: p_n_bsnm = '' ! Just the path and the basename
-   CHARACTER(LEN=mcl) :: bsnm     = '' ! Just the basename
-   CHARACTER(LEN=kcl) :: dataset  = '' ! For example FH01-1 (Femoral Head 1, Scan1)
-   CHARACTER(LEN=2)   :: type     = '' ! 'cl' - clinical or 'mu' - microfocus
-   CHARACTER(LEN=3)   :: purpose  = '' ! 'Dev' or 'Pro' (Development or Production)
-   CHARACTER(LEN=kcl) :: app      = '' ! Application. For example "Binarization"
-   CHARACTER(LEN=kcl) :: features = '' ! Features. For example the parametrization
-END TYPE basename
-
-! Always provide in/out for meta driven environments
-TYPE(basename)                :: in, out
 
 END MODULE global_std
 

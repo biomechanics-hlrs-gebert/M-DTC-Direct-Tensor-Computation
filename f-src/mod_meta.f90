@@ -16,37 +16,78 @@
 !------------------------------------------------------------------------------
 MODULE meta
 
-USE global_std
-USE auxiliaries
-USE strings
+   USE global_std
+   USE auxiliaries
+   USE strings
 
 IMPLICIT NONE
 
-  !> Interface: meta_read
-  !> \author Johannes Gebert
-  !> \date 10.11.2021
-  Interface meta_read
+   ! Character lengths
+   INTEGER, PARAMETER :: kcl    = 25   ! Keyword character  length
+   INTEGER, PARAMETER :: ucl    = 10   ! Unit    character  length
+   INTEGER, PARAMETER :: stdspc = 45   ! Keyword standard space
 
-     Module Procedure meta_read_C 
-     Module Procedure meta_read_I0D 
-     Module Procedure meta_read_I1D
-     Module Procedure meta_read_R0D
-     Module Procedure meta_read_R1D
+   ! Standard files
+   INTEGER(KIND=ik)   , PARAMETER :: fh_meta_in    = 20, fhmei  = 20
+   INTEGER(KIND=ik)   , PARAMETER :: fh_meta_put   = 21, fhmeo  = 21
+   INTEGER(KIND=ik)   , PARAMETER :: fh_mon        = 25, fhmon  = 25
+   INTEGER(KIND=ik)   , PARAMETER :: fh_out        = 30, fho    = 30
+   INTEGER(KIND=ik)   , PARAMETER :: fh_log        = 35, fhl    = 35
+   INTEGER(KIND=ik)   , PARAMETER :: fh_res        = 40, fhr    = 40
+   INTEGER(KIND=ik)   , PARAMETER :: fh_csv        = 45, fhc    = 45
+   INTEGER(KIND=ik)   , PARAMETER :: fh_head       = 50, fhh    = 50
+   CHARACTER(LEN=*)   , PARAMETER :: log_suf       = '.log'
+   CHARACTER(LEN=*)   , PARAMETER :: lock_suf      = '.lock'
+   CHARACTER(LEN=*)   , PARAMETER :: head_suf      = '.head'
+   CHARACTER(LEN=*)   , PARAMETER :: meta_suf      = '.meta'
+   CHARACTER(LEN=*)   , PARAMETER :: mon_suf       = '.mon'
+   CHARACTER(LEN=*)   , PARAMETER :: res_suf       = '.result'
+   CHARACTER(LEN=*)   , PARAMETER :: csv_suf       = '.csv'
 
-  End Interface meta_read
+   ! Meta data basename handling
+   TYPE basename
+      ! For the use in filenames, a max. length of a part of a basename of kcl characters must suffice.
+      ! Nomenclature: dataset_type_purpose_app_features
+      CHARACTER(LEN=mcl) :: full     = '' ! Including suffix and path
+      CHARACTER(LEN=mcl) :: path     = '' ! Only the path to the file
+      CHARACTER(LEN=mcl) :: p_n_bsnm = '' ! Just the path and the basename
+      CHARACTER(LEN=mcl) :: bsnm     = '' ! Just the basename
+      CHARACTER(LEN=kcl) :: dataset  = '' ! For example FH01-1 (Femoral Head 1, Scan1)
+      CHARACTER(LEN=2)   :: type     = '' ! 'cl' - clinical or 'mu' - microfocus
+      CHARACTER(LEN=3)   :: purpose  = '' ! 'Dev' or 'Pro' (Development or Production)
+      CHARACTER(LEN=kcl) :: app      = '' ! Application. For example "Binarization"
+      CHARACTER(LEN=kcl) :: features = '' ! Features. For example the parametrization
+   END TYPE basename
 
-  !> Interface: meta_write
-  !> \author Johannes Gebert
-  !> \date 10.11.2021
-  Interface meta_write
+   ! Always provide in/out for meta driven environments
+   TYPE(basename)                :: in, out
 
-     Module Procedure meta_write_C 
-     Module Procedure meta_write_I0D 
-     Module Procedure meta_write_R0D 
-     Module Procedure meta_write_I1D
-     Module Procedure meta_write_R1D
 
-  End Interface meta_write
+   !> Interface: meta_read
+   !> \author Johannes Gebert
+   !> \date 10.11.2021
+   Interface meta_read
+
+      Module Procedure meta_read_C 
+      Module Procedure meta_read_I0D 
+      Module Procedure meta_read_I1D
+      Module Procedure meta_read_R0D
+      Module Procedure meta_read_R1D
+
+   End Interface meta_read
+
+   !> Interface: meta_write
+   !> \author Johannes Gebert
+   !> \date 10.11.2021
+   Interface meta_write
+
+      Module Procedure meta_write_C 
+      Module Procedure meta_write_I0D 
+      Module Procedure meta_write_R0D 
+      Module Procedure meta_write_I1D
+      Module Procedure meta_write_R1D
+
+   End Interface meta_write
 
 CONTAINS
 
@@ -928,16 +969,17 @@ END SUBROUTINE meta_write_R1D
 !> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
 !
 !> @brief
-!> Subroutine to close a meta file and to alter its name.
-!> Assign out = in before calling this routine. Also define a new app_name :-)
+!> Subroutine to close a meta file.
 !
-!> @param[in] m_in Array of lines of ascii meta file
+!> @description
+!> Requires a "revision.inc" or similar inclusion of verisonign info, 
+!> provided by a makefile. Furhermore, it requires a global_stds file.
 !------------------------------------------------------------------------------
 SUBROUTINE meta_close()
 
 WRITE(fhmeo, '(A)')
 CALL meta_write (fhmeo, 'PROGRAM_VERSION' , revision)
-CALL meta_write (fhmeo, 'PROGRAM_VERSION_HASH' , hash)
+CALL meta_write (fhmeo, 'PROGRAM_GIT_HASH' , hash)
 CALL meta_write (fhmeo, 'COMPUTATION_FINISHED' , 'Succesfully')
 
 WRITE(fhmeo, '(A)')
