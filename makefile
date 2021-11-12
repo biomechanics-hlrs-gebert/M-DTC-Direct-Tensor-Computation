@@ -45,6 +45,9 @@ trgt_vrsn="v1.0.0"
 bin_name="ddtc"
 long_name="Directly Discretizing Tensor Computation"
 # -----------------------------------------------------------------------------
+# https://jblevins.org/log/vc
+rev = $(shell git rev-parse --short HEAD)
+# -----------------------------------------------------------------------------
 # Check for environment
 check-env:
 ifeq ($(DDTC_ARCH),)
@@ -127,18 +130,18 @@ PrgEnv = gnu
 ifeq ($(PrgEnv),gnu)
    #
    # Compile flags for libraries --------------------------
-   c_flags_f90     = -J$(mod_dir) -I$(mod_dir) $(mod_path_flag) \
-                     -fdefault-integer-8                        \
-					 					 -fdefault-real-8 	                        \
-					 					 -g				                                  \
-				 	 					 -o    			                                \
-	             	     -O3	       		                            \
-	             	     -fbacktrace                                \
-                 	   -fbounds-check                             \
-				 	 					 -fbackslash                                \
-	 			 	 					 -Wno-conversion                            \
-                 	   -Wall                                      \
-				 	           -finstrument-functions
+   c_flags_f90     = -J$(mod_dir) -I$(mod_dir) $(mod_path_flag)\
+                    -fdefault-integer-8                        \
+					-fdefault-real-8 	                       \
+					-g				                           \
+					-o   		                               \
+					-O3	       		                           \
+					-fbacktrace                                \
+					-fbounds-check                             \
+					-fbackslash                                \
+					-Wno-conversion                            \
+					-Wall                                      \
+					-finstrument-functions
    c_flags_c       = $(inc_path_flag) \
                      -finstrument-functions
    c_flags_linpack = -J$(mod_dir) -I$(mod_dir) -fdefault-integer-8 -g -O3 \
@@ -153,18 +156,18 @@ endif
 # ---------------------------------------------------------
 # Compile flags Intel Compiler ----------------------------
 ifeq ($(PrgEnv),intel)
-   #
-   # Compile flags for libraries --------------------------
-   c_flags_f90     = -module $(mod_dir) -I$(mod_dir)  \
-                     -integer-size 64 -real-size 64 -g -O3
-   c_flags_c       = $(inc_path_flag)
-   c_flags_linpack = -module $(mod_dir) -I$(mod_dir) -integer-size 64 -g -O3 \
-                     -Wall # -fopenmp
-   #
-   # Linker flags for chain links -------------------------
-   link_flags = $(lib_path_flag) -L$(lib_dir) -g
-   export glb_link_flags
-   #
+   	#
+   	# Compile flags for libraries --------------------------
+   	c_flags_f90 = 	-module $(mod_dir) -I$(mod_dir)  \
+					-integer-size 64 -real-size 64 -g -O3
+	c_flags_c = 	$(inc_path_flag)
+   	c_flags_linpack = -module $(mod_dir) -I$(mod_dir) -integer-size 64 -g -O3 \
+   	                  -Wall # -fopenmp
+   	#
+   	# Linker flags for chain links -------------------------
+   	link_flags = $(lib_path_flag) -L$(lib_dir) -g
+   	export glb_link_flags
+   	#
 endif
 #
 #------------------------------------------------------------------------------
@@ -511,11 +514,15 @@ $(obj_dir)pd_merge_branch_to_tree$(obj_ext):$(mod_dir)puredat$(mod_ext) $(mod_di
 # Final Link step of MAIN -----------------------------------------------------
 $(main_bin): $(c-objects) $(f-objects)
 	@echo "--------------------------------------------------------------------------------------------"
+	@echo '--- Get Github revision'
+	@echo "CHARACTER(LEN = scl), PARAMETER :: revision = '$(trgt_vrsn)'" > $(f_src_dir)revision.inc
+	@echo "CHARACTER(LEN = scl), PARAMETER :: hash     = '$(rev)'" >> $(f_src_dir)revision.inc
+	@echo "--------------------------------------------------------------------------------------------"
 	@echo '--- Final link step of struct-process executable'
 	@echo "--------------------------------------------------------------------------------------------"
 	$(compiler) $(link_flags) $(c-objects) $(f-objects) $(lll_extra) -o $(main_bin)
-	@echo 
-
+	@echo
+	
 # -----------------------------------------------------------------------------
 # Final Link step of PureDat auxiliary executables ----------------------------
 $(pd_dump_leaf_bin): $(pd-ld-objects) $(obj_dir)pd_dump_leaf$(obj_ext)

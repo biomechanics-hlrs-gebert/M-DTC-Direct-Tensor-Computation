@@ -936,9 +936,9 @@ END SUBROUTINE meta_write_R1D
 SUBROUTINE meta_close()
 
 WRITE(fhmeo, '(A)')
-! CALL meta_write (fhmeo, 'PROGRAM_VERSION' , '')
-! CALL meta_write (fhmeo, 'PROGRAM_VERSION_HASH' , '')
-CALL meta_write (fhmeo, 'COMPUTATION_FINISHED' , '')
+CALL meta_write (fhmeo, 'PROGRAM_VERSION' , revision)
+CALL meta_write (fhmeo, 'PROGRAM_VERSION_HASH' , hash)
+CALL meta_write (fhmeo, 'COMPUTATION_FINISHED' , 'Succesfully')
 
 WRITE(fhmeo, '(A)')
 WRITE(fhmeo, SEP_STD)

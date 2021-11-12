@@ -21,7 +21,68 @@ USE MPI
 
 IMPLICIT NONE
 
+!------------------------------------------------------------------------------
+! Provide versioning information for transparent data tracking
+!------------------------------------------------------------------------------  
+INCLUDE 'revision.inc'
+
 CONTAINS
+
+!------------------------------------------------------------------------------
+! SUBROUTINE: show_title
+!------------------------------------------------------------------------------  
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Show brief information about the program
+!------------------------------------------------------------------------------
+SUBROUTINE show_title()
+
+WRITE(std_out, SEP_STD)
+WRITE(std_out,'(A)') '-- High Performance Computing Center | Stuttgart (HLRS)'
+WRITE(std_out, SEP_STD)
+WRITE(std_out,'( A)') '-- Directly Discretizing Tensor Computation'
+WRITE(std_out,'( A)') '--'
+WRITE(std_out,'( A)') '-- Author: Dr.-Ing. Ralf Schneider (HLRS, NUM)'
+WRITE(std_out,'( A)') '-- Author: Johannes Gebert, M.Sc.  (HLRS, NUM)'
+WRITE(std_out,'( A)') '--'
+WRITE(std_out,'(2A)') '-- Revision: ', TRIM(ADJUSTL(revision))
+WRITE(std_out,'(2A)') '-- Git revision hash: ', TRIM(ADJUSTL(hash))
+WRITE(std_out,'( A)') '--'
+WRITE(std_out, SEP_STD)
+END SUBROUTINE show_title
+
+
+!------------------------------------------------------------------------------
+! FUNCITON: usage
+!------------------------------------------------------------------------------  
+!> @author Johannes Gebert,   gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Print program usage. 
+!
+!> @param[in] err Optional suppression of program abortion
+!------------------------------------------------------------------------------  
+SUBROUTINE usage(err)
+
+INTEGER, INTENT(IN) :: err
+
+WRITE(std_out, SEP_STD)
+WRITE(std_out, '(A)') 'Directly Discretizing Tensor Computation | Usage:'
+WRITE(std_out, SEP_STD)
+WRITE(std_out, '(A)') './ddtc_vx.y.z_x86_64 »flags« »basename.meta«'
+WRITE(std_out, '(A)') ''
+WRITE(std_out, '(A)') '-h/ --help      This message.'
+WRITE(std_out, '(A)') '-v/ --version   Version of the program'
+WRITE(std_out, '(A)') '--restart       Overwrite restart keyword'
+WRITE(std_out, '(A)') '--no-restart    Overwrite restart keyword'
+WRITE(std_out, '(A)') ''
+WRITE(std_out, '(A)') 'The meta-file must be the last command argument.'
+WRITE(std_out, SEP_STD)
+
+CALL handle_err(std_out, '', err)
+
+END SUBROUTINE usage
 
 !------------------------------------------------------------------------------
 ! SUBROUTINE: check_file_exist
@@ -395,36 +456,6 @@ ELSE
 END IF
 
 END SUBROUTINE handle_err
-
-!------------------------------------------------------------------------------
-! FUNCITON: usage
-!------------------------------------------------------------------------------  
-!> @author Johannes Gebert,   gebert@hlrs.de, HLRS/NUM
-!
-!> @brief
-!> Print program usage. 
-!
-!> @param[in] err Optional suppression of program abortion
-!------------------------------------------------------------------------------  
-SUBROUTINE usage(err)
-
-INTEGER, INTENT(IN) :: err
-
-WRITE(std_out, SEP_STD)
-WRITE(std_out, '(A)') 'Directly Discretizing Tensor Computation | Usage:'
-WRITE(std_out, SEP_STD)
-WRITE(std_out, '(A)') './ddtc_vx.y.z_x86_64 »flags« »meta filename«'
-WRITE(std_out, '(A)') '--restart       Overwrite restart keyword'
-WRITE(std_out, '(A)') '--no-restart    Overwrite restart keyword'
-WRITE(std_out, '(A)') '-h              This message.'
-WRITE(std_out, '(A)') '*.meta          Meta input file.'
-WRITE(std_out, '(A)') ''
-WRITE(std_out, '(A)') 'The meta-file must be the last command argument.'
-WRITE(std_out, SEP_STD)
-
-CALL handle_err(std_out, '', err)
-
-END SUBROUTINE usage
 
 
 !------------------------------------------------------------------------------

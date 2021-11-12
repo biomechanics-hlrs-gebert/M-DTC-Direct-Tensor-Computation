@@ -887,7 +887,7 @@ Program main_struct_process
   USE petsc_opt
   
   Implicit None
-
+  
   ! Always provide in/out for meta driven environments
   TYPE(materialcard)                                 :: bone
 
@@ -951,12 +951,12 @@ Program main_struct_process
   !------------------------------------------------------------------------------
   If (rank_mpi==0) Then
 
+      CALL show_title()
       Call Start_Timer("Init Process")
-
+    
       !------------------------------------------------------------------------------
       ! Parse the command arguments
       !------------------------------------------------------------------------------
-
       IF (command_argument_count() == 0) CALL usage(1)
 
       DO ii=0, 15 ! Read up to 15 command arguments.
@@ -966,28 +966,34 @@ Program main_struct_process
          IF (cmd_arg == '') EXIT
 
          infile = TRIM(cmd_arg)
-          
+         
          cmd_arg_history = TRIM(cmd_arg_history)//' '//TRIM(cmd_arg)
 
          IF (cmd_arg(1:1) .EQ. '-') THEN
             DO jj=2, LEN_TRIM(cmd_arg)
-                  SELECT CASE( cmd_arg(5:LEN_TRIM(cmd_arg)) )
-                     CASE('-restart', '-Restart') ! Results in "--restart / --Restart"
-                        restart_cmdarg = 'Y'
-                     ! It is highly recommended not to use this option on the cluster  :-)
-                     CASE('h')       ! CASE ('-h', '--help')
-                        CALL usage(1)
-                  END SELECT
-                  !
-                  SELECT CASE( cmd_arg(3:4) )
-                     CASE('NO', 'no', 'No', 'nO') ! Results in "--restart / --Restart"
-                        restart_cmdarg = 'N'
-                  END SELECT
+                     SELECT CASE( cmd_arg(5:LEN_TRIM(cmd_arg)) )
+                        CASE('-restart', '-Restart')
+                           restart_cmdarg = 'Y'
+                        CASE('v', '-Version', '-version')
+                           CALL show_title()
+                           CALL usage(1)
+                        CASE('i', '-Info', '-info')
+                           CALL show_title()
+                           CALL usage(1)
+                        CASE('h', '-Help', '-help')
+                           CALL usage(1)
+                     END SELECT
+                     !
+                     SELECT CASE( cmd_arg(3:4) )
+                        CASE('NO', 'no', 'No', 'nO');  restart_cmdarg = 'N'
+                     END SELECT
             END DO
          END IF
       END DO
 
-      IF(TRIM(infile) == '') CALL handle_err(std_out, 'No input file given via command argument.', 1)
+      IF(TRIM(infile) == '') THEN
+         CALL handle_err(std_out, 'No input file given via command argument.', 1)
+      END IF 
 
       in%full = TRIM(infile)
     
@@ -1128,12 +1134,15 @@ Program main_struct_process
 
          CALL execute_command_line("mkdir -p "//TRIM(outpath),CMDSTAT=stat)
 
-         IF(stat       /= 0) CALL handle_err(std_out, 'Could not execute syscall »mkdir -p '//trim(outpath)//'«.', 1)
+         IF(stat /= 0) THEN
+            CALL handle_err(std_out, 'Could not execute syscall »mkdir -p '//trim(outpath)//'«.', 1)
+         END IF 
 
          CALL Stat_Dir(c_char_array, stat_c_int)
 
-         IF(stat_c_int /= 0) CALL handle_err(std_out, 'Could not create the output directory »'//TRIM(outpath)//'«.', 1)
-
+         IF(stat_c_int /= 0) THEN
+            CALL handle_err(std_out, 'Could not create the output directory »'//TRIM(outpath)//'«.', 1)
+         END IF
       ELSE 
          WRITE(un_mon, FMT_MSG_A) "Reusing the output directory"
          WRITE(un_mon, FMT_MSG_A) TRIM(outpath)
@@ -1151,7 +1160,8 @@ Program main_struct_process
          ! Raise root branch 
 
          IF (restart == 'Y') THEN
-            mssg = 'Restart of partly computed results requested, but no project header found. Program behaves like there was none.'
+            mssg = 'Restart of partly computed results requested, but no project header found. &
+            &Program behaves like there was none.'
             CALL handle_err(std_out, mssg, -1)
             restart = 'N'
          END IF
