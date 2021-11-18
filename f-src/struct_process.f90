@@ -1339,7 +1339,13 @@ Program main_struct_process
          ! outpath --> Due to a "/" which is inserted after building the path.......
          ! More like a workaround at the moment
          !------------------------------------------------------------------------------
-         CALL check_file_exist(aun, TRIM(outpath)//"/"//trim(project_name)//"_Activity.raw", .TRUE.)
+         INQUIRE(aun, EXIST=fexist)
+
+         IF (.NOT. fexist) THEN
+            mssg='The file '//TRIM(outpath)//"/"//trim(project_name)//"does not exist."//'.'
+            CALL handle_err(std_out, TRIM(ADJUSTL(mssg)), err=1_ik)
+         END IF
+
 
          OPEN(aun, FILE=TRIM(outpath)//"/"//trim(project_name)//"_Activity.raw", &
             ACTION="READ", STATUS="OLD", ACCESS="STREAM")

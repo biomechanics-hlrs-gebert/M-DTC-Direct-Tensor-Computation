@@ -83,165 +83,6 @@ CALL handle_err(std_out, '', err)
 
 END SUBROUTINE usage
 
-!------------------------------------------------------------------------------
-! SUBROUTINE: check_file_exist
-!------------------------------------------------------------------------------  
-!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
-!
-!> @brief
-!> Subroutine to evaluate whether a file exists. 
-!
-!>@Description
-!>It basically is a wrapper for the subroutine "handle_err".
-!> The routine explicitly allows not to abort. Sometimes it simply is not 
-!> required and sometimes a more specific error message may be issued.
-!
-!> stat = 1 --> opposite of target_val
-!
-!> @param[in] fh File handle to decide where to store the data
-!> @param[in] target_val True/False if file shall exist
-!> @param[in] filename Filename which is to be checked
-!> @param[in] abrt Abort or do not.
-!> @param[in] stat Gives Feedback
-!------------------------------------------------------------------------------
-SUBROUTINE check_file_exist(fh, filename, target_val, abrt, pmssg, stat)
-
-INTEGER(KIND=ik)  , INTENT(IN)              :: fh 
-LOGICAL           , INTENT(IN)              :: target_val    
-CHARACTER(len=*)  , INTENT(IN)              :: filename      
-INTEGER(KIND=ik)  , INTENT(IN)   , OPTIONAL :: abrt
-LOGICAL           , INTENT(IN)   , OPTIONAL :: pmssg
-INTEGER(KIND=ik)  , INTENT(OUT)  , OPTIONAL :: stat
-
-!-- Internal Variable
-LOGICAL                                     :: exist=.FALSE. 
-INTEGER(KIND=ik)                            :: abrt_u=1
-LOGICAL                                     :: pmssg_u=.TRUE.
-
-! Initialize
-IF(PRESENT(abrt))  abrt_u  = abrt
-IF(PRESENT(pmssg)) pmssg_u = pmssg
-IF(PRESENT(stat))  stat    = 0
-
-INQUIRE (FILE = TRIM(filename), EXIST = exist)
-
-! Since exist can take both states, the meaning of "stat" in context automatically follows.
-IF (exist .NEQV. target_val)  THEN
-    IF (target_val .EQV. .FALSE.) THEN
-        mssg='The file '//TRIM(filename)//' already exists.'
-        IF(PRESENT(stat))stat = 1
-    ELSE
-        mssg='The file '//TRIM(filename)//' does not exist.'
-        IF(PRESENT(stat))stat = 1
-    END IF
-
-    IF(pmssg_u .EQV. .FALSE.) mssg = ''
-    ! Only raise an error if the program shall stop.
-    CALL handle_err(fh=fh, txt=TRIM(mssg), err=abrt_u)
-END IF
-    
-END SUBROUTINE check_file_exist
-
-
-!------------------------------------------------------------------------------
-! SUBROUTINE: check_and_open
-!------------------------------------------------------------------------------  
-!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
-!
-!> @brief
-!> Subroutine to check the existance of a file and to eventually close it.
-!
-!> @param[in] fh File handle to decide where to store the data
-!> @param[in] filename Filename which is to be checked
-!> @param[in] restart Whether to restart or not to.
-!> @param[in] abrt Abort or do not.
-!> @param[in] stat Gives Feedback
-!------------------------------------------------------------------------------  
-SUBROUTINE check_and_open(fh, filename, restart, abrt, stat)
-
-INTEGER(KIND=ik)  , INTENT(IN)              :: fh 
-CHARACTER(len=*)  , INTENT(IN)              :: filename  
-LOGICAL           , INTENT(IN)   , OPTIONAL :: restart
-INTEGER(KIND=ik)  , INTENT(IN)   , OPTIONAL :: abrt
-INTEGER(KIND=ik)  , INTENT(OUT)  , OPTIONAL :: stat
-
-INTEGER(KIND=ik)                            :: abrt_u=1
-
-!-- Internal Variable
-LOGICAL                                     :: opened=.FALSE.
-LOGICAL                                     :: restart_u=.FALSE.
-CHARACTER(len=mcl)                          :: filename_u=''
-
-! In case of doubt, abort.
-IF(PRESENT(restart)) restart_u=restart
-IF(PRESENT(abrt)) abrt_u=abrt
-IF(PRESENT(stat)) stat=0
-
-CALL check_file_exist(fh, filename_u, .FALSE., abrt_u, .TRUE., stat)
-
-INQUIRE(UNIT=fh, OPENED=opened)
-
-IF (opened .EQV. .FALSE.) THEN
-   !------------------------------------------------------------------------------
-   ! Open the file
-   !------------------------------------------------------------------------------
-   OPEN(UNIT=fh, FILE=TRIM(filename), ACTION='READWRITE', ACCESS='SEQUENTIAL', STATUS='OLD')
-   IF(PRESENT(stat)) stat=0_ik
-END IF
- 
-END SUBROUTINE check_and_open
-
-  
-!------------------------------------------------------------------------------
-! SUBROUTINE: check_file_exist
-!------------------------------------------------------------------------------  
-!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
-!
-!> @brief
-!> Subroutine to check the existance of a file and to eventually close it.
-!
-!> @param[in] fh File handle to decide where to store the data
-!> @param[in] filename Filename which is to be checked
-!> @param[in] abrt Abort or do not.
-!> @param[in] stat Gives Feedback
-!------------------------------------------------------------------------------  
-SUBROUTINE check_and_close(fh, filename, abrt, stat)
-
-INTEGER(KIND=ik)  , INTENT(IN)              :: fh 
-CHARACTER(len=*)  , INTENT(IN)   , OPTIONAL :: filename      
-LOGICAL           , INTENT(IN)   , OPTIONAL :: abrt
-INTEGER(KIND=ik)  , INTENT(OUT)  , OPTIONAL :: stat
-
-LOGICAL                                     :: abrt_u=.TRUE.
-INTEGER(KIND=ik)                            :: stat_u
-
-!-- Internal Variable
-LOGICAL                                     :: opened=.FALSE. 
-CHARACTER(len=mcl)                          :: filename_u
-
-! Initialize
-stat_u = 0
-filename_u=''
-
-! In case of doubt, abort.
-IF(PRESENT(abrt)) abrt_u = abrt
-IF(PRESENT(stat)) stat_u = stat
-IF(PRESENT(filename)) filename_u = TRIM(filename)
-
-
-INQUIRE(UNIT=fh, OPENED=opened)
-
-IF (opened .EQV. .TRUE.) THEN
-   CLOSE (fh)
-ELSE
-    mssg='The file »'//TRIM(filename_u)//'« was closed already.'
-
-    ! Whether to stop the program has to be decided via the call.
-    IF (abrt_u .EQV. .TRUE.) stat_u = 1
-    CALL handle_err(fh, TRIM(mssg), stat_u)
-END IF
- 
-END SUBROUTINE check_and_close
 
 
 !------------------------------------------------------------------------------
@@ -579,35 +420,35 @@ IF (PRESENT(mat_int )) WRITE(fmt_a, "(3(A,I0),A)") "(",dim2,"(I10))"
 WRITE(fh, sep)                                    ! Separator
 WRITE(fh, nm_fmt) ' ',TRIM(name), ' ', TRIM(text) ! Named separator
 
-IF (hide_zeros_u .EQV. .TRUE.) THEN                           
+IF (hide_zeros_u) THEN                           
     DO ii=1, dim1
     DO jj=1, dim2
 
-        IF ((sym_u .EQV. .TRUE.) .AND. (ii==dim1-1) .AND. (jj==2)) THEN
+        IF ((sym_u) .AND. (ii==dim1-1) .AND. (jj==2)) THEN
 
             IF(PRESENT(mat_real)) THEN
                 IF ((TRIM(fmt_u) .EQ. 'spl') .OR. (TRIM(fmt_u) .EQ. 'simple')) THEN
-                                WRITE(fh, '(A)', ADVANCE='NO') "symmetric "
+                    WRITE(fh, '(A)', ADVANCE='NO') "symmetric "
                 ELSE
-                                WRITE(fh, '(A)', ADVANCE='NO') "   symmetric           "
+                    WRITE(fh, '(A)', ADVANCE='NO') "   symmetric           "
                 END IF
             ELSE ! Mat int 
-                                WRITE(fh, '(A)', ADVANCE='NO') " symmetric"
+                    WRITE(fh, '(A)', ADVANCE='NO') " symmetric"
             END IF
 
         ELSE
             IF(PRESENT(mat_real)) THEN
 
                 IF ((mat_real (ii,jj) .NE. 0._rk) .AND. &
-                ((sym_u .EQV. .FALSE.) .OR. ((sym_u .EQV. .TRUE.) .AND. (jj .GE. ii)))) THEN 
+                ((.NOT. sym_u) .OR. ((sym_u) .AND. (jj .GE. ii)))) THEN 
 
                     WRITE(fh, fmt_a, ADVANCE='NO') mat_real (ii,jj)
                 ELSE
                     ! Can'r trim a string with leading and trailing blanks
                     IF ((TRIM(fmt_u) .EQ. 'spl') .OR. (TRIM(fmt_u) .EQ. 'simple')) THEN
-                                WRITE(fh, '(A)', ADVANCE='NO') "      .   "
+                        WRITE(fh, '(A)', ADVANCE='NO') "      .   "
                     ELSE
-                                WRITE(fh, '(A)', ADVANCE='NO') "   .                   "
+                        WRITE(fh, '(A)', ADVANCE='NO') "   .                   "
                     END IF
                 END IF
 
@@ -615,7 +456,7 @@ IF (hide_zeros_u .EQV. .TRUE.) THEN
             ELSE ! Mat int 
     
                 IF ((mat_int (ii,jj) .NE. 0._rk) .AND. &
-                ((sym_u .EQV. .FALSE.) .OR. ((sym_u .EQV. .TRUE.) .AND. (jj .GE. ii)))) THEN 
+                ((.NOT. sym_u) .OR. ((sym_u) .AND. (jj .GE. ii)))) THEN 
                     WRITE(fh, fmt_a, ADVANCE='NO') mat_int (ii,jj)
                 ELSE
                     WRITE(fh, '(A)', ADVANCE='NO') "         ."
@@ -659,18 +500,18 @@ End Subroutine write_matrix
 !> @param[in]  llquo Quotient of the L2 Norms
 !------------------------------------------------------------------------------  
 SUBROUTINE checksym(mat_in, mat_out, status, llquo)
-REAL   (KIND=rk), DIMENSION(:,:)             , INTENT(IN)              :: mat_in
-REAL   (KIND=rk), DIMENSION(:,:)             , INTENT(OUT)  , OPTIONAL :: mat_out
-LOGICAL                                      , INTENT(OUT)  , OPTIONAL :: status
-REAL   (KIND=rk)                             , INTENT(OUT)  , OPTIONAL :: llquo
+REAL   (KIND=rk), DIMENSION(:,:) , INTENT(IN)              :: mat_in
+REAL   (KIND=rk), DIMENSION(:,:) , INTENT(OUT)  , OPTIONAL :: mat_out
+LOGICAL                          , INTENT(OUT)  , OPTIONAL :: status
+REAL   (KIND=rk)                 , INTENT(OUT)  , OPTIONAL :: llquo
 
-REAL   (KIND=rk), DIMENSION(:,:), ALLOCATABLE                          :: mat 
-REAL   (KIND=rk), DIMENSION(:,:), ALLOCATABLE                          :: norm_mat
-LOGICAL                                                                :: status_u
+REAL   (KIND=rk), DIMENSION(:,:), ALLOCATABLE :: mat 
+REAL   (KIND=rk), DIMENSION(:,:), ALLOCATABLE :: norm_mat
+LOGICAL                                       :: status_u
 
-INTEGER(KIND=ik)                                                       :: n, m
-INTEGER(KIND=ik)                                                       :: ii, jj, q
-REAL   (KIND=rk)                                                       :: norm_norm_mat, norm_in
+INTEGER(KIND=ik) :: n, m
+INTEGER(KIND=ik) :: ii, jj, q
+REAL   (KIND=rk) :: norm_norm_mat, norm_in
 
 ! m = ABS(m)
 n  = SIZE(mat_in, 1)
@@ -789,8 +630,8 @@ REAL   (KIND=rk), DIMENSION(:,:)  , INTENT(INOUT) , OPTIONAL  ::   twoD
 REAL   (KIND=rk), DIMENSION(:,:,:), INTENT(INOUT) , OPTIONAL  :: threeD 
 REAL   (KIND=rk)                  , INTENT(IN)    , OPTIONAL  :: thres
 
-REAL   (KIND=rk)                                              :: thres_u
-INTEGER(KIND=ik)                                              :: ii, jj, kk, mm, nn, oo
+REAL   (KIND=rk) :: thres_u
+INTEGER(KIND=ik) :: ii, jj, kk, mm, nn, oo
 
 IF (PRESENT(thres)) THEN
     thres_u = thres

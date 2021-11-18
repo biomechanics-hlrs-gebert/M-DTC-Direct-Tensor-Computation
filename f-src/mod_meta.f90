@@ -121,17 +121,17 @@ lockname=TRIM(in%path)//'.'//TRIM(in%bsnm)//lock_suf
 
 INQUIRE (FILE = TRIM(lockname), EXIST = exist)
 
-IF((restart .EQ. 'N') .AND. (exist .EQV. .TRUE.)) THEN
+IF((restart .EQ. 'N') .AND. (exist)) THEN
    mssg='The .*.lock file is set and a restart prohibited by default or the user.'
    CALL handle_err(std_out, TRIM(ADJUSTL(mssg)), err=1_ik)
 END IF
 
-IF(((restart .EQ. 'Y') .AND. (exist .EQV. .FALSE.)) .OR. ((restart .EQ. 'N') .AND. (exist .EQV. .FALSE.))) THEN
+IF(((restart .EQ. 'Y') .AND. (.NOT. exist)) .OR. ((restart .EQ. 'N') .AND. (.NOT. exist))) THEN
    CALL execute_command_line ('touch '//TRIM(lockname), CMDSTAT=ios)
    CALL handle_err(std_out, 'The .*.lock file could not be set.', err=ios)
 END IF
 
-IF((restart .EQ. 'Y') .AND. (exist .EQV. .TRUE.)) CONTINUE
+IF((restart .EQ. 'Y') .AND. (exist)) CONTINUE
 
 END SUBROUTINE meta_handle_lock_file
 
@@ -163,7 +163,7 @@ LOGICAL :: exist
 ! Automatically aborts if there is no input file found on the drive
 !------------------------------------------------------------------------------
 INQUIRE (FILE = TRIM(in%full), EXIST = exist)
-IF (exist .EQV. .FALSE.) CALL handle_err(std_out, "The file "//TRIM(in%full)//" does not exist.", 1)
+IF (.NOT. exist) CALL handle_err(std_out, "The file "//TRIM(in%full)//" does not exist.", 1)
 
 CALL parse( str=in%full, delims=".", args=tokens, nargs=ntokens)
 
@@ -350,12 +350,12 @@ IF (st == 'start') THEN
    !------------------------------------------------------------------------------
    IF (restart_u .EQ. 'Y') THEN
       ! if target_val if inquire(exist) = .FALSE. and stat_*l = 0 - the file does not exist
-      IF(exist_temp .EQV. .TRUE.) THEN
+      IF(exist_temp) THEN
          CALL execute_command_line ('rm -r '//TRIM(temp_f_suf), CMDSTAT=ios)   
          CALL handle_err(std_out, '»'//TRIM(temp_f_suf)//'« not deletable.',ios)
       END IF
 
-      IF(exist_perm .EQV. .TRUE.) THEN
+      IF(exist_perm) THEN
          CALL execute_command_line ('rm -r '//TRIM(out%p_n_bsnm)//TRIM(suf), CMDSTAT=ios)
          CALL handle_err(std_out, '»'//TRIM(out%full)//'« not deletable.', ios)
       END IF
@@ -365,13 +365,13 @@ IF (st == 'start') THEN
       ! If no restart is requested (default)
       !------------------------------------------------------------------------------
 
-      IF    ((exist_temp .EQV. .TRUE.) .OR. (exist_perm .EQV. .TRUE.)) THEN
+      IF    ((exist_temp) .OR. (exist_perm)) THEN
 
-         IF ((exist_temp .EQV. .TRUE.) .AND. (exist_perm .EQV. .TRUE.)) THEN 
+         IF ((exist_temp) .AND. (exist_perm)) THEN 
             mssg='The file '//TRIM(perm_f_suf)//' and the file '//TRIM(temp_f_suf)//' already exists.'
-         ELSE IF  (exist_temp .EQV. .TRUE.) THEN
+         ELSE IF  (exist_temp) THEN
             mssg='The file '//TRIM(temp_f_suf)//' already exists.'
-         ELSE ! (exist_perm .EQV. .TRUE.) 
+         ELSE ! (exist_perm) 
             mssg='The file '//TRIM(perm_f_suf)//' already exists.'
          END IF
 
@@ -861,7 +861,7 @@ WRITE(fhmeo, fmt, ADVANCE='NO') keyword
 !---------------------------------------------------------------------------
 INQUIRE(FILE = 'temp_buffer', EXIST = exist)
 
-IF (exist .EQV. .TRUE.) THEN
+IF (exist) THEN
    CALL EXECUTE_COMMAND_LINE ('rm -r temp_buffer', CMDSTAT=ios)   
 
    IF(ios /= 0_ik) THEN
@@ -895,6 +895,10 @@ IF (SUM(stat) == 0) THEN
 ELSE
    WRITE(fhmeo, fmt) "Could not get sha256sum. One of the previious system calls failed."
 END IF
+
+INQUIRE(FILE='temp_buffer', EXIST=exist)
+
+IF (exist) CALL EXECUTE_COMMAND_LINE ('rm -r temp_buffer', CMDSTAT=ios)   
 
 END SUBROUTINE meta_write_sha256sum
 
@@ -1089,15 +1093,21 @@ END SUBROUTINE meta_signing
 !------------------------------------------------------------------------------
 SUBROUTINE meta_close()
 
+LOGICAL :: opened
+
 WRITE(fhmeo, '(A)')
 WRITE(fhmeo, SEP_STD)
 
 !------------------------------------------------------------------------------
 ! Check and close files - Routine: (fh, filename, abrt, stat)
 !------------------------------------------------------------------------------
-CALL check_and_close(fhmei, TRIM(in%full) , .FALSE.)
-CALL check_and_close(fhmeo, TRIM(out%full), .FALSE.)
+INQUIRE(UNIT=fhmei, OPENED=opened)
+IF(opened) CLOSE (fhmei)
 
+INQUIRE(UNIT=fhmeo, OPENED=opened)
+IF(opened) CLOSE (fhmeo)
+
+ 
 END SUBROUTINE meta_close
 
 END MODULE meta
