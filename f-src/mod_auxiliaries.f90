@@ -21,11 +21,6 @@ USE MPI
 
 IMPLICIT NONE
 
-!------------------------------------------------------------------------------
-! Provide versioning information for transparent data tracking
-!------------------------------------------------------------------------------  
-INCLUDE 'revision.inc'
-
 CONTAINS
 
 !------------------------------------------------------------------------------
@@ -36,7 +31,10 @@ CONTAINS
 !> @brief
 !> Show brief information about the program
 !------------------------------------------------------------------------------
-SUBROUTINE show_title()
+SUBROUTINE show_title(revision, hash)
+
+CHARACTER(LEN=*), INTENT(IN) :: revision
+CHARACTER(LEN=*), INTENT(IN) :: hash
 
 WRITE(std_out, SEP_STD)
 WRITE(std_out,'(A)') '-- High Performance Computing Center | Stuttgart (HLRS)'
@@ -51,6 +49,7 @@ WRITE(std_out,'(2A)') '-- Git revision hash: ', TRIM(ADJUSTL(hash))
 WRITE(std_out,'( A)') '--'
 WRITE(std_out, SEP_STD)
 END SUBROUTINE show_title
+
 
 
 !------------------------------------------------------------------------------
@@ -310,26 +309,26 @@ INTEGER(KIND=ik)             :: err
 ! CHARACTER(LEN=*), INTENT(IN) :: pro_name
 
 !> Internal variables 
-INTEGER(KIND=mpi_ik)                      :: ierr = 0
-CHARACTER(LEN=mcl)                        :: text
-CHARACTER(LEN=mcl)                        :: fmt
-CHARACTER(LEN=scl)                        :: sub_mssg, errnmbr
+INTEGER(KIND=mpi_ik) :: ierr = 0
+CHARACTER(LEN=mcl)   :: text
+CHARACTER(LEN=mcl)   :: fmt
+CHARACTER(LEN=scl)   :: sub_mssg, errnmbr
 
 ! String parsing 
-INTEGER  (KIND=ik)                        :: ii, jj, sw, mode
+INTEGER  (KIND=ik)   :: ii, jj, sw, mode
 
-CHARACTER(LEN=mcl)                        :: delim
-CHARACTER(LEN=mcl)                        :: tokens(100), path_tokens(50)
-CHARACTER(LEN=mcl+1)                      :: next_token
-INTEGER  (KIND=ik)                        :: ntokens    ,  path_ntokens
+CHARACTER(LEN=mcl)   :: delim
+CHARACTER(LEN=mcl)   :: tokens(100), path_tokens(50)
+CHARACTER(LEN=mcl+1) :: next_token
+INTEGER  (KIND=ik)   :: ntokens    ,  path_ntokens
 
 text = TRIM(ADJUSTL(txt))
 fmt  = FMT_ERR
      
 mode = 0                ! Absolute or relative path
-sw=2                    ! Whether it's the beginning or within a path
-ntokens         = 0     ! Amount of words in message
-path_ntokens    = 0     ! Amount of words in a path
+sw = 2                  ! Whether it's the beginning or within a path
+ntokens = 0             ! Amount of words in message
+path_ntokens = 0        ! Amount of words in a path
 delim = '/'
 ii = 1
 jj = 1
@@ -497,12 +496,12 @@ LOGICAL                                , INTENT(IN), OPTIONAL :: hide_zeros
 
 
 ! Internal variables 
-INTEGER(KIND=ik)                                              :: prec , fw, nm_fmt_lngth, ii, jj
-CHARACTER(LEN=mcl)                                            :: fmt_a, sep, nm_fmt
-CHARACTER(LEN=mcl)                                            :: text
-CHARACTER(LEN=mcl)                                            :: fmt_u
-LOGICAL                                                       :: hide_zeros_u
-LOGICAL                                                       :: sym_u
+INTEGER(KIND=ik)   :: prec , fw, nm_fmt_lngth, ii, jj
+CHARACTER(LEN=mcl) :: fmt_a, sep, nm_fmt
+CHARACTER(LEN=mcl) :: text
+CHARACTER(LEN=mcl) :: fmt_u
+LOGICAL            :: hide_zeros_u
+LOGICAL            :: sym_u
 
 !------------------------------------------------------------------------------
 ! Initialize and check for presence of the variables

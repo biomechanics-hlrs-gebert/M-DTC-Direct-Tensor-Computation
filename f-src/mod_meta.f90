@@ -22,6 +22,11 @@ MODULE meta
 
 IMPLICIT NONE
 
+   !------------------------------------------------------------------------------
+   ! Provide versioning information for transparent data tracking
+   !------------------------------------------------------------------------------  
+   INCLUDE 'revision_meta.f90'
+
    ! Character lengths
    INTEGER, PARAMETER :: kcl    = 25   ! Keyword character  length
    INTEGER, PARAMETER :: ucl    = 10   ! Unit    character  length
@@ -152,10 +157,13 @@ INTEGER  (KIND=ik) :: ios, lines, ii
 CHARACTER(LEN=mcl) :: tokens(30)
 INTEGER  (KIND=ik) :: ntokens
 
+LOGICAL :: exist
+
 !------------------------------------------------------------------------------
 ! Automatically aborts if there is no input file found on the drive
 !------------------------------------------------------------------------------
-CALL check_file_exist(std_out, filename=in%full, target_val=.TRUE., abrt=1, stat=ios)
+INQUIRE (FILE = TRIM(in%full), EXIST = exist)
+IF (exist .EQV. .FALSE.) CALL handle_err(std_out, "The file "//TRIM(in%full)//" does not exist.", 1)
 
 CALL parse( str=in%full, delims=".", args=tokens, nargs=ntokens)
 
@@ -311,9 +319,10 @@ CHARACTER(LEN=*)  , INTENT(IN)            :: st
 CHARACTER         , INTENT(IN) , OPTIONAL :: restart
 
 CHARACTER(LEN=mcl) :: temp_f_suf, perm_f_suf
-INTEGER  (KIND=ik) :: ios, stat_t, stat_p
+INTEGER  (KIND=ik) :: ios
 CHARACTER          :: restart_u='N'
 
+LOGICAL :: exist_temp, exist_perm
 
 ! The temporaray file is a hidden one.
 temp_f_suf = TRIM(out%path)//'.temporary'//TRIM(suf)
@@ -331,22 +340,22 @@ IF (st == 'start') THEN
    IF(PRESENT(restart)) restart_u=restart
 
    ! Check for temporary file
-   CALL check_file_exist(std_out, filename=temp_f_suf, target_val=.FALSE., pmssg=.FALSE., abrt=0, stat=stat_t)
+   INQUIRE (FILE = temp_f_suf, EXIST = exist_temp)
 
    ! Check for a permanent file
-   CALL check_file_exist(std_out, filename=out%p_n_bsnm//TRIM(suf), target_val=.FALSE., pmssg=.FALSE., abrt=0, stat=stat_p)
+   INQUIRE (FILE = out%p_n_bsnm//TRIM(suf), EXIST = exist_perm)
 
    !------------------------------------------------------------------------------
    ! What happens when a restart is requested.
    !------------------------------------------------------------------------------
    IF (restart_u .EQ. 'Y') THEN
-      ! if target_val if check_file_exist = .FALSE. and stat_*l = 0 - the file does not exist
-      IF(stat_t == 1) THEN
+      ! if target_val if inquire(exist) = .FALSE. and stat_*l = 0 - the file does not exist
+      IF(exist_temp .EQV. .TRUE.) THEN
          CALL execute_command_line ('rm -r '//TRIM(temp_f_suf), CMDSTAT=ios)   
          CALL handle_err(std_out, '»'//TRIM(temp_f_suf)//'« not deletable.',ios)
       END IF
 
-      IF(stat_p == 1) THEN
+      IF(exist_perm .EQV. .TRUE.) THEN
          CALL execute_command_line ('rm -r '//TRIM(out%p_n_bsnm)//TRIM(suf), CMDSTAT=ios)
          CALL handle_err(std_out, '»'//TRIM(out%full)//'« not deletable.', ios)
       END IF
@@ -355,12 +364,14 @@ IF (st == 'start') THEN
       !------------------------------------------------------------------------------
       ! If no restart is requested (default)
       !------------------------------------------------------------------------------
-      IF    ((stat_t /= 0) .OR. (stat_p /= 0)) THEN
-         IF ((stat_t == 1) .AND. (stat_p == 1)) THEN 
+
+      IF    ((exist_temp .EQV. .TRUE.) .OR. (exist_perm .EQV. .TRUE.)) THEN
+
+         IF ((exist_temp .EQV. .TRUE.) .AND. (exist_perm .EQV. .TRUE.)) THEN 
             mssg='The file '//TRIM(perm_f_suf)//' and the file '//TRIM(temp_f_suf)//' already exists.'
-         ELSE IF  (stat_t == 1) THEN
+         ELSE IF  (exist_temp .EQV. .TRUE.) THEN
             mssg='The file '//TRIM(temp_f_suf)//' already exists.'
-         ELSE ! (stat_p == 1) 
+         ELSE ! (exist_perm .EQV. .TRUE.) 
             mssg='The file '//TRIM(perm_f_suf)//' already exists.'
          END IF
 
@@ -814,6 +825,81 @@ END SUBROUTINE meta_write_keyword
 
 
 !------------------------------------------------------------------------------
+! SUBROUTINE: meta_write_sha256sum
+!---------------------------------------------------------------------------  
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Module to write finalized strings of keywords
+!
+!> @param[in] fh File handle to write a log/mon or text to.
+!> @param[in] keyword Keyword to write
+!> @param[in] stdspcfill String with data
+!> @param[in] unit Unit of the value
+!---------------------------------------------------------------------------
+SUBROUTINE meta_write_sha256sum (binary_name)
+   
+CHARACTER(LEN=*), INTENT(IN) :: binary_name
+
+CHARACTER(LEN=kcl-1) :: keyword = ''
+CHARACTER(LEN=scl) :: fmt, stdspcfill
+INTEGER(KIND=ik), DIMENSION(5) :: stat = 0
+INTEGER(KIND=ik) :: ios
+
+LOGICAL :: exist
+
+!---------------------------------------------------------------------------
+! Write "Keyword"
+!---------------------------------------------------------------------------
+keyword = "* SHA256SUM_OF_BINARY"
+
+WRITE(fmt, '(A,I0,A)') "(2A, T", kcl, ")"
+WRITE(fhmeo, fmt, ADVANCE='NO') keyword
+
+!---------------------------------------------------------------------------
+! Check the buffer file
+!---------------------------------------------------------------------------
+INQUIRE(FILE = 'temp_buffer', EXIST = exist)
+
+IF (exist .EQV. .TRUE.) THEN
+   CALL EXECUTE_COMMAND_LINE ('rm -r temp_buffer', CMDSTAT=ios)   
+
+   IF(ios /= 0_ik) THEN
+      mssg='Can not delete the temp_buffer'
+      CALL handle_err(std_out, mssg, 0)
+      stat(1) = 1      
+   END IF
+END IF
+
+!---------------------------------------------------------------------------
+! Check for auxiliary programs
+!---------------------------------------------------------------------------
+CALL EXECUTE_COMMAND_LINE("which cut > /dev/null 2> /dev/null", CMDSTAT=stat(2))
+CALL EXECUTE_COMMAND_LINE("which sha256sum > /dev/null 2> /dev/null", CMDSTAT=stat(3))
+
+!---------------------------------------------------------------------------
+! Deal with the buffer file
+!---------------------------------------------------------------------------
+IF(SUM(stat)==0) THEN
+   OPEN(UNIT=9, FILE='temp_buffer', ACTION='READWRITE', STATUS='NEW')
+
+   CALL EXECUTE_COMMAND_LINE("sha256sum "//TRIM(ADJUSTL(binary_name))//" | cut -d ' ' -f 1 >> 'temp_buffer'", CMDSTAT=stat(4))
+
+   READ(9, '(A)', iostat=stat(5)) stdspcfill
+
+   CLOSE(9)
+END IF
+
+IF (SUM(stat) == 0) THEN
+   WRITE(fhmeo, fmt) TRIM(ADJUSTL(stdspcfill))
+ELSE
+   WRITE(fhmeo, fmt) "Could not get sha256sum. One of the previious system calls failed."
+END IF
+
+END SUBROUTINE meta_write_sha256sum
+
+
+!------------------------------------------------------------------------------
 ! SUBROUTINE: meta_write_C
 !---------------------------------------------------------------------------  
 !> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
@@ -964,6 +1050,33 @@ CALL meta_write_keyword (fh, keyword, stdspcfill, unit)
 END SUBROUTINE meta_write_R1D
 
 !------------------------------------------------------------------------------
+! SUBROUTINE: meta_signing
+!------------------------------------------------------------------------------
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Subroutine to close a meta file.
+!
+!> @description
+!> Requires a "revision.meta" or similar inclusion of verisoning info, 
+!> provided by a makefile. Furhermore, it requires a global_stds file.
+!------------------------------------------------------------------------------
+SUBROUTINE meta_signing(binary_name)
+
+CHARACTER(LEN=*), INTENT(IN)  :: binary_name
+
+WRITE(fhmeo, '(A)')
+CALL meta_write (fhmeo, 'PROGRAM_VERSION' , revision)
+CALL meta_write (fhmeo, 'PROGRAM_GIT_HASH' , hash)
+
+CALL meta_write_sha256sum (binary_name)
+
+CALL meta_write (fhmeo, 'COMPUTATION_FINISHED' , 'Succesfully')
+
+END SUBROUTINE meta_signing
+
+
+!------------------------------------------------------------------------------
 ! SUBROUTINE: meta_close
 !------------------------------------------------------------------------------
 !> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
@@ -972,15 +1085,9 @@ END SUBROUTINE meta_write_R1D
 !> Subroutine to close a meta file.
 !
 !> @description
-!> Requires a "revision.inc" or similar inclusion of verisonign info, 
 !> provided by a makefile. Furhermore, it requires a global_stds file.
 !------------------------------------------------------------------------------
 SUBROUTINE meta_close()
-
-WRITE(fhmeo, '(A)')
-CALL meta_write (fhmeo, 'PROGRAM_VERSION' , revision)
-CALL meta_write (fhmeo, 'PROGRAM_GIT_HASH' , hash)
-CALL meta_write (fhmeo, 'COMPUTATION_FINISHED' , 'Succesfully')
 
 WRITE(fhmeo, '(A)')
 WRITE(fhmeo, SEP_STD)

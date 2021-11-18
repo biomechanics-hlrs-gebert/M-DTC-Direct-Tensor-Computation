@@ -914,7 +914,7 @@ Program main_struct_process
   CHARACTER(LEN=mcl)  , DIMENSION(:), ALLOCATABLE   :: m_rry      
   CHARACTER(LEN=1)                                  :: restart='N', restart_cmdarg='U' ! U = 'undefined'
   CHARACTER(LEN=mcl)                                :: infile=''  , cmd_arg='notempty', cmd_arg_history=''
-  CHARACTER(LEN=mcl)                                :: muCT_pd_path, muCT_pd_name, domain_desc
+  CHARACTER(LEN=mcl)                                :: muCT_pd_path, muCT_pd_name, domain_desc, binary
 
   INTEGER  (KIND=ik)  , DIMENSION(:), ALLOCATABLE   :: Domains, Domain_stats, act_domains, nn_D
   INTEGER  (KIND=ik)  , DIMENSION(3)                :: xa_d, xe_d
@@ -950,7 +950,7 @@ Program main_struct_process
   !------------------------------------------------------------------------------
   If (rank_mpi==0) Then
 
-      CALL show_title()
+      CALL show_title(revision, hash)
       Call Start_Timer("Init Process")
     
       !------------------------------------------------------------------------------
@@ -964,6 +964,8 @@ Program main_struct_process
 
          IF (cmd_arg == '') EXIT
 
+         IF (ii == 1) binary = cmd_arg
+
          infile = TRIM(cmd_arg)
          
          cmd_arg_history = TRIM(cmd_arg_history)//' '//TRIM(cmd_arg)
@@ -974,10 +976,10 @@ Program main_struct_process
                         CASE('-restart', '-Restart')
                            restart_cmdarg = 'Y'
                         CASE('v', '-Version', '-version')
-                           CALL show_title()
+                           CALL show_title(revision, hash)
                            CALL usage(1)
                         CASE('i', '-Info', '-info')
-                           CALL show_title()
+                           CALL show_title(revision, hash)
                            CALL usage(1)
                         CASE('h', '-Help', '-help')
                            CALL usage(1)
@@ -1956,6 +1958,7 @@ Program main_struct_process
 1001 Continue
 
 IF(rank_mpi == 0) THEN
+   CALL meta_signing(binary)
    CALL meta_close()
 
    ! CALL meta_add_ascii(fh=fhl  , suf=log_suf, st='stop')

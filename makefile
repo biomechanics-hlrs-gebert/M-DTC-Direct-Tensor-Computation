@@ -46,7 +46,7 @@ bin_name="ddtc"
 long_name="Directly Discretizing Tensor Computation"
 # -----------------------------------------------------------------------------
 # https://jblevins.org/log/vc
-rev = $(shell git rev-parse --short HEAD)
+rev = $(shell git rev-parse HEAD)
 # -----------------------------------------------------------------------------
 # Check for environment
 check-env:
@@ -515,8 +515,8 @@ $(obj_dir)pd_merge_branch_to_tree$(obj_ext):$(mod_dir)puredat$(mod_ext) $(mod_di
 $(main_bin): $(c-objects) $(f-objects)
 	@echo "--------------------------------------------------------------------------------------------"
 	@echo '--- Get Github revision'
-	@echo "CHARACTER(LEN = scl), PARAMETER :: revision = '$(trgt_vrsn)'" > $(f_src_dir)revision.inc
-	@echo "CHARACTER(LEN = scl), PARAMETER :: hash     = '$(rev)'" >> $(f_src_dir)revision.inc
+	@echo "CHARACTER(LEN = scl), PARAMETER :: revision = '$(trgt_vrsn)'" > $(f_src_dir)revision_meta$(f90_ext)
+	@echo "CHARACTER(LEN = scl), PARAMETER :: hash = '$(rev)'" >> $(f_src_dir)revision_meta$(f90_ext)
 	@echo "--------------------------------------------------------------------------------------------"
 	@echo '--- Final link step of struct-process executable'
 	@echo "--------------------------------------------------------------------------------------------"

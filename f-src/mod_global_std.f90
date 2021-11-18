@@ -30,10 +30,10 @@ INTEGER(KIND=ik)   , PARAMETER :: std_err       = 0
 !------------------------------------------------------------------------------
 ! Standard formats
 !------------------------------------------------------------------------------
-CHARACTER(len=5)   , PARAMETER :: creturn       = achar(13)
-CHARACTER(len=5)   , PARAMETER :: ifmt          = '(I10)'       ! general integer    format
-CHARACTER(len=8)   , PARAMETER :: rfmt          = '(F30.10)'    ! general real       format
-CHARACTER(len=10)  , PARAMETER :: sfmt          = '(E23.15E2)'  ! general scientific format
+CHARACTER(len=5)   , PARAMETER :: creturn = achar(13)
+CHARACTER(len=5)   , PARAMETER :: ifmt    = '(I10)'       ! general integer    format
+CHARACTER(len=8)   , PARAMETER :: rfmt    = '(F30.10)'    ! general real       format
+CHARACTER(len=10)  , PARAMETER :: sfmt    = '(E23.15E2)'  ! general scientific format
 
 ! Seperators
 CHARACTER(Len=*), PARAMETER :: SEP_STD= "(112('-'))" ! FMT_HY_SEP
