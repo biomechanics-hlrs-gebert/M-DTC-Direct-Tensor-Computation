@@ -3,13 +3,19 @@ Macro Hex20
 understand Tensor to FE matrix
 recap stiffnessmatrix of Diss RS
 how is the grid spacing determined?
-highlight error messages
 init format specifiers Write warnings?
 
 Layout meta in like meta out :-)
 puredat file error
 
 Write Git Hash to Meta file
+
+Acknowledgements 
+    Best practice Software - SC21
+    LICENSE and Citation easily accesible!
+Document reasons for interfaces and implementations
+
+Code Reviews
 
 Polymorphism of routines
 

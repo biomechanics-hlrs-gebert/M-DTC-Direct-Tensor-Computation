@@ -998,6 +998,9 @@ Program main_struct_process
 
       in%full = TRIM(infile)
     
+      
+
+
    ! mssg = "This is an extraordinary long text to check out how my new subroutine might behave. &
    ! & "//TRIM(infile)//"&
    ! & The goal is to demonstrate the limit of five hundred twelve characters while computing the proper &
