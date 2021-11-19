@@ -1,14 +1,9 @@
-
-
-
-
-
 !------------------------------------------------------------------------------
 ! MODULE: meta
 !------------------------------------------------------------------------------
 !> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
 !
-! DESCRIPTION:
+! @Description:
 !> Module containing all meta file read/write routines.
 !
 ! REVISION HISTORY:
@@ -33,21 +28,21 @@ IMPLICIT NONE
    INTEGER, PARAMETER :: stdspc = 45   ! Keyword standard space
 
    ! Standard files
-   INTEGER(KIND=ik)   , PARAMETER :: fh_meta_in    = 20, fhmei  = 20
-   INTEGER(KIND=ik)   , PARAMETER :: fh_meta_put   = 21, fhmeo  = 21
-   INTEGER(KIND=ik)   , PARAMETER :: fh_mon        = 25, fhmon  = 25
-   INTEGER(KIND=ik)   , PARAMETER :: fh_out        = 30, fho    = 30
-   INTEGER(KIND=ik)   , PARAMETER :: fh_log        = 35, fhl    = 35
-   INTEGER(KIND=ik)   , PARAMETER :: fh_res        = 40, fhr    = 40
-   INTEGER(KIND=ik)   , PARAMETER :: fh_csv        = 45, fhc    = 45
-   INTEGER(KIND=ik)   , PARAMETER :: fh_head       = 50, fhh    = 50
-   CHARACTER(LEN=*)   , PARAMETER :: log_suf       = '.log'
-   CHARACTER(LEN=*)   , PARAMETER :: lock_suf      = '.lock'
-   CHARACTER(LEN=*)   , PARAMETER :: head_suf      = '.head'
-   CHARACTER(LEN=*)   , PARAMETER :: meta_suf      = '.meta'
-   CHARACTER(LEN=*)   , PARAMETER :: mon_suf       = '.mon'
-   CHARACTER(LEN=*)   , PARAMETER :: res_suf       = '.result'
-   CHARACTER(LEN=*)   , PARAMETER :: csv_suf       = '.csv'
+   INTEGER(KIND=ik), PARAMETER :: fh_meta_in  = 20, fhmei  = 20
+   INTEGER(KIND=ik), PARAMETER :: fh_meta_put = 21, fhmeo  = 21
+   INTEGER(KIND=ik), PARAMETER :: fh_mon      = 25, fhmon  = 25
+   INTEGER(KIND=ik), PARAMETER :: fh_out      = 30, fho    = 30
+   INTEGER(KIND=ik), PARAMETER :: fh_log      = 35, fhl    = 35
+   INTEGER(KIND=ik), PARAMETER :: fh_res      = 40, fhr    = 40
+   INTEGER(KIND=ik), PARAMETER :: fh_csv      = 45, fhc    = 45
+   INTEGER(KIND=ik), PARAMETER :: fh_head     = 50, fhh    = 50
+   CHARACTER(LEN=*), PARAMETER :: log_suf     = '.log'
+   CHARACTER(LEN=*), PARAMETER :: lock_suf    = '.lock'
+   CHARACTER(LEN=*), PARAMETER :: head_suf    = '.head'
+   CHARACTER(LEN=*), PARAMETER :: meta_suf    = '.meta'
+   CHARACTER(LEN=*), PARAMETER :: mon_suf     = '.mon'
+   CHARACTER(LEN=*), PARAMETER :: res_suf     = '.result'
+   CHARACTER(LEN=*), PARAMETER :: csv_suf     = '.csv'
 
    ! Meta data basename handling
    TYPE basename
@@ -65,7 +60,7 @@ IMPLICIT NONE
    END TYPE basename
 
    ! Always provide in/out for meta driven environments
-   TYPE(basename)                :: in, out
+   TYPE(basename) :: in, out
 
 
    !> Interface: meta_read
@@ -177,7 +172,6 @@ IF ( '.'//TRIM(tokens(ntokens)) .EQ. meta_suf) THEN
 
    in%path      = in%p_n_bsnm(1:LEN_TRIM(in%p_n_bsnm) - LEN_TRIM(tokens(ntokens)))     
    in%bsnm      = TRIM(tokens(ntokens))
-   in%bsnm      = TRIM(tokens(ntokens))
 
    CALL parse( str=TRIM(in%bsnm), delims="_", args=tokens, nargs=ntokens)
 
@@ -282,7 +276,97 @@ END SUBROUTINE meta_append
 
 
 !------------------------------------------------------------------------------
-! SUBROUTINE: meta_add_ascii
+! SUBROUTINE: meta_start_ascii
+!---------------------------------------------------------------------------  
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Subroutine to deal with the logging and renaming of the log file in context 
+!> of the meta data approach. 
+!
+!> @Description
+!> Meta log only gets called __after__ meta append or meta_close respectively. 
+!> This way, a log file is optional.
+!
+!> If Restart isn's set or .FALSE., then the program aborts in case a meta or
+!> a temporary log file is present as they might contain important data or
+!> debugging information. The temporaray logfile is a hidden one.
+!>
+!> If the variable restart is not explicitly set .TRUE., the program will not 
+!> restart.
+!> If the variable in/out are not set, the program will not start/stop 
+!> accordingly.
+!
+!> The Name of the temporary logfile is hardcoded!
+!> »'.temporary.'//log_suf«
+!
+!> @param[in] fh File handle of the input
+!> @param[in] suf Suffix of the file
+!> @param[in] restart Logfiles (temporary and permanent)
+!---------------------------------------------------------------------------  
+SUBROUTINE meta_start_ascii(fh, suf, restart)
+
+INTEGER  (KIND=ik), INTENT(IN) :: fh
+CHARACTER(LEN=*), INTENT(IN) :: suf
+CHARACTER, INTENT(IN), OPTIONAL :: restart
+
+CHARACTER(LEN=mcl) :: temp_f_suf, perm_f_suf
+INTEGER  (KIND=ik) :: ios
+CHARACTER :: restart_u
+
+LOGICAL :: exist_temp, exist_perm
+
+restart_u='N'
+
+! The temporaray file is a hidden one.
+temp_f_suf = TRIM(out%path)//'.temporary'//TRIM(suf)
+perm_f_suf = TRIM(out%p_n_bsnm)//TRIM(suf)
+  
+!------------------------------------------------------------------------------
+! Check for a temporary file
+! Check for a permanent file
+!------------------------------------------------------------------------------
+INQUIRE (FILE = temp_f_suf, EXIST = exist_temp)
+INQUIRE (FILE = out%p_n_bsnm//TRIM(suf), EXIST = exist_perm)
+
+!------------------------------------------------------------------------------
+! Check restart
+!------------------------------------------------------------------------------
+IF(PRESENT(restart)) restart_u=restart
+
+IF (restart_u .EQ. 'Y') THEN
+   ! if target_val if inquire(exist) = .FALSE. and stat_*l = 0 - the file does not exist
+   IF(exist_temp) THEN
+      CALL execute_command_line ('rm -r '//TRIM(temp_f_suf), CMDSTAT=ios)   
+      CALL handle_err(std_out, '»'//TRIM(temp_f_suf)//'« not deletable.',ios)
+   END IF
+
+   IF(exist_perm) THEN
+      CALL execute_command_line ('rm -r '//TRIM(out%p_n_bsnm)//TRIM(suf), CMDSTAT=ios)
+      CALL handle_err(std_out, '»'//TRIM(out%full)//'« not deletable.', ios)
+   END IF
+
+ELSE ! restart_u .EQ. 'N'
+   IF ((exist_temp) .OR. (exist_perm)) THEN
+
+      IF ((exist_temp) .AND. (exist_perm)) THEN 
+         mssg='The file '//TRIM(perm_f_suf)//' and the file '//TRIM(temp_f_suf)//' already exists.'
+      ELSE IF  (exist_temp) THEN
+         mssg='The file '//TRIM(temp_f_suf)//' already exists.'
+      ELSE ! (exist_perm) 
+         mssg='The file '//TRIM(perm_f_suf)//' already exists.'
+      END IF
+
+      CALL handle_err(std_out, TRIM(mssg)//' Previous job maybe was aborted.', 1)     
+   END IF
+END IF
+
+OPEN(UNIT=fh, FILE=TRIM(temp_f_suf), ACTION='WRITE', ACCESS='SEQUENTIAL', STATUS='NEW')
+
+END SUBROUTINE meta_start_ascii
+
+!------------------------------------------------------------------------------
+! SUBROUTINE: meta_stop_ascii
 !---------------------------------------------------------------------------  
 !> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
 !
@@ -311,95 +395,30 @@ END SUBROUTINE meta_append
 !> @param[in] st Metafile of the input
 !> @param[in] restart Logfiles (temporary and permanent)
 !---------------------------------------------------------------------------  
-SUBROUTINE meta_add_ascii(fh, suf, st, restart)
+SUBROUTINE meta_stop_ascii(fh, suf)
 
-INTEGER  (KIND=ik), INTENT(IN)            :: fh
-CHARACTER(LEN=*)  , INTENT(IN)            :: suf
-CHARACTER(LEN=*)  , INTENT(IN)            :: st
-CHARACTER         , INTENT(IN) , OPTIONAL :: restart
+INTEGER  (KIND=ik), INTENT(IN) :: fh
+CHARACTER(LEN=*), INTENT(IN) :: suf
 
 CHARACTER(LEN=mcl) :: temp_f_suf, perm_f_suf
 INTEGER  (KIND=ik) :: ios
-CHARACTER          :: restart_u='N'
 
-LOGICAL :: exist_temp, exist_perm
-
-! The temporaray file is a hidden one.
 temp_f_suf = TRIM(out%path)//'.temporary'//TRIM(suf)
 perm_f_suf = TRIM(out%p_n_bsnm)//TRIM(suf)
 
-!------------------------------------------------------------------------------
-! Create the file
-!------------------------------------------------------------------------------
-IF (st == 'start') THEN
-
-   !------------------------------------------------------------------------------
-   ! Check restart prerequisites
-   !------------------------------------------------------------------------------
-   ! Check for restart default value
-   IF(PRESENT(restart)) restart_u=restart
-
-   ! Check for temporary file
-   INQUIRE (FILE = temp_f_suf, EXIST = exist_temp)
-
-   ! Check for a permanent file
-   INQUIRE (FILE = out%p_n_bsnm//TRIM(suf), EXIST = exist_perm)
-
-   !------------------------------------------------------------------------------
-   ! What happens when a restart is requested.
-   !------------------------------------------------------------------------------
-   IF (restart_u .EQ. 'Y') THEN
-      ! if target_val if inquire(exist) = .FALSE. and stat_*l = 0 - the file does not exist
-      IF(exist_temp) THEN
-         CALL execute_command_line ('rm -r '//TRIM(temp_f_suf), CMDSTAT=ios)   
-         CALL handle_err(std_out, '»'//TRIM(temp_f_suf)//'« not deletable.',ios)
-      END IF
-
-      IF(exist_perm) THEN
-         CALL execute_command_line ('rm -r '//TRIM(out%p_n_bsnm)//TRIM(suf), CMDSTAT=ios)
-         CALL handle_err(std_out, '»'//TRIM(out%full)//'« not deletable.', ios)
-      END IF
-
-   ELSE ! restart_u .EQ. 'N'
-      !------------------------------------------------------------------------------
-      ! If no restart is requested (default)
-      !------------------------------------------------------------------------------
-
-      IF    ((exist_temp) .OR. (exist_perm)) THEN
-
-         IF ((exist_temp) .AND. (exist_perm)) THEN 
-            mssg='The file '//TRIM(perm_f_suf)//' and the file '//TRIM(temp_f_suf)//' already exists.'
-         ELSE IF  (exist_temp) THEN
-            mssg='The file '//TRIM(temp_f_suf)//' already exists.'
-         ELSE ! (exist_perm) 
-            mssg='The file '//TRIM(perm_f_suf)//' already exists.'
-         END IF
-
-         CALL handle_err(std_out, mssg, 1)     
-      END IF
-   END IF
-
-   OPEN(UNIT=fh, FILE=TRIM(temp_f_suf), ACTION='WRITE', ACCESS='SEQUENTIAL', STATUS='NEW')
-
-END IF !  (st == 'start') THEN
+CLOSE (fh)
 
 !------------------------------------------------------------------------------
-! Close the file
+! The temporary log file must be renamed to a permanent one
 !------------------------------------------------------------------------------
-IF (TRIM(st) == 'stop') THEN
-   CLOSE (fh)
+CALL execute_command_line ('mv '//TRIM(temp_f_suf)//' '//TRIM(out%p_n_bsnm)//TRIM(suf), CMDSTAT=ios)
 
-   ! The temporary log file must be renamed to a permanent one
-   CALL execute_command_line ('mv '//TRIM(temp_f_suf)//' '//TRIM(out%p_n_bsnm)//TRIM(suf), CMDSTAT=ios)
-
-   IF(ios /= 0_ik) THEN
-      mssg='Can not rename the suffix_file from »'//TRIM(temp_f_suf)//'« to the proper basename.'
-      CALL handle_err(std_out, mssg, 0)
-   END IF
+IF(ios /= 0_ik) THEN
+   mssg='Can not rename the suffix_file from »'//TRIM(temp_f_suf)//'« to the proper basename.'
+   CALL handle_err(std_out, mssg, 0)
 END IF
 
-END SUBROUTINE meta_add_ascii
-
+END SUBROUTINE meta_stop_ascii
 
 !------------------------------------------------------------------------------
 ! SUBROUTINE: check_keyword
@@ -505,15 +524,15 @@ END SUBROUTINE keyword_error
 !---------------------------------------------------------------------------
 SUBROUTINE meta_read_C (fh, keyword, m_in, chars)
    
-INTEGER  (KIND=ik)              , INTENT(IN)  :: fh 
-CHARACTER(LEN=*)                , INTENT(IN)  :: keyword
+INTEGER  (KIND=ik), INTENT(IN)  :: fh 
+CHARACTER(LEN=*)  , INTENT(IN)  :: keyword
 CHARACTER(LEN=mcl), DIMENSION(:), INTENT(IN)  :: m_in      
-CHARACTER(LEN=*)                , INTENT(OUT) :: chars 
+CHARACTER(LEN=*), INTENT(OUT) :: chars 
 
 ! Internal variables
-CHARACTER(LEN=mcl)   :: tokens(30), line
-INTEGER  (KIND=ik)   :: ntokens, ii
-INTEGER  (KIND=ik)   :: kywd_found
+CHARACTER(LEN=mcl) :: tokens(30), line
+INTEGER  (KIND=ik) :: ntokens, ii
+INTEGER  (KIND=ik) :: kywd_found
 
 kywd_found = 0
 

@@ -1,2 +1,2 @@
 CHARACTER(LEN = scl), PARAMETER :: revision = 'v1.0.0'
-CHARACTER(LEN = scl), PARAMETER :: hash = '9a21fb8f3778c75700d8f84498ed1aef7712fb50'
+CHARACTER(LEN = scl), PARAMETER :: hash = 'b106119cc9dabde88895c9da22070bd5d89edccc'

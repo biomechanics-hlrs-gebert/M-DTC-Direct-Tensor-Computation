@@ -1009,6 +1009,10 @@ Program main_struct_process
    ! write(*,*) mssg
    ! CALL handle_err (std_out, mssg,-1)
    ! CALL handle_err (std_out, mssg, 1)
+
+
+
+   
       !------------------------------------------------------------------------------
       ! Check and open the input file; Modify the Meta-Filename / Basename
       ! Define the new application name first
@@ -1065,9 +1069,9 @@ Program main_struct_process
       ! This log file may collide with the original log file (!)
       ! The regular struct_process log file contains still has the "old" basename!
       !------------------------------------------------------------------------------
-      ! CALL meta_add_ascii(fh=fhl  , suf=log_suf, st='start', restart=restart)
-      CALL meta_add_ascii(fh=fhmon, suf=mon_suf, st='start', restart=restart)
-      ! CALL meta_add_ascii(fh=fhr, suf=res_suf, st='start', restart=restart)
+      ! CALL meta_start_ascii(fh=fhl  , suf=log_suf, restart=restart)
+      CALL meta_start_ascii(fh=fhmon, suf=mon_suf, restart=restart)
+      ! CALL meta_start_ascii(fh=fhr, suf=res_suf, restart=restart)
 
       CALL meta_write (fhmeo, 'MICRO_ELMNT_TYPE' , elt_micro  )
       CALL meta_write (fhmeo, 'DBG_LVL'          , out_amount )
@@ -1970,9 +1974,9 @@ IF(rank_mpi == 0) THEN
    CALL meta_signing(binary)
    CALL meta_close()
 
-   ! CALL meta_add_ascii(fh=fhl  , suf=log_suf, st='stop')
-   CALL meta_add_ascii(fh=fhmon, suf=mon_suf, st='stop')
-   ! CALL meta_add_ascii(fh=fhr, suf=res_suf, st='stop')
+   ! CALL meta_stop_ascii(fh=fhl  , suf=log_suf)
+   CALL meta_stop_ascii(fh=fhmon, suf=mon_suf)
+   ! CALL meta_stop_ascii(fh=fhr, suf=res_suf)
 END IF ! (rank_mpi == 0)
 
 Call MPI_FINALIZE(ierr)
