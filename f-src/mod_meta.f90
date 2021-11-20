@@ -549,23 +549,38 @@ CALL check_keyword(fh, keyword)
 DO ii = , SIZE(m_in) 
    CALL parse(str=m_in(ii), delims=' ', args=tokens, nargs=ntokens)
 
+! ACCEPT IF NOT WRITTEN IN PROGRAMS OWN SCOPE
+
    SELECT CASE(tokens(1))
       CASE('*', 'r', 'w')
          IF (tokens(2) == TRIM(keyword)) THEN
             kywd_found = 1
             chars = TRIM(ADJUSTL(tokens(3))) !(stdspc-LEN_TRIM(tokens(3)) : stdspc)
-            IF (override) EXIT
+
+            !------------------------------------------------------------------------------
+            ! Keep keyword if it appears in the programs scope
+            !------------------------------------------------------------------------------
+            IF ((override) .AND. (tokens(1) /= 'w')) EXIT
+
          END IF
       CASE('p')
-         IF (.NOT. override) THEN
-            IF (tokens(2) == TRIM(meta_program_keyword)) override = .TRUE.
+         !------------------------------------------------------------------------------
+         ! User tells, that the scope of another program begins.
+         !------------------------------------------------------------------------------
+         IF ((.NOT. override) .AND. (tokens(2) == TRIM(meta_program_keyword))) THEN
+            override = .TRUE.
          ELSE
-            override = .FALSE.
+            !------------------------------------------------------------------------------
+            ! Leave, if the scope of the next program begins.
+            !------------------------------------------------------------------------------
+            EXIT
          END IF
+
    END SELECT
 END DO
 
 IF (kywd_found == 0)  CALL keyword_error(fh, keyword)
+
 END SUBROUTINE meta_read_C
 
 !------------------------------------------------------------------------------
