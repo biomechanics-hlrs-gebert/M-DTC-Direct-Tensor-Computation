@@ -1017,7 +1017,8 @@ Program main_struct_process
       ! Check and open the input file; Modify the Meta-Filename / Basename
       ! Define the new application name first
       !------------------------------------------------------------------------------
-      out%app = 'ddtc' 
+      meta_prgrm_mstr_app = 'ddtc' 
+      meta_program_keyword = 'STRUCT_PROCESS'
       CALL meta_append(m_rry)
       
       !------------------------------------------------------------------------------

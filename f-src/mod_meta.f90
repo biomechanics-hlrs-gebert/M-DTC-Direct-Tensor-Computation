@@ -27,6 +27,9 @@ IMPLICIT NONE
    INTEGER, PARAMETER :: ucl    = 10   ! Unit    character  length
    INTEGER, PARAMETER :: stdspc = 45   ! Keyword standard space
 
+   CHARACTER(LEN=kcl), PARAMETER :: meta_program_keyword
+   CHARACTER(LEN=kcl), PARAMETER :: meta_prgrm_mstr_app
+
    ! Standard files
    INTEGER(KIND=ik), PARAMETER :: fh_meta_in  = 20, fhmei  = 20
    INTEGER(KIND=ik), PARAMETER :: fh_meta_put = 21, fhmeo  = 21
@@ -36,13 +39,13 @@ IMPLICIT NONE
    INTEGER(KIND=ik), PARAMETER :: fh_res      = 40, fhr    = 40
    INTEGER(KIND=ik), PARAMETER :: fh_csv      = 45, fhc    = 45
    INTEGER(KIND=ik), PARAMETER :: fh_head     = 50, fhh    = 50
-   CHARACTER(LEN=*), PARAMETER :: log_suf     = '.log'
-   CHARACTER(LEN=*), PARAMETER :: lock_suf    = '.lock'
-   CHARACTER(LEN=*), PARAMETER :: head_suf    = '.head'
-   CHARACTER(LEN=*), PARAMETER :: meta_suf    = '.meta'
-   CHARACTER(LEN=*), PARAMETER :: mon_suf     = '.mon'
-   CHARACTER(LEN=*), PARAMETER :: res_suf     = '.result'
-   CHARACTER(LEN=*), PARAMETER :: csv_suf     = '.csv'
+   CHARACTER(LEN=*), PARAMETER :: log_suf  = '.log'
+   CHARACTER(LEN=*), PARAMETER :: lock_suf = '.lock'
+   CHARACTER(LEN=*), PARAMETER :: head_suf = '.head'
+   CHARACTER(LEN=*), PARAMETER :: meta_suf = '.meta'
+   CHARACTER(LEN=*), PARAMETER :: mon_suf  = '.mon'
+   CHARACTER(LEN=*), PARAMETER :: res_suf  = '.result'
+   CHARACTER(LEN=*), PARAMETER :: csv_suf  = '.csv'
 
    ! Meta data basename handling
    TYPE basename
@@ -105,9 +108,9 @@ SUBROUTINE meta_handle_lock_file(restart)
 
 CHARACTER, INTENT(IN) :: restart
 
-LOGICAL               :: exist=.FALSE.
-INTEGER  (KIND=ik)    :: ios
-CHARACTER(LEN=mcl)    :: lockname
+LOGICAL :: exist=.FALSE.
+INTEGER  (KIND=ik) :: ios
+CHARACTER(LEN=mcl) :: lockname
 
 !------------------------------------------------------------------------------
 ! Automatically aborts if there is no input file found on the drive
@@ -170,16 +173,16 @@ IF ( '.'//TRIM(tokens(ntokens)) .EQ. meta_suf) THEN
    
    CALL parse( str=TRIM(in%p_n_bsnm), delims="/", args=tokens, nargs=ntokens)
 
-   in%path      = in%p_n_bsnm(1:LEN_TRIM(in%p_n_bsnm) - LEN_TRIM(tokens(ntokens)))     
-   in%bsnm      = TRIM(tokens(ntokens))
+   in%path = in%p_n_bsnm(1:LEN_TRIM(in%p_n_bsnm) - LEN_TRIM(tokens(ntokens)))     
+   in%bsnm = TRIM(tokens(ntokens))
 
    CALL parse( str=TRIM(in%bsnm), delims="_", args=tokens, nargs=ntokens)
 
-   in%dataset   = TRIM(tokens(1))
-   in%type      = TRIM(tokens(2))
-   in%purpose   = TRIM(tokens(3))
-   in%app       = TRIM(tokens(4))
-   in%features  = TRIM(tokens(5))
+   in%dataset = TRIM(tokens(1))
+   in%type    = TRIM(tokens(2))
+   in%purpose = TRIM(tokens(3))
+   in%app      = TRIM(tokens(4))
+   in%features = TRIM(tokens(5))
 
    out = in  
 ELSE
@@ -249,7 +252,7 @@ END IF
 out%bsnm =     TRIM(out%dataset)//&
           '_'//TRIM(out%type)//&
           '_'//TRIM(out%purpose)//&
-          '_'//TRIM(out%app)//&        ! out%app shall be defined in the main program!
+          '_'//TRIM(meta_prgrm_mstr_app)//&
           '_'//TRIM(out%features)
 
 out%p_n_bsnm = TRIM(out%path)//&
@@ -530,39 +533,39 @@ CHARACTER(LEN=mcl), DIMENSION(:), INTENT(IN)  :: m_in
 CHARACTER(LEN=*), INTENT(OUT) :: chars 
 
 ! Internal variables
-CHARACTER(LEN=mcl) :: tokens(30), line
-INTEGER  (KIND=ik) :: ntokens, ii
-INTEGER  (KIND=ik) :: kywd_found
+CHARACTER(LEN=mcl) :: tokens(30)
+INTEGER(KIND=ik) :: ntokens, ii
+INTEGER(KIND=ik) :: kywd_found
+LOGICAL :: override
 
 kywd_found = 0
+override = .FALSE.
 
 CALL check_keyword(fh, keyword)
 
 !------------------------------------------------------------------------------
 ! Parse Data out of the input array
 !------------------------------------------------------------------------------
-DO ii = SIZE(m_in), 1_ik, -1_ik 
-   line = m_in(ii)
+DO ii = , SIZE(m_in) 
+   CALL parse(str=m_in(ii), delims=' ', args=tokens, nargs=ntokens)
 
-   IF (line(1:1) .EQ. '*') THEN ! it's a keyword
-
-      CALL parse(str=line, delims=' ', args=tokens, nargs=ntokens)
-
-      IF (tokens(2) .EQ. TRIM(keyword)) THEN
-         kywd_found = 1
-
-         chars = TRIM(ADJUSTL(tokens(3))) !(stdspc-LEN_TRIM(tokens(3)) : stdspc)
-         
-         !------------------------------------------------------------------------------
-         ! Exit the loop after parsing the first occurance as its the last 
-         ! mentioning of the keyword. (File is read beginning from the last line)
-         !------------------------------------------------------------------------------
-         EXIT 
-      END IF
-   END IF
+   SELECT CASE(tokens(1))
+      CASE('*', 'r', 'w')
+         IF (tokens(2) == TRIM(keyword)) THEN
+            kywd_found = 1
+            chars = TRIM(ADJUSTL(tokens(3))) !(stdspc-LEN_TRIM(tokens(3)) : stdspc)
+            IF (override) EXIT
+         END IF
+      CASE('p')
+         IF (.NOT. override) THEN
+            IF (tokens(2) == TRIM(meta_program_keyword)) override = .TRUE.
+         ELSE
+            override = .FALSE.
+         END IF
+   END SELECT
 END DO
 
-IF (kywd_found .EQ. 0_ik)  CALL keyword_error(fh, keyword)
+IF (kywd_found == 0)  CALL keyword_error(fh, keyword)
 END SUBROUTINE meta_read_C
 
 !------------------------------------------------------------------------------

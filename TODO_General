@@ -8,8 +8,6 @@ init format specifiers Write warnings?
 Layout meta in like meta out :-)
 puredat file error
 
-Write Git Hash to Meta file
-
 Acknowledgements 
     Best practice Software - SC21
     LICENSE and Citation easily accesible!
@@ -17,7 +15,15 @@ Document reasons for interfaces and implementations
 
 Code Reviews
 
-Polymorphism of routines
+separate meta add_ascii start/stop
+
+Doublekeywords - main Keywords
+
+Run on vulcan
+
+Run on Hawk
+
+int4.st
 
 
         RS - Rechenrraum für 29.11.2021
