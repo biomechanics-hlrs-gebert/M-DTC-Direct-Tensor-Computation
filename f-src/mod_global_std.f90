@@ -111,6 +111,45 @@ INTEGER, PARAMETER :: mpi_ik = 4 ! MPI INTEGER Kind; Compile with corresponding 
 
 END MODULE global_std
 
+!==============================================================================
+!> Global variables for the puredat data handling library
+!> \author Ralf Schneider
+!> \date 22.01.2010
+!>
+!> \date last modifications: 21.11.2021 (Johannes Gebert)
+!>
+Module puredat_globals
+  
+  Implicit None
+
+  !> Number of currently used stream variables in puredat_streams
+  !>
+  !> The total number of currently used stream variables which is the  
+  !> number of arrays defined in puredat_streams independently from 
+  !> their data type
+  Integer, Parameter :: no_streams = 7
+
+  !> Maximum character length used in puredat library
+  Integer, Parameter :: pd_mcl = 512
+  !> Maximum Character Length in pd_ik elements
+  Integer, Parameter :: pd_ce  = 512/8
+
+  !============================================================================
+  !== files and paths
+  !> puredat project path
+  !>
+  !> Path to puredat project files which means header-, stream- and 
+  !> log-files
+  Character(len=pd_mcl) :: pro_path
+  !> puredat project name
+  !>
+  !> Base name of the puredat project files which are ...
+  Character(len=pd_mcl) :: pro_name
+  
+  !> puredat monitor unit
+  Integer               :: pd_umon  != OUTPUT_UNIT
+
+End Module puredat_globals
 
 !------------------------------------------------------------------------------
 ! MODULE: mechanical
