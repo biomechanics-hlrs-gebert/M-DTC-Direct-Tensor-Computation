@@ -95,57 +95,57 @@ Contains
   !============================================================================
   !> Subroutine that initializes the output to std-out according to the
   !> environment variable CHAIN_STDOUT
-!   Subroutine init_std_out(success)
+  Subroutine init_std_out(success)
 
-!     Character(len=mcl)             :: env_var
-!     Logical                        :: opened, exist
-!     Logical, optional, intent(Out) :: success
+    Character(len=mcl)             :: env_var
+    Logical                        :: opened, exist
+    Logical, optional, intent(Out) :: success
 
-!     Integer                        :: io_stat
+    Integer                        :: io_stat
     
-!     Call get_environment_Variable("CHAIN_STDOUT", env_var)
+    Call get_environment_Variable("CHAIN_STDOUT", env_var)
 
-!     if (present(success)) success = .TRUE.
+    if (present(success)) success = .TRUE.
 
-!     !** If CHAIN_STDOUT is set to a value *************************************
-!     If (Len_Trim(env_var) > 0) then
+    !** If CHAIN_STDOUT is set to a value *************************************
+    If (Len_Trim(env_var) > 0) then
 
-!        Inquire(file=trim(env_var), opened = opened)
-!        Inquire(file=trim(env_var), exist  = exist)
+       Inquire(file=trim(env_var), opened = opened)
+       Inquire(file=trim(env_var), exist  = exist)
 
-!        IF (exist .AND. opened) Then
+       IF (exist .AND. opened) Then
           
-!           Inquire(file=trim(env_var), number=un_mon)
+          Inquire(file=trim(env_var), number=un_mon)
 
-!        Else if (exist .AND. (.NOT.opened)) then
+       Else if (exist .AND. (.NOT.opened)) then
 
-!           un_mon = give_new_unit()
-!           Open(unit=un_mon,  file=trim(env_var), Action='Write', &
-!                status='old', position='Append' )
+          un_mon = give_new_unit()
+          Open(unit=un_mon,  file=trim(env_var), Action='Write', &
+               status='old', position='Append' )
 
-!        Else if (.NOT. exist) then
+       Else if (.NOT. exist) then
 
-!           un_mon = give_new_unit()
-!           Open(unit=un_mon,  file=trim(env_var), Action='Write', &
-!                status='NEW', iostat = io_stat )
-!           If (io_stat /= 0) then
-!              if (present(success)) then
-!                 success = .FALSE.
-!              Else
-!                 un_mon = std_out
-!                 Write(un_mon,SEP_STD)
-!                 Write(un_mon,FMT_WRN )"In init_std_out it was not possible to open the monitor file"
-!                 Write(un_mon,FMT_WRN_A)trim(env_var)
-!                 Write(un_mon,FMT_WRN_A)"Please check the value of the en CHAIN_STDOUT env variable"
-!                 Write(un_mon,FMT_WRN )"Monitoring will be redirected to std output"
-!                 Write(un_mon,SEP_STD)
-!              End if
-!           End IF
-!        End IF
+          un_mon = give_new_unit()
+          Open(unit=un_mon,  file=trim(env_var), Action='Write', &
+               status='NEW', iostat = io_stat )
+          If (io_stat /= 0) then
+             if (present(success)) then
+                success = .FALSE.
+             Else
+                un_mon = std_out
+                Write(un_mon,SEP_STD)
+                Write(un_mon,FMT_WRN )"In init_std_out it was not possible to open the monitor file"
+                Write(un_mon,FMT_WRN_A)trim(env_var)
+                Write(un_mon,FMT_WRN_A)"Please check the value of the en CHAIN_STDOUT env variable"
+                Write(un_mon,FMT_WRN )"Monitoring will be redirected to std output"
+                Write(un_mon,SEP_STD)
+             End if
+          End IF
+       End IF
        
-!     End If
+    End If
    
-!   End Subroutine init_std_out
+  End Subroutine init_std_out
   
   !============================================================================
   !> Subroutine for writing link start tag and opening the global log-file
@@ -836,87 +836,6 @@ Subroutine read_int4_in(var,name,un)
 
   End function give_new_unit
 
-  !============================================================================
-  !> Subroutine for counting lines in an ascii file
-  function count_lines(un) result(no_lines)
-
-    Integer          ,Intent(in) :: un
-    Integer(kind=ik)             :: no_lines
-
-    Integer                      :: io_stat
-    Character(len=2)             :: temp_char
-
-    io_stat = 0
-    no_lines=0
-
-    Rewind(un)
-
-    Do While (io_stat == 0)
-
-       Read(un,'(A)', End=1000, iostat=io_stat) temp_char
-       no_lines = no_lines + 1
-
-    End Do
-
-1000 Continue
-
-    Rewind(un)
-
-  End function count_lines
-
-  !============================================================================
-  !> Subroutine for formated matrix output of Real(kind=rk) values
-  Subroutine Write_real_matrix(un,a,ii,jj,name,Fmt)
-
-    Integer         , intent(in)                   :: un
-    Integer(kind=ik), intent(in)                   :: ii, jj
-    Real(kind=rk)   , intent(in), dimension(ii,jj) :: a
-    Character(len=*), intent(in)                   :: name
-    Character(len=8), Intent(in), Optional         :: fmt
-    Character(len=8)                               :: fmt_loc
-    Integer(kind=ik)                               :: kk
-
-    Integer            :: prec , fw
-    Character(len=mcl) :: fmt_a, sep
-
-    If (present(fmt)) then
-       fmt_loc = fmt
-    Else
-       fmt_loc = "default"
-    End If
-
-    prec = precision(a)
-    fw   = prec+8
-
-    If (trim(fmt_loc) == "wxmaxima") then
-       
-       write(fmt_a,'(5(A,I0),A)') &
-            "(' [',",jj-1,"(E",fw,".",prec,"E2,','),E",fw,".",prec,"E2,'],' )"
-
-       Write(un_lf,"(A,A)")trim(name),": matrix("
-
-       Do kk = 1, ii-1
-          Write(un_lf,fmt_a)a(kk,:)
-       End Do
-
-       write(fmt_a,'(5(A,I0),A)') &
-            "(' [',",jj-1,"(E",fw,".",prec,"E2,','),E",fw,".",prec,"E2,']);' )"
-
-       Write(un_lf,fmt_a)a(ii,:)
-
-    Else
-
-       !** generate formats *************************************
-       write(fmt_a,'(3(A,I0),A)')'(',jj,'(E',fw,'.',prec,'E2))'
-       write(sep  ,"(A,I0,A)")"(",fw*jj+10,"('='))"
-       
-       Write(un,sep)
-       Write(un,"(6('-'),A,6('-'))")trim(name)
-       write(un,fmt_a)transpose(a)
-
-    End If
-
-  End Subroutine Write_real_matrix
 
   !****************************************************************************
   !> Function which determins whether the input matrix is symmetric or not

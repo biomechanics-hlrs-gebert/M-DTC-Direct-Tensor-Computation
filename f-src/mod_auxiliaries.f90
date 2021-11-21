@@ -119,7 +119,7 @@ CHARACTER(LEN=*), INTENT(IN), OPTIONAL :: fmt
 CHARACTER(LEN=*), INTENT(IN), OPTIONAL :: unit 
 
 ! Internal variables 
-INTEGER(KIND=ik)   :: prec , fw, nm_fmt_lngth, ii, jj, dim1, dim2
+INTEGER(KIND=ik)   :: prec , fw, nm_fmt_lngth, ii, jj, kk, dim1, dim2
 CHARACTER(LEN=mcl) :: fmt_a, sep, nm_fmt
 CHARACTER(LEN=mcl) :: text
 CHARACTER(LEN=mcl) :: fmt_u
@@ -142,7 +142,7 @@ IF (PRESENT(unit)) THEN
     IF (unit /= '') text = " Unit: ("//TRIM(unit)//")"
 END IF
 
-IF (dim1 .EQ. dim2) CALL checksym(mat_in = mat, status=sym_u)
+IF (dim1 .EQ. dim2) CALL check_sym(mat_in = mat, status=sym_u)
 
 !------------------------------------------------------------------------------
 ! Generate formats
@@ -151,7 +151,6 @@ IF(PRESENT(fmt)) fmt_u = fmt
 
 SELECT CASE (TRIM(fmt_u))
    CASE ('std', 'standard')
-
         WRITE(fmt_a, "(3(A,I0),A)") "(",dim2,"(E",fw,".",prec,"E2))"
         WRITE(sep  , "(A,I0,A)")    "(",fw*dim2,"('-'))"
 
@@ -159,12 +158,24 @@ SELECT CASE (TRIM(fmt_u))
         nm_fmt_lngth  = fw*dim2-4-2-LEN_TRIM(name)-LEN_TRIM(text)
 
    CASE ('spl', 'simple')
-
         WRITE(fmt_a,  "(3(A,I0),A)") "(",dim2,"(F10.3))"
         WRITE(sep  ,  "(A,I0,A)")    "(",dim2*10,"('-'))"        
 
         ! Calculate text and unit length. If name to long - overflow formaming to the right
         nm_fmt_lngth  = dim2*10-4-2-LEN_TRIM(name)-LEN_TRIM(text) 
+
+   CASE('wxm', 'wxmaxima')
+       WRITE(fmt_a, '(5(A,I0),A)')  "(' [',",dim2-1,"(E",fw,".",prec,"E2,','),E",fw,".",prec,"E2,'],' )"
+
+       WRITE(fh,"(A,A)")TRIM(name),": matrix("
+
+       DO kk = 1, dim1 - 1
+          WRITE(fh, fmt_a) mat(kk,:)
+       END DO
+
+       WRITE(fmt_a,'(5(A,I0),A)')  "(' [',",dim2-1,"(E",fw,".",prec,"E2,','),E",fw,".",prec,"E2,']);' )"
+
+       WRITE(fh, fmt_a) mat(dim1, :)
 END SELECT
 
 IF (nm_fmt_lngth .LT. 1_ik) nm_fmt_lngth = 1_ik
@@ -181,25 +192,24 @@ DO ii=1, dim1
 DO jj=1, dim2
 
     IF ((sym_u) .AND. (ii==dim1-1) .AND. (jj==2)) THEN
-
-        IF ((TRIM(fmt_u) == 'spl') .OR. (TRIM(fmt_u) == 'simple')) THEN
+        SELECT CASE(fmt_u)
+        CASE('spl', 'simple')
             WRITE(fh, '(A)', ADVANCE='NO') "symmetric "
-        ELSE
+        CASE('std', 'standard')
             WRITE(fh, '(A)', ADVANCE='NO') "   symmetric           "
-        END IF
+        END SELECT
     ELSE
         IF ((ABS(mat(ii,jj)) >=  10E-08) .AND. ((.NOT. sym_u) .OR. ((sym_u) .AND. (jj .GE. ii)))) THEN 
             WRITE(fh, fmt_a, ADVANCE='NO') mat (ii,jj)
         ELSE
-            ! Can'r trim a string with leading and trailing blanks
-            IF ((TRIM(fmt_u) == 'spl') .OR. (TRIM(fmt_u) == 'simple')) THEN
+            SELECT CASE(fmt_u)
+            CASE('spl', 'simple')
                 WRITE(fh, '(A)', ADVANCE='NO') "      .   "
-            ELSE
+            CASE('std', 'standard')
                 WRITE(fh, '(A)', ADVANCE='NO') "   .                   "
-            END IF
+            END SELECT
         END IF
     END IF
-
 
 END DO
 WRITE(fh,'(A)') ''
@@ -252,7 +262,7 @@ LOGICAL :: sym_u
 dim1 = SIZE(mat, 1)
 dim2 = SIZE(mat, 2)
 fmt_u = 'standard'
-sym_u = .TRUE.
+sym_u = .FALSE.
 mssg='' 
 text = ''
 
@@ -261,9 +271,8 @@ IF (PRESENT(unit)) THEN
 END IF
 
 IF (dim1 .EQ. dim2) THEN
-    CALL checksym(mat_in=REAL(mat , KIND=rk), status=sym_u)
-ELSE
-    sym_u = .FALSE.
+    CALL check_sym(fh, mat_in=REAL(mat, KIND=rk), name, sum_sym=sum_sym)
+    sym_u = .TRUE.
 END IF
 
 !------------------------------------------------------------------------------
@@ -276,12 +285,12 @@ SELECT CASE (TRIM(fmt_u))
 
         WRITE(sep, "(A,I0,A)") "(",dim2,"('-'))"
 
-        ! Calculate text and unit length. If name to long - overflow formaming to the right
-        nm_fmt_lngth  = dim2-4-2-LEN_TRIM(name)-LEN_TRIM(text)
+        ! Calculate text and unit length. If name to long - overflow formatting to the right
+        nm_fmt_lngth = dim2-4-2-LEN_TRIM(name)-LEN_TRIM(text)
 
    CASE ('spl', 'simple')
 
-        WRITE(sep,  "(A,I0,A)") "(",dim2*10,"('-'))"        
+        WRITE(sep, "(A,I0,A)") "(",dim2*10,"('-'))"        
 
         ! Calculate text and unit length. If name to long - overflow formaming to the right
         nm_fmt_lngth  = dim2*10-4-2-LEN_TRIM(name)-LEN_TRIM(text) 
@@ -323,7 +332,7 @@ End Subroutine write_matrix_int
 
 
 !------------------------------------------------------------------------------
-! SUBROUTINE: checksym
+! SUBROUTINE: check_sym
 !------------------------------------------------------------------------------  
 !> @author Johannes Gebert,   gebert@hlrs.de, HLRS/NUM
 !
@@ -335,34 +344,35 @@ End Subroutine write_matrix_int
 !> the L2-Norm of the subtracted minor diagonals devided by the 
 !> L2-norm of the input matrix
 !
+!> @param[in]  fh File handle to write to
 !> @param[in]  mat_in Input Matrix
+!> @param[in]  name Name of the matrix to evaluate
 !> @param[out] mat_out Output Matrix
-!> @param[out] status whether the matrix is symmetric
-!> @param[in]  llquo Quotient of the L2 Norms
+!> @param[out] sum_sym Sum of differences of all ii,jj entries
 !------------------------------------------------------------------------------  
-SUBROUTINE checksym(mat_in, mat_out, status, llquo)
-REAL   (KIND=rk), DIMENSION(:,:), INTENT(IN)            :: mat_in
-REAL   (KIND=rk), DIMENSION(:,:), INTENT(OUT), OPTIONAL :: mat_out
-LOGICAL                         , INTENT(OUT), OPTIONAL :: status
-REAL   (KIND=rk)                , INTENT(OUT), OPTIONAL :: llquo
+SUBROUTINE check_sym(fh, mat_in, name, mat_out, sum_sym)
+INTEGER(KIND=ik),                 INTENT(IN) :: fh
+REAL(KIND=rk),    DIMENSION(:,:), INTENT(IN) :: mat_in
+CHARACTER(LEN=*),                 INTENT(IN) , OPTIONAL :: name
+REAL(KIND=rk)   , DIMENSION(:,:), INTENT(OUT), OPTIONAL :: sum_sym
 
 REAL(KIND=rk), DIMENSION(:,:), ALLOCATABLE :: mat 
-REAL(KIND=rk), DIMENSION(:,:), ALLOCATABLE :: norm_mat
-LOGICAL :: status_u
+REAL(KIND=rk), DIMENSION(:,:), ALLOCATABLE :: sym
 
 INTEGER(KIND=ik) :: n, m
 INTEGER(KIND=ik) :: ii, jj, q
-REAL   (KIND=rk) :: norm_norm_mat, norm_in
+REAL   (KIND=rk) :: norm_sym, norm_in
+CHARACTER(LEN=scl) :: name_u
 
-! m = ABS(m)
+
+name_u = ''
 n  = SIZE(mat_in, 1)
 m  = SIZE(mat_in, 2)
 
 ALLOCATE(mat(n,m))
 mat = 0._rk
-ALLOCATE(norm_mat(n,m))
-norm_mat = 0._rk
-
+ALLOCATE(sym(n,m))
+sym = 0._rk
 
 !------------------------------------------------------------------------------
 ! Calculate the differences of the minor diagonals
@@ -371,37 +381,28 @@ q = 1
 DO ii=1,n-1 ! columns
     q = q + 1 ! begins with 2
     DO jj=q, m ! rows
-        norm_mat (jj,ii) = mat_in (jj,ii) - mat_in (ii,jj) 
+        sym (jj,ii) = mat_in (jj,ii) - mat_in (ii,jj) 
     END DO
 END DO
-
-!------------------------------------------------------------------------------
-! Calculate the L2-Norms and give feedback
-!------------------------------------------------------------------------------
-norm_norm_mat = NORM2(norm_mat)
-norm_in = NORM2(mat_in)
-
-! Give feedback about the symmetry of the matrix
-IF (norm_norm_mat/norm_in .LT. 10E-06) status_u = .TRUE.
-
-IF(PRESENT(status)) status = status_u
-
-IF(PRESENT(llquo)) llquo = norm_norm_mat/norm_in
 
 q = 1
 DO ii=1,n-1 ! columns
     q = q + 1 ! begins with 2
     DO jj=q, m ! rows
-        mat (jj,ii) = norm_mat (ii,jj) 
+        mat (jj,ii) = sym (ii,jj) 
     END DO
 END DO
 
 IF(PRESENT(mat_out)) mat_out = mat
 
-END SUBROUTINE checksym
+IF(PRESENT(name)) name_u = ' '//TRIM(ADJUSTL(name))
+
+WRITE(fh, '(3A, F0.0)')"--------- check_sym",TRIM(name_u),": ", SUM(sym)
+
+END SUBROUTINE check_sym
 
 !------------------------------------------------------------------------------
-! SUBROUTINE: checksym6x6
+! SUBROUTINE: check_sym6x6
 !------------------------------------------------------------------------------  
 !> @author Johannes Gebert,   gebert@hlrs.de, HLRS/NUM
 !
@@ -413,7 +414,7 @@ END SUBROUTINE checksym
 !> @param[out] maout Input 6x6 Matrix
 !> @param[out] status whether the matrix is symmetric
 !------------------------------------------------------------------------------ 
-SUBROUTINE checksym6x6(fh, main, maout, status)
+SUBROUTINE check_sym6x6(fh, main, maout, status)
 
 INTEGER(KIND=ik)             , INTENT(IN)            :: fh   
 REAL(KIND=rk), DIMENSION(6,6), INTENT(IN)            :: main
@@ -449,7 +450,7 @@ IF(PRESENT(maout))THEN
 END IF
 
 
-END SUBROUTINE checksym6x6
+END SUBROUTINE check_sym6x6
 
 !------------------------------------------------------------------------------
 ! SUBROUTINE: zerothres

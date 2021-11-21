@@ -61,6 +61,8 @@ export LD_LIBRARY_PATH=${petsc_prefix}/lib:$LD_LIBRARY_PATH
 #
 tmpi_prefix="/opt/tmpi"
 #
+export DDTC_ARCH="julius"
+#           
 export PATH=${tmpi_prefix}:$PATH
 #           
 tools=( gdb tmpi tmux mpirun )

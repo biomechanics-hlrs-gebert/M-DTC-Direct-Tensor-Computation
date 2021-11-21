@@ -14,7 +14,9 @@ Document reasons for interfaces and implementations
 
 Code Reviews
 
-refacotr checksym
+refactor checksym
+refactor count_lines
+refactor read_user_input mod_chain
 
 Run on vulcan
 

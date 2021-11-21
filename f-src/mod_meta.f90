@@ -197,17 +197,7 @@ END IF
 !------------------------------------------------------------------------------
 OPEN(UNIT=fhmei, FILE=TRIM(in%full), ACTION='READWRITE', ACCESS='SEQUENTIAL', STATUS='OLD')
 
-! Count lines of input file
-lines = 0_meta_ik
-DO
-   READ(fhmei, '(A)', iostat=ios) line
-   IF ( ios .NE. 0_meta_ik ) EXIT
-   
-   lines = lines + 1_meta_ik
-END DO
-
-! Reposition to first line of file
-REWIND (fhmei)
+lines = count_lines(fhmei)
 
 ALLOCATE(meta_as_rry(lines))
 !------------------------------------------------------------------------------
@@ -402,6 +392,47 @@ IF(ios /= 0_meta_ik) THEN
 END IF
 
 END SUBROUTINE meta_stop_ascii
+
+
+
+!============================================================================
+!> Subroutine for counting lines in an ascii file
+!------------------------------------------------------------------------------
+! SUBROUTINE: count_lines
+!------------------------------------------------------------------------------  
+!> @author Ralf Schneider, schneider@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Truncate a keyword which was too long. Could do other stuff as well.
+!
+!> @param[in] fh File handle 
+!> @param[in] keyword Keyword to check
+!------------------------------------------------------------------------------  
+function count_lines(un) result(no_lines)
+
+Integer, Intent(in) :: un
+Integer(kind=ik)    :: no_lines
+
+Integer             :: io_stat
+Character(len=2)    :: temp_char
+
+io_stat = 0
+no_lines=0
+
+Rewind(un)
+
+Do While (io_stat == 0)
+
+Read(un,'(A)', End=1000, iostat=io_stat) temp_char
+no_lines = no_lines + 1
+
+End Do
+
+1000 Continue
+
+Rewind(un)
+
+End function count_lines
 
 !------------------------------------------------------------------------------
 ! SUBROUTINE: check_keyword
