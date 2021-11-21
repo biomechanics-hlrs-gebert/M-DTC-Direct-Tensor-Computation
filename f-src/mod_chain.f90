@@ -46,7 +46,7 @@ End Module chain_variables
 !> Routines for unified handling of program startup, logging, shutdown and 
 !> error handling
 Module chain_routines
-
+   
    USE error_handling
    USE chain_variables
    USE timer
@@ -79,7 +79,7 @@ Module chain_routines
 !!$     end subroutine
 !!$  end interface
   ! ---------------------------------------------------------------------------
-  
+
 Contains
 
 !!$  !============================================================================
@@ -825,7 +825,7 @@ Subroutine read_int4_in(var,name,un)
     End Do
     
     if ( unit_is_open ) then
-       
+
        WRITE(un_mon, SEP_STD)
        WRITE(un_mon, FMT_ERR)'Something bad and unexpected happened during search for free unit'
        WRITE(un_mon, FMT_ERR)'Could not find a new unit between 100 and huge(Int(kind=4))'

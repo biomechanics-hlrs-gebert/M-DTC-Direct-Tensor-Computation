@@ -8,6 +8,7 @@ Module calcmat
   Use decomp
   use mat_matrices
   use chain_routines
+  use auxiliaries
   use linFE
   use mpi
   
@@ -291,7 +292,7 @@ contains
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     If (out_amount == "DEBUG") THEN
        Write(un_lf,fmt_dbg_sep)
-       Call Write_real_matrix(un_lf,cc,6_ik,6_ik," Isotropic Compliance -- CC")
+       Call Write_matrix(un_lf, "Effective Isotropic Compliance -- CC", 'std', '1/MPa', cc)
        Write(un_lf,fmt_dbg_sep)
     End if
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -329,8 +330,7 @@ contains
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     If (out_amount == "DEBUG") THEN
        Write(un_lf,fmt_dbg_sep)
-       call write_real_matrix(un_lf,vv,no_lc,no_lc,&
-            "Displacement matrix")
+       Call Write_matrix(un_lf, "Displacement matrix", 'std', 'mm', vv)
        Write(un_lf,fmt_dbg_sep)
     End if
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -341,8 +341,7 @@ contains
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     If (out_amount == "DEBUG") THEN
        Write(un_lf,fmt_dbg_sep)
-       call write_real_matrix(un_lf,vv,no_lc,no_lc,&
-            "Inverted displacement matrix")
+       Call Write_matrix(un_lf, "Inverted displacement matrix", 'std', '1/mm', vv)
        Write(un_lf,fmt_dbg_sep)
     End if
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -373,8 +372,7 @@ contains
     End Do
 
     If (out_amount /= "PRODUCTION" ) then
-       call write_real_matrix(un_lf,ff,no_lc,no_lc, &
-            "ff by summation of single force formula")
+       Call Write_matrix(un_lf, "ff by summation of single force formula", 'std', 'N', ff)
     End If
     
     !call add_leaf_to_branch(res_tree, "Domain forces", no_lc*no_lc, reshape(ff,[no_lc*no_lc]))
@@ -396,7 +394,7 @@ contains
     !     status_mpi, ierr)
     
     If (out_amount /= "PRODUCTION" ) then
-       Call Write_real_matrix(un_lf,stiffness,no_lc,no_lc,"Stiffness")
+       Call Write_matrix(un_lf, "Stiffness", 'std', 'MPa', stiffness)
     End If
     
     call check_sym(A=stiffness,name="Stiffness",sym_out=tmp_real_fd1(1))
@@ -436,7 +434,7 @@ contains
             (ff(19,ii) + ff(20,ii) + ff(23,ii) + ff(24,ii)) / ( x_D_phy(1) * x_D_phy(3) ) )
     End Do
     If (out_amount /= "PRODUCTION" ) then
-       Call Write_real_matrix(un_lf, fv ,6_ik, 6_ik, "Konsistent force matrix")
+       Call Write_matrix(un_lf, "Konsistent force matrix", 'std', 'N', fv)
     End If
     
     !****************************************************************************
@@ -518,7 +516,8 @@ contains
     cc_mean = matmul(fv,meps)
 
     If (out_amount /= "PRODUCTION" ) then
-       Call Write_real_matrix(un_lf, cc_mean ,6_ik, 6_ik, "Effective stiffness")
+     !   Call Write_real_matrix(un_lf, cc_mean ,6_ik, 6_ik, "Effective stiffness")
+       Call Write_matrix(un_lf, "Effective stiffness", 'std', 'MPa', cc_mean)
     End If
     
     call check_sym(A=cc_mean,name="Effective stiffness",sym_out=tmp_real_fd1(1))
@@ -558,7 +557,7 @@ contains
     EE = (cc_mean + transpose(cc_mean)) / 2._rk
 
     If (out_amount /= "PRODUCTION" ) then
-       Call Write_real_matrix(un_lf, ee ,6_ik, 6_ik, "Averaged Effective stiffness")
+       Call Write_matrix(un_lf, "Averaged Effective stiffness", 'std', 'MPa', ee)
     End If
     call check_sym(A=ee,name="Averaged Effective stiffness",sym_out=tmp_real_fd1(1))
 
@@ -1136,7 +1135,7 @@ contains
     EE = matmul(matmul(transpose(BB),EE_Orig),BB)
 
     If (out_amount /= "PRODUCTION" ) then
-       call write_real_matrix(un_lf,EE,6_ik,6_ik,"Backrotated anisotropic stiffness CR_1")
+       Call Write_matrix(un_lf, "Backrotated anisotropic stiffness CR_1", 'std', 'MPa', EE)
     End If
     
     !=========================================================
@@ -1213,8 +1212,8 @@ contains
     EE = matmul(matmul(transpose(BB),EE_Orig),BB)
 
     If (out_amount /= "PRODUCTION" ) then
-       call write_real_matrix(un_lf, aa,3_ik,3_ik,"Final coordinate system CR_1")
-       call write_real_matrix(un_lf, EE,6_ik,6_ik,"Inlined anisotropic stiffness CR_1")
+       Call Write_matrix(un_lf, "Final coordinate system CR_1", 'std', mat=aa)
+       Call Write_matrix(un_lf, "Inlined anisotropic stiffness CR_1", 'std', 'MPa', EE)
     End If
     
     call check_sym(A=EE,name="Inlined anisotropic stiffness CR_1")
@@ -1574,7 +1573,7 @@ contains
     EE = matmul(matmul(transpose(BB),EE),BB)
 
     If (out_amount /= "PRODUCTION" ) &
-         call write_real_matrix(un_lf,EE,6_ik,6_ik,"Backrotated anisotropic stiffness CR_2")
+         Call Write_matrix(un_lf, "Backrotated anisotropic stiffness CR_2", 'std', 'MPa', EE)
 
     !=========================================================
 
@@ -1650,8 +1649,8 @@ contains
     EE = matmul(matmul(transpose(BB),EE_Orig),BB)
 
     If (out_amount /= "PRODUCTION" ) then
-       call write_real_matrix(un_lf, aa,3_ik,3_ik,"Final coordinate system CR_2")
-       call write_real_matrix(un_lf, EE,6_ik,6_ik,"Inlined anisotropic stiffness CR_2")
+       Call Write_matrix(un_lf, "Final coordinate system CR_2", 'std', mat=aa)
+       Call Write_matrix(un_lf, "Inlined anisotropic stiffness CR_2", 'std', 'MPa', EE)
     End If
     
     call check_sym(A=EE,name="Inlined anisotropic stiffness CR_2")

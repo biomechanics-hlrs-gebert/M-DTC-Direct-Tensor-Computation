@@ -29,18 +29,18 @@ IMPLICIT NONE
    INTEGER, PARAMETER :: ucl    = 10   ! Unit    character  length
    INTEGER, PARAMETER :: stdspc = 45   ! Keyword standard space
 
-   CHARACTER(LEN=kcl), PARAMETER :: meta_program_keyword
-   CHARACTER(LEN=kcl), PARAMETER :: meta_prgrm_mstr_app
+   CHARACTER(LEN=kcl) :: meta_program_keyword
+   CHARACTER(LEN=kcl) :: meta_prgrm_mstr_app
 
    ! Standard files
-   INTEGER(KIND=ik), PARAMETER :: fh_meta_in  = 20, fhmei  = 20
-   INTEGER(KIND=ik), PARAMETER :: fh_meta_put = 21, fhmeo  = 21
-   INTEGER(KIND=ik), PARAMETER :: fh_mon      = 25, fhmon  = 25
-   INTEGER(KIND=ik), PARAMETER :: fh_out      = 30, fho    = 30
-   INTEGER(KIND=ik), PARAMETER :: fh_log      = 35, fhl    = 35
-   INTEGER(KIND=ik), PARAMETER :: fh_res      = 40, fhr    = 40
-   INTEGER(KIND=ik), PARAMETER :: fh_csv      = 45, fhc    = 45
-   INTEGER(KIND=ik), PARAMETER :: fh_head     = 50, fhh    = 50
+   INTEGER(KIND=meta_ik), PARAMETER :: fh_meta_in  = 20, fhmei  = 20
+   INTEGER(KIND=meta_ik), PARAMETER :: fh_meta_put = 21, fhmeo  = 21
+   INTEGER(KIND=meta_ik), PARAMETER :: fh_mon      = 25, fhmon  = 25
+   INTEGER(KIND=meta_ik), PARAMETER :: fh_out      = 30, fho    = 30
+   INTEGER(KIND=meta_ik), PARAMETER :: fh_log      = 35, fhl    = 35
+   INTEGER(KIND=meta_ik), PARAMETER :: fh_res      = 40, fhr    = 40
+   INTEGER(KIND=meta_ik), PARAMETER :: fh_csv      = 45, fhc    = 45
+   INTEGER(KIND=meta_ik), PARAMETER :: fh_head     = 50, fhh    = 50
    CHARACTER(LEN=*), PARAMETER :: log_suf  = '.log'
    CHARACTER(LEN=*), PARAMETER :: lock_suf = '.lock'
    CHARACTER(LEN=*), PARAMETER :: head_suf = '.head'

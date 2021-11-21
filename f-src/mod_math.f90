@@ -9,6 +9,7 @@ Module math
 
   USE global_std
   use chain_routines
+  USE auxiliaries
 
   Implicit None
 
@@ -315,12 +316,13 @@ contains
     EE = matmul(matmul(transpose(BB),EE),BB)
 
     If (mmdbg) then
-       call write_real_matrix(un_lf,EE,6_ik,6_ik,&
-            "Backrotated anisotropic stiffness CR_1")
-       call write_real_matrix(un_lf,EE_orig,6_ik,6_ik,&
-            "eff_S","wxmaxima")
-       call write_real_matrix(un_lf,EE,6_ik,6_ik,&
-            "eff_S_CR_1","wxmaxima")
+       Call Write_matrix(un_lf, "Backrotated anisotropic stiffness CR_1", 'std', 'MPa', EE)
+      !  call write_real_matrix(un_lf,EE_orig,6_ik,6_ik,&
+      !       "eff_S","wxmaxima")
+      !  Call Write_matrix(un_lf, "Backrotated anisotropic stiffness CR_1", 'std', 'MPa', EE_orig)
+      !  call write_real_matrix(un_lf,EE,6_ik,6_ik,&
+      !       "eff_S_CR_1","wxmaxima")
+      !  Call Write_matrix(un_lf, "Backrotated anisotropic stiffness CR_1", 'std', 'MPa', EE)
     End If
 
     !=========================================================
@@ -396,13 +398,12 @@ contains
     EE = matmul(matmul(transpose(BB),EE_Orig),BB)
 
     If (mmdbg) then 
-       call write_real_matrix(un_lf, aa,3_ik,3_ik,&
-            "Final coordinate system CR_1")
-       call write_real_matrix(un_lf,aa,3_ik,3_ik,&
-            "R3_trafo","wxmaxima")
-       call write_real_matrix(un_lf, EE,6_ik,6_ik,&
-            "Inlined anisotropic stiffness CR_1")
-       call check_sym(A=EE,name="Inlined anisotropic stiffness CR_1")
+       Call Write_matrix(un_lf, "Final coordinate system CR_1", 'std', mat=aa)
+      !  call write_real_matrix(un_lf,aa,3_ik,3_ik,&
+      !       "R3_trafo","wxmaxima")
+      !  call write_real_matrix(un_lf, EE,6_ik,6_ik,&
+      !       "Inlined anisotropic stiffness CR_1")
+      !  call check_sym(A=EE,name="Inlined anisotropic stiffness CR_1")
     End If
 
     fdir = aa
@@ -611,8 +612,7 @@ contains
     EE = matmul(matmul(transpose(BB),EE),BB)
 
     If (mmdbg) then
-       call write_real_matrix(un_lf,EE,6_ik,6_ik,&
-            "Backrotated anisotropic stiffness CR_1")
+       Call Write_matrix(un_lf, "Backrotated anisotropic stiffness CR_1", 'std', 'MPa', EE)
     End If
     !=========================================================
 
@@ -687,10 +687,9 @@ contains
     EE = matmul(matmul(transpose(BB),EE_Orig),BB)
 
     If (mmdbg) then 
-       call write_real_matrix(un_lf, aa,3_ik,3_ik,&
-            "Final coordinate system CR_1")
-       call write_real_matrix(un_lf, EE,6_ik,6_ik,&
-            "Inlined anisotropic stiffness CR_1")
+       Call Write_matrix(un_lf, "Final coordinate system CR_1", 'std', mat=aa)
+
+       Call Write_matrix(un_lf, "Inlined anisotropic stiffness CR_1", 'std', 'MPa', EE)
        call check_sym(A=EE,name="Inlined anisotropic stiffness CR_1")
     End If
 

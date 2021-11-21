@@ -11,33 +11,30 @@ MODULE global_std
 IMPLICIT NONE
 
 ! General constants
-INTEGER, PARAMETER :: sik    = 2    ! INTEGER Kind
-INTEGER, PARAMETER :: ik     = 8    ! INTEGER Kind
-INTEGER, PARAMETER :: rk     = 8    ! Real    Kind
-INTEGER, PARAMETER :: mcl    = 512  ! Maximal character  length
-INTEGER, PARAMETER :: hcl    = 256  ! Half    character  length
-INTEGER, PARAMETER :: scl    = 64   ! Short   character  length
+INTEGER, PARAMETER :: sik = 2    ! INTEGER Kind
+INTEGER, PARAMETER :: ik  = 8    ! INTEGER Kind
+INTEGER, PARAMETER :: rk  = 8    ! Real    Kind
+INTEGER, PARAMETER :: mcl = 512  ! Maximal character  length
+INTEGER, PARAMETER :: hcl = 256  ! Half    character  length
+INTEGER, PARAMETER :: scl = 64   ! Short   character  length
 
 !-- File handles, debug_lvl and suffix
-INTEGER(KIND=ik)   , PARAMETER :: timer_level   = 3 ! 1 ! 2
-INTEGER(KIND=ik)   , PARAMETER :: dbg_lvl       = 1
-CHARACTER(LEN=mcl)             :: mssg          = ''
+INTEGER(KIND=ik), PARAMETER :: timer_level = 3 ! 1 ! 2
+INTEGER(KIND=ik), PARAMETER :: dbg_lvl     = 1
+CHARACTER(LEN=mcl)          :: mssg        = ''
 
-INTEGER(KIND=ik)   , PARAMETER :: std_in        = 5
-INTEGER(KIND=ik)   , PARAMETER :: std_out       = 6
-INTEGER(KIND=ik)   , PARAMETER :: std_err       = 0
+INTEGER(KIND=ik), PARAMETER :: std_in  = 5
+INTEGER(KIND=ik), PARAMETER :: std_out = 6
+INTEGER(KIND=ik), PARAMETER :: std_err = 0
 
 !------------------------------------------------------------------------------
 ! Standard formats
 !------------------------------------------------------------------------------
 CHARACTER(len=5)   , PARAMETER :: creturn = achar(13)
-CHARACTER(len=5)   , PARAMETER :: ifmt    = '(I10)'       ! general integer    format
-CHARACTER(len=8)   , PARAMETER :: rfmt    = '(F30.10)'    ! general real       format
-CHARACTER(len=10)  , PARAMETER :: sfmt    = '(E23.15E2)'  ! general scientific format
 
 ! Seperators
-CHARACTER(Len=*), PARAMETER :: SEP_STD= "(112('-'))" ! FMT_HY_SEP
-CHARACTER(Len=*), PARAMETER :: FMT_EQ_SEP  = "(112('='))"
+CHARACTER(Len=*), PARAMETER :: SEP_STD= "(68('-'))" ! FMT_HY_SEP
+CHARACTER(Len=*), PARAMETER :: FMT_EQ_SEP  = "(68('='))"
 CHARACTER(Len=*), PARAMETER :: FMT_DBG_SEP = "('#DBG#',95('='))"
 
 ! Character constants for nice output ---------------------------------------
@@ -110,8 +107,7 @@ CHARACTER(LEN=*), PARAMETER ::  FMT_Gray  = "\x1B[37m"
 CHARACTER(LEN=*), PARAMETER ::  FMT_noc   = "\x1B[0m"
 
 !-- Mpi-specific kinds
-INTEGER         , PARAMETER :: mpi_ik     = 4             ! MPI INTEGER Kind; Compile with corresponding mpi!!
-
+INTEGER, PARAMETER :: mpi_ik = 4 ! MPI INTEGER Kind; Compile with corresponding mpi!!
 
 END MODULE global_std
 
@@ -135,8 +131,8 @@ IMPLICIT NONE
 
 ! Add other parameters if necessary.
 TYPE materialcard
-    REAL(KIND=rk)               :: E
-    REAL(KIND=rk)               :: nu
+    REAL(KIND=rk) :: E
+    REAL(KIND=rk) :: nu
     ! For use with effective nummerical stiffness calculations 
     REAL(KIND=rk), DIMENSION(3) :: pdsize ! Physical domain/ Macro element size 
 END TYPE materialcard
@@ -157,8 +153,8 @@ CONTAINS
 !------------------------------------------------------------------------------  
 FUNCTION lamee_lambda(E, v) RESULT (lambda)
  
-   REAL (KIND=rk)                   ::     E, v
-   REAL (KIND=rk), DIMENSION(6,6)   ::     lambda
+   REAL (KIND=rk) :: E, v
+   REAL (KIND=rk), DIMENSION(6,6) :: lambda
 
    lambda = E*v/((1._rk+v)*(1._rk-2._rk*v))
 
@@ -178,8 +174,8 @@ END FUNCTION lamee_lambda
 !------------------------------------------------------------------------------  
 FUNCTION lamee_mu_shear(E, v) RESULT (G)
 
-   REAL (KIND=rk)                   ::     E, v
-   REAL (KIND=rk), DIMENSION(6,6)   ::     G ! (shear modulus) 
+   REAL (KIND=rk) :: E, v
+   REAL (KIND=rk), DIMENSION(6,6) :: G ! (shear modulus) 
 
    G = E / (2._rk*(1._rk+v))
 
@@ -203,8 +199,8 @@ END FUNCTION lamee_mu_shear
 !------------------------------------------------------------------------------  
 FUNCTION bulk_modulus(E, v) RESULT (k)
 
-   REAL (KIND=rk)                   ::     E, v
-   REAL (KIND=rk), DIMENSION(6,6)   ::     k ! (shear modulus) 
+   REAL (KIND=rk) :: E, v
+   REAL (KIND=rk), DIMENSION(6,6) :: k ! (shear modulus) 
 
    k = E / (3._rk*(1._rk-(2._rk*v)))
 
@@ -225,20 +221,20 @@ END FUNCTION bulk_modulus
 !------------------------------------------------------------------------------  
 FUNCTION iso_compliance_voigt(E, v) RESULT (t_iso_inv)
 
-   REAL (KIND=rk)                   ::     E, v
-   REAL (KIND=rk), DIMENSION(6,6)   ::     t_iso_inv
+   REAL (KIND=rk) :: E, v
+   REAL (KIND=rk), DIMENSION(6,6) :: t_iso_inv
 
-   REAL (KIND=rk)                   ::     fctr
+   REAL (KIND=rk) :: fctr
 
    fctr = 1._rk/E
 
 !  sum of symmetric components - therefore: eps_12+eps_21 => 2*eps_12 etc.
-   t_iso_inv(:,1)=(/ 1._rk,    -v,    -v,  .0_rk,           .0_rk,                  .0_rk    /)
-   t_iso_inv(:,2)=(/    -v, 1._rk,    -v,  .0_rk,           .0_rk,                  .0_rk    /)
-   t_iso_inv(:,3)=(/    -v,    -v, 1._rk,  .0_rk,           .0_rk,                  .0_rk    /)
-   t_iso_inv(:,4)=(/ .0_rk, .0_rk, .0_rk,  2._rk*(1._rk+v), .0_rk,                  .0_rk    /)
-   t_iso_inv(:,5)=(/ .0_rk, .0_rk, .0_rk,  .0_rk,           2._rk*(1._rk+v),        .0_rk    /)
-   t_iso_inv(:,6)=(/ .0_rk, .0_rk, .0_rk,  .0_rk,           .0_rk,           2._rk*(1._rk+v) /)
+   t_iso_inv(:,1)=[ 1._rk,    -v,    -v,  .0_rk,           .0_rk,                  .0_rk    ]
+   t_iso_inv(:,2)=[    -v, 1._rk,    -v,  .0_rk,           .0_rk,                  .0_rk    ]
+   t_iso_inv(:,3)=[    -v,    -v, 1._rk,  .0_rk,           .0_rk,                  .0_rk    ]
+   t_iso_inv(:,4)=[ .0_rk, .0_rk, .0_rk,  2._rk*(1._rk+v), .0_rk,                  .0_rk    ]
+   t_iso_inv(:,5)=[ .0_rk, .0_rk, .0_rk,  .0_rk,           2._rk*(1._rk+v),        .0_rk    ]
+   t_iso_inv(:,6)=[ .0_rk, .0_rk, .0_rk,  .0_rk,           .0_rk,           2._rk*(1._rk+v) ]
 
    t_iso_inv = t_iso_inv*fctr
 
@@ -259,10 +255,10 @@ END FUNCTION iso_compliance_voigt
 !------------------------------------------------------------------------------  
 FUNCTION iso_compliance_kelvin(E, v) RESULT (t_iso_inv)
 
-   REAL (KIND=rk)                   ::     E, v
-   REAL (KIND=rk), DIMENSION(6,6)   ::     t_iso_inv
+   REAL (KIND=rk) :: E, v
+   REAL (KIND=rk), DIMENSION(6,6) :: t_iso_inv
 
-   REAL (KIND=rk)                   ::     fctr
+   REAL (KIND=rk) :: fctr
 
    fctr = 1._rk/E
 
@@ -293,19 +289,19 @@ END FUNCTION iso_compliance_kelvin
 !------------------------------------------------------------------------------  
 FUNCTION iso_stiffness_voigt(E, v) RESULT (t_iso)
 
-   REAL (KIND=rk)                   ::     E, v
-   REAL (KIND=rk), DIMENSION(6,6)   ::     t_iso
+   REAL (KIND=rk) :: E, v
+   REAL (KIND=rk), DIMENSION(6,6) :: t_iso
 
-   REAL (KIND=rk)                   ::     fctr, fctr_shear
+   REAL (KIND=rk) :: fctr, fctr_shear
    
    fctr       = E / ((1._rk+v)*(1._rk-(2._rk*v)))
    fctr_shear = 1._rk-(2._rk*v)
-   t_iso(:,1)=(/ 1._rk-v,  v,     v,       .0_rk, .0_rk, .0_rk /)
-   t_iso(:,2)=(/    v , 1._rk-v,  v,       .0_rk, .0_rk, .0_rk /)
-   t_iso(:,3)=(/    v ,     v, 1._rk-v,    .0_rk, .0_rk, .0_rk /)
-   t_iso(:,4)=(/ .0_rk, .0_rk, .0_rk, fctr_shear/2, .0_rk, .0_rk /)
-   t_iso(:,5)=(/ .0_rk, .0_rk, .0_rk, .0_rk, fctr_shear/2, .0_rk /)
-   t_iso(:,6)=(/ .0_rk, .0_rk, .0_rk, .0_rk, .0_rk, fctr_shear/2 /)
+   t_iso(:,1)=[ 1._rk-v,  v,     v,       .0_rk, .0_rk, .0_rk ]
+   t_iso(:,2)=[    v , 1._rk-v,  v,       .0_rk, .0_rk, .0_rk ]
+   t_iso(:,3)=[    v ,     v, 1._rk-v,    .0_rk, .0_rk, .0_rk ]
+   t_iso(:,4)=[ .0_rk, .0_rk, .0_rk, fctr_shear/2, .0_rk, .0_rk ]
+   t_iso(:,5)=[ .0_rk, .0_rk, .0_rk, .0_rk, fctr_shear/2, .0_rk ]
+   t_iso(:,6)=[ .0_rk, .0_rk, .0_rk, .0_rk, .0_rk, fctr_shear/2 ]
 
    t_iso = t_iso*fctr ! Elementwise operation
 END FUNCTION iso_stiffness_voigt
@@ -325,22 +321,22 @@ END FUNCTION iso_stiffness_voigt
 !------------------------------------------------------------------------------  
 FUNCTION iso_stiffness_kelvin(E, v) RESULT (t_iso)
 
-   REAL (KIND=rk)                   ::     E, v
-   REAL (KIND=rk), DIMENSION(6,6)   ::     t_iso
+   REAL (KIND=rk) :: E, v
+   REAL (KIND=rk), DIMENSION(6,6) :: t_iso
 
-   REAL (KIND=rk)                   ::     fctr, fctr_shear
+   REAL (KIND=rk) ::fctr, fctr_shear
    
    fctr       = E / ((1._rk+v)*(1._rk-(2._rk*v))) 
    fctr_shear = 1._rk-(2._rk*v)
 
    ! Factor of 2 not required as for normal components: sigma=E* eps
    ! Factor of 2 not required as for shear  components: sigma=E*2eps
-   t_iso(:,1)=(/ 1._rk-v,  v,     v,       .0_rk, .0_rk, .0_rk /)
-   t_iso(:,2)=(/    v , 1._rk-v,  v,       .0_rk, .0_rk, .0_rk /)
-   t_iso(:,3)=(/    v ,     v, 1._rk-v,    .0_rk, .0_rk, .0_rk /)
-   t_iso(:,4)=(/ .0_rk, .0_rk, .0_rk, fctr_shear, .0_rk, .0_rk /)
-   t_iso(:,5)=(/ .0_rk, .0_rk, .0_rk, .0_rk, fctr_shear, .0_rk /)
-   t_iso(:,6)=(/ .0_rk, .0_rk, .0_rk, .0_rk, .0_rk, fctr_shear /)
+   t_iso(:,1)=[ 1._rk-v,  v,     v,       .0_rk, .0_rk, .0_rk ]
+   t_iso(:,2)=[    v , 1._rk-v,  v,       .0_rk, .0_rk, .0_rk ]
+   t_iso(:,3)=[    v ,     v, 1._rk-v,    .0_rk, .0_rk, .0_rk ]
+   t_iso(:,4)=[ .0_rk, .0_rk, .0_rk, fctr_shear, .0_rk, .0_rk ]
+   t_iso(:,5)=[ .0_rk, .0_rk, .0_rk, .0_rk, fctr_shear, .0_rk ]
+   t_iso(:,6)=[ .0_rk, .0_rk, .0_rk, .0_rk, .0_rk, fctr_shear ]
 
    t_iso = t_iso*fctr ! Elementwise operation
 
