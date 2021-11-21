@@ -5,7 +5,6 @@ recap stiffnessmatrix of Diss RS
 how is the grid spacing determined?
 init format specifiers Write warnings?
 
-Layout meta in like meta out :-)
 puredat file error
 
 Acknowledgements 
@@ -15,9 +14,7 @@ Document reasons for interfaces and implementations
 
 Code Reviews
 
-separate meta add_ascii start/stop
-
-Doublekeywords - main Keywords
+refacotr checksym
 
 Run on vulcan
 
@@ -25,6 +22,8 @@ Run on Hawk
 
 int4.st
 
+
+proper amount of flexibility in defining the nomenclature
 
         RS - Rechenrraum für 29.11.2021
             1030 Abt Leiter --> RS also eher Mittags
