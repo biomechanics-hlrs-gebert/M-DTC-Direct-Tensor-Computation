@@ -690,7 +690,7 @@ contains
        Call Write_matrix(un_lf, "Final coordinate system CR_1", 'std', mat=aa)
 
        Call Write_matrix(un_lf, "Inlined anisotropic stiffness CR_1", 'std', 'MPa', EE)
-       call check_sym(A=EE,name="Inlined anisotropic stiffness CR_1")
+       CALL check_sym(un_lf, EE, "Inlined anisotropic stiffness CR_1")
     End If
 
     fdir = aa

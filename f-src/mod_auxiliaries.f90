@@ -123,6 +123,7 @@ INTEGER(KIND=ik)   :: prec , fw, nm_fmt_lngth, ii, jj, kk, dim1, dim2
 CHARACTER(LEN=mcl) :: fmt_a, sep, nm_fmt
 CHARACTER(LEN=mcl) :: text
 CHARACTER(LEN=mcl) :: fmt_u
+REAL(KIND=rk) :: sum_sym
 LOGICAL :: sym_u
 
 !------------------------------------------------------------------------------
@@ -142,7 +143,10 @@ IF (PRESENT(unit)) THEN
     IF (unit /= '') text = " Unit: ("//TRIM(unit)//")"
 END IF
 
-IF (dim1 .EQ. dim2) CALL check_sym(mat_in = mat, status=sym_u)
+IF (dim1 .EQ. dim2) THEN
+    CALL check_sym(fh, mat, name, sum_sym=sum_sym)
+    sym_u = .TRUE.
+END IF
 
 !------------------------------------------------------------------------------
 ! Generate formats
@@ -191,13 +195,22 @@ WRITE(fh, nm_fmt) ' ',TRIM(name), ' ', TRIM(text) ! Named separator
 DO ii=1, dim1
 DO jj=1, dim2
 
-    IF ((sym_u) .AND. (ii==dim1-1) .AND. (jj==2)) THEN
+    IF ((sym_u) .AND. (ii==dim1) .AND. (jj==1)) THEN
         SELECT CASE(fmt_u)
         CASE('spl', 'simple')
             WRITE(fh, '(A)', ADVANCE='NO') "symmetric "
         CASE('std', 'standard')
             WRITE(fh, '(A)', ADVANCE='NO') "   symmetric           "
         END SELECT
+
+    ELSE IF ((sym_u) .AND. (ii==dim1) .AND. (jj==2)) THEN
+        SELECT CASE(fmt_u)
+        CASE('spl', 'simple')
+            WRITE(fh, '(F10.5)', ADVANCE='NO') sum_sym
+        CASE('std', 'standard')
+            WRITE(fh, '(F23.13)', ADVANCE='NO') sum_sym
+        END SELECT
+
     ELSE
         IF ((ABS(mat(ii,jj)) >=  10E-08) .AND. ((.NOT. sym_u) .OR. ((sym_u) .AND. (jj .GE. ii)))) THEN 
             WRITE(fh, fmt_a, ADVANCE='NO') mat (ii,jj)
@@ -254,6 +267,7 @@ INTEGER(KIND=ik)   :: nm_fmt_lngth, ii, jj, dim1, dim2
 CHARACTER(LEN=mcl) :: fmt_a, sep, nm_fmt
 CHARACTER(LEN=mcl) :: text
 CHARACTER(LEN=mcl) :: fmt_u
+REAL(KIND=rk) :: sum_sym
 LOGICAL :: sym_u
 
 !------------------------------------------------------------------------------
@@ -271,7 +285,7 @@ IF (PRESENT(unit)) THEN
 END IF
 
 IF (dim1 .EQ. dim2) THEN
-    CALL check_sym(fh, mat_in=REAL(mat, KIND=rk), name, sum_sym=sum_sym)
+    CALL check_sym(fh, REAL(mat, KIND=rk), name, sum_sym=sum_sym)
     sym_u = .TRUE.
 END IF
 
@@ -310,10 +324,10 @@ WRITE(fh, nm_fmt) ' ',TRIM(name), ' ', TRIM(text) ! Named separator
 DO ii=1, dim1
 DO jj=1, dim2
 
-    IF ((sym_u) .AND. (ii==dim1-1) .AND. (jj==2)) THEN
-
+    IF ((sym_u) .AND. (ii==dim1) .AND. (jj==1)) THEN
         WRITE(fh, '(A)', ADVANCE='NO') " symmetric"
-
+    ELSE IF ((sym_u) .AND. (ii==dim1) .AND. (jj==2)) THEN
+        WRITE(fh, '(F10.5)', ADVANCE='NO') sum_sym
     ELSE
         IF ((mat(ii,jj) /= 0) .AND. ((.NOT. sym_u) .OR. ((sym_u) .AND. (jj .GE. ii)))) THEN 
             WRITE(fh, fmt_a, ADVANCE='NO') mat (ii,jj)
@@ -321,7 +335,6 @@ DO jj=1, dim2
             WRITE(fh, '(A)', ADVANCE='NO') "         ."
         END IF
     END IF
-
 
 END DO
 WRITE(fh,'(A)') ''
@@ -345,29 +358,29 @@ End Subroutine write_matrix_int
 !> L2-norm of the input matrix
 !
 !> @param[in]  fh File handle to write to
-!> @param[in]  mat_in Input Matrix
+!> @param[in]  mi Input Matrix
 !> @param[in]  name Name of the matrix to evaluate
-!> @param[out] mat_out Output Matrix
+!> @param[out] mo Output Matrix
 !> @param[out] sum_sym Sum of differences of all ii,jj entries
 !------------------------------------------------------------------------------  
-SUBROUTINE check_sym(fh, mat_in, name, mat_out, sum_sym)
+SUBROUTINE check_sym(fh, mi, name, mo, sum_sym)
+
 INTEGER(KIND=ik),                 INTENT(IN) :: fh
-REAL(KIND=rk),    DIMENSION(:,:), INTENT(IN) :: mat_in
+REAL(KIND=rk),    DIMENSION(:,:), INTENT(IN) :: mi
 CHARACTER(LEN=*),                 INTENT(IN) , OPTIONAL :: name
-REAL(KIND=rk)   , DIMENSION(:,:), INTENT(OUT), OPTIONAL :: sum_sym
+REAL(KIND=rk)   , DIMENSION(:,:), INTENT(OUT), OPTIONAL :: mo
+REAL(KIND=rk)                   , INTENT(OUT), OPTIONAL :: sum_sym
 
 REAL(KIND=rk), DIMENSION(:,:), ALLOCATABLE :: mat 
 REAL(KIND=rk), DIMENSION(:,:), ALLOCATABLE :: sym
 
 INTEGER(KIND=ik) :: n, m
 INTEGER(KIND=ik) :: ii, jj, q
-REAL   (KIND=rk) :: norm_sym, norm_in
 CHARACTER(LEN=scl) :: name_u
 
-
 name_u = ''
-n  = SIZE(mat_in, 1)
-m  = SIZE(mat_in, 2)
+n  = SIZE(mi, 1)
+m  = SIZE(mi, 2)
 
 ALLOCATE(mat(n,m))
 mat = 0._rk
@@ -381,23 +394,18 @@ q = 1
 DO ii=1,n-1 ! columns
     q = q + 1 ! begins with 2
     DO jj=q, m ! rows
-        sym (jj,ii) = mat_in (jj,ii) - mat_in (ii,jj) 
+        sym (jj,ii) = mi (jj,ii) - mi (ii,jj) 
+        mat (ii,jj) = sym (jj,ii) 
     END DO
 END DO
 
-q = 1
-DO ii=1,n-1 ! columns
-    q = q + 1 ! begins with 2
-    DO jj=q, m ! rows
-        mat (jj,ii) = sym (ii,jj) 
-    END DO
-END DO
-
-IF(PRESENT(mat_out)) mat_out = mat
+IF(PRESENT(mo)) mo = mat
 
 IF(PRESENT(name)) name_u = ' '//TRIM(ADJUSTL(name))
 
-WRITE(fh, '(3A, F0.0)')"--------- check_sym",TRIM(name_u),": ", SUM(sym)
+sum_sym = SUM(sym)
+
+WRITE(fh, '(3A, F0.0)')"--------- check_sym",TRIM(name_u),": ", sum_sym
 
 END SUBROUTINE check_sym
 
@@ -410,45 +418,43 @@ END SUBROUTINE check_sym
 !> Subroutine to check the symmetry of a 6x6 matrix. Hardcoded dimensions
 !> since it's way quicker than with if/else branches.
 !
-!> @param[in]  main Input 6x6 Matrix
-!> @param[out] maout Input 6x6 Matrix
-!> @param[out] status whether the matrix is symmetric
+!> @param[in]  fh File handle to write to
+!> @param[in]  mi Input Matrix
+!> @param[in]  name Name of the matrix to evaluate
+!> @param[out] mo Output Matrix
+!> @param[out] sum_sym Sum of differences of all ii,jj entries
 !------------------------------------------------------------------------------ 
-SUBROUTINE check_sym6x6(fh, main, maout, status)
+SUBROUTINE check_sym6x6(fh, mi, name, mo, sum_sym)
 
-INTEGER(KIND=ik)             , INTENT(IN)            :: fh   
-REAL(KIND=rk), DIMENSION(6,6), INTENT(IN)            :: main
-REAL(KIND=rk), DIMENSION(6,6), INTENT(OUT), OPTIONAL :: maout
-LOGICAL                      , INTENT(OUT), OPTIONAL :: status
+INTEGER(KIND=ik)             , INTENT(IN) :: fh   
+REAL(KIND=rk), DIMENSION(6,6), INTENT(IN) :: mi
+CHARACTER(LEN=*)             , INTENT(IN) , OPTIONAL :: name
+REAL(KIND=rk), DIMENSION(6,6), INTENT(OUT), OPTIONAL :: mo
+REAL(KIND=rk)                , INTENT(OUT), OPTIONAL :: sum_sym
 
-REAL(KIND=rk), DIMENSION(6,6) :: norm_mat
-LOGICAL                       :: status_u
+REAL(KIND=rk), DIMENSION(6,6) :: sym
 
 ! Initialize 
-status_u = .FALSE.
-norm_mat = 0._rk
-CALL write_matrix (fh, 'main', 'spl', 'MPa', main)
+sym = 0._rk
+CALL write_matrix (fh, TRIM(ADJUSTL(name)), 'spl', 'MPa', mi)
 
-norm_mat(2:6,1) = [ main(2,1)-main(1,2), main(3,1)-main(1,3), main(4,1)-main(1,4), main(5,1)-main(1,5), main(6,1)-main(1,6) ]
-norm_mat(3:6,2) =                      [ main(3,2)-main(2,3), main(4,2)-main(2,4), main(5,2)-main(2,5), main(6,2)-main(2,6) ]
-norm_mat(4:6,3) =                                           [ main(4,3)-main(3,4), main(5,3)-main(3,5), main(6,3)-main(3,6) ]
-norm_mat(5:6,4) =                                                                [ main(5,4)-main(4,5), main(6,4)-main(4,6) ]
-norm_mat(  6,5) =                                                                                       main(6,5)-main(5,6)
+sym(2:6,1) = [ mi(2,1)-mi(1,2), mi(3,1)-mi(1,3), mi(4,1)-mi(1,4), mi(5,1)-mi(1,5), mi(6,1)-mi(1,6) ]
+sym(3:6,2) =                  [ mi(3,2)-mi(2,3), mi(4,2)-mi(2,4), mi(5,2)-mi(2,5), mi(6,2)-mi(2,6) ]
+sym(4:6,3) =                                   [ mi(4,3)-mi(3,4), mi(5,3)-mi(3,5), mi(6,3)-mi(3,6) ]
+sym(5:6,4) =                                                    [ mi(5,4)-mi(4,5), mi(6,4)-mi(4,6) ]
+sym(  6,5) =                                                                       mi(6,5)-mi(5,6)
 
-! Give feedback about the symmetry of the matrix
-IF (NORM2(norm_mat) .LT. 0.01) status_u = .TRUE.
-IF(PRESENT(status)) status = status_u
+sum_sym = SUM(sym)
 
-IF(PRESENT(maout))THEN
-    maout = main
+IF(PRESENT(mo))THEN
+    mo = mi
 
-    maout(2:6,1) = norm_mat(2:6,1)
-    maout(3:6,2) = norm_mat(3:6,2)
-    maout(4:6,3) = norm_mat(4:6,3)
-    maout(5:6,4) = norm_mat(5:6,4)
-    maout(  6,5) = norm_mat(  6,5)
+    mo(2:6,1) = sym(2:6,1)
+    mo(3:6,2) = sym(3:6,2)
+    mo(4:6,3) = sym(4:6,3)
+    mo(5:6,4) = sym(5:6,4)
+    mo(  6,5) = sym(  6,5)
 END IF
-
 
 END SUBROUTINE check_sym6x6
 

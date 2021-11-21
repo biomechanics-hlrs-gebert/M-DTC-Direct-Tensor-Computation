@@ -397,7 +397,7 @@ contains
        Call Write_matrix(un_lf, "Stiffness", 'std', 'MPa', stiffness)
     End If
     
-    call check_sym(A=stiffness,name="Stiffness",sym_out=tmp_real_fd1(1))
+    CALL check_sym6x6(un_lf, stiffness, "Stiffness", sum_sym=tmp_real_fd1(1))
 
     !Call add_leaf_to_branch(res_tree, &
     !    "Symmetry deviation - effective numerical stiffness", 1_pd_ik, &
@@ -520,7 +520,7 @@ contains
        Call Write_matrix(un_lf, "Effective stiffness", 'std', 'MPa', cc_mean)
     End If
     
-    call check_sym(A=cc_mean,name="Effective stiffness",sym_out=tmp_real_fd1(1))
+    CALL check_sym6x6(un_lf, cc_mean, "Effective Stiffness", sum_sym=tmp_real_fd1(1))
 
     !call add_leaf_to_branch(res_tree, "Effective stiffness",  36_pd_ik, &
     !     reshape(cc_mean,[36_pd_ik]))
@@ -559,7 +559,7 @@ contains
     If (out_amount /= "PRODUCTION" ) then
        Call Write_matrix(un_lf, "Averaged Effective stiffness", 'std', 'MPa', ee)
     End If
-    call check_sym(A=ee,name="Averaged Effective stiffness",sym_out=tmp_real_fd1(1))
+    CALL check_sym6x6(un_lf, ee, "Averaged Effective stiffness", sum_sym=tmp_real_fd1(1))
 
     !call add_leaf_to_branch(res_tree, "Averaged Effective stiffness",  36_pd_ik, &
     !     reshape(ee,[36_pd_ik]))
@@ -1216,7 +1216,7 @@ contains
        Call Write_matrix(un_lf, "Inlined anisotropic stiffness CR_1", 'std', 'MPa', EE)
     End If
     
-    call check_sym(A=EE,name="Inlined anisotropic stiffness CR_1")
+    CALL check_sym6x6(un_lf, EE, "Inlined anisotropic stiffness CR_1")
 
     !call add_leaf_to_branch(res_tree,"Final coordinate system CR_1", 9_pd_ik, &
     !     reshape(aa,[9_pd_ik]))
@@ -1653,7 +1653,7 @@ contains
        Call Write_matrix(un_lf, "Inlined anisotropic stiffness CR_2", 'std', 'MPa', EE)
     End If
     
-    call check_sym(A=EE,name="Inlined anisotropic stiffness CR_2")
+    CALL check_sym6x6(un_lf, EE, "Inlined anisotropic stiffness CR_2")
 
     !Call add_leaf_to_branch(res_tree,"Final coordinate system CR_2", 9_pd_ik, &
     !    reshape(aa,[9_pd_ik]))
