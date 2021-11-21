@@ -970,7 +970,10 @@ Program main_struct_process
       !------------------------------------------------------------------------------
       ! Parse the command arguments
       !------------------------------------------------------------------------------
-      IF (command_argument_count() == 0) CALL usage(1)
+      IF (command_argument_count() == 0) THEN 
+         CALL usage()
+         GOTO 1001
+      END IF
 
       DO ii=0, 15 ! Read up to 15 command arguments.
          
@@ -991,12 +994,10 @@ Program main_struct_process
                            restart_cmdarg = 'Y'
                         CASE('v', '-Version', '-version')
                            CALL show_title(revision, hash)
-                           CALL usage(1)
-                        CASE('i', '-Info', '-info')
-                           CALL show_title(revision, hash)
-                           CALL usage(1)
+                           GOTO 1001   ! Jump to the end of the program.
                         CASE('h', '-Help', '-help')
-                           CALL usage(1)
+                           CALL usage()
+                           GOTO 1001   ! Jump to the end of the program.
                      END SELECT
                      !
                      SELECT CASE( cmd_arg(3:4) )
