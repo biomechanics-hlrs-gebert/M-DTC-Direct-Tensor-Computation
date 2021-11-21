@@ -837,18 +837,21 @@ END SUBROUTINE meta_read_R1D
 !---------------------------------------------------------------------------
 SUBROUTINE meta_write_keyword (fh, keyword, stdspcfill, unit)
    
-INTEGER(KIND=ik), INTENT(IN) :: fh 
+INTEGER(KIND=meta_ik), INTENT(IN) :: fh 
 CHARACTER(LEN=*), INTENT(IN) :: keyword
 CHARACTER(LEN=*), INTENT(IN) :: stdspcfill 
 CHARACTER(LEN=*), INTENT(IN) :: unit
 
-CHARACTER(LEN=scl) :: fmt, dtti
+CHARACTER(LEN=scl) :: fmt, str
+CHARACTER(LEN=8)  :: date
+CHARACTER(LEN=10) :: time
+CHARACTER(LEN=5)  :: timezone
 
 CALL check_keyword(fh, keyword)
 CALL check_unit(fh, unit)
 
 WRITE(fmt, '(A,I0,A)') "(2A, T", kcl, ")"
-WRITE(fh, fmt, ADVANCE='NO') "* ", keyword
+WRITE(fh, fmt, ADVANCE='NO') "w ", keyword
 
 WRITE(fmt, '(A,I0,A)') "(A, T", stdspc+1, ")"
 WRITE(fh, fmt, ADVANCE='NO') TRIM(ADJUSTL(stdspcfill))
@@ -856,8 +859,15 @@ WRITE(fh, fmt, ADVANCE='NO') TRIM(ADJUSTL(stdspcfill))
 WRITE(fmt, '(A,I0,A)') "(A, T", ucl+1, ")"
 WRITE(fh, fmt, ADVANCE='NO') unit
    
-CALL date_time(.TRUE., .TRUE., .TRUE., dtti)
-WRITE(fh, '(A)') TRIM(dtti)
+CALL DATE_AND_TIME(DATE=date, TIME=time, ZONE=timezone)
+
+str = ''
+str = date(7:8)//'.'//date(5:6)//'.'//date(1:4)
+str = TRIM(str)//' '//time(1:2)//':'//time(3:4)//':'//time(5:10)
+str = TRIM(str)//' '//timezone
+
+
+WRITE(fh, '(A)') TRIM(str)
 
 END SUBROUTINE meta_write_keyword
 

@@ -117,7 +117,7 @@ Contains
     Type(tBranch), pointer            :: bb, db, pb, mb, params,resb
 
     Character(Len=mcl)                :: desc, mesh_desc, filename
-    Character(Len=mcl)                :: elt_micro, dtti
+    Character(Len=mcl)                :: elt_micro
     
     Character, Dimension(4*mcl)       :: c_char_array
 
@@ -125,7 +125,6 @@ Contains
     Integer                           :: stat
     Integer                           :: umon
 
-    Integer, Dimension(8)             :: realt
     Character(len=mcl)                :: env_var
 
     Integer(kind=ik)                  :: m_size
@@ -158,6 +157,11 @@ Contains
 
     Character, Dimension(:), Allocatable           :: char_arr
     
+    CHARACTER(LEN=8) :: date
+    CHARACTER(LEN=10) :: time
+    CHARACTER(LEN=5)  :: timezone
+    CHARACTER(len=mcl) :: str
+
     !--------------------------------------------------------------------------
 
     Integer(Kind=ik), Dimension(60)    :: idxm_20, idxn_20
@@ -222,10 +226,14 @@ Contains
        Write(un_lf,fmt_msg_AI0) "Domain No. : ",nn
        Write(un_lf,fmt_msg_A  ) "Job_dir    : "//Trim(job_dir)
 
-       Call date_and_Time(values=realt)
+       CALL DATE_AND_TIME(DATE=date, TIME=time, ZONE=timezone)
+ 
+       str = ''
+       str = date(7:8)//'.'//date(5:6)//'.'//date(1:4)
+       str = TRIM(str)//' '//time(1:2)//':'//time(3:4)//':'//time(5:10)
+       str = TRIM(str)//' '//timezone
 
-       CALL date_time(.TRUE., .TRUE., .TRUE., dtti)
-       WRITE(un_lf, '(2A)') 'Start time: ', TRIM(dtti)
+       WRITE(un_lf, '(2A)') 'Start time: ', TRIM(str)
 
        Call get_environment_Variable("HOSTNAME", env_var)
        Write(un_lf,fmt_MSG_A) "Host       : "//Trim(env_var)
@@ -255,8 +263,14 @@ Contains
        End if
        Call end_timer(trim(timer_name))
      
-       CALL date_time(.TRUE., .TRUE., .TRUE., dtti)
-       WRITE(un_lf, '(2A)') 'End time: ', TRIM(dtti)
+       CALL DATE_AND_TIME(DATE=date, TIME=time, ZONE=timezone)
+ 
+       str = ''
+       str = date(7:8)//'.'//date(5:6)//'.'//date(1:4)
+       str = TRIM(str)//' '//time(1:2)//':'//time(3:4)//':'//time(5:10)
+       str = TRIM(str)//' '//timezone
+       
+       WRITE(un_lf, '(2A)') 'End time: ', TRIM(str)
 
        close(umon)
 
