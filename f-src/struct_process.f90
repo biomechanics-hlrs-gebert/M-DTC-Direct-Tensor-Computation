@@ -232,7 +232,7 @@ Contains
        str = date(7:8)//'.'//date(5:6)//'.'//date(1:4)
        str = TRIM(str)//' '//time(1:2)//':'//time(3:4)//':'//time(5:10)
        str = TRIM(str)//' '//timezone
-
+       
        WRITE(un_lf, '(2A)') 'Start time: ', TRIM(str)
 
        Call get_environment_Variable("HOSTNAME", env_var)
@@ -1032,7 +1032,7 @@ Program main_struct_process
       ! Check and open the input file; Modify the Meta-Filename / Basename
       ! Define the new application name first
       !------------------------------------------------------------------------------
-      meta_prgrm_mstr_app = 'ddtc' 
+      meta_prgrm_mstr_app = 'DDTC' 
       meta_program_keyword = 'STRUCT_PROCESS'
       CALL meta_append(m_rry)
       

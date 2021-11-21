@@ -237,14 +237,11 @@ CALL meta_read (fhmon, 'NEW_BSNM_FEATURE', meta_as_rry, out%features)
 IF((ios ==1)) out%features = in%features           ! if ios = 1 --> no keyword found
 
 CALL meta_read (fhmon, 'NEW_BSNM_PURPOSE', meta_as_rry, out%purpose)
-IF((ios ==1)) out%purpose = in%purpose             ! if ios = 1 --> no keyword found
-
 
 IF ((out%purpose == in%purpose) .AND. (out%features == in%features)) THEN
-   mssg='The basename did not change. When in doubt, please check your meta file.'
-   CALL handle_err(std_out, mssg, 0)
+   mssg='The basename (in part) did not change.'
+   CALL handle_err(std_out, mssg, -1)
 END IF
-
 
 !------------------------------------------------------------------------------
 ! Build the new outfile path
@@ -354,15 +351,17 @@ IF (restart_u .EQ. 'Y') THEN
 ELSE ! restart_u .EQ. 'N'
    IF ((exist_temp) .OR. (exist_perm)) THEN
 
+
       IF ((exist_temp) .AND. (exist_perm)) THEN 
-         mssg='The file '//TRIM(perm_f_suf)//' and the file '//TRIM(temp_f_suf)//' already exists.'
+         mssg='The file '//TRIM(perm_f_suf)//' and the file '//TRIM(temp_f_suf)
       ELSE IF  (exist_temp) THEN
-         mssg='The file '//TRIM(temp_f_suf)//' already exists.'
+         mssg='The file '//TRIM(temp_f_suf)
       ELSE ! (exist_perm) 
-         mssg='The file '//TRIM(perm_f_suf)//' already exists.'
+         mssg='The file '//TRIM(perm_f_suf)
       END IF
 
-      CALL handle_err(std_out, TRIM(mssg)//' Previous job maybe was aborted.', 1)     
+      mssg = TRIM(mssg)//' already exist(s). Previous job maybe was aborted.'
+      CALL handle_err(std_out, mssg, 1)     
    END IF
 END IF
 
@@ -488,56 +487,39 @@ END IF
 END SUBROUTINE check_unit
 
 
-!------------------------------------------------------------------------------
-! SUBROUTINE: keyword_error
-!------------------------------------------------------------------------------  
-!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
-!
-!> @brief
-!> Wrapper of handle_err
-!
-!> @param[in] fh File handle 
-!> @param[in] keyword Keyword 
-!------------------------------------------------------------------------------  
-SUBROUTINE keyword_error(fh, keyword)
-
-INTEGER  (KIND=ik) :: fh 
-CHARACTER(LEN=*)   :: keyword
-
-   mssg = "The keyword »"//TRIM(ADJUSTL(keyword))//"« was not found in the meta file!"
-   CALL handle_err(fh, TRIM(ADJUSTL(mssg)), 1)
-
-END SUBROUTINE keyword_error
-
 
 !------------------------------------------------------------------------------
-! SUBROUTINE: meta_read_C
+! SUBROUTINE: meta_extract_keyword_data
 !---------------------------------------------------------------------------  
 !> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
 !
 !> @brief
-!> Module to parse keywords. 
+!> Module to extract the data string of keywords. 
 !
 !> @Description
 !> Module to parse information of keywords. 
 !> An arbitrary Keyword with up to »kcl« characters may be specified.
+!> The program reads keywords as long as they are before or withing the owns 
+!> programs scope.
 ! 
 !> @param[in] fh File handle to read a keyword from.
 !> @param[in] keyword Keyword to read
+!> @param[in] dims Dimensions requested
 !> @param[in] m_in Array of lines of ascii meta file
 !> @param[in] chars Datatype to read in
 !---------------------------------------------------------------------------
-SUBROUTINE meta_read_C (fh, keyword, m_in, chars)
+SUBROUTINE meta_extract_keyword_data (fh, keyword, dims, m_in, res_tokens, res_ntokens)
    
-INTEGER  (KIND=ik), INTENT(IN)  :: fh 
-CHARACTER(LEN=*)  , INTENT(IN)  :: keyword
-CHARACTER(LEN=mcl), DIMENSION(:), INTENT(IN)  :: m_in      
-CHARACTER(LEN=*), INTENT(OUT) :: chars 
+INTEGER(KIND=meta_ik), INTENT(IN) :: fh 
+CHARACTER(LEN=*), INTENT(IN) :: keyword
+INTEGER(KIND=meta_ik), INTENT(IN) :: dims
+CHARACTER(LEN=mcl), DIMENSION(:), INTENT(IN) :: m_in
+CHARACTER(LEN=mcl) :: res_tokens(30)
+INTEGER(KIND=meta_ik) :: res_ntokens
 
 ! Internal variables
+INTEGER(KIND=meta_ik) :: kywd_found, ii, ntokens
 CHARACTER(LEN=mcl) :: tokens(30)
-INTEGER(KIND=ik) :: ntokens, ii
-INTEGER(KIND=ik) :: kywd_found
 LOGICAL :: override
 
 kywd_found = 0
@@ -548,21 +530,28 @@ CALL check_keyword(fh, keyword)
 !------------------------------------------------------------------------------
 ! Parse Data out of the input array
 !------------------------------------------------------------------------------
-DO ii = , SIZE(m_in) 
+DO ii =1, SIZE(m_in) 
    CALL parse(str=m_in(ii), delims=' ', args=tokens, nargs=ntokens)
-
-! ACCEPT IF NOT WRITTEN IN PROGRAMS OWN SCOPE
 
    SELECT CASE(tokens(1))
       CASE('*', 'r', 'w')
+WRITE(*,*) "keyword: ", keyword
+WRITE(*,*) "m_in(ii): ", m_in(ii)
+
          IF (tokens(2) == TRIM(keyword)) THEN
             kywd_found = 1
-            chars = TRIM(ADJUSTL(tokens(3))) !(stdspc-LEN_TRIM(tokens(3)) : stdspc)
+            WRITE(*,*) "tokens(2): ", tokens(2)
+            !------------------------------------------------------------------------------
+            ! Store the keywords data.
+            ! Following m_in(ii) - lines -  will overwrite this information.
+            !------------------------------------------------------------------------------
+            res_tokens = tokens
+            res_ntokens = ntokens
 
             !------------------------------------------------------------------------------
-            ! Keep keyword if it appears in the programs scope
+            ! Exit, if the keyword appears the first time in the programs scope.
             !------------------------------------------------------------------------------
-            IF ((override) .AND. (tokens(1) /= 'w')) EXIT
+            IF ((override) .AND. (tokens(1) /= 'w')) GOTO 2011
 
          END IF
       CASE('p')
@@ -571,19 +560,29 @@ DO ii = , SIZE(m_in)
          !------------------------------------------------------------------------------
          IF ((.NOT. override) .AND. (tokens(2) == TRIM(meta_program_keyword))) THEN
             override = .TRUE.
-         ELSE
+         ELSE IF (override) THEN
             !------------------------------------------------------------------------------
             ! Leave, if the scope of the next program begins.
             !------------------------------------------------------------------------------
-            EXIT
+            GOTO 2011
          END IF
 
    END SELECT
 END DO
 
-IF (kywd_found == 0)  CALL keyword_error(fh, keyword)
+2011 CONTINUE
 
-END SUBROUTINE meta_read_C
+IF((res_ntokens < dims+2) .AND. (kywd_found /= 0)) THEN
+   CALL handle_err(std_out, "Data of keyword '"//TRIM(ADJUSTL(keyword))//"' invalid.", 1)
+END IF
+
+IF(kywd_found == 0) THEN
+   mssg = "Keyword '"//TRIM(ADJUSTL(keyword))//"' not found in the meta file!"
+   CALL handle_err(std_out, TRIM(ADJUSTL(mssg)), 1)
+END IF
+
+END SUBROUTINE meta_extract_keyword_data
+
 
 !------------------------------------------------------------------------------
 ! SUBROUTINE: meta_read_I0D
@@ -900,7 +899,7 @@ LOGICAL :: exist
 !---------------------------------------------------------------------------
 ! Write "Keyword"
 !---------------------------------------------------------------------------
-keyword = "* SHA256SUM_OF_BINARY"
+keyword = "w SHA256SUM_OF_BINARY"
 
 WRITE(fmt, '(A,I0,A)') "(2A, T", kcl, ")"
 WRITE(fhmeo, fmt, ADVANCE='NO') keyword
