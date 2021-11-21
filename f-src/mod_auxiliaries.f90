@@ -22,11 +22,16 @@ USE MPI
 IMPLICIT NONE
 
    Interface write_matrix
-
       Module Procedure write_matrix_int
       Module Procedure write_matrix_real 
-      
    End Interface write_matrix
+
+   Interface zero_thres
+      Module Procedure zerothres_num
+      Module Procedure zerothres_OnD
+      Module Procedure zerothres_TwD
+      Module Procedure zerothres_ThD
+   End Interface zero_thres
 
 CONTAINS
 
@@ -459,75 +464,134 @@ END IF
 END SUBROUTINE check_sym6x6
 
 !------------------------------------------------------------------------------
-! SUBROUTINE: zerothres
+! SUBROUTINE: zerothres_num
 !------------------------------------------------------------------------------  
-!> @author Johannes Gebert,   gebert@hlrs.de, HLRS/NUM
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
 !
 !> @brief
 !> Sets a scalar=0 in case it is less than 10^(-11) by default
 !
-!> @param[in]    oneD  Scalar input
-!> @param[in]    twoD  2-Dim input
-!> @param[in]  threeD  3-Dim input
-!> @param[in]  threshold to change to 0
+!> @param[in] num Scalar input
+!> @param[in] threshold to change to 0
 !------------------------------------------------------------------------------ 
-SUBROUTINE zerothres(oneD, twoD, threeD, thres)
+SUBROUTINE zerothres_num(num, thres)
 
-REAL   (KIND=rk)                  , INTENT(INOUT) , OPTIONAL  ::   oneD 
-REAL   (KIND=rk), DIMENSION(:,:)  , INTENT(INOUT) , OPTIONAL  ::   twoD 
-REAL   (KIND=rk), DIMENSION(:,:,:), INTENT(INOUT) , OPTIONAL  :: threeD 
-REAL   (KIND=rk)                  , INTENT(IN)    , OPTIONAL  :: thres
+REAL(KIND=rk), INTENT(INOUT) :: num 
+REAL(KIND=rk), INTENT(IN), OPTIONAL :: thres
 
-REAL   (KIND=rk) :: thres_u
-INTEGER(KIND=ik) :: ii, jj, kk, mm, nn, oo
+REAL(KIND=rk) :: thres_u
 
-IF (PRESENT(thres)) THEN
-    thres_u = thres
+thres_u = 1E-11
+IF(PRESENT(thres)) thres_u = thres
+
+IF (num >= 0._rk) THEN
+    IF (num <=  thres_u) num = 0._rk
 ELSE
-    thres_u = 1E-11
+    IF (num >= -thres_u) num = 0._rk
 END IF
 
-IF(PRESENT(oneD)) THEN
-    IF (oneD .GT. 0._rk) THEN
-        IF (oneD .LT.  thres_u) oneD = 0._rk
+END SUBROUTINE zerothres_num
+
+
+!------------------------------------------------------------------------------
+! SUBROUTINE: zerothres_OnD
+!------------------------------------------------------------------------------  
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Sets a vector=0 element wise in case it is less than 10^(-11) by default
+!
+!> @param[in] oneD Scalar input
+!> @param[in] threshold to change to 0
+!------------------------------------------------------------------------------ 
+SUBROUTINE zerothres_OnD(oneD, thres)
+
+REAL(KIND=rk), DIMENSION(:), INTENT(INOUT) :: oneD 
+REAL(KIND=rk), INTENT(IN), OPTIONAL :: thres
+
+REAL(KIND=rk) :: thres_u
+INTEGER(KIND=ik) :: ii
+
+thres_u = 1E-11
+IF(PRESENT(thres)) thres_u = thres
+
+DO ii=1, SIZE(oneD)
+    IF (oneD(ii) >= 0._rk) THEN
+        IF (oneD(ii) <=  thres_u) oneD(ii) = 0._rk
     ELSE
-        IF (oneD .GT. -thres_u) oneD = 0._rk
+        IF (oneD(ii) >= -thres_u) oneD(ii) = 0._rk
     END IF
-END IF
+END DO
+END SUBROUTINE zerothres_OnD
 
-IF(PRESENT(twoD)) THEN
-    mm = SIZE(twoD, 1) 
-    nn = SIZE(twoD, 2) 
 
-    DO ii=1, mm
-    DO jj=1, nn
-        IF (twoD(ii,jj) .GT. 0._rk) THEN
-            IF ( twoD(ii,jj) .LT.  thres_u) twoD(ii,jj) = 0._rk
-        ELSE
-            IF ( twoD(ii,jj) .GT. -thres_u) twoD(ii,jj) = 0._rk
-        END IF
-    END DO
-    END DO
-END IF
+!------------------------------------------------------------------------------
+! SUBROUTINE: zerothres_TwD
+!------------------------------------------------------------------------------  
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Sets an array=0 element wise in case it is less than 10^(-11) by default
+!
+!> @param[in] oneD Scalar input
+!> @param[in] threshold to change to 0
+!------------------------------------------------------------------------------ 
+SUBROUTINE zerothres_TwD(TwD, thres)
 
-IF(PRESENT(threeD)) THEN
-    mm = SIZE(threeD, 1) 
-    nn = SIZE(threeD, 2) 
-    oo = SIZE(threeD, 3) 
+REAL(KIND=rk), DIMENSION(:,:), INTENT(INOUT) :: TwD 
+REAL(KIND=rk), INTENT(IN), OPTIONAL :: thres
 
-    DO ii=1, mm
-    DO jj=1, nn
-    DO kk=1, oo
-        IF (threeD(ii,jj,kk) .GT. 0._rk) THEN
-            IF ( threeD(ii,jj,kk) .LT.  thres_u) threeD(ii,jj,kk) = 0._rk
-        ELSE
-            IF ( threeD(ii,jj,kk) .GT. -thres_u) threeD(ii,jj,kk) = 0._rk
-        END IF
-    END DO
-    END DO
-    END DO
-END IF
+REAL(KIND=rk) :: thres_u
+INTEGER(KIND=ik) :: ii, jj
 
-END SUBROUTINE zerothres
+thres_u = 1E-11
+IF(PRESENT(thres)) thres_u = thres
+
+DO jj=1, SIZE(TwD, 2)
+DO ii=1, SIZE(TwD, 1)
+    IF (TwD(ii, jj) >= 0._rk) THEN
+        IF (TwD(ii, jj) <=  thres_u) TwD(ii, jj) = 0._rk
+    ELSE
+        IF (TwD(ii, jj) >= -thres_u) TwD(ii, jj) = 0._rk
+    END IF
+END DO
+END DO
+END SUBROUTINE zerothres_TwD
+
+
+!------------------------------------------------------------------------------
+! SUBROUTINE: zerothres_ThD
+!------------------------------------------------------------------------------  
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Sets an array=0 element wise in case it is less than 10^(-11) by default
+!
+!> @param[in] oneD Scalar input
+!> @param[in] threshold to change to 0
+!------------------------------------------------------------------------------ 
+SUBROUTINE zerothres_ThD(ThD, thres)
+
+REAL(KIND=rk), DIMENSION(:, :, :), INTENT(INOUT) :: ThD 
+REAL(KIND=rk), INTENT(IN), OPTIONAL :: thres
+
+REAL(KIND=rk) :: thres_u
+INTEGER(KIND=ik) :: ii, jj, kk
+
+thres_u = 1E-11
+IF(PRESENT(thres)) thres_u = thres
+
+DO kk=1, SIZE(ThD, 3)
+DO jj=1, SIZE(ThD, 2)
+DO ii=1, SIZE(ThD, 1)
+    IF (ThD(ii, jj, kk) >= 0._rk) THEN
+        IF (ThD(ii, jj, kk) <=  thres_u) ThD(ii, jj, kk) = 0._rk
+    ELSE
+        IF (ThD(ii, jj, kk) >= -thres_u) ThD(ii, jj, kk) = 0._rk
+    END IF
+END DO
+END DO
+END DO
+END SUBROUTINE zerothres_ThD
 
 END MODULE auxiliaries
