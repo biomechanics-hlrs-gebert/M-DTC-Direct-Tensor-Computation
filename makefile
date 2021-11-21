@@ -181,6 +181,7 @@ f-objects = $(obj_dir)mod_global_std$(obj_ext)         \
             $(obj_dir)mod_parameters$(obj_ext)         \
             $(obj_dir)mod_times$(obj_ext)              \
             $(obj_dir)mod_strings$(obj_ext)            \
+			$(obj_dir)mod_handle_err$(obj_ext)         \
             $(obj_dir)mod_auxiliaries$(obj_ext)        \
             $(obj_dir)mod_chain$(obj_ext)              \
             $(obj_dir)mod_puredat$(obj_ext)            \
@@ -206,6 +207,7 @@ f-objects = $(obj_dir)mod_global_std$(obj_ext)         \
 # For linking
 pd-ld-objects = $(obj_dir)mod_global_std$(obj_ext)     \
 				$(obj_dir)mod_strings$(obj_ext)        \
+				$(obj_dir)mod_handle_err$(obj_ext)     \
 				$(obj_dir)mod_auxiliaries$(obj_ext)    \
 				$(obj_dir)mod_puredat$(obj_ext)        \
 #
@@ -263,6 +265,14 @@ $(obj_dir)mod_strings$(obj_ext):$(ext_f-src)strings$(f90_ext)
 	@echo 
 
 # -----------------------------------------------------------------------------
+#-- Error Handling Module -----------------------------------------------------
+$(obj_dir)mod_handle_err$(obj_ext):$(mod_dir)global_std$(mod_ext) $(mod_dir)strings$(mod_ext) \
+									$(f_src_dir)mod_handle_err$(f90_ext)
+	@echo "----- Compiling " $(f_src_dir)mod_handle_err$(f90_ext) " -----"
+	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_handle_err$(f90_ext) -o $@
+	@echo 
+
+# -----------------------------------------------------------------------------
 #-- Timer Module --------------------------------------------------------------
 $(obj_dir)mod_times$(obj_ext):$(f_src_dir)mod_times$(f90_ext)
 	@echo "----- Compiling " $< " -----"
@@ -295,18 +305,16 @@ $(mod_dir)chain_routines$(mod_ext):$(mod_dir)chain_variables$(mod_ext)
 
 # -----------------------------------------------------------------------------
 #-- Meta Module ---------------------------------------------------------------
-$(obj_dir)mod_meta$(obj_ext):$(mod_dir)global_std$(mod_ext)     \
-                             $(mod_dir)strings$(mod_ext)        \
-                             $(f_src_dir)mod_meta$(f90_ext)
+$(obj_dir)mod_meta$(obj_ext):$(mod_dir)strings$(mod_ext) $(mod_dir)error_handling$(mod_ext)   \
+							$(f_src_dir)mod_meta$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_meta$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_meta$(f90_ext) -o $@
 	@echo 
 
 # -----------------------------------------------------------------------------
 #-- PureDat -------------------------------------------------------------------
-$(obj_dir)mod_puredat$(obj_ext):$(mod_dir)global_std$(mod_ext) \
-							$(mod_dir)auxiliaries$(mod_ext) \
-							$(f_src_dir)mod_puredat$(f90_ext)
+$(obj_dir)mod_puredat$(obj_ext): $(mod_dir)error_handling$(mod_ext)   \
+								$(f_src_dir)mod_puredat$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_puredat$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_puredat$(f90_ext) -o $@
 	@echo 
@@ -334,8 +342,7 @@ $(obj_dir)mod_metis$(obj_ext):$(obj_dir)metis_interface$(obj_ext) $(f_src_dir)mo
 
 # -----------------------------------------------------------------------------
 #-- VTK-I/O -------------------------------------------------------------------
-$(obj_dir)mod_vtkio$(obj_ext):$(mod_dir)auxiliaries$(mod_ext) \
-															$(f_src_dir)mod_vtkio$(f90_ext)
+$(obj_dir)mod_vtkio$(obj_ext):$(mod_dir)auxiliaries$(mod_ext) $(f_src_dir)mod_vtkio$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_vtkio$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_vtkio$(f90_ext) -o $@
 	@echo 
@@ -359,8 +366,8 @@ $(obj_dir)mod_OS$(obj_ext): $(mod_dir)global_std$(mod_ext) \
 # -----------------------------------------------------------------------------
 #-- Finite Element Routines ---------------------------------------------------
 $(obj_dir)mod_linfe$(obj_ext):$(mod_dir)global_std$(mod_ext)   \
-															$(mod_dir)mechanical$(mod_ext)   \
-															$(f_src_dir)mod_linfe$(f90_ext)
+								$(mod_dir)mechanical$(mod_ext)   \
+								$(f_src_dir)mod_linfe$(f90_ext)
 	@echo "----- Compiling " mod_linfe$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_linfe$(f90_ext) -o $@
 	@echo 
@@ -380,8 +387,8 @@ $(obj_dir)mod_linpack$(obj_ext):$(mod_dir)global_std$(mod_ext) $(mod_dir)blas_1$
 
 # -----------------------------------------------------------------------------
 #-- Math module ---------------------------------------------------------------
-$(obj_dir)mod_math$(obj_ext):$(mod_dir)global_std$(mod_ext) $(mod_dir)timer$(mod_ext) \
-                             $(mod_dir)chain_routines$(mod_ext)    $(f_src_dir)mod_math$(f90_ext)
+$(obj_dir)mod_math$(obj_ext):$(mod_dir)global_std$(mod_ext) 	$(mod_dir)timer$(mod_ext) \
+							$(mod_dir)chain_routines$(mod_ext)  $(f_src_dir)mod_math$(f90_ext)
 	@echo "----- Compiling " mod_math$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_math$(f90_ext) -o $@
 	@echo 
@@ -515,8 +522,8 @@ $(obj_dir)pd_merge_branch_to_tree$(obj_ext):$(mod_dir)puredat$(mod_ext) $(mod_di
 $(main_bin): $(c-objects) $(f-objects)
 	@echo "--------------------------------------------------------------------------------------------"
 	@echo '--- Get Github revision'
-	@echo "CHARACTER(LEN = scl), PARAMETER :: revision = '$(trgt_vrsn)'" > $(f_src_dir)revision_meta$(f90_ext)
-	@echo "CHARACTER(LEN = scl), PARAMETER :: hash = '$(rev)'" >> $(f_src_dir)revision_meta$(f90_ext)
+	@echo "CHARACTER(LEN = scl), PARAMETER :: revision = '$(trgt_vrsn)'" > $(f_src_dir)include_f90/revision_meta$(f90_ext)
+	@echo "CHARACTER(LEN = scl), PARAMETER :: hash = '$(rev)'" >> $(f_src_dir)include_f90/revision_meta$(f90_ext)
 	@echo "--------------------------------------------------------------------------------------------"
 	@echo '--- Final link step of struct-process executable'
 	@echo "--------------------------------------------------------------------------------------------"

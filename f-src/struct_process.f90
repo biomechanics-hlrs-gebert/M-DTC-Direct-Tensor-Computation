@@ -873,8 +873,8 @@ Program main_struct_process
 
   USE global_std
   USE mechanical
-  USE puredat 
   USE auxiliaries
+  USE puredat 
   USE meta
   USE chain_routines
   USE Operating_System

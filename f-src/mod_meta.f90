@@ -11,16 +11,18 @@
 !------------------------------------------------------------------------------
 MODULE meta
 
-   USE global_std
-   USE auxiliaries
    USE strings
+   USE error_handling
 
 IMPLICIT NONE
 
    !------------------------------------------------------------------------------
    ! Provide versioning information for transparent data tracking
    !------------------------------------------------------------------------------  
-   INCLUDE 'revision_meta.f90'
+   INCLUDE 'include_f90/revision_meta.f90'
+
+   INTEGER, PARAMETER :: meta_ik = 8
+   INTEGER, PARAMETER :: meta_rk = 8
 
    ! Character lengths
    INTEGER, PARAMETER :: kcl    = 25   ! Keyword character  length

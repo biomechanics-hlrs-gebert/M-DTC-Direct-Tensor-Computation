@@ -12,7 +12,6 @@
 Module chain_variables
  
   USE global_std
-  USE auxiliaries
 
   Implicit None
  
@@ -48,8 +47,9 @@ End Module chain_variables
 !> error handling
 Module chain_routines
 
-  Use chain_variables
-  Use timer
+   USE error_handling
+   USE chain_variables
+   USE timer
 
   Implicit None
 
@@ -826,11 +826,11 @@ Subroutine read_int4_in(var,name,un)
     
     if ( unit_is_open ) then
        
-       WRITE(un_mon,SEP_STD)
-       WRITE(un_mon,FMT_ERR)'Something bad and unexpected happened during search for free unit'
-       WRITE(un_mon,FMT_ERR)'Could not find a new unit between 100 and huge(Int(kind=4))'
-       WRITE(un_mon,FMT_ERR)' '
-       WRITE(un_mon,FMT_STOP)
+       WRITE(un_mon, SEP_STD)
+       WRITE(un_mon, FMT_ERR)'Something bad and unexpected happened during search for free unit'
+       WRITE(un_mon, FMT_ERR)'Could not find a new unit between 100 and huge(Int(kind=4))'
+       WRITE(un_mon, FMT_ERR)' '
+       WRITE(un_mon, FMT_STOP)
        STOP
     END IF
 

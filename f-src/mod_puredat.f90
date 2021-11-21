@@ -26,57 +26,6 @@ Module puredat_precision
 End Module puredat_precision
 
 !==============================================================================
-!> Global constants and parameters for the puredat data handling library
-!> \author Ralf Schneider
-!> \date 22.01.2010
-!>
-Module puredat_constants
-
-  Implicit none
-  
-  !> Number of currently used stream variables in puredat_streams
-  !>
-  !> The total number of currently used stream variables which is the  
-  !> number of arrays defined in puredat_streams independently from 
-  !> their data type
-  Integer, Parameter :: no_streams = 7
-
-  !> Maximum character length used in puredat library
-  Integer, Parameter :: pd_mcl = 512
-  !> Maximum Character Length in pd_ik elements
-  Integer, Parameter :: pd_ce  = 512/8
-
-End Module puredat_constants
-
-!==============================================================================
-!> Global variables for the puredat data handling library
-!> \author Ralf Schneider
-!> \date 22.01.2010
-!>
-Module puredat_globals
-  
-  Use puredat_constants
-
-  Implicit None
-
-  !============================================================================
-  !== files and paths
-  !> puredat project path
-  !>
-  !> Path to puredat project files which means header-, stream- and 
-  !> log-files
-  Character(len=pd_mcl) :: pro_path
-  !> puredat project name
-  !>
-  !> Base name of the puredat project files which are ...
-  Character(len=pd_mcl) :: pro_name
-  
-  !> puredat monitor unit
-  Integer               :: pd_umon  != OUTPUT_UNIT
-
-End Module puredat_globals
-
-!==============================================================================
 !> Derived datatypes for puredat data handling
 !> \author Ralf Schneider
 !> \date 22.01.2010
@@ -84,7 +33,7 @@ End Module puredat_globals
 Module puredat_types
 
   use puredat_precision
-  use puredat_constants
+  use puredat_globals
 
   implicit none
 
@@ -210,8 +159,8 @@ End Module puredat_types
 !>
 Module puredat_com
 
-  use puredat_globals
-  use puredat_types  
+  USE puredat_globals
+  USE puredat_types  
 
   implicit none
 
@@ -301,8 +250,9 @@ End Module puredat_com
 !>
 Module puredat
 
-USE auxiliaries
+USE error_handling
 USE puredat_types
+USE puredat_globals
 USE puredat_com
 USE mpi
 
@@ -448,7 +398,7 @@ Implicit None
   !> Character constant for leaf separation in the puredat ascii header file
   Character(Len=*), Parameter :: fmt_lsep="('<--leaf-->')"
 
-Contains
+CONTAINS
 
   !============================================================================
   !> Subroutine that initializes the output to std-out according to the

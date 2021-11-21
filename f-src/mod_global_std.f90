@@ -47,11 +47,9 @@ Character(Len=*), Parameter :: FMT_MSG     = "('MM ',A,T97,' MM')"
 Character(Len=*), Parameter :: FMT_MSG_BS  = "('MM ',A,T88,' ... ',$)"
 Character(Len=*), Parameter :: FMT_MSG_BE  = "('done MM')"
 
-! Best while containing scl characters! scl = 64 + "EE " + 2
-Character(Len=*), Parameter :: FMT_WRN     = "('WW ',A,T68,' WW')"  
-Character(Len=*), Parameter :: FMT_ERR     = "('EE ',A,T68,' EE')"
-CHARACTER(LEN=*), PARAMETER :: FMT_WRN_SO  = "('\x1B[33m','WW ','\x1B[0m',A, T76,'\x1B[33m',' WW','\x1B[0m')" ! std_out
-CHARACTER(LEN=*), PARAMETER :: FMT_ERR_SO  = "('\x1B[31m','EE ','\x1B[0m',A, T76,'\x1B[31m',' EE','\x1B[0m')" ! std_out
+CHARACTER(LEN=*), PARAMETER :: FMT_WRN     = "('WW ',A,T68,' WW')"  
+CHARACTER(LEN=*), PARAMETER :: FMT_ERR     = "('EE ',A,T68,' EE')"
+
 
 Character(Len=*), Parameter :: FMT_ERR_AI0 = "('EE ',*(A,I0))"  
 CHARACTER(Len=*), PARAMETER :: FMT_ERR_A   = "('EE ',A)"
