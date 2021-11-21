@@ -109,9 +109,9 @@ END SUBROUTINE usage
 !> @param[in] fmt Formatting of the data
 !> @param[in] unit Physical unit of the information to print
 !> @param[in] hide_zeros Whether to suppress zeros for printing matrices
-!------------------------------------------------------------------------------  
+!------------------------------------------------------------------------------
 SUBROUTINE write_matrix_real (fh, name, fmt, unit, mat)
- 
+
 INTEGER(KIND=ik), INTENT(IN) :: fh   
 CHARACTER(LEN=*), INTENT(IN) :: name 
 REAL   (KIND=rk), DIMENSION(:, :), INTENT(IN) :: mat    
@@ -141,7 +141,7 @@ sym_u = .FALSE.
 IF (PRESENT(unit)) THEN
     IF (unit /= '') text = " Unit: ("//TRIM(unit)//")"
 END IF
-     
+
 IF (dim1 .EQ. dim2) CALL checksym(mat_in = mat, status=sym_u)
 
 !------------------------------------------------------------------------------
@@ -151,13 +151,13 @@ IF(PRESENT(fmt)) fmt_u = fmt
 
 SELECT CASE (TRIM(fmt_u))
    CASE ('std', 'standard')
-  
+
         WRITE(fmt_a, "(3(A,I0),A)") "(",dim2,"(E",fw,".",prec,"E2))"
         WRITE(sep  , "(A,I0,A)")    "(",fw*dim2,"('-'))"
 
         ! Calculate text and unit length. If name to long - overflow formaming to the right
         nm_fmt_lngth  = fw*dim2-4-2-LEN_TRIM(name)-LEN_TRIM(text)
-        
+
    CASE ('spl', 'simple')
 
         WRITE(fmt_a,  "(3(A,I0),A)") "(",dim2,"(F10.3))"
@@ -166,10 +166,10 @@ SELECT CASE (TRIM(fmt_u))
         ! Calculate text and unit length. If name to long - overflow formaming to the right
         nm_fmt_lngth  = dim2*10-4-2-LEN_TRIM(name)-LEN_TRIM(text) 
 END SELECT
-                
+
 IF (nm_fmt_lngth .LT. 1_ik) nm_fmt_lngth = 1_ik
 WRITE(nm_fmt, "(A,I0,A)")  "(4('-') ,3A,", nm_fmt_lngth ,"('-'), A)"    
-                    
+
 !------------------------------------------------------------------------------
 ! Write output
 !------------------------------------------------------------------------------
@@ -184,21 +184,21 @@ DO jj=1, dim2
 
         IF ((TRIM(fmt_u) == 'spl') .OR. (TRIM(fmt_u) == 'simple')) THEN
             WRITE(fh, '(A)', ADVANCE='NO') "symmetric "
-                ELSE
+        ELSE
             WRITE(fh, '(A)', ADVANCE='NO') "   symmetric           "
-                END IF
-                ELSE
+        END IF
+    ELSE
         IF ((ABS(mat(ii,jj)) >=  10E-08) .AND. ((.NOT. sym_u) .OR. ((sym_u) .AND. (jj .GE. ii)))) THEN 
             WRITE(fh, fmt_a, ADVANCE='NO') mat (ii,jj)
         ELSE
             ! Can'r trim a string with leading and trailing blanks
             IF ((TRIM(fmt_u) == 'spl') .OR. (TRIM(fmt_u) == 'simple')) THEN
                 WRITE(fh, '(A)', ADVANCE='NO') "      .   "
-        ELSE
+            ELSE
                 WRITE(fh, '(A)', ADVANCE='NO') "   .                   "
+            END IF
         END IF
     END IF
-END IF
 
 
 END DO
@@ -298,25 +298,25 @@ WRITE(fmt_a, "(3(A,I0),A)") "(",dim2,"(I10))"
 WRITE(fh, sep)                                    ! Separator
 WRITE(fh, nm_fmt) ' ',TRIM(name), ' ', TRIM(text) ! Named separator
 
-    DO ii=1, dim1
-    DO jj=1, dim2
+DO ii=1, dim1
+DO jj=1, dim2
 
-        IF ((sym_u) .AND. (ii==dim1-1) .AND. (jj==2)) THEN
+    IF ((sym_u) .AND. (ii==dim1-1) .AND. (jj==2)) THEN
 
-                    WRITE(fh, '(A)', ADVANCE='NO') " symmetric"
+        WRITE(fh, '(A)', ADVANCE='NO') " symmetric"
 
-                ELSE
+    ELSE
         IF ((mat(ii,jj) /= 0) .AND. ((.NOT. sym_u) .OR. ((sym_u) .AND. (jj .GE. ii)))) THEN 
             WRITE(fh, fmt_a, ADVANCE='NO') mat (ii,jj)
-                ELSE
-                    WRITE(fh, '(A)', ADVANCE='NO') "         ."
-                END IF
-            END IF
+        ELSE
+            WRITE(fh, '(A)', ADVANCE='NO') "         ."
+        END IF
+    END IF
 
 
-    END DO
-    WRITE(fh,'(A)') ''
-    END DO        
+END DO
+WRITE(fh,'(A)') ''
+END DO        
 
 WRITE(fh, '(A)') ''
 End Subroutine write_matrix_int
