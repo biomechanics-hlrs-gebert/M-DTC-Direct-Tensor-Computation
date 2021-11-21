@@ -833,7 +833,7 @@ Contains
                  
        End If
     End Do
-   
+
     !*****************************************************************
     !** All 24 linear system solutions are produced. Effective    ****
     !** stiffnesses can be calculated                             ****
@@ -851,8 +851,8 @@ Contains
     
 !!!!!!!!!!!!!<< Development <<<<<<<<<<<<<<<<<<<<
     
-    call MatDestroy(AA    , petsc_ierr)
-    Call VecDestroy(XX    , petsc_ierr)
+    call MatDestroy(AA, petsc_ierr)
+    Call VecDestroy(XX, petsc_ierr)
     Do ii = 1, 24
        Call VecDestroy(FF(ii) , petsc_ierr)
     End Do
@@ -862,7 +862,7 @@ Contains
        call destroy_tree(pb,no_data)
        deallocate(pb)
     End if
-    
+
   End Subroutine exec_single_domain
   End Module sp_aux_routines
 

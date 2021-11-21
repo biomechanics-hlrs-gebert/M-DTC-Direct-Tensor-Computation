@@ -18,6 +18,8 @@ refactor checksym
 refactor count_lines
 refactor read_user_input mod_chain
 
+refactor formattign
+
 Run on vulcan
 
 Run on Hawk

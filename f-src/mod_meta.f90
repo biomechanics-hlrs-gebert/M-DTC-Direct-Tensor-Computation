@@ -23,6 +23,8 @@ IMPLICIT NONE
 
    INTEGER, PARAMETER :: meta_ik = 8
    INTEGER, PARAMETER :: meta_rk = 8
+   INTEGER, PARAMETER :: meta_mcl = 512
+   INTEGER, PARAMETER :: meta_scl = 64
 
    ! Character lengths
    INTEGER, PARAMETER :: kcl    = 25   ! Keyword character  length
@@ -53,10 +55,10 @@ IMPLICIT NONE
    TYPE basename
       ! For the use in filenames, a max. length of a part of a basename of kcl characters must suffice.
       ! Nomenclature: dataset_type_purpose_app_features
-      CHARACTER(LEN=mcl) :: full     = '' ! Including suffix and path
-      CHARACTER(LEN=mcl) :: path     = '' ! Only the path to the file
-      CHARACTER(LEN=mcl) :: p_n_bsnm = '' ! Just the path and the basename
-      CHARACTER(LEN=mcl) :: bsnm     = '' ! Just the basename
+      CHARACTER(LEN=meta_mcl) :: full     = '' ! Including suffix and path
+      CHARACTER(LEN=meta_mcl) :: path     = '' ! Only the path to the file
+      CHARACTER(LEN=meta_mcl) :: p_n_bsnm = '' ! Just the path and the basename
+      CHARACTER(LEN=meta_mcl) :: bsnm     = '' ! Just the basename
       CHARACTER(LEN=kcl) :: dataset  = '' ! For example FH01-1 (Femoral Head 1, Scan1)
       CHARACTER(LEN=2)   :: type     = '' ! 'cl' - clinical or 'mu' - microfocus
       CHARACTER(LEN=3)   :: purpose  = '' ! 'Dev' or 'Pro' (Development or Production)
@@ -112,7 +114,7 @@ CHARACTER, INTENT(IN) :: restart
 
 LOGICAL :: exist=.FALSE.
 INTEGER  (KIND=meta_ik) :: ios
-CHARACTER(LEN=mcl) :: lockname
+CHARACTER(LEN=meta_mcl) :: lockname
 
 !------------------------------------------------------------------------------
 ! Automatically aborts if there is no input file found on the drive
@@ -149,12 +151,11 @@ END SUBROUTINE meta_handle_lock_file
 !---------------------------------------------------------------------------  
 SUBROUTINE meta_append(meta_as_rry)
 
-CHARACTER(LEN=mcl), DIMENSION(:), INTENT(INOUT), ALLOCATABLE :: meta_as_rry      
+CHARACTER(LEN=meta_mcl), DIMENSION(:), INTENT(INOUT), ALLOCATABLE :: meta_as_rry      
 
 ! Internal Variables
-CHARACTER(LEN=mcl) :: line
 INTEGER  (KIND=meta_ik) :: ios, lines, ii
-CHARACTER(LEN=mcl) :: tokens(30)
+CHARACTER(LEN=meta_mcl) :: tokens(30)
 INTEGER  (KIND=meta_ik) :: ntokens
 
 LOGICAL :: exist
@@ -300,7 +301,7 @@ INTEGER  (KIND=meta_ik), INTENT(IN) :: fh
 CHARACTER(LEN=*), INTENT(IN) :: suf
 CHARACTER, INTENT(IN), OPTIONAL :: restart
 
-CHARACTER(LEN=mcl) :: temp_f_suf, perm_f_suf
+CHARACTER(LEN=meta_mcl) :: temp_f_suf, perm_f_suf
 INTEGER  (KIND=meta_ik) :: ios
 CHARACTER :: restart_u
 
@@ -373,7 +374,7 @@ SUBROUTINE meta_stop_ascii(fh, suf)
 INTEGER  (KIND=meta_ik), INTENT(IN) :: fh
 CHARACTER(LEN=*), INTENT(IN) :: suf
 
-CHARACTER(LEN=mcl) :: temp_f_suf, perm_f_suf
+CHARACTER(LEN=meta_mcl) :: temp_f_suf, perm_f_suf
 INTEGER  (KIND=meta_ik) :: ios
 
 temp_f_suf = TRIM(out%path)//'.temporary'//TRIM(suf)
@@ -530,13 +531,13 @@ SUBROUTINE meta_extract_keyword_data (fh, keyword, dims, m_in, res_tokens, res_n
 INTEGER(KIND=meta_ik), INTENT(IN) :: fh 
 CHARACTER(LEN=*), INTENT(IN) :: keyword
 INTEGER(KIND=meta_ik), INTENT(IN) :: dims
-CHARACTER(LEN=mcl), DIMENSION(:), INTENT(IN) :: m_in
-CHARACTER(LEN=mcl) :: res_tokens(30)
+CHARACTER(LEN=meta_mcl), DIMENSION(:), INTENT(IN) :: m_in
+CHARACTER(LEN=meta_mcl) :: res_tokens(30)
 INTEGER(KIND=meta_ik) :: res_ntokens
 
 ! Internal variables
 INTEGER(KIND=meta_ik) :: kywd_found, ii, ntokens
-CHARACTER(LEN=mcl) :: tokens(30)
+CHARACTER(LEN=meta_mcl) :: tokens(30)
 LOGICAL :: override
 
 kywd_found = 0
@@ -616,11 +617,11 @@ SUBROUTINE meta_read_C (fh, keyword, m_in, chars)
    
 INTEGER(KIND=meta_ik), INTENT(IN) :: fh 
 CHARACTER(LEN=*), INTENT(IN) :: keyword
-CHARACTER(LEN=mcl), DIMENSION(:), INTENT(IN)  :: m_in      
+CHARACTER(LEN=meta_mcl), DIMENSION(:), INTENT(IN)  :: m_in      
 CHARACTER(LEN=*), INTENT(OUT) :: chars 
 
 ! Internal variables
-CHARACTER(LEN=mcl) :: tokens(30)
+CHARACTER(LEN=meta_mcl) :: tokens(30)
 INTEGER(KIND=meta_ik) :: ntokens
 
 CALL meta_extract_keyword_data (fh, keyword, 1, m_in, tokens, ntokens)
@@ -647,11 +648,11 @@ SUBROUTINE meta_read_I0D (fh, keyword, m_in, int_0D)
      
 INTEGER(KIND=meta_ik), INTENT(IN) :: fh 
 CHARACTER(LEN=*), INTENT(IN) :: keyword
-CHARACTER(LEN=mcl), DIMENSION(:), INTENT(IN) :: m_in      
+CHARACTER(LEN=meta_mcl), DIMENSION(:), INTENT(IN) :: m_in      
 INTEGER(KIND=meta_ik), INTENT(OUT) :: int_0D 
 
 ! Internal variables
-CHARACTER(LEN=mcl) :: tokens(30)
+CHARACTER(LEN=meta_mcl) :: tokens(30)
 INTEGER(KIND=meta_ik) :: ntokens
 
 CALL meta_extract_keyword_data (fh, keyword, 1, m_in, tokens, ntokens)
@@ -678,11 +679,11 @@ SUBROUTINE meta_read_R0D (fh, keyword, m_in, real_0D)
      
 INTEGER(KIND=meta_ik), INTENT(IN) :: fh 
 CHARACTER(LEN=*), INTENT(IN) :: keyword
-CHARACTER(LEN=mcl), DIMENSION(:), INTENT(IN) :: m_in      
+CHARACTER(LEN=meta_mcl), DIMENSION(:), INTENT(IN) :: m_in      
 REAL(KIND=meta_rk), INTENT(OUT) :: real_0D 
 
 ! Internal variables
-CHARACTER(LEN=mcl) :: tokens(30)
+CHARACTER(LEN=meta_mcl) :: tokens(30)
 INTEGER(KIND=meta_ik) :: ntokens
 
 CALL meta_extract_keyword_data (fh, keyword, 1, m_in, tokens, ntokens)
@@ -708,11 +709,11 @@ SUBROUTINE meta_read_I1D (fh, keyword, m_in, int_1D)
 
 INTEGER(KIND=meta_ik), INTENT(IN) :: fh 
 CHARACTER(LEN=*), INTENT(IN) :: keyword
-CHARACTER(LEN=mcl), DIMENSION(:), INTENT(IN)  :: m_in      
+CHARACTER(LEN=meta_mcl), DIMENSION(:), INTENT(IN)  :: m_in      
 INTEGER(KIND=meta_ik), DIMENSION(:), INTENT(OUT) :: int_1D 
 
 ! Internal variables
-CHARACTER(LEN=mcl) :: tokens(30)
+CHARACTER(LEN=meta_mcl) :: tokens(30)
 INTEGER(KIND=meta_ik) :: ntokens
 
 CALL meta_extract_keyword_data (fh, keyword, SIZE(int_1D), m_in, tokens, ntokens)
@@ -739,11 +740,11 @@ SUBROUTINE meta_read_R1D (fh, keyword, m_in, real_1D)
 
 INTEGER(KIND=meta_ik), INTENT(IN) :: fh 
 CHARACTER(LEN=*), INTENT(IN) :: keyword
-CHARACTER(LEN=mcl), DIMENSION(:), INTENT(IN) :: m_in      
+CHARACTER(LEN=meta_mcl), DIMENSION(:), INTENT(IN) :: m_in      
 REAL(KIND=meta_rk), DIMENSION(:), INTENT(OUT) :: real_1D 
 
 ! Internal variables
-CHARACTER(LEN=mcl) :: tokens(30)
+CHARACTER(LEN=meta_mcl) :: tokens(30)
 INTEGER(KIND=meta_ik) :: ntokens
 
 CALL meta_extract_keyword_data (fh, keyword, SIZE(real_1D), m_in, tokens, ntokens)
@@ -773,7 +774,7 @@ CHARACTER(LEN=*), INTENT(IN) :: keyword
 CHARACTER(LEN=*), INTENT(IN) :: stdspcfill 
 CHARACTER(LEN=*), INTENT(IN) :: unit
 
-CHARACTER(LEN=scl) :: fmt, str
+CHARACTER(LEN=meta_scl) :: fmt, str
 CHARACTER(LEN=8)  :: date
 CHARACTER(LEN=10) :: time
 CHARACTER(LEN=5)  :: timezone
@@ -822,7 +823,7 @@ SUBROUTINE meta_write_sha256sum (binary_name)
 CHARACTER(LEN=*), INTENT(IN) :: binary_name
 
 CHARACTER(LEN=kcl-1) :: keyword = ''
-CHARACTER(LEN=scl) :: fmt, stdspcfill
+CHARACTER(LEN=meta_scl) :: fmt, stdspcfill
 INTEGER(KIND=meta_ik), DIMENSION(5) :: stat = 0
 INTEGER(KIND=meta_ik) :: ios
 
@@ -925,7 +926,7 @@ CHARACTER(LEN=*), INTENT(IN) :: keyword
 CHARACTER(LEN=*), INTENT(IN) :: unit
 INTEGER(KIND=meta_ik), INTENT(IN) :: int_0D 
 
-CHARACTER(LEN=scl) :: stdspcfill
+CHARACTER(LEN=meta_scl) :: stdspcfill
 
 WRITE(stdspcfill, '(I0)') int_0D
 
@@ -953,13 +954,16 @@ CHARACTER(LEN=*), INTENT(IN) :: keyword
 CHARACTER(LEN=*), INTENT(IN) :: unit
 REAL(KIND=meta_ik), INTENT(IN) :: real_0D 
 
-CHARACTER(LEN=scl) :: stdspcfill
+CHARACTER(LEN=meta_scl) :: stdspcfill
 
-WRITE(stdspcfill, '(F0.0)') real_0D
+WRITE(stdspcfill, '(F30.7)') real_0D
+
+CALL trimzero(stdspcfill)
 
 CALL meta_write_keyword (fh, keyword, stdspcfill, unit)
 
 END SUBROUTINE meta_write_R0D
+
 
 !------------------------------------------------------------------------------
 ! SUBROUTINE: meta_write_I1D
@@ -981,7 +985,7 @@ CHARACTER(LEN=*), INTENT(IN) :: keyword
 CHARACTER(LEN=*), INTENT(IN) :: unit
 INTEGER(KIND=meta_ik), INTENT(IN), DIMENSION(:) :: int_1D 
 
-CHARACTER(LEN=scl) :: stdspcfill, str
+CHARACTER(LEN=meta_scl) :: stdspcfill, str
 INTEGER  (KIND=meta_ik) :: ii
 
 stdspcfill = ''
@@ -1017,7 +1021,7 @@ CHARACTER(LEN=*), INTENT(IN) :: keyword
 CHARACTER(LEN=*), INTENT(IN) :: unit
 REAL(KIND=meta_ik), INTENT(IN), DIMENSION(:) :: real_1D 
 
-CHARACTER(LEN=scl) :: stdspcfill, str
+CHARACTER(LEN=meta_scl) :: stdspcfill, str
 INTEGER  (KIND=meta_ik) :: ii
 
 stdspcfill = ''
@@ -1025,7 +1029,10 @@ str = ''
 
 DO ii=1, SIZE(real_1D)
    str = ''
-   WRITE(str, '(F0.0)') real_1D(ii)
+   WRITE(str, '(F30.7)') real_1D(ii)
+
+   CALL trimzero(str)
+
    stdspcfill = TRIM(stdspcfill)//' '//TRIM(str)
 END DO
 

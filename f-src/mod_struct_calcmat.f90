@@ -137,7 +137,7 @@ contains
     !**************************************************************************
     !** Get global mesh parameters ********************************************
     Call Search_branch("Domain "//trim(nn_char), root, db  , success)
-    
+
     desc = ''
     Write(desc,'(A,I0)')'Mesh info of '//trim(project_name)//'_',ddc_nn
     Call search_branch(trim(desc), db, mesh, success)
@@ -397,7 +397,7 @@ contains
        Call Write_matrix(un_lf, "Stiffness", 'std', 'MPa', stiffness)
     End If
     
-    CALL check_sym6x6(un_lf, stiffness, "Stiffness", sum_sym=tmp_real_fd1(1))
+   CALL check_sym(un_lf, stiffness, "Stiffness", sym_out=tmp_real_fd1(1))
 
     !Call add_leaf_to_branch(res_tree, &
     !    "Symmetry deviation - effective numerical stiffness", 1_pd_ik, &
@@ -520,7 +520,7 @@ contains
        Call Write_matrix(un_lf, "Effective stiffness", 'std', 'MPa', cc_mean)
     End If
     
-    CALL check_sym6x6(un_lf, cc_mean, "Effective Stiffness", sum_sym=tmp_real_fd1(1))
+    CALL check_sym(un_lf, cc_mean, "Effective Stiffness", sym_out=tmp_real_fd1(1))
 
     !call add_leaf_to_branch(res_tree, "Effective stiffness",  36_pd_ik, &
     !     reshape(cc_mean,[36_pd_ik]))
@@ -559,7 +559,7 @@ contains
     If (out_amount /= "PRODUCTION" ) then
        Call Write_matrix(un_lf, "Averaged Effective stiffness", 'std', 'MPa', ee)
     End If
-    CALL check_sym6x6(un_lf, ee, "Averaged Effective stiffness", sum_sym=tmp_real_fd1(1))
+   CALL check_sym(un_lf, ee, "Averaged Effective stiffness", sym_out=tmp_real_fd1(1))
 
     !call add_leaf_to_branch(res_tree, "Averaged Effective stiffness",  36_pd_ik, &
     !     reshape(ee,[36_pd_ik]))
@@ -1216,7 +1216,7 @@ contains
        Call Write_matrix(un_lf, "Inlined anisotropic stiffness CR_1", 'std', 'MPa', EE)
     End If
     
-    CALL check_sym6x6(un_lf, EE, "Inlined anisotropic stiffness CR_1")
+    CALL check_sym(un_lf, EE, "Inlined anisotropic stiffness CR_1")
 
     !call add_leaf_to_branch(res_tree,"Final coordinate system CR_1", 9_pd_ik, &
     !     reshape(aa,[9_pd_ik]))
@@ -1653,7 +1653,7 @@ contains
        Call Write_matrix(un_lf, "Inlined anisotropic stiffness CR_2", 'std', 'MPa', EE)
     End If
     
-    CALL check_sym6x6(un_lf, EE, "Inlined anisotropic stiffness CR_2")
+   CALL check_sym(un_lf, EE, "Inlined anisotropic stiffness CR_2")
 
     !Call add_leaf_to_branch(res_tree,"Final coordinate system CR_2", 9_pd_ik, &
     !    reshape(aa,[9_pd_ik]))
