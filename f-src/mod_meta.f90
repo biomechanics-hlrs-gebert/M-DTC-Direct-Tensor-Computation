@@ -521,12 +521,10 @@ DO ii =1, SIZE(m_in)
 
    SELECT CASE(tokens(1))
       CASE('*', 'r', 'w')
-WRITE(*,*) "keyword: ", keyword
-WRITE(*,*) "m_in(ii): ", m_in(ii)
 
          IF (tokens(2) == TRIM(keyword)) THEN
             kywd_found = 1
-            WRITE(*,*) "tokens(2): ", tokens(2)
+
             !------------------------------------------------------------------------------
             ! Store the keywords data.
             ! Following m_in(ii) - lines -  will overwrite this information.
