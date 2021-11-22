@@ -199,11 +199,11 @@ Contains
 
              CALL execute_command_line("mkdir -p "//trim(job_dir), CMDSTAT=stat)
 
-             IF(stat /= 0) CALL print_err_stop(std_out, "Couldn't execute syscall mkpir -p "//FMT_Orng//TRIM(job_dir)//FMT_noc, 1)
+             IF(stat /= 0) CALL print_err_stop(std_out, "Couldn't execute syscall mkpir -p "//TRIM(job_dir), 1)
 
              CALL Stat_Dir(c_char_array, stat_c_int)
 
-             IF(stat_c_int /= 0) CALL print_err_stop(std_out, "Couldn't create directory "//FMT_Orng//TRIM(job_dir)//FMT_noc, 1)
+             IF(stat_c_int /= 0) CALL print_err_stop(std_out, "Couldn't create directory "//TRIM(job_dir), 1)
 
           Else
 
@@ -1069,7 +1069,7 @@ Program main_struct_process
       !------------------------------------------------------------------------------
       IF (restart_cmdarg /= 'U') THEN
          restart = restart_cmdarg
-         mssg="The keyword »restart« was overwritten by the command flag »"//FMT_Orng//"--(no)-restart"//FMT_noc//"«!"
+         mssg="The keyword »restart« was overwritten by the command flag --(no)-restart"
          CALL print_warning (std_out, mssg)
       END IF
 
@@ -1183,6 +1183,7 @@ Program main_struct_process
             mssg = 'Restart of partly computed results requested, but no project header found. &
             &Program behaves like there was none.'
             CALL print_warning (std_out, mssg)
+            CALL print_sep (std_out)
             restart = 'N'
          END IF
 

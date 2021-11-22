@@ -70,9 +70,7 @@ Contains
     
     Logical :: opened, exist, loc_init_lf, loc_stdio
 
-    Integer :: io_stat = 0, ii
-
-    Character(len=mcl) :: lf=''
+    Integer :: io_stat = 0
     !--------------------------------------------------------------------------
      
     !** Check Outpath ********************************************
@@ -97,10 +95,8 @@ Contains
     if (present(success)) success = .TRUE.
     
     If (loc_stdio) then
-       Write(un_mon,*)
-       Write(un_mon,SEP_STD)
-       Write(un_mon,'(A,A)')'Starting chain link: ',trim(link_name)
-       Write(un_mon,*)
+      CALL print_message(un_mon, 'Starting chain link: '//TRIM(link_name))
+      CALL print_sep(un_mon)
     End If
 
     Inquire(file=trim(outpath)//trim(project_name)//'.log', opened=opened)
@@ -111,21 +107,11 @@ Contains
        Inquire(file=trim(outpath)//trim(project_name)//'.log', number=un_lf)
 
        !** Message to std out *************************************************
-       If (loc_stdio) then
-          
-          Write(un_mon,FMT_MSG )"The log-file was already opened"
-
-          Write(un_mon,FMT_MSG)'Reusing open and existing log-file: '
-          Write(lf,'(A)')trim(outpath)//trim(project_name)//'.log'
-
-          If (Len_trim(lf) > 72) Then
-             Do ii = 1, Len_trim(lf), 72
-                Write(un_mon,FMT_MSG)lf(ii:ii+71)
-             End Do
-          Else
-             Write(un_mon,FMT_MSG)trim(outpath)//trim(project_name)//'.log'
-          End If
-          
+       If (loc_stdio) then         
+         CALL print_message(un_mon, "The log-file was already opened.")
+         CALL print_message(un_mon, "Reusing open and existing log-file: "&
+            //TRIM(outpath)//TRIM(project_name)//'.log')
+         CALL print_sep(un_mon)
        End If
        
     Else if (exist .AND. (.NOT.loc_init_lf)) then
@@ -136,17 +122,7 @@ Contains
 
        !** Message to std out *************************************************
        If (loc_stdio) then
-          
-          Write(un_mon,FMT_MSG)'Opened existing log-file :'
-          Write(lf,'(A)')trim(outpath)//trim(project_name)//'.log'
-          
-          If (Len_trim(lf) > 72) Then
-             Do ii = 1, Len_trim(lf), 72
-                Write(un_mon,FMT_MSG)lf(ii:ii+71)
-             End Do
-          Else
-             Write(un_mon,FMT_MSG)trim(outpath)//trim(project_name)//'.log'
-          End If
+         CALL print_message(un_mon, "Opened existing log-file: "//TRIM(outpath)//TRIM(project_name)//'.log')
        End If
        
     Else if (.NOT.exist) Then
@@ -156,11 +132,10 @@ Contains
             Action='Write', status='new', iostat=io_stat)
 
        If (io_stat /= 0) then
-          Write(un_mon,SEP_STD)
-          Write(un_mon,FMT_ERR )"In link_start it was not possible to open the file"
-          Write(un_mon,FMT_ERR_A)trim(outpath)//trim(project_name)//'.log'
-          Write(un_mon,FMT_ERR )"Please check the path and file naming conventions"
-          Write(un_mon,FMT_STOP)
+         mssg =  "In link_start it was not possible to open the file "//&
+         trim(outpath)//trim(project_name)//'.log'//" Please check the path and file naming conventions"
+
+         CALL print_err_stop(un_mon, mssg, io_stat)
           
           If (present(success)) then
              success = .FALSE.
@@ -173,18 +148,7 @@ Contains
        
        !** Message to std out *************************************************
        If (loc_stdio) then
-          
-          Write(un_mon,FMT_MSG)'Opened new log-file: '
-          Write(lf,'(A)')trim(outpath)//trim(project_name)//'.log'
-          
-          If (Len_trim(lf) > 72) Then
-             Do ii = 1, Len_trim(lf), 72
-                Write(un_mon,FMT_MSG)lf(ii:ii+71)
-             End Do
-          Else
-             Write(un_mon,FMT_MSG)trim(outpath)//trim(project_name)//'.log'
-          End If
-          
+         CALL print_message(un_mon, "Opened new log-file: "//TRIM(outpath)//TRIM(project_name)//'.log')          
        End If
        
     Else if (loc_init_lf) then
@@ -195,22 +159,13 @@ Contains
        
        !** Message to std out *************************************************
        If (loc_stdio) then
-          
-          Write(un_mon,FMT_MSG)'Opened and replaced existing log-file :'
-          Write(lf,'(A)')trim(outpath)//trim(project_name)//'.log'
-          
-          If (Len_trim(lf) > 72) Then
-             Do ii = 1, Len_trim(lf), 72
-                Write(un_mon,FMT_MSG)lf(ii:ii+71)
-             End Do
-          Else
-             Write(un_mon,FMT_MSG)trim(outpath)//trim(project_name)//'.log'
-          End If
+         CALL print_message(un_mon, "Opened and replaced existing log-file: "&
+            //TRIM(outpath)//TRIM(project_name)//'.log')          
        End If
        
     End If
        
-    If (loc_stdio) write(un_mon,*)
+    If (loc_stdio) CALL print_sep(un_mon)
 
 1000 Continue
     !Write(un_lf,SEP_STD)
@@ -223,12 +178,12 @@ Contains
   !> Subroutine for writing link end tag and closing the global log file
   Subroutine link_end(link_name, silent_stdio)
 
-    Character(Len=*), Intent(in)       :: link_name
+    Character(Len=*), Intent(in) :: link_name
 
     !> If .TRUE. no output to std_out is done (default = .FALSE.)
-    Logical, Intent(In)     , optional :: silent_stdio
+    Logical, Intent(In), optional :: silent_stdio
     
-    Logical                            :: opened, loc_stdio
+    Logical :: opened, loc_stdio
 
     !--------------------------------------------------------------------------
 
@@ -240,11 +195,7 @@ Contains
     
     call end_timer(trim(link_name))
 
-    if (loc_stdio) then
-       Write(un_mon, FMT_EQ_SEP)
-       Write(un_mon, FMT_MSG_A) 'Program terminated correctly !'
-       Write(un_mon, FMT_EQ_SEP)
-    End if
+    if (loc_stdio) CALL print_message(un_mon, "Program terminated correctly.")          
 
     INQUIRE(unit=un_lf, opened=opened)
 
@@ -311,13 +262,9 @@ Contains
     End Do
     
     if ( unit_is_open ) then
-
-       WRITE(un_mon, SEP_STD)
-       WRITE(un_mon, FMT_ERR)'Something bad and unexpected happened during search for free unit'
-       WRITE(un_mon, FMT_ERR)'Could not find a new unit between 100 and huge(Int(kind=4))'
-       WRITE(un_mon, FMT_ERR)' '
-       WRITE(un_mon, FMT_STOP)
-       STOP
+      mssg = 'Something bad and unexpected happened during search for free unit: &
+      &Could not find a new unit between 100 and huge(Int(kind=4))'
+      CALL print_err_stop(std_out, mssg, 1)
     END IF
 
   End function give_new_unit

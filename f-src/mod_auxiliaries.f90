@@ -15,7 +15,9 @@
 MODULE auxiliaries
 
 USE global_std
+USE messages_errors
 USE strings
+
 
 IMPLICIT NONE
    Interface write_matrix
@@ -45,17 +47,14 @@ SUBROUTINE show_title(revision, hash)
 CHARACTER(LEN=*), INTENT(IN) :: revision
 CHARACTER(LEN=*), INTENT(IN) :: hash
 
-WRITE(std_out, SEP_STD)
-WRITE(std_out,'(A)') '-- High Performance Computing Center | Stuttgart (HLRS)'
-WRITE(std_out, SEP_STD)
-WRITE(std_out,'( A)') '-- Directly Discretizing Tensor Computation'
-WRITE(std_out,'( A)') '--'
-WRITE(std_out,'( A)') '-- Author: Dr.-Ing. Ralf Schneider (HLRS, NUM)'
-WRITE(std_out,'( A)') '-- Author: Johannes Gebert, M.Sc.  (HLRS, NUM)'
-WRITE(std_out,'( A)') '--'
-WRITE(std_out,'(2A)') '-- Revision: ', TRIM(ADJUSTL(revision))
-WRITE(std_out,'(2A)') '-- Git revision hash: ', TRIM(ADJUSTL(hash))
-WRITE(std_out, SEP_STD)
+CALL print_sep (std_out)
+CALL print_std (std_out, 'High Performance Computing Center | Stuttgart (HLRS)')
+CALL print_sep (std_out)
+CALL print_std (std_out, 'Directly Discretizing Tensor Computation '//TRIM(ADJUSTL(revision)))
+CALL print_std (std_out, '')
+CALL print_std (std_out, 'Author: Dr.-Ing. Ralf Schneider (HLRS, NUM)')
+CALL print_std (std_out, 'Author: Johannes Gebert, M.Sc.  (HLRS, NUM)')
+CALL print_sep (std_out)
 END SUBROUTINE show_title
 
 !------------------------------------------------------------------------------
@@ -606,7 +605,7 @@ msec = (msec_diff - hh * (60 * 60 * 1000) - mm * 60 * 1000 - ss * 1000)
 write(elapsed,"(I2.2,':',I2.2,':',I2.2,'.',I3.3)") hh,mm,ss,msec         
 
 If (present(echo)) then
-    If (echo) Write(fh, FMT_TIME)&
+    If (echo) Write(fh, "('MM ',A,1X,F0.6,' sec')")&
         'Elapsed time was: '//elapsed//' : ',Real(msec_diff)/1000.
 End If
 
