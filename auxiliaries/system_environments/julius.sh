@@ -41,7 +41,7 @@ export PATH=${mpi_prefix}/bin:$PATH
 export LD_LIBRARY_PATH=${mpi_prefix}/lib:$LD_LIBRARY_PATH
 # ----------------------------------------
 # BLAS/LAPACK installation
-export LAPACK_LIBPATH=/opt/lapack/lib
+export LAPACK_LIBPATH=$PWD/lib/lapack
 #
 # ----------------------------------------
 # METIS installation
@@ -62,27 +62,27 @@ export LD_LIBRARY_PATH=${petsc_prefix}/lib:$LD_LIBRARY_PATH
 tmpi_prefix="/opt/tmpi"
 #
 export DDTC_ARCH="julius"
-#           
+#
 export PATH=${tmpi_prefix}:$PATH
-#           
+#
 tools=( gdb tmpi tmux mpirun )
 #
 dbg_err=0
 #
 for tool in "${tools[@]}"; do
-    echo -n "==    " 
+    echo -n "-- "
     if ! which ${tool} ; then # > /dev/null 2> /dev/null (to suppress cmd line output)
-        echo "==    Please provide ${yellow}${tool}${nc} to use gdb with mpi."
+        echo "-- Please provide ${yellow}${tool}${nc} to use gdb with mpi."
         dbg_err=1
     fi
 done
 #
 if [[ $dbg_err == 0 ]]; then
-    echo "=="
-    echo "==    Usage of the GNU Debugger:"
-    echo "==    »${yellow}tmpi $1 gdb --args mpirun n_cpus binary-input-file${nc}«"
-    echo "==    After stopping gdb, [ctrl+b], [&], [y] and »exit« will get you " 
-    echo "==    back to the initial command line interface."
+    echo "--"
+    echo "-- Usage of the GNU Debugger:"
+    echo "-- »${yellow}tmpi $1 gdb --args mpirun n_cpus binary-input-file${nc}«"
+    echo "-- After stopping gdb, [ctrl+b], [&], [y] and »exit« will get you "
+    echo "-- back to the initial command line interface."
 fi
 #
-echo "== "
+echo "-- "

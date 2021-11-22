@@ -36,23 +36,27 @@
 # MPI environment ------------------------
 module load mpi/openmpi/4.1.0-gnu-10.3.0 > /dev/null 2> /dev/null
 #
+mpi_prefix=/opt/hlrs/mpi/openmpi/4.0.5-gnu-10.2.0
 export PATH=${mpi_prefix}/bin:$PATH
 export LD_LIBRARY_PATH=${mpi_prefix}/lib:$LD_LIBRARY_PATH
 #
 # ----------------------------------------
 # BLAS/LAPACK installation
-export LAPACK_LIBPATH=/opt/lapack/3.9.0/lib64
+export LAPACK_LIBPATH=$PWD/lib/lapack
 #
 # ----------------------------------------
 # METIS installation
-metis_prefix=/opt/metis/5.1.0
+module load numlib/metis/5.1.0-64bitint-gnu-10.3.0
+#
+metis_prefix=/opt/numlib/metis/5.1.0-64bitint-gnu-10.3.0
 export METIS_INCPATH=${metis_prefix}/include
 export METIS_LIBPATH=${metis_prefix}/lib
 #
 # ----------------------------------------
 # PETSc installation
-petsc_prefix=/opt/petsc/3.14
+module load numlib/petsc/3.14.1-openmpi-4.0.5-gnu-10.2.0
+#
+petsc_prefix=/opt/numlib/petsc/3.14.1-openmpi-4.0.5-gnu-10.2.0
 export PETSC_INCPATH=${petsc_prefix}/include
 export PETSC_LIBPATH=${petsc_prefix}/lib
 export LD_LIBRARY_PATH=${petsc_prefix}/lib:$LD_LIBRARY_PATH
-#

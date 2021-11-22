@@ -52,10 +52,19 @@
 # https://github.com/Azrael3000/tmpi
 # https://github.com/tmux/tmux/wiki
 #------------------------------------------------------------------------------
-red='\033[0;31m'
-green='\033[0;32m'
-yellow='\033[0;33m'
-nc='\033[0m'
+if [ -z $SITE_NAME ]; then
+    red='\033[0;31m'
+    green='\033[0;32m'
+    yellow='\033[0;33m'
+    nc='\033[0m'
+else
+# Expected "HLRS" to be given for "SITE_NAME". 
+# If SITE_NAME is not given, it is assumend, that the terminal understands colorizing :-)
+    red=''
+    green=''
+    yellow=''
+    nc=''
+fi
 #
 usage ()
 {
@@ -84,9 +93,9 @@ if [ -z $1 ]; then
 else
     #
     if [ -z $2 ]; then
-        echo "================================================================================"
-        echo "==    ${green}Setting environment${nc} for system : "$1
-        echo "=="
+        echo "--------------------------------------------------------------------------------"
+        echo "-- ${green}Setting environment${nc} for system: "$1
+        echo "--"
     fi
     #
     sys_set=0
@@ -113,8 +122,8 @@ else
 	export PATH=${prefix}/bin:$PATH
 	#
 	if [ -z $2 ]; then
-	    echo "==    ${green}Done${nc}"
-	    echo "================================================================================"
+	    echo "-- ${green}Done${nc}"
+	    echo "--------------------------------------------------------------------------------"
 	fi
     fi
 fi

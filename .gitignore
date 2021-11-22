@@ -323,6 +323,5 @@ html/*
 ## VSCode
 .vscode
 
-
-## VSCode
-.vscode
+## lapack library
+lib/lapack
