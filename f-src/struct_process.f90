@@ -929,12 +929,12 @@ Program main_struct_process
   INTEGER  (KIND=ik)  , DIMENSION(:), ALLOCATABLE   :: Domains, Domain_stats, act_domains, nn_D
   INTEGER  (KIND=ik)  , DIMENSION(3)                :: xa_d, xe_d
 
-  INTEGER  (KIND=ik)                                :: nn, ii, jj, kk, dc
-  INTEGER  (KIND=ik)                                :: amount_domains, path_count
-  INTEGER  (KIND=ik)                                :: alloc_stat, aun
-  INTEGER  (KIND=ik)                                :: Domain, llimit, parts, elo_macro
-  CHARACTER(LEN=8)                                  :: elt_micro, output
-  REAL     (KIND=rk)                                :: strain
+  INTEGER  (KIND=ik) :: nn, ii, jj, kk, dc
+  INTEGER  (KIND=ik) :: amount_domains, path_count
+  INTEGER  (KIND=ik) :: alloc_stat, aun
+  INTEGER  (KIND=ik) :: Domain, llimit, parts, elo_macro
+  CHARACTER(LEN=8)   :: elt_micro, output
+  REAL     (KIND=rk) :: strain
   
   INTEGER   (KIND=pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
   INTEGER   (KIND=pd_ik)                            :: serial_root_size
