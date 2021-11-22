@@ -180,7 +180,7 @@ Contains
     CALL pd_get(params, "Physical domain size" , mc%phdsize, 3)
     CALL pd_get(params, "Young_s modulus" , mc%E)
     CALL pd_get(params, "Poisson_s ratio" , mc%nu)
-    
+     
     !****************************************************************************
     !** Rank = 0 -- Local master of comm_mpi ************************************
     !****************************************************************************
@@ -199,11 +199,11 @@ Contains
 
              CALL execute_command_line("mkdir -p "//trim(job_dir), CMDSTAT=stat)
 
-             IF(stat /= 0) CALL handle_err(std_out, "Couldn't execute syscall mkpir -p "//FMT_Orng//TRIM(job_dir)//FMT_noc, 1)
+             IF(stat /= 0) CALL print_err_stop(std_out, "Couldn't execute syscall mkpir -p "//FMT_Orng//TRIM(job_dir)//FMT_noc, 1)
 
              CALL Stat_Dir(c_char_array, stat_c_int)
 
-             IF(stat_c_int /= 0) CALL handle_err(std_out, "Couldn't create directory "//FMT_Orng//TRIM(job_dir)//FMT_noc, 1)
+             IF(stat_c_int /= 0) CALL print_err_stop(std_out, "Couldn't create directory "//FMT_Orng//TRIM(job_dir)//FMT_noc, 1)
 
           Else
 
@@ -297,7 +297,7 @@ Contains
           Call search_branch(trim(part_desc), db, pb, success)
           If (.NOT. success) Then
             WRITE(mssg,'(2(A,I9))') "Exec_single_domain, rank ", rank_mpi ,": Branch of part ",ii
-            CALL handle_err(std_out, mssg, 1)
+            CALL print_err_stop(std_out, mssg, 1)
           End If
           
           Call serialize_branch(pb,serial_pb,serial_pb_size,.TRUE.)
@@ -884,7 +884,7 @@ Program main_struct_process
 
   USE global_std
   USE auxiliaries
-  USE error_handling
+  USE messages_errors
   USE puredat 
   USE meta
   USE chain_routines
@@ -945,15 +945,15 @@ Program main_struct_process
   !----------------------------------------------------------------------------
  
   CALL mpi_init(ierr)
-  CALL handle_err(std_out, "MPI_INIT didn't succeed", INT(ierr, KIND=ik))
+  CALL print_err_stop(std_out, "MPI_INIT didn't succeed", INT(ierr, KIND=ik))
 
   CALL MPI_COMM_RANK(MPI_COMM_WORLD, rank_mpi, ierr)
-  CALL handle_err(std_out, "MPI_COMM_RANK couldn't be retrieved", INT(ierr, KIND=ik))
+  CALL print_err_stop(std_out, "MPI_COMM_RANK couldn't be retrieved", INT(ierr, KIND=ik))
  
   CALL MPI_COMM_SIZE(MPI_COMM_WORLD, size_mpi, ierr)
-  CALL handle_err(std_out, "MPI_COMM_SIZE couldn't be retrieved", INT(ierr, KIND=ik))
+  CALL print_err_stop(std_out, "MPI_COMM_SIZE couldn't be retrieved", INT(ierr, KIND=ik))
  
-  If (size_mpi < 2) CALL handle_err(std_out, "We need at least 2 MPI processes to execute this program.", 1)
+  If (size_mpi < 2) CALL print_err_stop(std_out, "We need at least 2 MPI processes to execute this program.", 1)
   
   !------------------------------------------------------------------------------
   ! Rank 0 -- Init (Master) Process and broadcast init parameters 
@@ -1004,7 +1004,7 @@ Program main_struct_process
       END DO
 
       IF(TRIM(infile) == '') THEN
-         CALL handle_err(std_out, 'No input file given via command argument.', 1)
+         CALL print_err_stop(std_out, 'No input file given via command argument.', 1)
       END IF 
 
       in%full = TRIM(infile)
@@ -1018,8 +1018,8 @@ Program main_struct_process
    ! &line breaks for a nice look onto all the error "//TRIM(infile)//" messages and warnings the struct-process might print &
    ! &to the command line or to a file."
    ! write(*,*) mssg
-   ! CALL handle_err (std_out, mssg,-1)
-   ! CALL handle_err (std_out, mssg, 1)
+   ! CALL print_warning (std_out, mssg)
+   ! CALL print_err_stop (std_out, mssg, 1)
 
 
 
@@ -1070,7 +1070,7 @@ Program main_struct_process
       IF (restart_cmdarg /= 'U') THEN
          restart = restart_cmdarg
          mssg="The keyword »restart« was overwritten by the command flag »"//FMT_Orng//"--(no)-restart"//FMT_noc//"«!"
-         CALL handle_err(std_out, mssg, -1)
+         CALL print_warning (std_out, mssg)
       END IF
 
       CALL meta_handle_lock_file(restart)
@@ -1101,11 +1101,11 @@ Program main_struct_process
 
       ! Warning / Error handling
       IF ( (bone%phdsize(1) /= bone%phdsize(2)) .OR. (bone%phdsize(1) /= bone%phdsize(3)) ) THEN
-         CALL handle_err(std_out, 'Currently, all 3 dimensions of the physical domain size must be equal!', 1)
+         CALL print_err_stop(std_out, 'Currently, all 3 dimensions of the physical domain size must be equal!', 1)
       END IF
       
       IF ( (xa_d(1) > xe_d(1)) .OR. (xa_d(2) > xe_d(2)) .or. (xa_d(3) > xe_d(3)) ) THEN
-         CALL handle_err(std_out, 'Input parameter error: Start value of domain range larger than end value.', 1)
+         CALL print_err_stop(std_out, 'Input parameter error: Start value of domain range larger than end value.', 1)
       END IF
 
       !------------------------------------------------------------------------------
@@ -1115,7 +1115,7 @@ Program main_struct_process
       ! resolve without a remainder. "-1" to take the master process into account.
       !------------------------------------------------------------------------------
       IF (MOD(size_mpi-1, parts) .NE. 0) THEN
-         CALL handle_err(std_out, 'Skipping processors due to a subdomain remainder is not supported.', 1)
+         CALL print_err_stop(std_out, 'Skipping processors due to a subdomain remainder is not supported.', 1)
       END IF
 
       !------------------------------------------------------------------------------
@@ -1155,13 +1155,13 @@ Program main_struct_process
          CALL execute_command_line("mkdir -p "//TRIM(outpath),CMDSTAT=stat)
 
          IF(stat /= 0) THEN
-            CALL handle_err(std_out, 'Could not execute syscall »mkdir -p '//trim(outpath)//'«.', 1)
+            CALL print_err_stop(std_out, 'Could not execute syscall »mkdir -p '//trim(outpath)//'«.', 1)
          END IF 
 
          CALL Stat_Dir(c_char_array, stat_c_int)
 
          IF(stat_c_int /= 0) THEN
-            CALL handle_err(std_out, 'Could not create the output directory »'//TRIM(outpath)//'«.', 1)
+            CALL print_err_stop(std_out, 'Could not create the output directory »'//TRIM(outpath)//'«.', 1)
          END IF
       ELSE 
          WRITE(un_mon, FMT_MSG_A) "Reusing the output directory"
@@ -1169,7 +1169,7 @@ Program main_struct_process
       END IF
 
       CALL link_start(link_name, .TRUE., .FALSE., success)
-      IF (.NOT. success) CALL handle_err(std_out, "Something went wrong during link_start", 1)
+      IF (.NOT. success) CALL print_err_stop(std_out, "Something went wrong during link_start", 1)
    
       !------------------------------------------------------------------------------
       ! Check whether there is already a project header
@@ -1182,7 +1182,7 @@ Program main_struct_process
          IF (restart == 'Y') THEN
             mssg = 'Restart of partly computed results requested, but no project header found. &
             &Program behaves like there was none.'
-            CALL handle_err(std_out, mssg, -1)
+            CALL print_warning (std_out, mssg)
             restart = 'N'
          END IF
 
@@ -1243,14 +1243,14 @@ Program main_struct_process
 
          IF (.NOT. success) THEN
             mssg = "No branch named 'Global domain decomposition', however a restart was requested."
-            CALL handle_err(std_out, mssg, 1)
+            CALL print_err_stop(std_out, mssg, 1)
          END IF
 
          CALL search_branch("Input parameters", root, params, success)
 
          IF (.NOT. success) then
             mssg = "No branch named 'Input parameters', however a restart was requested."
-            CALL handle_err(std_out, mssg, 1)
+            CALL print_err_stop(std_out, mssg, 1)
          END IF
 
          !------------------------------------------------------------------------------
@@ -1358,7 +1358,7 @@ Program main_struct_process
 
          IF (.NOT. fexist) THEN
             mssg='The file '//TRIM(outpath)//"/"//trim(project_name)//"does not exist."//'.'
-            CALL handle_err(std_out, TRIM(ADJUSTL(mssg)), err=1_ik)
+            CALL print_err_stop(std_out, TRIM(ADJUSTL(mssg)), err=1_ik)
          END IF
 
 
@@ -1476,7 +1476,7 @@ Program main_struct_process
      !** color worker_comm gets the value MPI_COMM_NULL
      Call MPI_Comm_split(MPI_COMM_WORLD, MPI_UNDEFINED, &
           rank_mpi, worker_comm, ierr)
-     CALL handle_err(std_out, "MPI_COMM_SPLIT couldn't split MPI_COMM_WORLD", INT(ierr, KIND=ik))
+     CALL print_err_stop(std_out, "MPI_COMM_SPLIT couldn't split MPI_COMM_WORLD", INT(ierr, KIND=ik))
      
 
   !****************************************************************************
@@ -1558,14 +1558,14 @@ Program main_struct_process
      !*************************************************************************
      Call MPI_Comm_split(MPI_COMM_WORLD, Int((rank_mpi-1)/parts,mpi_ik), &
                          rank_mpi, worker_comm, ierr)
-     CALL handle_err(std_out, "MPI_COMM_SPLIT couldn't split MPI_COMM_WORLD", INT(ierr, KIND=ik))
+     CALL print_err_stop(std_out, "MPI_COMM_SPLIT couldn't split MPI_COMM_WORLD", INT(ierr, KIND=ik))
      
      Call MPI_COMM_RANK(WORKER_COMM, worker_rank_mpi, ierr)
-     CALL handle_err(std_out, "MPI_COMM_RANK couldn't retrieve worker_rank_mpi", INT(ierr, KIND=ik))
+     CALL print_err_stop(std_out, "MPI_COMM_RANK couldn't retrieve worker_rank_mpi", INT(ierr, KIND=ik))
 
  
      Call MPI_COMM_SIZE(WORKER_COMM, worker_size_mpi, ierr)
-     CALL handle_err(std_out, "MPI_COMM_SIZE couldn't retrieve worker_size_mpi", INT(ierr, KIND=ik))
+     CALL print_err_stop(std_out, "MPI_COMM_SIZE couldn't retrieve worker_size_mpi", INT(ierr, KIND=ik))
 
      !** This sets the options for PETSc in-core. To alter the options ***
      !** add them in Set_PETSc_Options in Module pets_opt in file      ***
@@ -1627,15 +1627,15 @@ Program main_struct_process
             
             !** Activity = 1 (Set above during init) ***
             CALL mpi_send(Activity(jj), 1_mpi_ik, mpi_integer, Int(jj,mpi_ik), Int(jj,mpi_ik), MPI_COMM_WORLD,ierr)
-            CALL handle_err(std_out, "MPI_SEND of activity didn't succeed", INT(ierr, KIND=ik))
+            CALL print_err_stop(std_out, "MPI_SEND of activity didn't succeed", INT(ierr, KIND=ik))
 
             CALL mpi_send(nn, 1_mpi_ik, mpi_integer8, Int(jj,mpi_ik), Int(jj,mpi_ik), MPI_COMM_WORLD,ierr)
-            CALL handle_err(std_out, "MPI_SEND of Domain number didn't succeed", INT(ierr, KIND=ik))
+            CALL print_err_stop(std_out, "MPI_SEND of Domain number didn't succeed", INT(ierr, KIND=ik))
             
             if (out_amount /= "PRODUCTION") then
                Call mpi_send(domain_path(nn), Int(4_mpi_ik*mcl,mpi_ik), &
                      MPI_CHARACTER, Int(jj,mpi_ik), Int(jj,mpi_ik), MPI_COMM_WORLD,ierr)
-               CALL handle_err(std_out, "MPI_SEND of Domain path didn't succeed", INT(ierr, KIND=ik))
+               CALL print_err_stop(std_out, "MPI_SEND of Domain path didn't succeed", INT(ierr, KIND=ik))
             End if
          End Do
          
@@ -1647,7 +1647,7 @@ Program main_struct_process
          
          Call MPI_IRECV(Activity(ii), 1_mpi_ik, MPI_INTEGER, Int(ii,mpi_ik), Int(ii,mpi_ik), &
                MPI_COMM_WORLD, REQ_LIST(ii), IERR)
-         CALL handle_err(std_out, "MPI_IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
+         CALL print_err_stop(std_out, "MPI_IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
 
          ii = ii + Int(parts,mpi_ik)
 
@@ -1666,7 +1666,7 @@ Program main_struct_process
       Call End_Timer("Write Root Branch")
          
       Call MPI_WAITANY(size_mpi-1_mpi_ik, req_list, finished, status_mpi, ierr)
-      CALL handle_err(std_out, &
+      CALL print_err_stop(std_out, &
       "MPI_WAITANY on req_list for IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
 
       ii = finished
@@ -1690,15 +1690,15 @@ Program main_struct_process
             Activity(jj) = 1_mpi_ik
             
             Call mpi_send(Activity(jj), 1_mpi_ik, mpi_integer , Int(jj,mpi_ik), Int(jj,mpi_ik), MPI_COMM_WORLD,ierr)
-            CALL handle_err(std_out, "MPI_SEND of activity didn't succeed", INT(ierr, KIND=ik))
+            CALL print_err_stop(std_out, "MPI_SEND of activity didn't succeed", INT(ierr, KIND=ik))
 
             Call mpi_send(nn          , 1_mpi_ik, mpi_integer8, Int(jj,mpi_ik), Int(jj,mpi_ik), MPI_COMM_WORLD,ierr)
-            CALL handle_err(std_out, "MPI_SEND of Domain number didn't succeed", INT(ierr, KIND=ik))
+            CALL print_err_stop(std_out, "MPI_SEND of Domain number didn't succeed", INT(ierr, KIND=ik))
 
             if (out_amount /= "PRODUCTION") then
                Call mpi_send(domain_path(nn), Int(4_mpi_ik*mcl,mpi_ik), &
                      MPI_CHARACTER, Int(jj,mpi_ik), Int(jj,mpi_ik), MPI_COMM_WORLD,ierr)
-               CALL handle_err(std_out, "MPI_SEND of Domain path didn't succeed", INT(ierr, KIND=ik))
+               CALL print_err_stop(std_out, "MPI_SEND of Domain path didn't succeed", INT(ierr, KIND=ik))
             End if
          End Do
          
@@ -1710,10 +1710,10 @@ Program main_struct_process
          
          Call MPI_IRECV(Activity(ii), 1_mpi_ik, MPI_INTEGER, Int(ii,mpi_ik), &
                         Int(ii,mpi_ik), MPI_COMM_WORLD, REQ_LIST(ii), IERR)
-         CALL handle_err(std_out, "MPI_IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
+         CALL print_err_stop(std_out, "MPI_IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
 
          Call MPI_WAITANY(size_mpi-1_mpi_ik, req_list, finished, status_mpi, ierr)
-         CALL handle_err(std_out, "MPI_WAITANY on   for IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
+         CALL print_err_stop(std_out, "MPI_WAITANY on   for IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
 
          ii = finished
 
@@ -1737,7 +1737,7 @@ Program main_struct_process
             0_pd_rk, Int(1,pd_mpi_ik), MPI_Real8, status_mpi, ierr)
 
          Call MPI_WAITALL(size_mpi-1_mpi_ik, req_list, statuses_mpi, ierr)
-         CALL handle_err(std_out, &
+         CALL print_err_stop(std_out, &
          "MPI_WAITANY on req_list for IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
 
 
@@ -1755,7 +1755,7 @@ Program main_struct_process
    Do ii = 1_mpi_ik, size_mpi-1_mpi_ik
       Call mpi_send(Activity(ii), 1_mpi_ik, mpi_integer, Int(ii,mpi_ik), &
                      Int(ii,mpi_ik), MPI_COMM_WORLD,ierr)
-      CALL handle_err(std_out, "MPI_SEND of activity didn't succeed", INT(ierr, KIND=ik))
+      CALL print_err_stop(std_out, "MPI_SEND of activity didn't succeed", INT(ierr, KIND=ik))
    End Do
 
   !****************************************************************************
@@ -1780,13 +1780,13 @@ Program main_struct_process
 
          CALL execute_command_line("mkdir -p "//TRIM(outpath),CMDSTAT=stat)
 
-         IF(stat /= 0) CALL handle_err(std_out, &
+         IF(stat /= 0) CALL print_err_stop(std_out, &
          'Could not execute syscall »mkdir -p '//trim(outpath)//'«.', 1)
 
          CALL Stat_Dir(c_char_array, stat_c_int)
 
          IF(stat_c_int /= 0) THEN
-            CALL handle_err(std_out,'Could not create the output directory »'//TRIM(outpath)//'«.', 1)
+            CALL print_err_stop(std_out,'Could not create the output directory »'//TRIM(outpath)//'«.', 1)
          END IF
       ELSE 
          WRITE(un_mon, FMT_MSG_A) "Reusing the output directory "//TRIM(outpath)
@@ -1799,13 +1799,13 @@ Program main_struct_process
 
         Call mpi_recv(Active, 1_mpi_ik, mpi_integer, 0_mpi_ik, rank_mpi, &
                       MPI_COMM_WORLD, status_mpi, ierr)
-        CALL handle_err(std_out, "MPI_RECV on Active didn't succseed", INT(ierr, KIND=ik))
+        CALL print_err_stop(std_out, "MPI_RECV on Active didn't succseed", INT(ierr, KIND=ik))
 
         If (Active == -1) Exit
 
         CALL mpi_recv(nn, 1_mpi_ik, mpi_integer8, 0_mpi_ik, rank_mpi, &
                       MPI_COMM_WORLD, status_mpi, ierr)
-        CALL handle_err(std_out, "MPI_RECV on Domain didn't succeed", INT(ierr, KIND=ik))
+        CALL print_err_stop(std_out, "MPI_RECV on Domain didn't succeed", INT(ierr, KIND=ik))
 
         Domain = Domains(nn)
         
@@ -1813,7 +1813,7 @@ Program main_struct_process
            !** >> Recieve Job_Dir << ******************************************
            CALL mpi_recv(job_dir, 4_mpi_ik*int(mcl,mpi_ik), mpi_character, 0_mpi_ik, &
                 rank_mpi, MPI_COMM_WORLD, status_mpi, ierr)
-           CALL handle_err(std_out, "MPI_RECV on Domain path didn't succeed", INT(ierr, KIND=ik))
+           CALL print_err_stop(std_out, "MPI_RECV on Domain path didn't succeed", INT(ierr, KIND=ik))
 
         Else
            job_dir = outpath
@@ -1954,10 +1954,10 @@ Program main_struct_process
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
            
         Call MPI_ISEND(Active, 1_mpi_ik, MPI_INTEGER, 0_mpi_ik, rank_mpi, MPI_COMM_WORLD, REQUEST, IERR)
-        CALL handle_err(std_out, "MPI_ISEND on Active didn't succeed", INT(ierr, KIND=ik))
+        CALL print_err_stop(std_out, "MPI_ISEND on Active didn't succeed", INT(ierr, KIND=ik))
 
         Call MPI_WAIT(REQUEST, status_mpi, ierr)
-        CALL handle_err(std_out, "MPI_WAIT on request for ISEND Active didn't succeed", INT(ierr, KIND=ik))
+        CALL print_err_stop(std_out, "MPI_WAIT on request for ISEND Active didn't succeed", INT(ierr, KIND=ik))
 
      End Do
 
@@ -1991,6 +1991,6 @@ IF(rank_mpi == 0) THEN
 END IF ! (rank_mpi == 0)
 
 Call MPI_FINALIZE(ierr)
-CALL handle_err(std_out, "MPI_FINALIZE didn't succeed", INT(ierr, KIND=ik))
+CALL print_err_stop(std_out, "MPI_FINALIZE didn't succeed", INT(ierr, KIND=ik))
 
 End Program main_struct_process

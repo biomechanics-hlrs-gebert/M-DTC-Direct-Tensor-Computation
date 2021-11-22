@@ -250,7 +250,7 @@ End Module puredat_com
 !>
 Module puredat
 
-USE error_handling
+USE messages_errors
 USE puredat_types
 USE puredat_globals
 USE puredat_com
@@ -527,7 +527,7 @@ CONTAINS
       mssg = "In Subroutine Assign_branches Component streams is allocated for both left and&
        &right hand side branches. This usecase is not supported at the moment"
 
-      CALL handle_err(pd_umon, mssg, 1)
+      CALL print_err_stop(pd_umon, mssg, 1)
     End If
 
     If (allocated(branchr%streams)) then
@@ -675,11 +675,11 @@ CONTAINS
   !> !! The pstat attribute is set to 0.
   Subroutine add_filled_leaf_to_branch(t_b, desc, dat_ty, dat_no )
 
-    Type(tBranch), Intent(inout)                  :: t_b
+    Type(tBranch), Intent(inout) :: t_b
 
-    Character(Len=*)   , Intent(in)               :: desc
-    Integer(Kind=1)    , Intent(in)               :: dat_ty 
-    Integer(Kind=pd_ik), Intent(in)               :: dat_no
+    Character(Len=*)   , Intent(in) :: desc
+    Integer(Kind=1)    , Intent(in) :: dat_ty 
+    Integer(Kind=pd_ik), Intent(in) :: dat_no
 
     !> Pointer to leaf children
     Type(tLeaf), Dimension(:), Pointer   :: leaves
@@ -1916,7 +1916,7 @@ CONTAINS
          associated(streams%log_st  )       ) then
 
       mssg = "In homogenize_branch: One or more of the stream pointers are allready allocated."
-      CALL handle_err(pd_umon, mssg, 1)
+      CALL print_err_stop(pd_umon, mssg, 1)
 
     End If
 
@@ -3301,7 +3301,7 @@ CONTAINS
           call read_branch_ws(un_head,tree,success)
        Else
 !         call read_branch(un_head,tree)
-         CALL handle_err(pd_umon, "Call read_branch(un_head,tree) is not implemented.", 1)
+         CALL print_err_stop(pd_umon, "Call read_branch(un_head,tree) is not implemented.", 1)
 
        End if
 
@@ -3886,7 +3886,7 @@ CONTAINS
 
    IF (.NOT. desc_found) THEN
       mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_load_leaf_1«."
-      CALL handle_err(pd_umon, mssg, 1)
+      CALL print_err_stop(pd_umon, mssg, 1)
    END IF 
   End Subroutine pd_load_leaf_1
 
@@ -3928,7 +3928,7 @@ CONTAINS
 
    IF (.NOT. desc_found) THEN
       mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_load_leaf_2«."
-      CALL handle_err(pd_umon, mssg, 1)
+      CALL print_err_stop(pd_umon, mssg, 1)
    END IF 
   End Subroutine pd_load_leaf_2
 
@@ -3970,7 +3970,7 @@ CONTAINS
 
    IF (.NOT. desc_found) THEN
       mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_load_leaf_3«."
-      CALL handle_err(pd_umon, mssg, 1)
+      CALL print_err_stop(pd_umon, mssg, 1)
    END IF 
   End Subroutine pd_load_leaf_3
 
@@ -4012,7 +4012,7 @@ CONTAINS
 
    IF (.NOT. desc_found) THEN
       mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_load_leaf_4«."
-      CALL handle_err(pd_umon, mssg, 1)
+      CALL print_err_stop(pd_umon, mssg, 1)
    END IF 
   End Subroutine pd_load_leaf_4
 
@@ -4054,7 +4054,7 @@ CONTAINS
 
    IF (.NOT. desc_found) THEN
       mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_load_leaf_5«."
-      CALL handle_err(pd_umon, mssg, 1)
+      CALL print_err_stop(pd_umon, mssg, 1)
    END IF 
   End Subroutine pd_load_leaf_5
 
@@ -4096,7 +4096,7 @@ CONTAINS
 
    IF (.NOT. desc_found) THEN
       mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_load_leaf_6«."
-      CALL handle_err(pd_umon, mssg, 1)
+      CALL print_err_stop(pd_umon, mssg, 1)
    END IF 
   End Subroutine pd_load_leaf_6
 
@@ -4141,7 +4141,7 @@ CONTAINS
           Else
             mssg='Load of leaf '//TRIM(desc)//' in '//TRIM(branch%desc)//" by »subroutine pd_load_leaf_4_2D«. &
             &The specified specified factor didn't lead to even integer division"
-            CALL handle_err(pd_umon, mssg, 1)
+            CALL print_err_stop(pd_umon, mssg, 1)
           End if
 
           desc_found = .TRUE.
@@ -4152,7 +4152,7 @@ CONTAINS
 
    IF (.NOT. desc_found) THEN
       mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_load_leaf_4_2D«."
-      CALL handle_err(pd_umon, mssg, 1)
+      CALL print_err_stop(pd_umon, mssg, 1)
    END IF 
   End Subroutine pd_load_leaf_4_2D
 
@@ -4196,7 +4196,7 @@ CONTAINS
           Else
             mssg='Load of leaf '//TRIM(desc)//' in '//TRIM(branch%desc)//" by »subroutine pd_load_leaf_5_2D«. &
             &The specified specified factor didn't lead to even integer division"
-            CALL handle_err(pd_umon, mssg, 1)
+            CALL print_err_stop(pd_umon, mssg, 1)
           End if
 
           desc_found = .TRUE.
@@ -4207,7 +4207,7 @@ CONTAINS
 
    IF (.NOT. desc_found) THEN
       mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_load_leaf_5_2D«."
-      CALL handle_err(pd_umon, mssg, 1)
+      CALL print_err_stop(pd_umon, mssg, 1)
    END IF 
   End Subroutine pd_load_leaf_5_2D
 
@@ -4446,7 +4446,7 @@ CONTAINS
 
    IF (.NOT. desc_found) THEN
       mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_store_1«."
-      CALL handle_err(pd_umon, mssg, 1)
+      CALL print_err_stop(pd_umon, mssg, 1)
    END IF 
   End Subroutine pd_store_1
 
@@ -4497,7 +4497,7 @@ CONTAINS
 
    IF (.NOT. desc_found) THEN
       mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_store_2«."
-      CALL handle_err(pd_umon, mssg, 1)
+      CALL print_err_stop(pd_umon, mssg, 1)
    END IF 
   End Subroutine pd_store_2
 
@@ -4548,7 +4548,7 @@ CONTAINS
 
    IF (.NOT. desc_found) THEN
       mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_store_3«."
-      CALL handle_err(pd_umon, mssg, 1)
+      CALL print_err_stop(pd_umon, mssg, 1)
    END IF 
   End Subroutine pd_store_3
 
@@ -4599,7 +4599,7 @@ CONTAINS
 
    IF (.NOT. desc_found) THEN
       mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_store_4«."
-      CALL handle_err(pd_umon, mssg, 1)
+      CALL print_err_stop(pd_umon, mssg, 1)
    END IF 
   End Subroutine pd_store_4
 
@@ -4655,7 +4655,7 @@ CONTAINS
 
    IF (.NOT. desc_found) THEN
       mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_store_4_2D«."
-      CALL handle_err(pd_umon, mssg, 1)
+      CALL print_err_stop(pd_umon, mssg, 1)
    END IF 
   End Subroutine pd_store_4_2D
 
@@ -4706,7 +4706,7 @@ CONTAINS
 
    IF (.NOT. desc_found) THEN
       mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_store_5«."
-      CALL handle_err(pd_umon, mssg, 1)
+      CALL print_err_stop(pd_umon, mssg, 1)
    END IF 
 
   End Subroutine pd_store_5
@@ -4763,7 +4763,7 @@ CONTAINS
 
     IF (.NOT. desc_found) THEN
       mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_store_5_2D«."
-      CALL handle_err(pd_umon, mssg, 1)
+      CALL print_err_stop(pd_umon, mssg, 1)
     END IF 
 
   End Subroutine pd_store_5_2D
@@ -4817,7 +4817,7 @@ CONTAINS
 
     IF (.NOT. desc_found) THEN
       mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_store_6«."
-      CALL handle_err(pd_umon, mssg, 1)
+      CALL print_err_stop(pd_umon, mssg, 1)
     END IF 
 
   End Subroutine pd_store_6
@@ -4871,7 +4871,7 @@ CONTAINS
 
     IF (.NOT. desc_found) THEN
       mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_store_6_str«."
-      CALL handle_err(pd_umon, mssg, 1)
+      CALL print_err_stop(pd_umon, mssg, 1)
     END IF 
 
   End Subroutine pd_store_6_str
@@ -5955,7 +5955,7 @@ CONTAINS
 
     IF (wrn .AND. (.NOT.success)) then
       mssg = 'The branch with description: '//TRIM(descr)//' was not found in branch '//TRIM(branch%desc)
-      CALL handle_err(pd_umon, mssg, -1)
+      CALL print_err_stop(pd_umon, mssg, -1)
     End If
     
   End Subroutine Search_branch_wrn
@@ -6090,7 +6090,7 @@ CONTAINS
       If ( TRIM(descr) /= TRIM(branch%desc) ) then
          WRITE(mssg, '(A,I15,4A)') 'The branch with number: ',num, ' has description ', TRIM(branch%desc), &
             'but it was searched for description: ', TRIM(descr)
-         CALL handle_err(pd_umon, mssg, 1)
+         CALL print_err_stop(pd_umon, mssg, 1)
       end If
 
        success = .TRUE.
@@ -6279,7 +6279,7 @@ CONTAINS
    WRITE(mssg, '(A,I15, 4A)') "»get_branch_with_num_rec«: Element number ", num, &
    " is a branch with description ", TRIM(tree%desc), &
    " To get a tBranch structure by number please use the PureDat »subroutine get_branch_with_num«."
-   CALL handle_err(pd_umon, mssg, 1)
+   CALL print_err_stop(pd_umon, mssg, 1)
 
    end If
     
@@ -6775,7 +6775,7 @@ CONTAINS
 
     END DO
 
-    IF (unit_is_open)  CALL handle_err(pd_umon, 'No new unit found with function »pd_give_new_unit«.', 1)
+    IF (unit_is_open)  CALL print_err_stop(pd_umon, 'No new unit found with function »pd_give_new_unit«.', 1)
     
   End FUNCTION pd_give_new_unit
 
@@ -6794,7 +6794,7 @@ CONTAINS
       IF (present(called))  mssg = TRIM(mssg)//" during call to "//TRIM(called)
       IF (present(routine)) mssg = TRIM(mssg)//" in routine: "//TRIM(routine)//"."
        
-      CALL handle_err(pd_umon, mssg, io_stat)
+      CALL print_err_stop(pd_umon, mssg, io_stat)
 
     End IF
 
@@ -6812,7 +6812,7 @@ CONTAINS
       WRITE(mssg, '(3A,I2,3A)') "Allocation of the field/ structure ", field, &
       " of dimension ", dim," in routine ", TRIM(routine), " failed."
       
-      CALL handle_err(pd_umon, mssg, alloc_stat)
+      CALL print_err_stop(pd_umon, mssg, alloc_stat)
    End IF
 
   End Subroutine alloc_error
@@ -6827,7 +6827,7 @@ CONTAINS
    IF (alloc_stat /= 0) Then
       WRITE(mssg, '(5A)') "Dellocation of the field/structure ", field, &
       " in routine ", TRIM(routine), " failed."
-      CALL handle_err(pd_umon, mssg, alloc_stat)
+      CALL print_err_stop(pd_umon, mssg, alloc_stat)
    End IF
 
   End Subroutine dealloc_error
@@ -6839,7 +6839,7 @@ CONTAINS
    Character(Len=*)   , Intent(in)           :: routine, msg
 
    WRITE(mssg, '(4A)') "A consistency error occoured in routine: ", TRIM(routine), " ", TRIM(msg)
-   CALL handle_err(pd_umon, mssg, 1)
+   CALL print_err_stop(pd_umon, mssg, 1)
    
   End Subroutine cons_error
 

@@ -11,7 +11,7 @@
 !> Global Variables for the chain process library
 Module chain_variables
  
-  USE error_handling
+  USE messages_errors
   USE global_std
 
   Implicit None
@@ -48,7 +48,7 @@ End Module chain_variables
 !> error handling
 Module chain_routines
    
-   USE error_handling
+   USE messages_errors
    USE chain_variables
    USE timer
 
@@ -273,7 +273,7 @@ Contains
 
    call end_timer(trim(link_name))
 
-   CALL handle_err(un_mon, 'Program will be halted, error message was: '//msg, 0)
+   CALL print_err_stop(un_mon, 'Program will be halted, error message was: '//msg, 0)
 
    INQUIRE(UNIT=un_lf, opened=opened)
 
@@ -284,8 +284,8 @@ Contains
 
    call write_timelist(unit=un_lf)
       
-   CALL handle_err(un_lf,   'Program will be halted, error message was: '//msg, 0)
-   CALL handle_err(std_out, 'Program halted. View Log.', 1)
+   CALL print_err_stop(un_lf,   'Program will be halted, error message was: '//msg, 0)
+   CALL print_err_stop(std_out, 'Program halted. View Log.', 1)
 
   End Subroutine link_stop
 
@@ -324,7 +324,7 @@ Contains
 
 
    !------------------------------------------------------------------------------
-   ! SUBROUTINE: handle_err
+   ! SUBROUTINE: print_err_stop
    !------------------------------------------------------------------------------  
    !> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
    !
@@ -341,7 +341,7 @@ Contains
 
    IF (io_stat /= 0) Then
       WRITE(mssg, '(A,I4,A)') "Allocation of var ", TRIM(in_var), " failed."
-      CALL handle_err(un_mon, mssg, io_stat)
+      CALL print_err_stop(un_mon, mssg, io_stat)
    End IF
 
    END SUBROUTINE alloc_err

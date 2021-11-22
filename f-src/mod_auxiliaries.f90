@@ -16,7 +16,6 @@ MODULE auxiliaries
 
 USE global_std
 USE strings
-! USE MPI
 
 IMPLICIT NONE
    Interface write_matrix
@@ -56,7 +55,6 @@ WRITE(std_out,'( A)') '-- Author: Johannes Gebert, M.Sc.  (HLRS, NUM)'
 WRITE(std_out,'( A)') '--'
 WRITE(std_out,'(2A)') '-- Revision: ', TRIM(ADJUSTL(revision))
 WRITE(std_out,'(2A)') '-- Git revision hash: ', TRIM(ADJUSTL(hash))
-WRITE(std_out,'( A)') '--'
 WRITE(std_out, SEP_STD)
 END SUBROUTINE show_title
 

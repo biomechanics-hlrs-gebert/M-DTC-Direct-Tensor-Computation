@@ -12,7 +12,7 @@
 MODULE meta
 
    USE strings
-   USE error_handling
+   USE messages_errors
 
 IMPLICIT NONE
 
@@ -125,12 +125,12 @@ INQUIRE (FILE = TRIM(lockname), EXIST = exist)
 
 IF((restart .EQ. 'N') .AND. (exist)) THEN
    mssg='The .*.lock file is set and a restart prohibited by default or the user.'
-   CALL handle_err(std_out, TRIM(ADJUSTL(mssg)), err=1_meta_ik)
+   CALL print_err_stop(std_out, TRIM(ADJUSTL(mssg)), err=1_meta_ik)
 END IF
 
 IF(((restart .EQ. 'Y') .AND. (.NOT. exist)) .OR. ((restart .EQ. 'N') .AND. (.NOT. exist))) THEN
    CALL execute_command_line ('touch '//TRIM(lockname), CMDSTAT=ios)
-   CALL handle_err(std_out, 'The .*.lock file could not be set.', err=ios)
+   CALL print_err_stop(std_out, 'The .*.lock file could not be set.', err=ios)
 END IF
 
 IF((restart .EQ. 'Y') .AND. (exist)) CONTINUE
@@ -164,7 +164,7 @@ LOGICAL :: exist
 ! Automatically aborts if there is no input file found on the drive
 !------------------------------------------------------------------------------
 INQUIRE (FILE = TRIM(in%full), EXIST = exist)
-IF (.NOT. exist) CALL handle_err(std_out, "The file "//TRIM(in%full)//" does not exist.", 1)
+IF (.NOT. exist) CALL print_err_stop(std_out, "The file "//TRIM(in%full)//" does not exist.", 1)
 
 CALL parse( str=in%full, delims=".", args=tokens, nargs=ntokens)
 
@@ -190,7 +190,7 @@ IF ( '.'//TRIM(tokens(ntokens)) .EQ. meta_suf) THEN
    out = in  
 ELSE
    ! File is not a meta file
-   CALL handle_err(std_out, "The input file is not a *"//meta_suf//" file.", 1)
+   CALL print_err_stop(std_out, "The input file is not a *"//meta_suf//" file.", 1)
 END IF
 
 !------------------------------------------------------------------------------
@@ -216,7 +216,7 @@ CALL parse(str=TRIM(in%bsnm), delims='_', args=tokens, nargs=ntokens)
 ! Check if the basename consists of exactly the 5 parts.
 IF(ntokens /= 5_meta_ik) THEN   
    mssg='The basename »'//TRIM(in%bsnm)//'« of the meta-file was ill-defined. It may be parsed wrong.'
-   CALL handle_err(std_out, TRIM(ADJUSTL(mssg)), 0)
+   CALL print_err_stop(std_out, TRIM(ADJUSTL(mssg)), 0)
 END IF
 
 !------------------------------------------------------------------------------
@@ -229,7 +229,7 @@ CALL meta_read (fhmon, 'NEW_BSNM_PURPOSE', meta_as_rry, out%purpose)
 
 IF ((out%purpose == in%purpose) .AND. (out%features == in%features)) THEN
    mssg='The basename (in part) did not change.'
-   CALL handle_err(std_out, mssg, -1)
+   CALL print_warning (std_out, mssg)
 END IF
 
 !------------------------------------------------------------------------------
@@ -252,7 +252,7 @@ out%full = TRIM(out%p_n_bsnm)//meta_suf
 ! System call to update the file name of the meta file
 !------------------------------------------------------------------------------
 CALL execute_command_line ('cp '//TRIM(in%full)//' '//TRIM(out%full), CMDSTAT=ios)
-CALL handle_err(std_out, 'The update of the meta filename went wrong.', ios)
+CALL print_err_stop(std_out, 'The update of the meta filename went wrong.', ios)
 
 !------------------------------------------------------------------------------
 ! Open the meta output file
@@ -329,12 +329,12 @@ IF (restart_u .EQ. 'Y') THEN
    ! if target_val if inquire(exist) = .FALSE. and stat_*l = 0 - the file does not exist
    IF(exist_temp) THEN
       CALL execute_command_line ('rm -r '//TRIM(temp_f_suf), CMDSTAT=ios)   
-      CALL handle_err(std_out, '»'//TRIM(temp_f_suf)//'« not deletable.',ios)
+      CALL print_err_stop(std_out, '»'//TRIM(temp_f_suf)//'« not deletable.',ios)
    END IF
 
    IF(exist_perm) THEN
       CALL execute_command_line ('rm -r '//TRIM(out%p_n_bsnm)//TRIM(suf), CMDSTAT=ios)
-      CALL handle_err(std_out, '»'//TRIM(out%full)//'« not deletable.', ios)
+      CALL print_err_stop(std_out, '»'//TRIM(out%full)//'« not deletable.', ios)
    END IF
 
 ELSE ! restart_u .EQ. 'N'
@@ -350,7 +350,7 @@ ELSE ! restart_u .EQ. 'N'
       END IF
 
       mssg = TRIM(mssg)//' already exist(s). Previous job maybe was aborted.'
-      CALL handle_err(std_out, mssg, 1)     
+      CALL print_err_stop(std_out, mssg, 1)     
    END IF
 END IF
 
@@ -389,7 +389,7 @@ CALL execute_command_line ('mv '//TRIM(temp_f_suf)//' '//TRIM(out%p_n_bsnm)//TRI
 
 IF(ios /= 0_meta_ik) THEN
    mssg='Can not rename the suffix_file from »'//TRIM(temp_f_suf)//'« to the proper basename.'
-   CALL handle_err(std_out, mssg, 0)
+   CALL print_err_stop(std_out, mssg, 0)
 END IF
 
 END SUBROUTINE meta_stop_ascii
@@ -461,7 +461,7 @@ IF(LEN_TRIM(keyword) .GT. LEN(kywd_lngth)) THEN
    mssg = "The keyword »"//TRIM(keyword)//"« is longer than the &
    &convention allows and therefore truncated!"
 
-   CALL handle_err(fh, TRIM(ADJUSTL(mssg)), 0)
+   CALL print_err_stop(fh, TRIM(ADJUSTL(mssg)), 0)
 
    kywd_lngth = keyword(1:LEN(kywd_lngth))
 ELSE
@@ -495,7 +495,7 @@ IF(LEN_TRIM(unit) .GT. LEN(unit_lngth)) THEN
 
    mssg = "The unit "//TRIM(unit)//" is longer than the convention allows and therefore truncated!"
 
-   CALL handle_err(fh, TRIM(ADJUSTL(mssg)), 0)
+   CALL print_err_stop(fh, TRIM(ADJUSTL(mssg)), 0)
 
    unit_lngth = unit(1:LEN(unit_lngth))
 ELSE
@@ -589,12 +589,12 @@ END DO
 2011 CONTINUE
 
 IF((res_ntokens < dims+2) .AND. (kywd_found /= 0)) THEN
-   CALL handle_err(std_out, "Data of keyword '"//TRIM(ADJUSTL(keyword))//"' invalid.", 1)
+   CALL print_err_stop(std_out, "Data of keyword '"//TRIM(ADJUSTL(keyword))//"' invalid.", 1)
 END IF
 
 IF(kywd_found == 0) THEN
    mssg = "Keyword '"//TRIM(ADJUSTL(keyword))//"' not found in the meta file!"
-   CALL handle_err(std_out, TRIM(ADJUSTL(mssg)), 1)
+   CALL print_err_stop(std_out, TRIM(ADJUSTL(mssg)), 1)
 END IF
 
 END SUBROUTINE meta_extract_keyword_data
@@ -847,7 +847,7 @@ IF (exist) THEN
 
    IF(ios /= 0_meta_ik) THEN
       mssg='Can not delete the temp_buffer'
-      CALL handle_err(std_out, mssg, 0)
+      CALL print_err_stop(std_out, mssg, 0)
       stat(1) = 1      
    END IF
 END IF
