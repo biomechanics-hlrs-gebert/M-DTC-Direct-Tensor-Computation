@@ -175,11 +175,11 @@ Contains
     write(nn_char,'(I0)')nn
 
     !** Get basic infos ------------------------------------------
-    Call Search_branch("Input parameters", root, params, success, DEBUG)
-    call pd_get(params,"No of mesh parts per subdomain", parts)
-    call pd_get(params,"Physical domain size"          , mc%pdsize(1))
-    call pd_get(params,"Young_s modulus"               , mc%E)
-    call pd_get(params,"Poisson_s ratio"               , mc%nu)
+    CALL Search_branch("Input parameters", root, params, success, DEBUG)
+    CALL pd_get(params, "No of mesh parts per subdomain", parts)
+    CALL pd_get(params, "Physical domain size" , mc%phdsize, 3)
+    CALL pd_get(params, "Young_s modulus" , mc%E)
+    CALL pd_get(params, "Poisson_s ratio" , mc%nu)
     
     !****************************************************************************
     !** Rank = 0 -- Local master of comm_mpi ************************************
@@ -1053,7 +1053,7 @@ Program main_struct_process
       CALL meta_read (std_out, 'DBG_LVL'          , m_rry, out_amount )
       CALL meta_read (std_out, 'OUT_FMT'          , m_rry, output     )
       CALL meta_read (std_out, 'RESTART'          , m_rry, restart    )
-      CALL meta_read (std_out, 'SIZE_DOMAIN'      , m_rry, bone%pdsize)
+      CALL meta_read (std_out, 'SIZE_DOMAIN'      , m_rry, bone%phdsize)
       CALL meta_read (std_out, 'LO_BNDS_DMN_RANGE', m_rry, xa_d       )
       CALL meta_read (std_out, 'UP_BNDS_DMN_RANGE', m_rry, xe_d       )
       CALL meta_read (std_out, 'BINARIZE_LO'      , m_rry, llimit     )
@@ -1089,7 +1089,7 @@ Program main_struct_process
       CALL meta_write (fhmeo, 'DBG_LVL'          , out_amount )
       CALL meta_write (fhmeo, 'OUT_FMT'          , output     )
       CALL meta_write (fhmeo, 'RESTART'          , restart    )
-      CALL meta_write (fhmeo, 'SIZE_DOMAIN'      , '(mm)' , bone%pdsize)
+      CALL meta_write (fhmeo, 'SIZE_DOMAIN'      , '(mm)' , bone%phdsize)
       CALL meta_write (fhmeo, 'LO_BNDS_DMN_RANGE', '(-)'  , xa_d)
       CALL meta_write (fhmeo, 'UP_BNDS_DMN_RANGE', '(-)'  , xe_d)
       CALL meta_write (fhmeo, 'BINARIZE_LO'      , '(-)'  , llimit)
@@ -1100,7 +1100,7 @@ Program main_struct_process
       CALL meta_write (fhmeo, 'MACRO_ELMNT_ORDER', '(-)'  , elo_macro)
 
       ! Warning / Error handling
-      IF ( (bone%pdsize(1) /= bone%pdsize(2)) .OR. (bone%pdsize(1) /= bone%pdsize(3)) ) THEN
+      IF ( (bone%phdsize(1) /= bone%phdsize(2)) .OR. (bone%phdsize(1) /= bone%phdsize(3)) ) THEN
          CALL handle_err(std_out, 'Currently, all 3 dimensions of the physical domain size must be equal!', 1)
       END IF
       
@@ -1128,7 +1128,7 @@ Program main_struct_process
 
       CALL add_leaf_to_branch(params, "muCT puredat pro_path"                , mcl            , str_to_char(muCT_pd_path))
       CALL add_leaf_to_branch(params, "muCT puredat pro_name"                , mcl            , str_to_char(muCT_pd_name))
-      CALL add_leaf_to_branch(params, "Physical domain size"                 , 3_ik           , bone%pdsize)
+      CALL add_leaf_to_branch(params, "Physical domain size"                 , 3_ik           , bone%phdsize)
       CALL add_leaf_to_branch(params, "Lower bounds of selected domain range", 3_ik           , xa_d)
       CALL add_leaf_to_branch(params, "Upper bounds of selected domain range", 3_ik           , xe_d)     
       CALL add_leaf_to_branch(params, "Lower limit of iso value"             , 1_ik           , [llimit])     
@@ -1202,7 +1202,7 @@ Program main_struct_process
          pro_name = project_name
 
          allocate(ddc)
-         ddc = calc_general_ddc_params(bone%pdsize, phi_tree)
+         ddc = calc_general_ddc_params(bone%phdsize, phi_tree)
          
          call include_branch_into_branch(s_b=ddc, t_b=root, blind=.TRUE.)
 

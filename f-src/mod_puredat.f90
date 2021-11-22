@@ -323,6 +323,7 @@ Implicit None
      Module Procedure pd_get_4
      Module Procedure pd_get_4_vector
      Module Procedure pd_get_5
+     Module Procedure pd_get_5_vector
      Module Procedure pd_get_6
 
      Module Procedure pd_get_leaf_4_const
@@ -659,6 +660,8 @@ CONTAINS
     End Do
     
   End Subroutine get_stream_size_rec
+  
+
   
   !============================================================================
   !> Subroutine which adds a leaf of type dat_ty to a tBranch structure 
@@ -2841,13 +2844,13 @@ CONTAINS
   !> pointer to a scalar of type Integer(kind=8)
   Subroutine pd_get_4_scalar(branch, desc, values)
 
-    Type(tBranch)    , Intent(in)                         :: branch
-    Character(Len=*) , Intent(in)                         :: desc
+    Type(tBranch)    , Intent(in) :: branch
+    Character(Len=*) , Intent(in) :: desc
 
-    Integer(kind=8)  , intent(out)                        :: values
+    Integer(kind=8)  , intent(out) :: values
 
-    Integer              :: ii, no
-    Logical              :: desc_found
+    Integer :: ii, no
+    Logical :: desc_found
 
     desc_found=.FALSE.
 
@@ -2889,13 +2892,13 @@ CONTAINS
   !> pointer to a scalar of type Real(kind=8)
   Subroutine pd_get_5_scalar(branch, desc, values)
 
-    Type(tBranch)    , Intent(in)                         :: branch
-    Character(Len=*) , Intent(in)                         :: desc
+    Type(tBranch)    , Intent(in) :: branch
+    Character(Len=*) , Intent(in) :: desc
 
-    Real(kind=8)     , intent(out)                        :: values
+    Real(kind=8) , intent(out) :: values
 
-    Integer              :: ii, no
-    Logical              :: desc_found
+    Integer :: ii, no
+    Logical :: desc_found
 
     desc_found=.FALSE.
 
@@ -2939,13 +2942,13 @@ CONTAINS
   !> comparison of trim(branch%leaves(ii)%desc) == trim(desc).
   Subroutine pd_get_4(branch, desc, values)
 
-    Type(tBranch)    , Intent(in)                             :: branch
-    Character(Len=*) , Intent(in)                             :: desc
+    Type(tBranch)    , Intent(in) :: branch
+    Character(Len=*) , Intent(in) :: desc
 
     Integer(kind=8) , Intent(out), Allocatable, Dimension(:) :: values
 
-    Integer              :: ii, alloc_stat
-    Logical              :: desc_found
+    Integer :: ii, alloc_stat
+    Logical :: desc_found
 
     desc_found=.FALSE.
     
@@ -2983,14 +2986,14 @@ CONTAINS
   !> comparison of trim(branch%leaves(ii)%desc) == trim(desc).
   Subroutine pd_get_4_vector(branch, desc, values, size)
 
-    Type(tBranch)    , Intent(in)                  :: branch
-    Character(Len=*) , Intent(in)                  :: desc
-    Integer(kind=8) ,  Intent(in)                  :: size
+    Type(tBranch)    , Intent(in) :: branch
+    Character(Len=*) , Intent(in) :: desc
+    Integer(kind=8) ,  Intent(in) :: size
     
     Integer(kind=8) , Intent(out), Dimension(size) :: values
 
-    Integer              :: ii
-    Logical              :: desc_found
+    Integer :: ii
+    Logical :: desc_found
 
     desc_found=.FALSE.
     
@@ -3037,13 +3040,13 @@ CONTAINS
   !> of trim(branch%leaves(ii)%desc) == trim(desc).
   Subroutine pd_get_5(branch, desc, values)
 
-    Type(tBranch)    , Intent(in)                             :: branch
-    Character(Len=*) , Intent(in)                             :: desc
+    Type(tBranch)    , Intent(in) :: branch
+    Character(Len=*) , Intent(in) :: desc
 
     Real(kind=8)     , Intent(out), Allocatable, Dimension(:) :: values
 
-    Integer              :: ii, alloc_stat
-    Logical              :: desc_found
+    Integer :: ii, alloc_stat
+    Logical :: desc_found
 
     desc_found=.FALSE.
     
@@ -3072,6 +3075,64 @@ CONTAINS
 
   End Subroutine pd_get_5
 
+
+
+  !============================================================================
+  !> Function which retrieves real 8 leaf data to a constant array
+  !>
+  !> Function which retrieves real 8 leaf data from the corresponding leaf
+  !> pointer to a constant array of rank 1 and type real(kind=8). The 
+  !> leaf is searched !!non recursively!! in the given branch by full 
+  !> comparison of trim(branch%leaves(ii)%desc) == trim(desc).
+  Subroutine pd_get_5_vector(branch, desc, values, size)
+
+    Type(tBranch)    , Intent(in) :: branch
+    Character(Len=*) , Intent(in) :: desc
+    Integer(kind=8) ,  Intent(in) :: size
+    
+    Real(kind=8) , Intent(out), Dimension(size) :: values
+
+    Integer :: ii
+    Logical :: desc_found
+
+    desc_found=.FALSE.
+    
+    Do ii = 1, branch%no_leaves
+
+       If (trim(branch%leaves(ii)%desc) == trim(desc)) then
+          
+          If (size /= branch%leaves(ii)%dat_no)  then
+             Write(pd_umon,'( A)')"Something bad and unexpected happend during retrival&
+                  & of leaf data pointer"
+             Write(pd_umon,'( A)')trim(desc)
+             Write(pd_umon,'(3A)')"In puredat function pd_get_5_vector (",TRIM(branch%desc),")"
+             Write(pd_umon,'( A)')"The specified leaf size is not equal to the size        !!!"
+             Write(pd_umon,'( A)')"of the passed actual argument                           !!!"
+             Write(pd_umon,'( A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+             stop
+          End If
+          
+          values = branch%leaves(ii)%p_real8
+          desc_found = .TRUE.
+
+       End If
+
+    end Do
+
+    If (.NOT. desc_found) then
+       Write(pd_umon,'(A)')"Something bad and unexpected happend during retrival&
+            & of leaf data pointer"
+       Write(pd_umon,'(A)')trim(desc)
+       Write(pd_umon,'(A)')"In puredat function pd_get_4(branch,desc)"
+       Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
+       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+       stop
+    End If
+
+  End Subroutine pd_get_5_vector
+
+
+
   !============================================================================
   !> Function which retrieves character leaf data to an allocatable array
   !>
@@ -3081,13 +3142,13 @@ CONTAINS
   !> of trim(branch%leaves(ii)%desc) == trim(desc).
   Subroutine pd_get_6(branch, desc, values)
 
-    Type(tBranch)    , Intent(in)                             :: branch
-    Character(Len=*) , Intent(in)                             :: desc
+    Type(tBranch)    , Intent(in) :: branch
+    Character(Len=*) , Intent(in) :: desc
 
-    Character        , Intent(out), Allocatable, Dimension(:) :: values
+    Character, Intent(out), Allocatable, Dimension(:) :: values
 
-    Integer              :: ii, alloc_stat
-    Logical              :: desc_found
+    Integer :: ii, alloc_stat
+    Logical :: desc_found
 
     desc_found=.FALSE.
 
@@ -3125,7 +3186,7 @@ CONTAINS
   !> leaf%dat_no
   Subroutine pd_get_leaf_4_const(leaf, values)
 
-    Type(tLeaf)     , Intent(in)                          :: leaf
+    Type(tLeaf) , Intent(in) :: leaf
     Integer(kind=8) , Intent(out), Dimension(leaf%dat_no) :: values
 
     values = leaf%p_int8
@@ -3155,7 +3216,7 @@ CONTAINS
   !> leaf%dat_no
   Subroutine pd_get_leaf_5_const(leaf, values)
 
-    Type(tLeaf)     , Intent(in)                       :: leaf
+    Type(tLeaf), Intent(in) :: leaf
     Real(kind=8) , Intent(out), Dimension(leaf%dat_no) :: values
 
     values = leaf%p_real8
@@ -3169,13 +3230,13 @@ CONTAINS
   !> desc to branch%leaves(ii)%desc.
   Subroutine pd_get_leaf_pointer(branch, desc, leaf_p)
 
-    Type(tBranch)    , Intent(in)                         :: branch
-    Character(Len=*) , Intent(in)                         :: desc
+    Type(tBranch)    , Intent(in) :: branch
+    Character(Len=*) , Intent(in) :: desc
 
-    Type(tLeaf)      , intent(out), Pointer               :: leaf_p
+    Type(tLeaf), intent(out), Pointer :: leaf_p
 
-    Integer              :: ii, no
-    Logical              :: desc_found
+    Integer :: ii, no
+    Logical :: desc_found
 
     desc_found=.FALSE.
 
@@ -3216,12 +3277,12 @@ CONTAINS
   !> subroutine which reads a tree from header file
   Subroutine sub_read_tree(tree,success)
 
-    Type(tBranch)        , Intent(Out) :: tree
-    Logical , Optional   , Intent(out) :: success
+    Type(tBranch), Intent(Out) :: tree
+    Logical, Optional, Intent(out) :: success
 
-    Integer                            :: io_stat=0
-    Integer                            :: un_head
-    Logical                            :: fexist
+    Integer :: io_stat=0
+    Integer :: un_head
+    Logical :: fexist
     !---------------------------------------------------------------------
 
     call raise_tree('',tree)

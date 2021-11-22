@@ -157,7 +157,7 @@ contains
 
     E  = mc%E
     nu = mc%nu
-    a  = mc%pdsize(1) ! Ensure that only dim(1)=dim(2)=dim(3) is valid!
+    a  = mc%phdsize(1) ! Ensure that only dim(1)=dim(2)=dim(3) is valid!
 
     factor = E*a / (144._rk*(2.0_rk * nu**2 + nu - 1.0_rk))
 

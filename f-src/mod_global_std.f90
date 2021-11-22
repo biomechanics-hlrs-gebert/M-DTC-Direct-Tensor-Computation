@@ -173,7 +173,7 @@ TYPE materialcard
     REAL(KIND=rk) :: E
     REAL(KIND=rk) :: nu
     ! For use with effective nummerical stiffness calculations 
-    REAL(KIND=rk), DIMENSION(3) :: pdsize ! Physical domain/ Macro element size 
+    REAL(KIND=rk), DIMENSION(3) :: phdsize ! Physical domain/ Macro element size 
 END TYPE materialcard
 
 CONTAINS
