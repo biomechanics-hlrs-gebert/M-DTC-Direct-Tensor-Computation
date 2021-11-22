@@ -2,6 +2,7 @@ Module gen_quadmesh
 
   Use decomp
   Use chain_routines
+  USE error_handling
 
   implicit none
 

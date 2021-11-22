@@ -75,13 +75,10 @@
 !------------------------------------------------------------------------------
 Module sp_aux_routines
 
-  Use ISO_C_BINDING
-  USE mechanical
   Use Operating_System
   USE global_std
   use puredat_com
   use chain_routines
-  use strings
   use linfe
   use mpi
   use gen_geometry
@@ -886,14 +883,13 @@ Contains
 Program main_struct_process
 
   USE global_std
-  USE mechanical
   USE auxiliaries
+  USE error_handling
   USE puredat 
   USE meta
   USE chain_routines
   USE Operating_System
   USE MPI
-  USE ISO_C_BINDING
   USE decomp 
   USE sp_aux_routines
   USE PETSC
@@ -1352,7 +1348,6 @@ Program main_struct_process
      
      !** Init restart and result files ****************************************
      aun = give_new_unit()
-
       IF (restart == "Y") THEN
 
          !------------------------------------------------------------------------------

@@ -6,13 +6,12 @@
 !>  Ralf Schneider
 !>
 !>  \section modified Last modified:
-!>  by: Ralf Schneider \n
-!>  on : 04.02.2011
+!>  by: Johannes Gebert \n
+!>  on : 22.11.2021
 !** ------------------------------------------------------------------------ *
 Module gen_geometry
 
   Use vtkio             
-  Use strings
   Use gen_quadmesh
   Use write_deck
   

@@ -9,6 +9,7 @@ Module calcmat
   use mat_matrices
   use chain_routines
   use auxiliaries
+  USE error_handling
   use linFE
   use mpi
   
@@ -176,7 +177,7 @@ contains
 
     !** Build Cross reference for constrained nodes from "Boundary_Ids" *******
     Allocate(cref_cnodes(no_cnodes),stat=alloc_stat)
-    call alloc_err("cref_cnodes",alloc_stat)
+    call alloc_err( "cref_cnodes",alloc_stat)
 
     Do ii = 1, mesh%branches(2)%branches(1)%leaves(1)%dat_no, 9
        cref_cnodes((ii+8)/9) = mesh%branches(2)%branches(1)%leaves(1)%p_int8(ii)
@@ -184,7 +185,7 @@ contains
 
     !** Read displacement results ***********************************************
     Allocate(uu(3,no_nodes,no_lc),stat=alloc_stat)
-    call alloc_err("uu",alloc_stat)
+    call alloc_err( "uu",alloc_stat)
 
     call get_leaf_list("Displacements", mesh, num_leaves, leaf_list)
     If (out_amount /= "PRODUCTION" ) then
@@ -200,7 +201,7 @@ contains
 
     !** Read stress and strain results ******************************************
     Allocate(edat(15,no_lc,no_dat),stat=alloc_stat)
-    call alloc_err("edat",alloc_stat)
+    call alloc_err( "edat",alloc_stat)
 
     call get_leaf_list("Avg. Element Data", mesh, num_leaves, leaf_list)
     If (out_amount /= "PRODUCTION" ) then
@@ -216,7 +217,7 @@ contains
 
     !** Read Reaction Forces ****************************************************
     Allocate(rforces(3,no_nodes,no_lc),stat=alloc_stat)
-    call alloc_err("rforces",alloc_stat)
+    call alloc_err( "rforces",alloc_stat)
 
     call get_leaf_list("Reaction Forces", mesh, num_leaves, leaf_list)
     If (out_amount /= "PRODUCTION" ) then
@@ -233,21 +234,21 @@ contains
     !****************************************************************************
 
     Allocate(calc_rforces(3,no_nodes,no_lc),stat=alloc_stat)
-    call alloc_err("calc_rforces",alloc_stat)
+    call alloc_err( "calc_rforces",alloc_stat)
     calc_rforces = 0._rk
 
     allocate(vv(no_lc,no_lc),stat=alloc_stat)
-    call alloc_err("vv",alloc_stat)
+    call alloc_err( "vv",alloc_stat)
     allocate(ff(no_lc,no_lc),stat=alloc_stat)
-    call alloc_err("ff",alloc_stat)
+    call alloc_err( "ff",alloc_stat)
 
     ff = 0._rk
 
     allocate(stiffness(no_lc,no_lc),stat=alloc_stat)
-    call alloc_err("stiffness",alloc_stat)
+    call alloc_err( "stiffness",alloc_stat)
 
     allocate(tmp_nn(no_elem_nodes),stat=alloc_stat)
-    call alloc_err("tmp_nn",alloc_stat)
+    call alloc_err( "tmp_nn",alloc_stat)
 
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     If (out_amount == "DEBUG") THEN

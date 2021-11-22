@@ -11,6 +11,7 @@
 !> Global Variables for the chain process library
 Module chain_variables
  
+  USE error_handling
   USE global_std
 
   Implicit None
@@ -52,101 +53,9 @@ Module chain_routines
    USE timer
 
   Implicit None
-
-  !> Interface for unified parameter reading from std input or file
-  Interface read_input
-
-     Module Procedure read_char_in
-     
-     Module Procedure read_int4_in
-     Module Procedure read_int4_3vector_in
-
-     Module Procedure read_int8_in
-     Module Procedure read_int8_3vector_in
-     
-     Module Procedure read_real_in
-     Module Procedure read_real_3vector_in
-     Module Procedure read_real_matrix_in
-     
-     Module Procedure read_log_in
   
-  End Interface read_input
-  
-!!$  Interface
-!!$     subroutine fsystem(command) bind (c)
-!!$        use, intrinsic :: iso_c_binding
-!!$        character(kind=c_char,len=*)  :: command
-!!$     end subroutine
-!!$  end interface
-  ! ---------------------------------------------------------------------------
-
 Contains
 
-!!$  !============================================================================
-!!$  !> Subroutine for executing system calls (Implemented because of missing
-!!$  !> target of execute_command_line in CRAY fortran library)
-!!$  Subroutine system(command)
-!!$
-!!$     character(kind=c_char,len=*),intent(in) :: command
-!!$     call fsystem(command//c_null_char)
-!!$
-!!$  end subroutine
-  
-  !============================================================================
-  !> Subroutine that initializes the output to std-out according to the
-  !> environment variable CHAIN_STDOUT
-  Subroutine init_std_out(success)
-
-    Character(len=mcl)             :: env_var
-    Logical                        :: opened, exist
-    Logical, optional, intent(Out) :: success
-
-    Integer                        :: io_stat
-    
-    Call get_environment_Variable("CHAIN_STDOUT", env_var)
-
-    if (present(success)) success = .TRUE.
-
-    !** If CHAIN_STDOUT is set to a value *************************************
-    If (Len_Trim(env_var) > 0) then
-
-       Inquire(file=trim(env_var), opened = opened)
-       Inquire(file=trim(env_var), exist  = exist)
-
-       IF (exist .AND. opened) Then
-          
-          Inquire(file=trim(env_var), number=un_mon)
-
-       Else if (exist .AND. (.NOT.opened)) then
-
-          un_mon = give_new_unit()
-          Open(unit=un_mon,  file=trim(env_var), Action='Write', &
-               status='old', position='Append' )
-
-       Else if (.NOT. exist) then
-
-          un_mon = give_new_unit()
-          Open(unit=un_mon,  file=trim(env_var), Action='Write', &
-               status='NEW', iostat = io_stat )
-          If (io_stat /= 0) then
-             if (present(success)) then
-                success = .FALSE.
-             Else
-                un_mon = std_out
-                Write(un_mon,SEP_STD)
-                Write(un_mon,FMT_WRN )"In init_std_out it was not possible to open the monitor file"
-                Write(un_mon,FMT_WRN_A)trim(env_var)
-                Write(un_mon,FMT_WRN_A)"Please check the value of the en CHAIN_STDOUT env variable"
-                Write(un_mon,FMT_WRN )"Monitoring will be redirected to std output"
-                Write(un_mon,SEP_STD)
-             End if
-          End IF
-       End IF
-       
-    End If
-   
-  End Subroutine init_std_out
-  
   !============================================================================
   !> Subroutine for writing link start tag and opening the global log-file
   Subroutine link_start(link_name, init_lf, silent_stdio, success)
@@ -165,9 +74,7 @@ Contains
 
     Character(len=mcl) :: lf=''
     !--------------------------------------------------------------------------
-
-   !  Call init_std_out()
-      
+     
     !** Check Outpath ********************************************
     If (outpath(len_trim(outpath):len_trim(outpath)) /= "/") then
        outpath = trim(outpath)//"/"
@@ -383,427 +290,6 @@ Contains
   End Subroutine link_stop
 
   !============================================================================
-  !> Subroutine which returns the elapsed real time in hh:mm:ss.sss format
-  !>
-  !> The subroutines calculates the elapsed real time from two parameter sets
-  !> returned by the intinsic date_and_time(values)
-  subroutine calc_real_time(tstart, tend, elapsed, echo)
-
-    Integer, Dimension(8), intent(in) :: tstart, tend
-    Character(len=12), intent(out)    :: elapsed
-    Integer                           :: hh, mm, ss, msec
-    Integer(Kind=8)                   :: msec_s, msec_e, msec_diff
-    Logical, intent(in), optional     :: echo
-
-    msec_s = 0
-    msec_s = msec_s + tstart(8) + tstart(7) * 1000 + tstart(6) * 60 * 1000
-    msec_s = msec_s + tstart(5) * 60 * 60 * 1000
-
-    msec_e = 0
-    msec_e = msec_e + tend(8) + tend(7) * 1000 + tend(6) * 60 * 1000
-    msec_e = msec_e + tend(5) * 60 * 60 * 1000
-
-    if (msec_e < msec_s) then
-       msec_e = msec_e + 24*60*60*1000
-    End if
-
-    msec_diff = msec_e - msec_s
-
-    hh = msec_diff/(60 * 60 * 1000)
-    mm = (msec_diff - hh * (60 * 60 * 1000)) / (60 * 1000)
-    ss = (msec_diff - hh * (60 * 60 * 1000) - mm * 60 * 1000) / 1000
-    msec = (msec_diff - hh * (60 * 60 * 1000) - mm * 60 * 1000 - ss * 1000)
-
-    write(elapsed,"(I2.2,':',I2.2,':',I2.2,'.',I3.3)") hh,mm,ss,msec         
-
-    If (present(echo)) then
-       If (echo) Write(un_mon    ,FMT_TIME)&
-            'Elapsed time was : '//elapsed//' : ',Real(msec_diff)/1000.
-    End If
-
-  End subroutine calc_real_time
-  
-  !============================================================================
-  !> Subroutine for reading strings when parsing user input data
-  Subroutine read_char_in(var,name,un)
-
-   Integer(Kind=ik), Intent(In), Optional :: un
-   Character(Len=*), Intent(IN)  :: name
-   Character(Len=*), Intent(OUT) :: var
-   
-   Integer                       :: io_stat=0
-
-   !==========================================================================
-
-   If (present(un)) then
-      Read (un,*,iostat=io_stat) var
-   else
-      Read (std_in,*,iostat=io_stat) var
-   end If
-    
-
-   If (io_stat /=0) Then
-      WRITE(mssg,'(3A)') "Reading character var ", TRIM(name), " failed."
-      CALL handle_err(un_mon, mssg, io_stat)
-   Else
-
-      Write(un_mon,fmt_inpsep)
-
-      If (Len_trim(name) > 75) Then
-         Write(un_mon,"('+--: ',A75)") name
-      Else
-         Write(un_mon,"('+--: ',A)") Trim(name)
-      End If
-      
-      If (Len_trim(var) > 75) Then
-         Write(un_mon,"('+--> ',A75)") var(1:75)
-         Write(un_mon,"('+    ',A75)") var(76:150)
-      Else
-         Write(un_mon,"('+--> ',A)") Trim(var)
-      End If
-
-   End If
-
-  End Subroutine read_char_in
-
-!============================================================================
-!> Subroutine for reading Integer kind=4 values when parsing user input data
-Subroutine read_int4_in(var,name,un)
-
-   Integer(Kind=ik), Intent(In), Optional :: un
-
-   Character(Len=*)   , Intent(IN)  :: name
-   Integer(kind=4)    , Intent(OUT) :: var
-
-   Integer                       :: io_stat
-
-   !==========================================================================
-
-   If (present(un)) then
-      Read (un,*,iostat=io_stat) var
-   else
-      Read (std_in,*,iostat=io_stat) var
-   end If
-
-   If (io_stat /=0) Then
-      WRITE(mssg,'(3A)') "Reading var ", TRIM(name), " failed. 1 integer expected."
-      CALL handle_err(un_mon, mssg, io_stat)
-   Else
-
-      Write(un_mon,fmt_inpsep)
-
-      If (Len_trim(name) > 75) Then
-         Write(un_mon,"('+--: ',A75)") name
-      Else
-         Write(un_mon,"('+--: ',A)") Trim(name)
-      End If
-
-      Write(un_mon,"('+--> ',I0)") var
-
-   End If
-
-  End Subroutine read_int4_in
-
-  !============================================================================
-  !> Subroutine for reading Integer Kind=8 values when parsing user input data
-  Subroutine read_int8_in(var,name,un)
-
-   Integer(Kind=ik), Intent(In), Optional :: un
-
-   Character(Len=*)   , Intent(IN)  :: name
-   Integer(Kind=8)   , Intent(OUT) :: var
-
-   Integer                       :: io_stat
-
-   !==========================================================================
-
-   If (present(un)) then
-      Read (un,*,iostat=io_stat) var
-   else
-      Read (std_in,*,iostat=io_stat) var
-   end If
-
-   If (io_stat /=0) Then
-      WRITE(mssg,'(3A)') "Reading var ", TRIM(name), " failed. 1 integer expected."
-      CALL handle_err(un_mon, mssg, io_stat)
-   Else
-
-       Write(un_mon,fmt_inpsep)
-
-      If (Len_trim(name) > 75) Then
-         Write(un_mon,"('+--: ',A75)") name
-      Else
-         Write(un_mon,"('+--: ',A)") Trim(name)
-      End If
-
-      Write(un_mon,"('+--> ',I0)") var
-
-   End If
-
-  End Subroutine read_int8_in
-
-  !============================================================================
-  !> Subroutine for reading floating point numbers when parsing user input 
-  !> data
-  Subroutine read_real_in(var,name,un)
-
-   Integer(Kind=ik), Intent(In), Optional :: un
-
-   Character(Len=*)   , Intent(IN)  :: name
-   Real(Kind=rk)   , Intent(OUT) :: var
-
-   Integer                       :: io_stat
-
-   !==========================================================================
-
-   If (present(un)) then
-      Read (un,*,iostat=io_stat) var
-   else
-      Read (std_in,*,iostat=io_stat) var
-   end If
-
-   If (io_stat /=0) Then
-      WRITE(mssg,'(3A)') "Reading var ", TRIM(name), " failed. 1 floating point value expected."
-      CALL handle_err(un_mon, mssg, io_stat)
-   Else
-
-      Write(un_mon,fmt_inpsep)
-
-      If (Len_trim(name) > 75) Then
-         Write(un_mon,"('+--: ',A75)") name
-      Else
-         Write(un_mon,"('+--: ',A)") Trim(name)
-      End If
-
-      Write(un_mon,"('+--> ',F0.3)") var
-
-   End If
-
-  End Subroutine read_real_in
-
-  !============================================================================
-  !> Subroutine for reading logical values when parsing user input data
-  Subroutine read_log_in(var,name,un)
-
-    Integer(Kind=ik), Intent(In), Optional :: un
-
-    Character(Len=*)   , Intent(IN)  :: name
-    logical            , Intent(OUT) :: var
-
-    Integer                       :: io_stat
-
-    !==========================================================================
-
-   If (present(un)) then
-      Read (un,*,iostat=io_stat) var
-   else
-      Read (std_in,*,iostat=io_stat) var
-   end If
-
-      If (io_stat /=0) Then
-         WRITE(mssg,'(3A)') "Reading var ", TRIM(name), " failed. A logical value expected."
-         CALL handle_err(un_mon, mssg, io_stat)
-      Else
-
-      Write(un_mon,fmt_inpsep)
-
-      If (Len_trim(name) > 75) Then
-         Write(un_mon,"('+--: ',A75)") name
-      Else
-         Write(un_mon,"('+--: ',A)") Trim(name)
-      End If
-
-      Write(un_mon,"('+--> ',L4)") var
-
-   End If
-
-  End Subroutine read_log_in
-
-  !============================================================================
-  !> Subroutine for reading floating point 3-vectors when parsing user input 
-  !> data
-  Subroutine read_real_3vector_in(var,name,un)
-
-    Integer(Kind=ik), Intent(In), Optional :: un
-
-    Character(Len=*)            , Intent(IN)  :: name
-    Real(Kind=rk), Dimension(3) , Intent(OUT) :: var
-
-    Integer                       :: io_stat
-
-    !==========================================================================
-
-   If (present(un)) then
-      Read (un,*,iostat=io_stat) var
-   else
-      Read (std_in,*,iostat=io_stat) var
-   end If
-
-      If (io_stat /=0) Then
-         WRITE(mssg,'(3A)') "Reading var ", TRIM(name), " failed. 3 floating point values expected."
-         CALL handle_err(un_mon, mssg, io_stat)
-      Else
-
-       Write(un_mon,fmt_inpsep)
-
-      If (Len_trim(name) > 75) Then
-         Write(un_mon,"('+--: ',A75)") name
-      Else
-         Write(un_mon,"('+--: ',A)") Trim(name)
-      End If
-
-      Write(un_mon,"('+--> ',F0.3,2(' ,',F0.3))") var
-
-   End If
-
-  End Subroutine read_real_3vector_in
-
-  !============================================================================
-  !> Subroutine for reading integer 3-vectors of kind ik when parsing user 
-  !> input data
-  Subroutine read_int4_3vector_in(var,name,un)
-
-    Integer(Kind=ik), Intent(In), Optional :: un
-
-    Character(Len=*)               , Intent(IN)  :: name
-    Integer(Kind=4),  Dimension(3) , Intent(OUT) :: var
-
-    Integer                       :: io_stat
-
-    !==========================================================================
-
-    If (present(un)) then
-       Read (un,*,iostat=io_stat) var
-    else
-       Read (std_in,*,iostat=io_stat) var
-    end If
-
-    If (io_stat /=0) Then
-      WRITE(mssg,'(3A)') "Reading var ", TRIM(name), " failed. 3 integers expected."
-      CALL handle_err(un_mon, mssg, io_stat)
-    Else
-
-       Write(un_mon,fmt_inpsep)
-
-       If (Len_trim(name) > 75) Then
-          Write(un_mon,"('+--: ',A75)") name
-       Else
-          Write(un_mon,"('+--: ',A)") Trim(name)
-       End If
-
-       Write(un_mon,"('+--> ',I0,2(' ,',I0))") var
-
-    End If
-
-  End Subroutine read_int4_3vector_in
-
-  !============================================================================
-  !> Subroutine for reading integer 3-vectors of kind ik when parsing user 
-  !> input data
-  Subroutine read_int8_3vector_in(var,name,un)
-
-   Integer(Kind=ik), Intent(In), Optional :: un
-
-   Character(Len=*)               , Intent(IN)  :: name
-   Integer(Kind=8),  Dimension(3) , Intent(OUT) :: var
-
-   Integer                       :: io_stat
-
-   !==========================================================================
-
-   If (present(un)) then
-      Read (un,*,iostat=io_stat) var
-   else
-      Read (std_in,*,iostat=io_stat) var
-   end If
-
-   If (io_stat /=0) Then
-      WRITE(mssg,'(3A)') "Reading var ", TRIM(name), " failed. 3 integers expected."
-      CALL handle_err(un_mon, mssg, io_stat)
-   Else
-
-      Write(un_mon,fmt_inpsep)
-
-      If (Len_trim(name) > 75) Then
-         Write(un_mon,"('+--: ',A75)") name
-      Else
-         Write(un_mon,"('+--: ',A)") Trim(name)
-      End If
-
-      Write(un_mon,"('+--> ',I0,2(' ,',I0))") var
-
-   End If
-
-  End Subroutine read_int8_3vector_in
-
-  !============================================================================
-  !> Subroutine for reading floating point matrices when parsing user input
-  !> data
-  Subroutine read_real_matrix_in(var,name,un)
-
-    Integer(Kind=ik), Intent(In), Optional :: un
-
-    Character(Len=*)              , Intent(IN)  :: name
-    Real(Kind=rk), Dimension(:,:) , Intent(OUT) :: var
-
-    Integer                       :: io_stat
-    Integer, Dimension(2)         :: sp_var
-    Character(len=100)            :: fmt
-
-    !==========================================================================
-
-   If (present(un)) then
-      Read (un,*,iostat=io_stat) var
-   else
-      Read (std_in,*,iostat=io_stat) var
-   end If
-
-   If (io_stat /=0) Then
-      WRITE(mssg,'(3A,I15,A)') "Reading matrix var ", TRIM(name), " of size ", SIZE(var)," failed. Floating points expected."
-      CALL handle_err(un_mon, mssg, io_stat)
-   Else
-
-      Write(un_mon,fmt_inpsep)
-
-      If (Len_trim(name) > 75) Then
-         Write(un_mon,"('+--: ',A75)") name
-      Else
-         Write(un_mon,"('+--: ',A)") Trim(name)
-      End If
-
-      sp_var = shape(var)
-
-      If ((sp_var(1) > 10) .Or. (sp_var(2) > 10)) then
-         Write(un_mon,"('+--> ',A)")"Repetiton of input data is suppressed &
-                              &due to their amount"
-      Else
-         Write(un_mon,"('+--> +',T80,'+')")
-         Write(fmt,"(A,I0,A,I0,A)")"(",sp_var(2),"('     |',",sp_var(1),&
-            "('  ',E10.4),' |',/),'     +',T80,'+')"
-         Write(un_mon,fmt) var
-
-      End If
-
-   End If
-
-  End Subroutine read_real_matrix_in
-
-   !============================================================================
-   !> Subroutine for allocation error handling
-   SUBROUTINE alloc_err(in_var,io_stat)
-
-   INTEGER             :: io_stat
-   CHARACTER (LEN=*)   :: in_var
-
-   IF (io_stat /= 0) Then
-      WRITE(mssg, '(A,I4,A)') "Allocation of var ", TRIM(in_var), " failed."
-      CALL handle_err(un_mon, mssg, io_stat)
-   End IF
-
-   END SUBROUTINE alloc_err
-
-
-  !============================================================================
   !> Function which returns a new free unit
   function give_new_unit() result(new_unit)
 
@@ -835,5 +321,29 @@ Subroutine read_int4_in(var,name,un)
     END IF
 
   End function give_new_unit
+
+
+   !------------------------------------------------------------------------------
+   ! SUBROUTINE: handle_err
+   !------------------------------------------------------------------------------  
+   !> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+   !
+   !> @brief
+   !> Wrapper for allocation error handling
+   !
+   !> @param[in] in_var Input variable
+   !> @param[in] io_stat Status of allocation.
+   !------------------------------------------------------------------------------  
+   SUBROUTINE alloc_err(in_var, io_stat)
+
+   INTEGER, INTENT(IN) :: io_stat
+   CHARACTER(LEN=*), INTENT(IN) :: in_var
+
+   IF (io_stat /= 0) Then
+      WRITE(mssg, '(A,I4,A)') "Allocation of var ", TRIM(in_var), " failed."
+      CALL handle_err(un_mon, mssg, io_stat)
+   End IF
+
+   END SUBROUTINE alloc_err
 
 End Module chain_routines
