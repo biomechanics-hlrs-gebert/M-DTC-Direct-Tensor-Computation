@@ -20,74 +20,29 @@ IMPLICIT NONE
 !------------------------------------------------------------------------------
 INTEGER, PARAMETER :: mw = 90  ! Message width, including leading and trailing descriptors
 
-CHARACTER(LEN=*), PARAMETER :: FMT_WRN_SO = "('\x1B[33m','WW ','\x1B[0m',A, T76,'\x1B[33m',' WW','\x1B[0m')" ! std_out
-CHARACTER(LEN=*), PARAMETER :: FMT_ERR_SO = "('\x1B[31m','EE ','\x1B[0m',A, T76,'\x1B[31m',' EE','\x1B[0m')" ! std_out
-
 CHARACTER(len=5)   , PARAMETER :: creturn = achar(13)
 
-! Seperators
-CHARACTER(Len=*), PARAMETER :: SEP_STD= "(68('-'))" ! FMT_HY_SEP
-CHARACTER(Len=*), PARAMETER :: FMT_EQ_SEP  = "(68('='))"
-CHARACTER(Len=*), PARAMETER :: FMT_DBG_SEP = "('#DBG#',95('='))"
 
-! Character constants for nice output ---------------------------------------
-Character(LEN=*), Parameter :: fmt_inpsep = "('+',99('-'))"
-
-Character(Len=*), Parameter :: FMT_MSG     = "('MM ',A,T97,' MM')"
-Character(Len=*), Parameter :: FMT_MSG_BS  = "('MM ',A,T88,' ... ',$)"
-Character(Len=*), Parameter :: FMT_MSG_BE  = "('done MM')"
-
-CHARACTER(LEN=*), PARAMETER :: FMT_WRN     = "('WW ',A,T68,' WW')"  
-CHARACTER(LEN=*), PARAMETER :: FMT_ERR     = "('EE ',A,T68,' EE')"
-
-
+!------------------------------------------------------------------------------
+! Still not obsolete formatters
+!------------------------------------------------------------------------------
+! Error formats
 Character(Len=*), Parameter :: FMT_ERR_AI0 = "('EE ',*(A,I0))"  
 CHARACTER(Len=*), PARAMETER :: FMT_ERR_A   = "('EE ',A)"
 
-Character(Len=*), Parameter :: FMT_STOP    = "('EE PROGRAM STOPPED ..... ',&
-                                             &T97,' EE',/,'<',97('='),'>')"
-
-
-
-! Warning formats
-CHARACTER(Len=*), PARAMETER :: FMT_WRN_A    = "('WW ',A)"
-CHARACTER(Len=*), PARAMETER :: FMT_WRN_AI0  = "('WW ',A,1X,I0)"
-CHARACTER(Len=*), PARAMETER :: FMT_WRN_AI0A = "('WW ',A,1X,I0,1X,A)"
-CHARACTER(Len=*), PARAMETER :: FMT_WRN_AF0  = "('WW ',A,1X,F0.6)"
-
 ! Message formats
 CHARACTER(Len=*), PARAMETER :: FMT_MSG_AI0  = "('MM ',*(A,1X,I0,1X))"
-CHARACTER(Len=*), PARAMETER :: FMT_MSG_AI0A = "('MM ',A,1X,I0,1X,A)"
-CHARACTER(Len=*), PARAMETER :: FMT_MSG_A8I5 = "('MM ',A,1X,8(',',I5))"
 CHARACTER(Len=*), PARAMETER :: FMT_MSG_2AI0 = "('MM ',2(A,1X,I0,1X))"
 CHARACTER(Len=*), PARAMETER :: FMT_MSG_A3I0 = "('MM ',A,3(',',I0))"
 
 CHARACTER(Len=*), PARAMETER :: FMT_MSG_AF0  = "('MM ',A,F0.6)"
-CHARACTER(Len=*), PARAMETER :: FMT_MSG_AF0A = "('MM ',A,F0.6,A)"
-CHARACTER(Len=*), PARAMETER :: FMT_MSG_A2F0 = "('MM ',A,2(',',F0.6))"
 CHARACTER(Len=*), PARAMETER :: FMT_MSG_A3F0 = "('MM ',A,3(',',F0.6))"
 
-CHARACTER(Len=*), PARAMETER :: FMT_MSG_AL  = "('MM ',A,L1)"
-CHARACTER(Len=*), PARAMETER :: FMT_MSG_A   = "('MM ',A)"
 
-
-
-! PureDat Formatters
-Character(Len=*), Parameter :: PDF_E_A    = "('EE ',A)"
-Character(Len=*), Parameter :: PDF_E_AI0  = "('EE ',*(A,1X,I0))"
-Character(Len=*), Parameter :: PDF_E_STOP = "('EE PROGRAM STOPPED ..... ',/,'<',98('='),'>')"
-
-Character(Len=*), Parameter :: PDF_W_A    = "('WW ',A)"
-Character(Len=*), Parameter :: PDF_W_AI0  = "('WW ',*(A,1X,I0))"
-
-Character(Len=*), Parameter :: PDF_M_A    = "('MM ',A)"
-Character(Len=*), Parameter :: PDF_M_AI0  = "('MM ',A,1X,I0)"
-
-Character(Len=*), Parameter :: PDF_TIME   = "('MM ',A,1X,F0.6,' sec')"
-
-Character(Len=*), Parameter :: PDF_SEP    = "('<',98('='),'>')"
-
-! Provide colors on std_out (!)
+!------------------------------------------------------------------------------
+! Provide colors on std_out (!) 
+! Needs to compile with -fbackslash 
+!------------------------------------------------------------------------------
 CHARACTER(LEN=*), PARAMETER ::  FMT_Blck    = "\x1B[30m"
 CHARACTER(LEN=*), PARAMETER ::  FMT_Red     = "\x1B[31m"
 CHARACTER(LEN=*), PARAMETER ::  FMT_Green   = "\x1B[32m"
@@ -97,7 +52,6 @@ CHARACTER(LEN=*), PARAMETER ::  FMT_Purple  = "\x1B[35m"
 CHARACTER(LEN=*), PARAMETER ::  FMT_Cyan    = "\x1B[36m"
 CHARACTER(LEN=*), PARAMETER ::  FMT_Gray    = "\x1B[37m"
 CHARACTER(LEN=*), PARAMETER ::  FMT_nocolor = "\x1B[0m"
-
 
 CONTAINS
 

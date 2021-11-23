@@ -1170,8 +1170,7 @@ Program main_struct_process
             CALL print_err_stop(std_out, 'Could not create the output directory »'//TRIM(outpath)//'«.', 1)
          END IF
       ELSE 
-         WRITE(un_mon, FMT_MSG_A) "Reusing the output directory"
-         WRITE(un_mon, FMT_MSG_A) TRIM(outpath)
+         CALL print_message(un_mon, "Reusing the output directory: "//TRIM(outpath))
       END IF
 
       CALL link_start(link_name, .TRUE., .FALSE., success)
@@ -1796,7 +1795,7 @@ Program main_struct_process
             CALL print_err_stop(std_out,'Could not create the output directory »'//TRIM(outpath)//'«.', 1)
          END IF
       ELSE 
-         WRITE(un_mon, FMT_MSG_A) "Reusing the output directory "//TRIM(outpath)
+         CALL print_message(un_mon, "Reusing the output directory: "//TRIM(outpath))
       END IF
 
      Call link_start(link_name,.True.,.True.)

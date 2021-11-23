@@ -169,9 +169,6 @@ Contains
     If (loc_stdio) CALL print_sep(un_mon)
 
 1000 Continue
-    !Write(un_lf,SEP_STD)
-    !Write(un_lf,FMT_MSG_A)'Starting chain link :'//link_name
-    !Write(un_lf,*)
 
   End Subroutine link_start
 
@@ -207,9 +204,6 @@ Contains
 
     call write_timelist(unit=un_lf)
        
-    !Write(un_lf,FMT_MSG_A)'Program terminated correctly !' 
-    !Write(un_lf,SEP_STD)
-    !Write(un_lf,*)
     close(un_lf)
     
   End Subroutine link_end

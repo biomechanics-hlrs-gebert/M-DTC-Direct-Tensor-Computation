@@ -1083,7 +1083,7 @@ SUBROUTINE meta_close()
 LOGICAL :: opened
 
 WRITE(fhmeo, '(A)')
-WRITE(fhmeo, SEP_STD)
+CALL print_sep(fhmeo)
 
 !------------------------------------------------------------------------------
 ! Check and close files - Routine: (fh, filename, abrt, stat)
