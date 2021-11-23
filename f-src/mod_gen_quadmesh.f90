@@ -85,8 +85,9 @@ contains
     End Select
 
     If (out_amount /= "PRODUCTION" ) then
-       CALL print_message(un_lf, 'Generating Quadmesh')
-       CALL print_sep(un_lf)
+       Write(un_lf, FMT_MSG_SEP)
+       Write(un_lf, FMT_MSG )   'Generating Quadmesh'
+       Write(un_lf,*)
     End If
     
     call pd_get(ddc,"bpoints",bpoints)
@@ -102,13 +103,11 @@ contains
     !If ( (min_val_phi > llimit) .Or. (max_val_phi < llimit) ) Then
     If ( (max_val_phi < llimit) ) Then
 
-      If (out_amount /= "PRODUCTION" ) THEN
-         CALL print_sep(un_lf)
-         Write(un_lf,"('EE ',A,I0,A,T77,' EE')")'Isovalue = ',llimit,' not enclosed in field'
-         Write(un_lf,"('EE ',A,I0,T77,  ' EE')")'Minimum value in PHI = ',min_val_phi
-         Write(un_lf,"('EE ',A,I0,T77,  ' EE')")'Maximum value in PHI = ',max_val_phi
-         CALL print_sep(un_lf)
-      END IF
+       If (out_amount /= "PRODUCTION" ) Write(un_lf,FMT_MSG_SEP)
+       Write(un_lf,"('EE ',A,I0,A,T77,' EE')")'Isovalue = ',llimit,' not enclosed in field'
+       Write(un_lf,"('EE ',A,I0,T77,  ' EE')")'Minimum value in PHI = ',min_val_phi
+       Write(un_lf,"('EE ',A,I0,T77,  ' EE')")'Maximum value in PHI = ',max_val_phi
+       If (out_amount /= "PRODUCTION" ) Write(un_lf,FMT_MSG_SEP)
 
        no_nodes = 0
        no_elems = 0
@@ -326,8 +325,9 @@ contains
        continue
     End Select
 
-    CALL print_sep(un_lf)
-    CALL print_message(un_lf, 'Coloring connected domains')
+    Write(un_lf,FMT_MSG_SEP)
+    Write(un_lf,FMT_MSG)    'Coloring connected domains'
+
     !** Color nodes *************************************************************
     Allocate(node_col(no_nodes))
 
@@ -633,9 +633,8 @@ contains
     !** Generate quadmesh *****************************************************
     call start_timer("+-- Generating quadmesh")
 
-    !Write(*,    FMT_MSG_BS)'Generating Quadmesh'
-    CALL print_sep(un_lf)
-    CALL print_message(un_lf, 'Generating Quadmesh')
+    Write(un_lf,FMT_MSG_SEP)
+    Write(un_lf,FMT_MSG)    'Generating Quadmesh'
     Write(un_lf,*)
     GOTO 1000
     call pd_get(ddc,"bpoints",bpoints)
@@ -651,11 +650,11 @@ contains
     !If ( (min_val_phi > llimit) .Or. (max_val_phi < llimit) ) Then
     If ( (max_val_phi < llimit) ) Then
 
-       CALL print_sep(un_lf)
-       Write(un_lf,"('EE ',A,I0,A,T77,' EE')")'Isovalue = ',llimit,' not enclosed in field'
-       Write(un_lf,"('EE ',A,I0,T77,  ' EE')")'Minimum value in PHI = ',min_val_phi
-       Write(un_lf,"('EE ',A,I0,T77,  ' EE')")'Maximum value in PHI = ',max_val_phi
-       CALL print_sep(un_lf)
+       Write(un_lf,FMT_ERR_SEP)
+       Write(un_lf,FMT_ERR_AI0) 'Isovalue = ',llimit,' not enclosed in field'
+       Write(un_lf,FMT_ERR_AI0) 'Minimum value in PHI = ',min_val_phi
+       Write(un_lf,FMT_ERR_AI0) 'Maximum value in PHI = ',max_val_phi
+       Write(un_lf,FMT_ERR_SEP)
 
        no_nodes = 0
        no_elems = 0
@@ -863,10 +862,9 @@ contains
     !** Color connected domains *************************************************
     Call start_timer("+-- Coloring connected domains")
 
-    !Write(*,    FMT_MSG_BS)'Coloring connected domains'
     If (out_amount /= "PRODUCTION" ) then
-      CALL print_sep(un_lf)
-      CALL print_message(un_lf, 'Coloring connected domains')
+       Write(un_lf,FMT_MSG_SEP)
+       Write(un_lf,FMT_MSG)'Coloring connected domains'
     End If
     
     !** Color nodes *************************************************************

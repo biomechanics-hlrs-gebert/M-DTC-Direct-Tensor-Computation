@@ -252,12 +252,12 @@ contains
 
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     If (out_amount == "DEBUG") THEN
-       CALL print_sep(un_lf, '=')
+       WRITE(un_lf,FMT_DBG_SEP)
        write(un_lf,*)
        write(un_lf,*)'min uu      = ',minval(uu),'max uu      = ',maxval(uu)
        write(un_lf,*)'min rforces = ',minval(rforces),'max rforces = ',maxval(rforces)
        write(un_lf,*)
-       CALL print_sep(un_lf, '=')
+       WRITE(un_lf,FMT_DBG_SEP)
     end if
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -282,6 +282,7 @@ contains
     G_div  = 2._rk * (1._rk+nu) * E_div
 
     CC = 0._rk
+!     CC = iso_compliance_voigt(E, nu)
 
     CC(1,1:3) = (/  E_div, nu_div, nu_div /)
     CC(2,1:3) = (/ nu_div,  E_div, nu_div /)
@@ -292,9 +293,9 @@ contains
 
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     If (out_amount == "DEBUG") THEN
-       CALL print_sep(un_lf, '=')
+       WRITE(un_lf,FMT_DBG_SEP)
        Call Write_matrix(un_lf, "Effective Isotropic Compliance -- CC", 'std', '1/MPa', cc)
-       CALL print_sep(un_lf, '=')
+       WRITE(un_lf,FMT_DBG_SEP)
     End if
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -330,9 +331,9 @@ contains
 
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     If (out_amount == "DEBUG") THEN
-       CALL print_sep(un_lf, '=')
+       WRITE(un_lf,FMT_DBG_SEP)
        Call Write_matrix(un_lf, "Displacement matrix", 'std', 'mm', vv)
-       CALL print_sep(un_lf, '=')
+       WRITE(un_lf,FMT_DBG_SEP)
     End if
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -341,9 +342,9 @@ contains
 
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     If (out_amount == "DEBUG") THEN
-       CALL print_sep(un_lf, '=')
+       WRITE(un_lf,FMT_DBG_SEP)
        Call Write_matrix(un_lf, "Inverted displacement matrix", 'std', '1/mm', vv)
-       CALL print_sep(un_lf, '=')
+       WRITE(un_lf,FMT_DBG_SEP)
     End if
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

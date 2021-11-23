@@ -5954,8 +5954,9 @@ CONTAINS
     End If
 
     IF (wrn .AND. (.NOT.success)) then
-      mssg = 'The branch with description: '//TRIM(descr)//' was not found in branch '//TRIM(branch%desc)
-      CALL print_warning (pd_umon, mssg)
+      WRITE(pd_umon, FMT_WRN) 'The branch with description: '//TRIM(descr)
+      WRITE(pd_umon, FMT_WRN) 'Was not found in branch '//TRIM(branch%desc)
+      WRITE(pd_umon, FMT_WRN_SEP)
     End If
     
   End Subroutine Search_branch_wrn
