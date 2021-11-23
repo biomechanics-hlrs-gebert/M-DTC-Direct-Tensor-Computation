@@ -351,9 +351,17 @@ END SUBROUTINE print_std
 !
 !> @param[in] fh Handle of file to print to
 !------------------------------------------------------------------------------  
-SUBROUTINE print_sep(fh)
+SUBROUTINE print_sep(fh, chara)
+
 INTEGER(KIND=ik), INTENT(IN) :: fh 
-WRITE (fh, '(A)') REPEAT('-', mw + 2) ! +2 for spaces in formatting
+CHARACTER(LEN=*), INTENT(IN), OPTIONAL :: chara
+
+CHARACTER(LEN=1) :: separator
+
+separator='-'
+IF (PRESENT(chara)) separator = TRIM(chara)
+
+WRITE (fh, '(A)') REPEAT(separator, mw + 2) ! +2 for spaces in formatting
 END SUBROUTINE print_sep
 
 !------------------------------------------------------------------------------
@@ -384,6 +392,36 @@ WRN_COLOR = FMT_nocolor
 CALL print_tag(fh, txt, WRN_LBL, WRN_COLOR)
 
 END SUBROUTINE print_message
+
+
+!------------------------------------------------------------------------------
+! SUBROUTINE: print_debug
+!------------------------------------------------------------------------------  
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Subroutine to print a message.
+!
+!> @Description
+!> Colorized output in case it's printing to std_out.
+!
+!> @param[in] fh Handle of file to print to
+!> @param[in] txt Error message to print
+!------------------------------------------------------------------------------  
+SUBROUTINE print_debug(fh, txt)
+
+INTEGER(KIND=ik), INTENT(IN) :: fh 
+CHARACTER(LEN=*), INTENT(IN) :: txt
+
+CHARACTER(LEN=scl) :: DBG_COLOR
+CHARACTER(LEN=scl) :: DBG_LBL
+
+DBG_LBL   = "DBG"
+DBG_COLOR = FMT_nocolor
+
+CALL print_tag(fh, txt, DBG_LBL, DBG_COLOR)
+
+END SUBROUTINE print_debug
 
 
 !------------------------------------------------------------------------------

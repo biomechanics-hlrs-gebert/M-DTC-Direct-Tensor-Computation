@@ -203,10 +203,10 @@ Contains
 
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     If (out_amount == "DEBUG") THEN
-       Write(un_lf,fmt_dbg_sep)
+       CALL print_sep(un_lf, '=')
        Write(un_lf,fmt_MSG_AI0)"Root pointer after exec_single_domain"
        Call log_tree(root,un_lf,.True.)
-       Write(un_lf,fmt_dbg_sep)
+       CALL print_sep(un_lf, '=')
     END If
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     
@@ -599,10 +599,10 @@ Contains
     
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     if (out_amount == "DEBUG") then
-       Write(un_lf,fmt_dbg_sep)
-       Write(un_lf,'(A)')"PMesh after Boundary application"
-       call log_tree(PMesh,un_lf)
-       Write(un_lf,fmt_dbg_sep)
+      CALL print_sep(un_lf, '=')
+      Write(un_lf,'(A)')"PMesh after Boundary application"
+      call log_tree(PMesh,un_lf)
+      CALL print_sep(un_lf, '=')
     End if
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     

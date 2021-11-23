@@ -718,9 +718,9 @@ contains
 
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     if (out_amount == "DEBUG") then
-       Write(un_lf,fmt_dbg_sep)
+      CALL print_sep(un_lf, '=')
        call log_tree(loc_mesh,un_lf)
-       Write(un_lf,fmt_dbg_sep)
+      CALL print_sep(un_lf, '=')
     End if
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

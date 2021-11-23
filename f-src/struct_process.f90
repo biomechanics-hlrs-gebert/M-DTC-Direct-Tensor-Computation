@@ -213,15 +213,15 @@ Contains
 
           End If
 
-          Write(un_lf,SEP_STD)
+          CALL print_sep(un_lf)
 
        End If
 
        !**************************************************************************
        !** Write log and monitor file
        !**************************************************************************
-       Write(un_lf,fmt_msg_AI0) "Domain No. : ",nn
-       Write(un_lf,fmt_msg_A  ) "Job_dir    : "//Trim(job_dir)
+       Write(un_lf,fmt_msg_AI0) "Domain No.: ",nn
+       CALL print_warning(un_lf, "Job_dir: "//Trim(job_dir))
 
        CALL DATE_AND_TIME(DATE=date, TIME=time, ZONE=timezone)
  
@@ -233,14 +233,15 @@ Contains
        WRITE(un_lf, '(2A)') 'Start time: ', TRIM(str)
 
        Call get_environment_Variable("HOSTNAME", env_var)
-       Write(un_lf,fmt_MSG_A) "Host       : "//Trim(env_var)
+
+       CALL print_message(un_lf, "Host       : "//Trim(env_var))
 
        umon = give_new_unit()
 
        Open(unit=umon, file=Trim(job_dir)//Trim(project_name)//".mon",action="write", &
             status="replace")
 
-       Write(umon,fmt_eq_sep)
+       CALL print_sep(umon, '=')
        Write(umon,fmt_msg_AI0) "Domain No. : ",nn
 
        !**************************************************************************
@@ -256,7 +257,7 @@ Contains
        Call start_timer(trim(timer_name), .FALSE.)
        Call generate_geometry(root, lin_nn, nn, job_dir, fh_mpi, success)
        if (.not.success) then
-          write(*,FMT_WRN)"generate_geometry() returned .FALSE."
+         CALL print_warning(std_out, "generate_geometry() returned .FALSE.")
        End if
        Call end_timer(trim(timer_name))
      
@@ -349,10 +350,10 @@ Contains
 
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     If (out_amount == "DEBUG") THEN 
-       Write(un_lf,fmt_dbg_sep)
+       CALL print_sep(un_lf, '=')
        Write(un_lf,'(A)')"part branch right after deserialization"
        Call log_tree(pb,un_lf,.TRUE.)
-       Write(un_lf,fmt_dbg_sep)
+       CALL print_sep(un_lf, '=')
        flush(un_lf)
     END If
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<       
@@ -1220,10 +1221,10 @@ Program main_struct_process
 
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         If (out_amount == "DEBUG") THEN 
-           Write(un_lf,fmt_dbg_sep)
+           CALL print_sep(un_lf, '=')
            Write(un_lf,'(A)')"root right after restart read"
            Call log_tree(root,un_lf,.FALSE.)
-           Write(un_lf,fmt_dbg_sep)
+           CALL print_sep(un_lf, '=')
            flush(un_lf)
         END If
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -1269,10 +1270,10 @@ Program main_struct_process
 
          !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
          If (out_amount == "DEBUG") THEN 
-            Write(un_lf,fmt_dbg_sep)
+            CALL print_sep(un_lf, '=')
             Write(un_lf,'(A)')"root right after restart and deletion of avg mat props branch"
             Call log_tree(root,un_lf,.FALSE.)
-            Write(un_lf,fmt_dbg_sep)
+            CALL print_sep(un_lf, '=')
             flush(un_lf)
          END If
          !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<     
@@ -1341,10 +1342,10 @@ Program main_struct_process
      
      !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
      If (out_amount == "DEBUG") THEN 
-        Write(un_lf,fmt_dbg_sep)
+        CALL print_sep(un_lf, '=')
         Write(un_lf,'(A)')"root right before serialisation"
         Call log_tree(root,un_lf,.True.)
-        Write(un_lf,fmt_dbg_sep)
+        CALL print_sep(un_lf, '=')
         flush(un_lf)
      END If
      !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -1832,10 +1833,10 @@ Program main_struct_process
 
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         If (out_amount == "DEBUG") THEN
-           Write(un_lf, fmt_dbg_sep)
+           CALL print_sep(un_lf, '=')
            Write(un_lf, fmt_MSG_AI0)"Root pointer before exec_single_domain on proc ",rank_mpi
            Call log_tree(root, un_lf, .True.)
-           Write(un_lf, fmt_dbg_sep)
+           CALL print_sep(un_lf, '=')
         END If
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -1846,10 +1847,10 @@ Program main_struct_process
         
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         If (out_amount == "DEBUG") THEN
-           Write(un_lf, fmt_dbg_sep)
+           CALL print_sep(un_lf, '=')
            Write(un_lf, fmt_MSG_AI0)"Root pointer after exec_single_domain on proc ",rank_mpi
            Call log_tree(root,un_lf,.True.)
-           Write(un_lf, fmt_dbg_sep)
+           CALL print_sep(un_lf, '=')
         END If
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -1866,7 +1867,7 @@ Program main_struct_process
 !!$        !** If we want to keep all results ************************************
 !!$        If (out_amount == "DEBUG") then
 !!$
-!!$           Write(un_lf,fmt_dbg_sep)
+!!$           CALL print_sep(un_lf, '=')
 !!$
 !!$           !** Write input files **********************************************
 !!$           
@@ -1893,7 +1894,7 @@ Program main_struct_process
 !!$              
 !!$           End If
 !!$
-!!$           Write(un_lf,fmt_dbg_sep)           
+!!$           CALL print_sep(un_lf, '=')           
 !!$
 !!$        End If
 !!$
@@ -1951,10 +1952,10 @@ Program main_struct_process
 !!$                data_size(2) / 1024_ik," kB ; ",&
 !!$                data_size(2), " Byte"
 !!$                   
-!!$           Write(un_lf,fmt_dbg_sep)
+!!$           CALL print_sep(un_lf, '=')
 !!$           Write(un_lf,fmt_MSG_AI0)"Root pointer after compress on proc",rank_mpi
 !!$           Call log_tree(root,un_lf,.True.)
-!!$           Write(un_lf,fmt_dbg_sep)
+!!$           CALL print_sep(un_lf, '=')
 !!$           
 !!$        END If
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -1976,10 +1977,10 @@ Program main_struct_process
   
   !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
   If (out_amount == "DEBUG") THEN
-     Write(un_lf,fmt_dbg_sep)
+     CALL print_sep(un_lf, '=')
      Write(un_lf,fmt_MSG_AI0)"Final Root pointer proc",rank_mpi
      Call log_tree(root,un_lf,.True.)
-     Write(un_lf,fmt_dbg_sep)
+     CALL print_sep(un_lf, '=')
   END If
   !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
   
