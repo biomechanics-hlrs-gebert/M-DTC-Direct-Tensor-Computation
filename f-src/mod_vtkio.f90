@@ -757,37 +757,37 @@ contains
 
   !============================================================================
   !> Function which returns new free unit
-  function give_new_unit() result(new_unit)
+!   function give_new_unit() result(new_unit)
 
-    Integer(kind=4) :: new_unit
+!     Integer(kind=4) :: new_unit
 
-    Integer(kind=4) :: ii
+!     Integer(kind=4) :: ii
 
-    Logical :: unit_is_open
+!     Logical :: unit_is_open
 
-    Do ii = 3000, huge(new_unit)-1
+!     Do ii = 3000, huge(new_unit)-1
 
-       inquire(unit=ii, opened=unit_is_open)
+!        inquire(unit=ii, opened=unit_is_open)
 
-       if( .not.unit_is_open ) then
-          new_unit = ii
-          Exit
-       end if
+!        if( .not.unit_is_open ) then
+!           new_unit = ii
+!           Exit
+!        end if
 
-    End Do
+!     End Do
 
-    if ( unit_is_open ) then
+!     if ( unit_is_open ) then
 
-       WRITE(*,*)
-       WRITE(*,*)'Something bad and unexpected happened during search ',&
-            'for free unit'
-       WRITE(*,*)'Could not find a new unit between 3000 and huge(Int(kind=4))'
-       WRITE(*,*)' '
-       WRITE(*,*)'PROGRAM STOPPED'
-       STOP
-    END IF
+!        WRITE(*,*)
+!        WRITE(*,*)'Something bad and unexpected happened during search ',&
+!             'for free unit'
+!        WRITE(*,*)'Could not find a new unit between 3000 and huge(Int(kind=4))'
+!        WRITE(*,*)' '
+!        WRITE(*,*)'PROGRAM STOPPED'
+!        STOP
+!     END IF
 
-  End function give_new_unit
+!   End function give_new_unit
 
 
   !============================================================================

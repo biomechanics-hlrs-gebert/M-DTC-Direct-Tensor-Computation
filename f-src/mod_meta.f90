@@ -37,12 +37,12 @@ IMPLICIT NONE
    ! Standard files
    INTEGER(KIND=meta_ik), PARAMETER :: fh_meta_in  = 20, fhmei  = 20
    INTEGER(KIND=meta_ik), PARAMETER :: fh_meta_put = 21, fhmeo  = 21
-   INTEGER(KIND=meta_ik), PARAMETER :: fh_mon      = 25, fhmon  = 25
-   INTEGER(KIND=meta_ik), PARAMETER :: fh_out      = 30, fho    = 30
-   INTEGER(KIND=meta_ik), PARAMETER :: fh_log      = 35, fhl    = 35
-   INTEGER(KIND=meta_ik), PARAMETER :: fh_res      = 40, fhr    = 40
-   INTEGER(KIND=meta_ik), PARAMETER :: fh_csv      = 45, fhc    = 45
-   INTEGER(KIND=meta_ik), PARAMETER :: fh_head     = 50, fhh    = 50
+   INTEGER(KIND=meta_ik), PARAMETER :: fh_mon      = 22, fhmon  = 22
+   INTEGER(KIND=meta_ik), PARAMETER :: fh_out      = 23, fho    = 23
+   INTEGER(KIND=meta_ik), PARAMETER :: fh_log      = 24, fhl    = 24
+   INTEGER(KIND=meta_ik), PARAMETER :: fh_res      = 25, fhr    = 25
+   INTEGER(KIND=meta_ik), PARAMETER :: fh_csv      = 26, fhc    = 26
+   INTEGER(KIND=meta_ik), PARAMETER :: fh_head     = 27, fhh    = 27
    CHARACTER(LEN=*), PARAMETER :: log_suf  = '.log'
    CHARACTER(LEN=*), PARAMETER :: lock_suf = '.lock'
    CHARACTER(LEN=*), PARAMETER :: head_suf = '.head'
@@ -461,7 +461,7 @@ IF(LEN_TRIM(keyword) .GT. LEN(kywd_lngth)) THEN
    mssg = "The keyword »"//TRIM(keyword)//"« is longer than the &
    &convention allows and therefore truncated!"
 
-   CALL print_err_stop(fh, TRIM(ADJUSTL(mssg)), 0)
+   CALL print_warning(fh, TRIM(ADJUSTL(mssg)))
 
    kywd_lngth = keyword(1:LEN(kywd_lngth))
 ELSE
@@ -495,7 +495,7 @@ IF(LEN_TRIM(unit) .GT. LEN(unit_lngth)) THEN
 
    mssg = "The unit "//TRIM(unit)//" is longer than the convention allows and therefore truncated!"
 
-   CALL print_err_stop(fh, TRIM(ADJUSTL(mssg)), 0)
+   CALL print_warning(fh, TRIM(ADJUSTL(mssg)))
 
    unit_lngth = unit(1:LEN(unit_lngth))
 ELSE

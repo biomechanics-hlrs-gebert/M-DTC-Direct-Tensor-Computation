@@ -20,17 +20,22 @@ INTEGER, PARAMETER :: scl = 64   ! Short   character  length
 
 !-- File handles, debug_lvl and suffix
 INTEGER(KIND=ik), PARAMETER :: timer_level = 3 ! 1 ! 2
-INTEGER(KIND=ik), PARAMETER :: dbg_lvl     = 1
-CHARACTER(LEN=mcl)          :: mssg        = ''
+INTEGER(KIND=ik), PARAMETER :: dbg_lvl = 1
+CHARACTER(LEN=mcl)          :: mssg = ''
 
+! Dynamically assigned, must fit to program
+INTEGER(KIND=ik)            :: std_out
 INTEGER(KIND=ik), PARAMETER :: std_in  = 5
-INTEGER(KIND=ik), PARAMETER :: std_out = 6
 INTEGER(KIND=ik), PARAMETER :: std_err = 0
+
+! Unsusual, as you may want to see the error messages asap in your root directory.
+INTEGER(KIND=ik), PARAMETER :: fhsterr  = 10
 
 !-- Mpi-specific kinds
 INTEGER, PARAMETER :: mpi_ik = 4 ! MPI INTEGER Kind; Compile with corresponding mpi!!
 
 END MODULE global_std
+
 
 !==============================================================================
 !> Global variables for the puredat data handling library

@@ -60,3 +60,6 @@ export PETSC_INCPATH=${petsc_prefix}/include
 export PETSC_LIBPATH=${petsc_prefix}/lib
 export LD_LIBRARY_PATH=${petsc_prefix}/lib:$LD_LIBRARY_PATH
 #
+# ----------------------------------------
+# Define std_out
+export USE_STD_OUT=YES

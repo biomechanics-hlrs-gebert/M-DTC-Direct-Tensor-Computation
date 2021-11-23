@@ -11,16 +11,17 @@
 !> Global Variables for the chain process library
 Module chain_variables
  
-  USE messages_errors
   USE global_std
+  USE messages_errors
+  USE meta
 
   Implicit None
  
   ! ---------------------------------------------------------------------------
   !> Logfile unit
-  Integer                     :: un_lf   = 10000
+  Integer                     :: un_lf   = fhl
   !> Monitor file unit (default = stdout)
-  Integer                     :: un_mon  = std_out
+  Integer                     :: un_mon  = fhmon
   
   Character(len=mcl)          :: outpath = "./"
   Character(len=mcl)          :: inpath  = "./"
@@ -240,38 +241,9 @@ Contains
 
   End Subroutine link_stop
 
-  !============================================================================
-  !> Function which returns a new free unit
-  function give_new_unit() result(new_unit)
-
-    Integer :: new_unit
-
-    Integer :: ii
-
-    Logical :: unit_is_open
-
-    Do ii = 300, huge(new_unit)-1
-
-       inquire(unit=ii, opened=unit_is_open)
-
-       if( .not.unit_is_open ) then
-          new_unit = ii
-          Exit
-       end if
-
-    End Do
-    
-    if ( unit_is_open ) then
-      mssg = 'Something bad and unexpected happened during search for free unit: &
-      &Could not find a new unit between 100 and huge(Int(kind=4))'
-      CALL print_err_stop(std_out, mssg, 1)
-    END IF
-
-  End function give_new_unit
-
 
    !------------------------------------------------------------------------------
-   ! SUBROUTINE: print_err_stop
+   ! SUBROUTINE: alloc_err
    !------------------------------------------------------------------------------  
    !> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
    !

@@ -17,4 +17,4 @@ cd $PBS_O_WORKDIR
 source ./setenv.sh vulcan
 #
 # Launch the parallel mpi application (compiled with intel mpi) to the allocated compute nodes
-mpirun -n 3 bin/ddtc_v1.0.0_x86_64 $PWD/datasets/SC00-0_tc_Dev_DDTC_isotropic-HEX08.meta
+mpirun -n 3 bin/ddtc_v1.0.0_x86_64 $PWD/datasets/SC00-0_tc_Dev_DDTC_isotropic-HEX08.meta > $PWD/datasets/SC00-0_tc_Dev_DDTC_isotropic-HEX08.std_out

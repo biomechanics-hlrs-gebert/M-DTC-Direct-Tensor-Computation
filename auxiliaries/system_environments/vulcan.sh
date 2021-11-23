@@ -60,3 +60,7 @@ petsc_prefix=/opt/numlib/petsc/3.14.1-openmpi-4.0.5-gnu-10.2.0
 export PETSC_INCPATH=${petsc_prefix}/include
 export PETSC_LIBPATH=${petsc_prefix}/lib
 export LD_LIBRARY_PATH=${petsc_prefix}/lib:$LD_LIBRARY_PATH
+#
+# ----------------------------------------
+# Define std_out
+export USE_STD_OUT=NO

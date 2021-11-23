@@ -34,55 +34,6 @@ IMPLICIT NONE
 
 CONTAINS
 
-!------------------------------------------------------------------------------
-! SUBROUTINE: show_title
-!------------------------------------------------------------------------------  
-!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
-!
-!> @brief
-!> Show brief information about the program
-!------------------------------------------------------------------------------
-SUBROUTINE show_title(revision, hash)
-
-CHARACTER(LEN=*), INTENT(IN) :: revision
-CHARACTER(LEN=*), INTENT(IN) :: hash
-
-CALL print_sep (std_out)
-CALL print_std (std_out, 'High Performance Computing Center | Stuttgart (HLRS)')
-CALL print_sep (std_out)
-CALL print_std (std_out, 'Directly Discretizing Tensor Computation '//TRIM(ADJUSTL(revision)))
-CALL print_std (std_out, '')
-CALL print_std (std_out, 'Author: Dr.-Ing. Ralf Schneider (HLRS, NUM)')
-CALL print_std (std_out, 'Author: Johannes Gebert, M.Sc.  (HLRS, NUM)')
-CALL print_sep (std_out)
-END SUBROUTINE show_title
-
-!------------------------------------------------------------------------------
-! FUNCITON: usage
-!------------------------------------------------------------------------------  
-!> @author Johannes Gebert,   gebert@hlrs.de, HLRS/NUM
-!
-!> @brief
-!> Print program usage. 
-!
-!> @param[in] err Optional suppression of program abortion
-!------------------------------------------------------------------------------  
-SUBROUTINE usage()
-
-WRITE(std_out, SEP_STD)
-WRITE(std_out, '(A)') 'Directly Discretizing Tensor Computation | Usage:'
-WRITE(std_out, SEP_STD)
-WRITE(std_out, '(A)') './ddtc_vx.y.z_x86_64 »flags« »basename.meta«'
-WRITE(std_out, '(A)') ''
-WRITE(std_out, '(A)') '-h/ --help      This message.'
-WRITE(std_out, '(A)') '-v/ --version   Version of the program'
-WRITE(std_out, '(A)') '--restart       Overwrite restart keyword'
-WRITE(std_out, '(A)') '--no-restart    Overwrite restart keyword'
-WRITE(std_out, '(A)') ''
-WRITE(std_out, '(A)') 'The meta-file must be the last command argument.'
-WRITE(std_out, SEP_STD)
-
-END SUBROUTINE usage
 
 !------------------------------------------------------------------------------
 ! SUBROUTINE: write_matrix_real

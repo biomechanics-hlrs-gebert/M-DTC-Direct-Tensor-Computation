@@ -407,7 +407,7 @@ CONTAINS
   Subroutine pd_init_std_out()
 
     Character(len=pd_mcl) :: env_var
-    Logical            :: opened, exist
+    Logical :: opened, exist
     
     Call get_environment_Variable("PRD_STDOUT", env_var)
 
@@ -5955,7 +5955,7 @@ CONTAINS
 
     IF (wrn .AND. (.NOT.success)) then
       mssg = 'The branch with description: '//TRIM(descr)//' was not found in branch '//TRIM(branch%desc)
-      CALL print_err_stop(pd_umon, mssg, -1)
+      CALL print_warning (pd_umon, mssg)
     End If
     
   End Subroutine Search_branch_wrn

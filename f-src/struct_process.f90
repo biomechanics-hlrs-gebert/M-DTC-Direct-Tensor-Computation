@@ -75,8 +75,8 @@
 !------------------------------------------------------------------------------
 Module sp_aux_routines
 
-  Use Operating_System
   USE global_std
+  Use Operating_System
   use puredat_com
   use chain_routines
   use linfe
@@ -938,10 +938,10 @@ Program main_struct_process
   
   INTEGER   (KIND=pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
   INTEGER   (KIND=pd_ik)                            :: serial_root_size
-
-  Logical                                           :: success, fexist
   INTEGER   (KIND=pd_ik), Dimension(no_streams)     :: dsize
- 
+  Logical                                           :: success, fexist
+
+
   !----------------------------------------------------------------------------
  
   CALL mpi_init(ierr)
@@ -960,7 +960,10 @@ Program main_struct_process
   !------------------------------------------------------------------------------
   If (rank_mpi==0) Then
 
-      CALL show_title(revision, hash)
+      std_out = determine_stout()
+
+      IF (std_out==6) CALL show_title(revision)
+
       Call Start_Timer("Init Process")
     
       !------------------------------------------------------------------------------
@@ -989,8 +992,8 @@ Program main_struct_process
                         CASE('-restart', '-Restart')
                            restart_cmdarg = 'Y'
                         CASE('v', '-Version', '-version')
-                           CALL show_title(revision, hash)
-                           GOTO 1001   ! Jump to the end of the program.
+                              CALL show_title(revision)
+                              GOTO 1001   ! Jump to the end of the program.
                         CASE('h', '-Help', '-help')
                            CALL usage()
                            GOTO 1001   ! Jump to the end of the program.
@@ -1009,7 +1012,6 @@ Program main_struct_process
 
       in%full = TRIM(infile)
     
-      
 
 
    ! mssg = "This is an extraordinary long text to check out how my new subroutine might behave. &
@@ -1081,9 +1083,13 @@ Program main_struct_process
       ! This log file may collide with the original log file (!)
       ! The regular struct_process log file contains still has the "old" basename!
       !------------------------------------------------------------------------------
-      ! CALL meta_start_ascii(fh=fhl  , suf=log_suf, restart=restart)
+      CALL meta_start_ascii(fh=fhl  , suf=log_suf, restart=restart)
       CALL meta_start_ascii(fh=fhmon, suf=mon_suf, restart=restart)
-      ! CALL meta_start_ascii(fh=fhr, suf=res_suf, restart=restart)
+
+      IF (std_out/=6) THEN
+         CALL meta_start_ascii(fh=std_out, suf='.std_out', restart=restart)
+         CALL show_title(revision) 
+      END IF
 
       CALL meta_write (fhmeo, 'MICRO_ELMNT_TYPE' , elt_micro  )
       CALL meta_write (fhmeo, 'DBG_LVL'          , out_amount )
@@ -1986,9 +1992,13 @@ IF(rank_mpi == 0) THEN
    CALL meta_signing(binary)
    CALL meta_close()
 
-   ! CALL meta_stop_ascii(fh=fhl  , suf=log_suf)
+   CALL meta_stop_ascii(fh=fhl  , suf=log_suf)
    CALL meta_stop_ascii(fh=fhmon, suf=mon_suf)
-   ! CALL meta_stop_ascii(fh=fhr, suf=res_suf)
+
+   IF (std_out/=6) THEN
+      CALL meta_stop_ascii(fh=std_out, suf='.std_out')
+   END IF
+
 END IF ! (rank_mpi == 0)
 
 Call MPI_FINALIZE(ierr)

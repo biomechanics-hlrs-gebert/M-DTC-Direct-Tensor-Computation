@@ -291,6 +291,7 @@ $(obj_dir)mod_auxiliaries$(obj_ext):$(mod_dir)global_std$(mod_ext) \
 #-- Chain modules -------------------------------------------------------------
 $(obj_dir)mod_chain$(obj_ext):$(mod_dir)global_std$(mod_ext) \
 							$(mod_dir)auxiliaries$(mod_ext) \
+							$(obj_dir)mod_meta$(obj_ext) \
 							$(mod_dir)timer$(mod_ext) \
 							$(f_src_dir)mod_chain$(f90_ext)
 	@echo "----- Compiling " mod_chain$(f90_ext) " -----"
