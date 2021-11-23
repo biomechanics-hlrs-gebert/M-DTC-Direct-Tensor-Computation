@@ -889,7 +889,6 @@ Program main_struct_process
   USE puredat 
   USE meta
   USE chain_routines
-  USE Operating_System
   USE MPI
   USE decomp 
   USE sp_aux_routines
