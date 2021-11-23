@@ -457,10 +457,9 @@ IF(LEN_TRIM(keyword) .GT. LEN(kywd_lngth)) THEN
 
    WRITE(fh, '(A)') ''
    
-   mssg = "The keyword »"//TRIM(keyword)//"« is longer than the &
-   &convention allows and therefore truncated!"
-   WRITE(std_out,FMT_WRN) TRIM(mssg)
-
+   WRITE(std_out,FMT_WRN) "The keyword »"//TRIM(keyword)//"« is longer"
+   WRITE(std_out,FMT_WRN) "than the convention allows and therefore truncated!"
+   
    kywd_lngth = keyword(1:LEN(kywd_lngth))
 ELSE
    kywd_lngth = keyword
@@ -491,9 +490,8 @@ IF(LEN_TRIM(unit) .GT. LEN(unit_lngth)) THEN
 
    WRITE(fh, '(A)') ''
 
-   mssg = "The unit "//TRIM(unit)//" is longer than the convention allows and therefore truncated!"
-
-   WRITE(fh,FMT_WRN) TRIM(mssg)
+   WRITE(std_out,FMT_WRN) "The unit "//TRIM(unit)//" is longer than"
+   WRITE(std_out,FMT_WRN) "the convention allows and therefore truncated!"
 
    unit_lngth = unit(1:LEN(unit_lngth))
 ELSE

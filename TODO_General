@@ -3,7 +3,6 @@ Macro Hex20
 understand Tensor to FE matrix
 recap stiffnessmatrix of Diss RS
 how is the grid spacing determined?
-init format specifiers Write warnings?
 
 puredat file error
 
@@ -13,12 +12,6 @@ Acknowledgements
 Document reasons for interfaces and implementations
 
 Code Reviews
-
-refactor checksym
-refactor count_lines
-refactor read_user_input mod_chain
-
-refactor formattign
 
 Run on vulcan
 

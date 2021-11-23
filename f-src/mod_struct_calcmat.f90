@@ -46,7 +46,6 @@ contains
     Real(kind=8)   , Dimension( 8)               :: tmp_r8 
     Real(kind=8)   , Dimension(12)               :: tmp_r12
 
-    Real(kind=8)                                 :: E_div, nu_div, G_div
     Real(kind=8)                                 :: E_Modul, nu, rve_strain
     Real(kind=8)                                 :: v_elem, v_cube
     integer(Kind=ik)                             :: ii, jj, kk, ll
@@ -309,8 +308,8 @@ contains
     v_cube = x_D_phy(1)*x_D_phy(2)*x_D_phy(3)
     
     If (out_amount /= "PRODUCTION" ) then
-       Write(un_lf,"('-- Volume per element -- ',E15.6)")v_elem
-       Write(un_lf,"('-- MVE Volume         -- ',E15.6)")v_cube
+       Write(un_lf,"(A,E15.6)") 'Volume per element: ', v_elem
+       Write(un_lf,"(A,E15.6)") 'MVE Volume:         ', v_cube
        Write(un_lf,*)
     End If
 
