@@ -213,15 +213,15 @@ Contains
 
           End If
 
-          CALL print_sep(un_lf)
+          Write(un_lf,FMT_MSG_SEP)
 
        End If
 
        !**************************************************************************
        !** Write log and monitor file
        !**************************************************************************
-       Write(un_lf,fmt_msg_AI0) "Domain No.: ",nn
-       CALL print_warning(un_lf, "Job_dir: "//Trim(job_dir))
+       Write(un_lf,FMT_MSG_AI0) "Domain No. : ",nn
+       Write(un_lf,FMT_MSG)     "Job_dir    : "//Trim(job_dir)
 
        CALL DATE_AND_TIME(DATE=date, TIME=time, ZONE=timezone)
  
@@ -233,16 +233,15 @@ Contains
        WRITE(un_lf, '(2A)') 'Start time: ', TRIM(str)
 
        Call get_environment_Variable("HOSTNAME", env_var)
-
-       CALL print_message(un_lf, "Host       : "//Trim(env_var))
+       Write(un_lf,FMT_MSG) "Host       : "//Trim(env_var)
 
        umon = give_new_unit()
 
        Open(unit=umon, file=Trim(job_dir)//Trim(project_name)//".mon",action="write", &
             status="replace")
 
-       CALL print_sep(umon, '=')
-       Write(umon,fmt_msg_AI0) "Domain No. : ",nn
+       Write(umon,FMT_MSG_SEP)
+       Write(umon,FMT_MSG_AI0) "Domain No. : ",nn
 
        !**************************************************************************
        !** Generate Geometry
@@ -257,7 +256,7 @@ Contains
        Call start_timer(trim(timer_name), .FALSE.)
        Call generate_geometry(root, lin_nn, nn, job_dir, fh_mpi, success)
        if (.not.success) then
-         CALL print_warning(std_out, "generate_geometry() returned .FALSE.")
+          write(*,FMT_WRN)"generate_geometry() returned .FALSE."
        End if
        Call end_timer(trim(timer_name))
      
@@ -350,10 +349,10 @@ Contains
 
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     If (out_amount == "DEBUG") THEN 
-       CALL print_sep(un_lf, '=')
+       Write(un_lf,fmt_dbg_sep)
        Write(un_lf,'(A)')"part branch right after deserialization"
        Call log_tree(pb,un_lf,.TRUE.)
-       CALL print_sep(un_lf, '=')
+       Write(un_lf,fmt_dbg_sep)
        flush(un_lf)
     END If
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<       
@@ -1013,20 +1012,6 @@ Program main_struct_process
 
       in%full = TRIM(infile)
     
-
-
-   ! mssg = "This is an extraordinary long text to check out how my new subroutine might behave. &
-   ! & "//TRIM(infile)//"&
-   ! & The goal is to demonstrate the limit of five hundred twelve characters while computing the proper &
-   ! &line breaks for a nice look onto all the error "//TRIM(infile)//" messages and warnings the struct-process might print &
-   ! &to the command line or to a file."
-   ! write(*,*) mssg
-   ! CALL print_warning (std_out, mssg)
-   ! CALL print_err_stop (std_out, mssg, 1)
-
-
-
-   
       !------------------------------------------------------------------------------
       ! Check and open the input file; Modify the Meta-Filename / Basename
       ! Define the new application name first
@@ -1073,7 +1058,7 @@ Program main_struct_process
       IF (restart_cmdarg /= 'U') THEN
          restart = restart_cmdarg
          mssg="The keyword »restart« was overwritten by the command flag --(no)-restart"
-         CALL print_warning (std_out, mssg)
+         WRITE(std_out, FMT_WRN) TRIM(mssg)
       END IF
 
       CALL meta_handle_lock_file(restart)
@@ -1171,7 +1156,8 @@ Program main_struct_process
             CALL print_err_stop(std_out, 'Could not create the output directory »'//TRIM(outpath)//'«.', 1)
          END IF
       ELSE 
-         CALL print_message(un_mon, "Reusing the output directory: "//TRIM(outpath))
+         WRITE(un_mon, FMT_MSG) "Reusing the output directory"
+         WRITE(un_mon, FMT_MSG) TRIM(outpath)
       END IF
 
       CALL link_start(link_name, .TRUE., .FALSE., success)
@@ -1186,10 +1172,9 @@ Program main_struct_process
          ! Raise root branch 
 
          IF (restart == 'Y') THEN
-            mssg = 'Restart of partly computed results requested, but no project header found. &
-            &Program behaves like there was none.'
-            CALL print_warning (std_out, mssg)
-            CALL print_sep (std_out)
+            WRITE(std_out, FMT_WRN) 'Restart of partly computed results requested, but no project header found.'
+            WRITE(std_out, FMT_WRN) 'Program behaves like there was none.'
+            WRITE(std_out, FMT_MSG_SEP)
             restart = 'N'
          END IF
 
@@ -1221,10 +1206,10 @@ Program main_struct_process
 
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         If (out_amount == "DEBUG") THEN 
-           CALL print_sep(un_lf, '=')
+           WRITE(un_lf,FMT_DBG_SEP)
            Write(un_lf,'(A)')"root right after restart read"
            Call log_tree(root,un_lf,.FALSE.)
-           CALL print_sep(un_lf, '=')
+           WRITE(un_lf,FMT_DBG_SEP)
            flush(un_lf)
         END If
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -1270,10 +1255,10 @@ Program main_struct_process
 
          !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
          If (out_amount == "DEBUG") THEN 
-            CALL print_sep(un_lf, '=')
+            Write(un_lf,fmt_dbg_sep)
             Write(un_lf,'(A)')"root right after restart and deletion of avg mat props branch"
             Call log_tree(root,un_lf,.FALSE.)
-            CALL print_sep(un_lf, '=')
+            Write(un_lf,fmt_dbg_sep)
             flush(un_lf)
          END If
          !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<     
@@ -1342,10 +1327,10 @@ Program main_struct_process
      
      !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
      If (out_amount == "DEBUG") THEN 
-        CALL print_sep(un_lf, '=')
+        Write(un_lf,fmt_dbg_sep)
         Write(un_lf,'(A)')"root right before serialisation"
         Call log_tree(root,un_lf,.True.)
-        CALL print_sep(un_lf, '=')
+        Write(un_lf,fmt_dbg_sep)
         flush(un_lf)
      END If
      !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -1429,17 +1414,17 @@ Program main_struct_process
           ((count( Domain_stats < 10 )*parts) < size_mpi-1) ) Then
 
         If (amount_domains*parts < size_mpi-1) then
-           Write(un_mon,FMT_ERR_A)"amount_domains*parts < size_mpi-1"
+           Write(un_mon,FMT_ERR)"amount_domains*parts < size_mpi-1"
 
         Else If ((count( Domain_stats < 10 )*parts) < size_mpi-1) then
-           Write(un_mon, FMT_ERR_A)   "Remaining amount_domains < Number of Solution Master"
+           Write(un_mon, FMT_ERR)   "Remaining amount_domains < Number of Solution Master"
            Write(un_mon, FMT_ERR_AI0) "Remaining amount_domains:   ", count( Domain_stats < 10 )
            Write(un_mon, FMT_ERR_AI0) "Number of solution masters: ", (size_mpi-1)/parts
         Else
 
-           Write(un_mon, FMT_ERR_A)"Restart on fully finished job."
+           Write(un_mon, FMT_ERR)"Restart on fully finished job."
         End If
-        Write(un_mon,FMT_ERR_A)"This case is not supported."
+        Write(un_mon,FMT_ERR)"This case is not supported."
         
         Call mpi_bcast(pro_path, INT(mcl,mpi_ik), MPI_CHAR, 0_mpi_ik,&
                        MPI_COMM_WORLD, ierr)
@@ -1484,7 +1469,7 @@ Program main_struct_process
      Call MPI_Comm_split(MPI_COMM_WORLD, MPI_UNDEFINED, &
           rank_mpi, worker_comm, ierr)
      CALL print_err_stop(std_out, "MPI_COMM_SPLIT couldn't split MPI_COMM_WORLD", INT(ierr, KIND=ik))
-     
+
 
   !****************************************************************************
   !** Ranks > 0 -- Worker slaves **********************************************
@@ -1796,7 +1781,7 @@ Program main_struct_process
             CALL print_err_stop(std_out,'Could not create the output directory »'//TRIM(outpath)//'«.', 1)
          END IF
       ELSE 
-         CALL print_message(un_mon, "Reusing the output directory: "//TRIM(outpath))
+         WRITE(un_mon, FMT_MSG) "Reusing the output directory "//TRIM(outpath)
       END IF
 
      Call link_start(link_name,.True.,.True.)
@@ -1833,10 +1818,10 @@ Program main_struct_process
 
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         If (out_amount == "DEBUG") THEN
-           CALL print_sep(un_lf, '=')
+           Write(un_lf, fmt_dbg_sep)
            Write(un_lf, fmt_MSG_AI0)"Root pointer before exec_single_domain on proc ",rank_mpi
            Call log_tree(root, un_lf, .True.)
-           CALL print_sep(un_lf, '=')
+           Write(un_lf, fmt_dbg_sep)
         END If
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -1847,10 +1832,10 @@ Program main_struct_process
         
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         If (out_amount == "DEBUG") THEN
-           CALL print_sep(un_lf, '=')
+           Write(un_lf, fmt_dbg_sep)
            Write(un_lf, fmt_MSG_AI0)"Root pointer after exec_single_domain on proc ",rank_mpi
            Call log_tree(root,un_lf,.True.)
-           CALL print_sep(un_lf, '=')
+           Write(un_lf, fmt_dbg_sep)
         END If
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -1867,7 +1852,7 @@ Program main_struct_process
 !!$        !** If we want to keep all results ************************************
 !!$        If (out_amount == "DEBUG") then
 !!$
-!!$           CALL print_sep(un_lf, '=')
+!!$           Write(un_lf,fmt_dbg_sep)
 !!$
 !!$           !** Write input files **********************************************
 !!$           
@@ -1894,7 +1879,7 @@ Program main_struct_process
 !!$              
 !!$           End If
 !!$
-!!$           CALL print_sep(un_lf, '=')           
+!!$           Write(un_lf,fmt_dbg_sep)           
 !!$
 !!$        End If
 !!$
@@ -1952,10 +1937,10 @@ Program main_struct_process
 !!$                data_size(2) / 1024_ik," kB ; ",&
 !!$                data_size(2), " Byte"
 !!$                   
-!!$           CALL print_sep(un_lf, '=')
+!!$           Write(un_lf,fmt_dbg_sep)
 !!$           Write(un_lf,fmt_MSG_AI0)"Root pointer after compress on proc",rank_mpi
 !!$           Call log_tree(root,un_lf,.True.)
-!!$           CALL print_sep(un_lf, '=')
+!!$           Write(un_lf,fmt_dbg_sep)
 !!$           
 !!$        END If
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -1977,10 +1962,10 @@ Program main_struct_process
   
   !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
   If (out_amount == "DEBUG") THEN
-     CALL print_sep(un_lf, '=')
+     Write(un_lf,fmt_dbg_sep)
      Write(un_lf,fmt_MSG_AI0)"Final Root pointer proc",rank_mpi
      Call log_tree(root,un_lf,.True.)
-     CALL print_sep(un_lf, '=')
+     Write(un_lf,fmt_dbg_sep)
   END If
   !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
   

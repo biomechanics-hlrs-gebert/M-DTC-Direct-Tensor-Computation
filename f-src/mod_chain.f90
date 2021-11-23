@@ -96,8 +96,10 @@ Contains
     if (present(success)) success = .TRUE.
     
     If (loc_stdio) then
-      CALL print_message(un_mon, 'Starting chain link: '//TRIM(link_name))
-      CALL print_sep(un_mon)
+       Write(un_mon,*)
+       Write(un_mon,FMT_MSG_SEP)
+       Write(un_mon,'(A,A)')'Starting chain link: ',trim(link_name)
+       Write(un_mon,*)
     End If
 
     Inquire(file=trim(outpath)//trim(project_name)//'.log', opened=opened)
@@ -108,11 +110,13 @@ Contains
        Inquire(file=trim(outpath)//trim(project_name)//'.log', number=un_lf)
 
        !** Message to std out *************************************************
-       If (loc_stdio) then         
-         CALL print_message(un_mon, "The log-file was already opened.")
-         CALL print_message(un_mon, "Reusing open and existing log-file: "&
-            //TRIM(outpath)//TRIM(project_name)//'.log')
-         CALL print_sep(un_mon)
+       If (loc_stdio) then
+          
+          Write(un_mon,FMT_MSG) "The log-file was already opened"
+          Write(un_mon,FMT_MSG) "Reusing open and existing log-file: "
+          Write(un_mon,FMT_MSG) trim(outpath)//trim(project_name)//'.log'
+
+          
        End If
        
     Else if (exist .AND. (.NOT.loc_init_lf)) then
@@ -123,7 +127,10 @@ Contains
 
        !** Message to std out *************************************************
        If (loc_stdio) then
-         CALL print_message(un_mon, "Opened existing log-file: "//TRIM(outpath)//TRIM(project_name)//'.log')
+          
+          Write(un_mon,FMT_MSG)'Opened existing log-file:'
+          Write(un_mon,FMT_MSG)trim(outpath)//trim(project_name)//'.log'
+
        End If
        
     Else if (.NOT.exist) Then
@@ -133,10 +140,11 @@ Contains
             Action='Write', status='new', iostat=io_stat)
 
        If (io_stat /= 0) then
-         mssg =  "In link_start it was not possible to open the file "//&
-         trim(outpath)//trim(project_name)//'.log'//" Please check the path and file naming conventions"
-
-         CALL print_err_stop(un_mon, mssg, io_stat)
+          Write(un_mon,FMT_MSG_SEP)
+          Write(un_mon,FMT_ERR) "In link_start it was not possible to open the file"
+          Write(un_mon,FMT_ERR) trim(outpath)//trim(project_name)//'.log'
+          Write(un_mon,FMT_ERR) "Please check the path and file naming conventions"
+          Write(un_mon,FMT_ERR_STOP)
           
           If (present(success)) then
              success = .FALSE.
@@ -149,7 +157,8 @@ Contains
        
        !** Message to std out *************************************************
        If (loc_stdio) then
-         CALL print_message(un_mon, "Opened new log-file: "//TRIM(outpath)//TRIM(project_name)//'.log')          
+          Write(un_mon,FMT_MSG) 'Opened new log-file:'
+          Write(un_mon,FMT_MSG) trim(outpath)//trim(project_name)//'.log'          
        End If
        
     Else if (loc_init_lf) then
@@ -160,13 +169,15 @@ Contains
        
        !** Message to std out *************************************************
        If (loc_stdio) then
-         CALL print_message(un_mon, "Opened and replaced existing log-file: "&
-            //TRIM(outpath)//TRIM(project_name)//'.log')          
+          
+          Write(un_mon,FMT_MSG) 'Opened and replaced existing log-file :'
+          Write(un_mon,FMT_MSG) trim(outpath)//trim(project_name)//'.log'
+
        End If
        
     End If
        
-    If (loc_stdio) CALL print_sep(un_mon)
+    If (loc_stdio) write(un_mon,*)
 
 1000 Continue
 
@@ -193,7 +204,11 @@ Contains
     
     call end_timer(trim(link_name))
 
-    if (loc_stdio) CALL print_message(un_mon, "Program terminated correctly.")          
+    if (loc_stdio) then
+       Write(un_mon, FMT_MSG_SEP)
+       Write(un_mon, FMT_MSG)    'Program terminated correctly !'
+       Write(un_mon, FMT_MSG_SEP)
+    End if
 
     INQUIRE(unit=un_lf, opened=opened)
 
@@ -219,7 +234,7 @@ Contains
 
    call end_timer(trim(link_name))
 
-   CALL print_err_stop(un_mon, 'Program will be halted, error message was: '//msg, 0)
+   WRITE(un_mon,FMT_ERR) 'Program will be halted, error message was: '//TRIM(msg)
 
    INQUIRE(UNIT=un_lf, opened=opened)
 
@@ -230,8 +245,8 @@ Contains
 
    call write_timelist(unit=un_lf)
       
-   CALL print_err_stop(un_lf,   'Program will be halted, error message was: '//msg, 0)
-   CALL print_err_stop(std_out, 'Program halted. View Log.', 1)
+   WRITE(un_mon,FMT_ERR) 'Program will be halted, error message was: '//TRIM(msg)
+   WRITE(un_mon,FMT_ERR) 'Program halted. View Log.'
 
   End Subroutine link_stop
 

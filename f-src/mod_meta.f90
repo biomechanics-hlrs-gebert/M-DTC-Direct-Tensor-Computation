@@ -228,8 +228,7 @@ CALL meta_read (fhmon, 'NEW_BSNM_FEATURE', meta_as_rry, out%features)
 CALL meta_read (fhmon, 'NEW_BSNM_PURPOSE', meta_as_rry, out%purpose)
 
 IF ((out%purpose == in%purpose) .AND. (out%features == in%features)) THEN
-   mssg='The basename (in part) did not change.'
-   CALL print_warning (std_out, mssg)
+   WRITE(std_out,FMT_WRN) 'The basename (in part) did not change.'
 END IF
 
 !------------------------------------------------------------------------------
@@ -460,8 +459,7 @@ IF(LEN_TRIM(keyword) .GT. LEN(kywd_lngth)) THEN
    
    mssg = "The keyword »"//TRIM(keyword)//"« is longer than the &
    &convention allows and therefore truncated!"
-
-   CALL print_warning(fh, TRIM(ADJUSTL(mssg)))
+   WRITE(std_out,FMT_WRN) TRIM(mssg)
 
    kywd_lngth = keyword(1:LEN(kywd_lngth))
 ELSE
@@ -495,7 +493,7 @@ IF(LEN_TRIM(unit) .GT. LEN(unit_lngth)) THEN
 
    mssg = "The unit "//TRIM(unit)//" is longer than the convention allows and therefore truncated!"
 
-   CALL print_warning(fh, TRIM(ADJUSTL(mssg)))
+   WRITE(fh,FMT_WRN) TRIM(mssg)
 
    unit_lngth = unit(1:LEN(unit_lngth))
 ELSE
@@ -1083,7 +1081,7 @@ SUBROUTINE meta_close()
 LOGICAL :: opened
 
 WRITE(fhmeo, '(A)')
-CALL print_sep(fhmeo)
+WRITE(fhmeo, "(80('-'))")
 
 !------------------------------------------------------------------------------
 ! Check and close files - Routine: (fh, filename, abrt, stat)
