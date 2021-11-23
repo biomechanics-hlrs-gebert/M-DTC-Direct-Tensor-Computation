@@ -41,19 +41,18 @@ CHARACTER(Len=*), PARAMETER :: FMT_TXT_SEP  = "(80('-'))"
 CHARACTER(Len=*), PARAMETER :: FMT_MSG      = "('MM ',A)"
 CHARACTER(Len=*), PARAMETER :: FMT_MSG_SEP  = "(80('-'))"
 !
-CHARACTER(Len=*), PARAMETER :: FMT_MSG_AxI0  = "('MM ',A,*('  ', I0))"
+CHARACTER(Len=*), PARAMETER :: FMT_MSG_AxI0  = "('MM ',A,*(1x, I0))"
 CHARACTER(Len=*), PARAMETER :: FMT_MSG_AI0  = "('MM ',*(A,1X,I0,1X))"
 CHARACTER(Len=*), PARAMETER :: FMT_MSG_AI0A = "('MM ',A,1X,I0,1X,A)"
-CHARACTER(Len=*), PARAMETER :: FMT_MSG_A8I5 = "('MM ',A,1X,8(',',I5))"
 CHARACTER(Len=*), PARAMETER :: FMT_MSG_2AI0 = "('MM ',2(A,1X,I0,1X))"
-CHARACTER(Len=*), PARAMETER :: FMT_MSG_A3I0 = "('MM ',A,3(',',I0))"
+CHARACTER(Len=*), PARAMETER :: FMT_MSG_A3I0 = "('MM ',A,3(1x,I0))"
 !
-CHARACTER(Len=*), PARAMETER :: FMT_MSG_AF0  = "('MM ',A,F0.6)"
-CHARACTER(Len=*), PARAMETER :: FMT_MSG_AF0A = "('MM ',A,F0.6,A)"
-CHARACTER(Len=*), PARAMETER :: FMT_MSG_A2F0 = "('MM ',A,2(',',F0.6))"
-CHARACTER(Len=*), PARAMETER :: FMT_MSG_A3F0 = "('MM ',A,3(',',F0.6))"
+CHARACTER(Len=*), PARAMETER :: FMT_MSG_AF0  = "('MM ',A,1X,F0.6)"
+CHARACTER(Len=*), PARAMETER :: FMT_MSG_AF0A = "('MM ',A,1X,F0.6,1x,A)"
+CHARACTER(Len=*), PARAMETER :: FMT_MSG_A2F0 = "('MM ',A,2(1X,F0.6))"
+CHARACTER(Len=*), PARAMETER :: FMT_MSG_A3F0 = "('MM ',A,3(1X,F0.6))"
 !
-CHARACTER(Len=*), PARAMETER :: FMT_MSG_AL   = "('MM ',A,L1)"
+CHARACTER(Len=*), PARAMETER :: FMT_MSG_AL   = "('MM ',A,1x,L1)"
 
 !------------------------------------------------------------------------------
 ! Warning formats

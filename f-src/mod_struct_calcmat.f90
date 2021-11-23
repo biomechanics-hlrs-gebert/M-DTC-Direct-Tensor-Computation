@@ -1092,13 +1092,12 @@ contains
 
     If (out_amount /= "PRODUCTION" ) then
        write(un_lf,*)
-       Write(un_lf,"(A,I0,A) ")" Solution converged after :",jj," iterations"
-       Write(un_lf,"(A,F17.6,F17.6)")" With final citerion 1    :",&
+       Write(un_lf,FMT_MSG_AI0A) "Solution converged after : ",jj," iterations"
+       Write(un_lf,FMT_MSG_A2F0) "With final citerion 1    : ",&
             minval(crit_1(0:kk-1,0:kk_phi-1,0:kk_eta-1)),crit_1(mlc(1),mlc(2),mlc(3))
-       Write(un_lf,"(A,F17.6)")" With final epsilon       :",&
-            crit_min(jj-1)-crit_min(jj)
-       Write(un_lf,"(A,F17.9,A)")" Final rotation angle  is : ",alpha
-       Write(un_lf,"(A,3F17.9,A)")" Final rotation vector is : ",n
+       Write(un_lf,FMT_MSG_AF0)  "With final epsilon       : ", crit_min(jj-1)-crit_min(jj)
+       Write(un_lf,FMT_MSG_AF0A) "Final rotation angle  is : ", alpha
+       Write(un_lf,FMT_MSG_A3F0) "Final rotation vector is : ", n
        Write(un_lf,*)
     End If
     
@@ -1507,9 +1506,9 @@ contains
 
        !write(un_lf,FMT_MSG_AF0)'Minimum CR_2         : ',crit_min(jj)
        If (out_amount /= "PRODUCTION" ) then
-          write(un_lf,*)'Minimum CR_2         : ',crit_min(jj)
-          write(un_lf,*)'Minloc  CR_2         : ',minloc(crit_2(0:kk-1,0:kk_phi-1,0:kk_eta-1))
-          write(un_lf,*)'kk, kk_phi, kk_eta   : ',kk,kk_phi,kk_eta
+          write(un_lf,FMT_MSG_AF0) 'Minimum CR_2         : ', crit_min(jj)
+          write(un_lf,FMT_MSG_A3I0)'Minloc  CR_2         : ', minloc(crit_2(0:kk-1,0:kk_phi-1,0:kk_eta-1))
+          write(un_lf,FMT_MSG_A3I0)'kk, kk_phi, kk_eta   : ', kk,kk_phi,kk_eta
        End If
        
        If ( (abs(crit_min(jj-1)-crit_min(jj)) < num_zero) .OR. (jj >= 16)) Exit
@@ -1529,13 +1528,11 @@ contains
 
     If (out_amount /= "PRODUCTION" ) then
        write(un_lf,*)
-       Write(un_lf,"(A,I0,A) ")" Solution converged after :",jj," iterations"
-       Write(un_lf,"(A,F17.6)")" With final citerion 2    :",&
-            minval(crit_2(1:kk-2,1:kk_phi-2,1:kk_eta-2))
-       Write(un_lf,"(A,F17.6)")" With final epsilon       :",&
-            crit_min(jj-1)-crit_min(jj)
-       Write(un_lf,"(A,3F17.9,A)")" Final rotation angle  is : ",alpha
-       Write(un_lf,"(A,3F17.9,A)")" Final rotation vector is : ",n
+       Write(un_lf,FMT_MSG_AI0A) "Solution converged after : ", jj," iterations"
+       Write(un_lf,FMT_MSG_A3F0) "With final citerion 2    : ", minval(crit_2(1:kk-2, 1:kk_phi-2, 1:kk_eta-2))
+       Write(un_lf,FMT_MSG_AF0)  "With final epsilon       : ", crit_min(jj-1)-crit_min(jj)
+       Write(un_lf,FMT_MSG_AF0A) "Final rotation angle  is : ", alpha
+       Write(un_lf,FMT_MSG_A3F0) "Final rotation vector is : ", n
        Write(un_lf,*)
     End If
     
