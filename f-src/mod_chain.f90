@@ -18,10 +18,12 @@ Module chain_variables
   Implicit None
  
   ! ---------------------------------------------------------------------------
+  ! New units are given several times to orchestrate the files (!)
+  ! ---------------------------------------------------------------------------
   !> Logfile unit
-  Integer                     :: un_lf   = fhl
+  Integer                     :: un_lf  ! = fhl
   !> Monitor file unit (default = stdout)
-  Integer                     :: un_mon  = fhmon
+  Integer                     :: un_mon! = fhmon
   
   Character(len=mcl)          :: outpath = "./"
   Character(len=mcl)          :: inpath  = "./"
@@ -98,7 +100,7 @@ Contains
     If (loc_stdio) then
        Write(un_mon,*)
        Write(un_mon,FMT_MSG_SEP)
-       Write(un_mon,'(A,A)')'Starting chain link: ',trim(link_name)
+       Write(un_mon,FMT_MSG) 'Starting chain link: '//TRIM(link_name)
        Write(un_mon,*)
     End If
 

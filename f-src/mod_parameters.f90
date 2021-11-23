@@ -15,7 +15,7 @@ contains
   
   Subroutine Set_PETSc_Options()
 
-    Integer(kind=mpi_ik)              :: petsc_ierr
+    Integer(kind=mpi_ik) :: petsc_ierr
     
     Call PetscOptionsSetValue(PETSC_NULL_OPTIONS,"-mat_type"    , "mpiaij",petsc_ierr)
     Call PetscOptionsSetValue(PETSC_NULL_OPTIONS,"-pc_type"     , "jacobi",petsc_ierr)

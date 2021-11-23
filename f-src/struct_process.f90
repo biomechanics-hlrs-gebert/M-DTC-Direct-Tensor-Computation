@@ -136,7 +136,7 @@ Contains
     Type(tMat)                        :: AA, AA_org
     Type(tVec)                        :: XX
     Type(tVec), Dimension(24)         :: FF
-    TYPE(tPETScViewer)                :: V
+    TYPE(tPETScViewer)                :: PetscViewer
     Type(tKSP)                        :: KSP
     Integer(Kind=ik)                  :: Istart,Iend, parts, IVstart, IVend
     Integer(Kind=ik), Dimension(:), Allocatable :: nodes_in_mesh
@@ -379,11 +379,13 @@ Contains
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     If (out_amount == "DEBUG") THEN 
        call MatGetOwnershipRange(AA, Istart , Iend,  petsc_ierr)
-       Write(un_lf,'(A,I4,A,A6,2(A,I9))')&
+       Write(un_lf,"('MM ', A,I4,A,A6,2(A,I9))")&
             "MPI rank : ",rank_mpi,"| matrix ownership for ","A    ", ":",Istart," -- " , Iend
+
        call MatGetOwnershipRange(AA_org, Istart , Iend,  petsc_ierr)
-              Write(un_lf,'(A,I4,A,A6,2(A,I9))')&
-            "MPI rank : ",rank_mpi,"| matrix ownership for ","A_org", ":",Istart," -- " , Iend
+
+       Write(un_lf,"('MM ', A,I4,A,A6,2(A,I9))")&
+       "MPI rank : ",rank_mpi,"| matrix ownership for ","A_org", ":",Istart," -- " , Iend
     End If
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<       
 
@@ -473,13 +475,16 @@ Contains
 
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     If (out_amount == "DEBUG") THEN 
-       Call PetscViewerCreate(COMM_MPI, V, petsc_ierr)
-       Call PetscViewerASCIIOpen(COMM_MPI,"AA.output.1",V, petsc_ierr);
-       Call PetscViewerSetFormat(V, PETSC_VIEWER_ASCII_DENSE, petsc_ierr)
-       Call MatView(AA, V, petsc_ierr)
-       Call PetscViewerDestroy(V, petsc_ierr)
+       Call PetscViewerCreate(COMM_MPI, PetscViewer, petsc_ierr)
+       Call PetscViewerASCIIOpen(COMM_MPI,"AA.output.1",PetscViewer, petsc_ierr);
+       Call PetscViewerSetFormat(PetscViewer, PETSC_VIEWER_ASCII_DENSE, petsc_ierr)
+       Call MatView(AA, PetscViewer, petsc_ierr)
+       Call PetscViewerDestroy(PetscViewer, petsc_ierr)
     End If
     
+
+
+
     !***************************************************************************
     !** At this point the system matrix is assembled. To make it ready to be ***
     !** used, the rows and columns of the dofs with prescribed displacements ***
@@ -498,7 +503,7 @@ Contains
        !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
        If (out_amount == "DEBUG") THEN 
           call VecGetOwnershipRange(FF(ii), IVstart, IVend, petsc_ierr)
-          Write(un_lf,'(A,I4,A,A6,2(A,I9))')&
+          Write(un_lf,"('MM ', A,I4,A,A6,2(A,I9))")&
                "MPI rank : ",rank_mpi,"| vector ownership for ","F", ":",IVstart," -- " , IVend
        End If
        !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<       
@@ -548,13 +553,13 @@ Contains
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     If (out_amount == "DEBUG") THEN 
        call VecGetOwnershipRange(XX, IVstart, IVend, petsc_ierr)
-       Write(un_lf,'(A,I4,A,A6,2(A,I9))')&
+       Write(un_lf,"('MM ', A,I4,A,A6,2(A,I9))")&
             "MPI rank : ",rank_mpi,"| vector ownership for ","X", ":",IVstart," -- " , IVend
-       Call PetscViewerCreate(COMM_MPI, V, petsc_ierr)
-       Call PetscViewerASCIIOpen(COMM_MPI,"FX.output.1",V, petsc_ierr);
-       Call PetscViewerSetFormat(V, PETSC_VIEWER_ASCII_DENSE, petsc_ierr)
-       Call VecView(XX, V, petsc_ierr)
-       Call PetscViewerDestroy(V, petsc_ierr)
+       Call PetscViewerCreate(COMM_MPI, PetscViewer, petsc_ierr)
+       Call PetscViewerASCIIOpen(COMM_MPI,"FX.output.1",PetscViewer, petsc_ierr);
+       Call PetscViewerSetFormat(PetscViewer, PETSC_VIEWER_ASCII_DENSE, petsc_ierr)
+       Call VecView(XX, PetscViewer, petsc_ierr)
+       Call PetscViewerDestroy(PetscViewer, petsc_ierr)
     End If
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -641,11 +646,11 @@ Contains
     
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     If (out_amount == "DEBUG") THEN 
-       Call PetscViewerCreate(COMM_MPI, V, petsc_ierr)
-       Call PetscViewerASCIIOpen(COMM_MPI,"FF.output.1",V, petsc_ierr);
-       Call PetscViewerSetFormat(V, PETSC_VIEWER_ASCII_DENSE, petsc_ierr)
-       Call VecView(FF( 1), V, petsc_ierr)
-       Call PetscViewerDestroy(V, petsc_ierr)
+       Call PetscViewerCreate(COMM_MPI, PetscViewer, petsc_ierr)
+       Call PetscViewerASCIIOpen(COMM_MPI,"FF.output.1", PetscViewer, petsc_ierr);
+       Call PetscViewerSetFormat(PetscViewer, PETSC_VIEWER_ASCII_DENSE, petsc_ierr)
+       Call VecView(FF( 1), PetscViewer, petsc_ierr)
+       Call PetscViewerDestroy(PetscViewer, petsc_ierr)
     End If
    
     !***************************************************************************
@@ -881,6 +886,7 @@ Contains
 !>       number of elements
 !------------------------------------------------------------------------------
 Program main_struct_process
+  use iso_c_binding
 
   USE global_std
   USE auxiliaries
@@ -909,6 +915,7 @@ Program main_struct_process
   INTEGER(KIND=mpi_ik), Dimension(MPI_STATUS_SIZE)   :: status_mpi
   INTEGER(KIND=mpi_ik), Dimension(:,:), Allocatable  :: statuses_mpi
   INTEGER(KIND=mpi_ik), Dimension(:)  , Allocatable  :: Activity, req_list
+
   !------------------------------------------------------------------------------------------------
   CHARACTER(Len=mcl)                                :: link_name = 'struct process'
   INTEGER  (kind=c_int )                            :: stat_c_int
@@ -1070,9 +1077,10 @@ Program main_struct_process
       !------------------------------------------------------------------------------
       CALL meta_start_ascii(fh=fhl  , suf=log_suf, restart=restart)
       CALL meta_start_ascii(fh=fhmon, suf=mon_suf, restart=restart)
-
+      
       IF (std_out/=6) THEN
          CALL meta_start_ascii(fh=std_out, suf='.std_out', restart=restart)
+
          CALL show_title(revision) 
       END IF
 
@@ -1565,7 +1573,6 @@ Program main_struct_process
 
      PETSC_COMM_WORLD = worker_comm
      CALL PetscInitialize(PETSC_NULL_CHARACTER, petsc_ierr)
-
   End If
 
   !****************************************************************************
@@ -1592,7 +1599,7 @@ Program main_struct_process
 
      !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
      If (out_amount == "DEBUG") THEN
-        write(un_mon,*)"On rank zero, stream sizes: ",dsize
+        write(un_mon,FMT_MSG_AxI0)"On rank zero, stream sizes: ",dsize
      End If
      !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
      
@@ -1631,7 +1638,7 @@ Program main_struct_process
          End Do
          
          !** Log to global stdout **********************************************
-         Write(un_mon,'(2(A,I10))')"MPI rank : ",ii, " ; Domain number : ",Domains(nn)
+         Write(un_mon,FMT_MSG_2AI0)"MPI rank: ",ii, "      Domain number: ",Domains(nn)
          flush(un_mon)
 
          nn = nn + 1_mpi_ik
@@ -1979,9 +1986,7 @@ IF(rank_mpi == 0) THEN
    CALL meta_stop_ascii(fh=fhl  , suf=log_suf)
    CALL meta_stop_ascii(fh=fhmon, suf=mon_suf)
 
-   IF (std_out/=6) THEN
-      CALL meta_stop_ascii(fh=std_out, suf='.std_out')
-   END IF
+   IF (std_out/=6) CALL meta_stop_ascii(fh=std_out, suf='.std_out')
 
 END IF ! (rank_mpi == 0)
 

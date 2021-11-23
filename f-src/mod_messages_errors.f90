@@ -41,6 +41,7 @@ CHARACTER(Len=*), PARAMETER :: FMT_TXT_SEP  = "(80('-'))"
 CHARACTER(Len=*), PARAMETER :: FMT_MSG      = "('MM ',A)"
 CHARACTER(Len=*), PARAMETER :: FMT_MSG_SEP  = "(80('-'))"
 !
+CHARACTER(Len=*), PARAMETER :: FMT_MSG_AxI0  = "('MM ',A,*('  ', I0))"
 CHARACTER(Len=*), PARAMETER :: FMT_MSG_AI0  = "('MM ',*(A,1X,I0,1X))"
 CHARACTER(Len=*), PARAMETER :: FMT_MSG_AI0A = "('MM ',A,1X,I0,1X,A)"
 CHARACTER(Len=*), PARAMETER :: FMT_MSG_A8I5 = "('MM ',A,1X,8(',',I5))"
