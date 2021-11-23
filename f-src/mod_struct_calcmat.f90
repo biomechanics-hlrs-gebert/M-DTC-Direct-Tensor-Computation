@@ -277,19 +277,7 @@ contains
     !****************************************************************************
 
     !** Init C ******************************************************************
-    E_div  = 1._rk / E_Modul
-    nu_div = -nu * E_div
-    G_div  = 2._rk * (1._rk+nu) * E_div
-
-    CC = 0._rk
-!     CC = iso_compliance_voigt(E, nu)
-
-    CC(1,1:3) = (/  E_div, nu_div, nu_div /)
-    CC(2,1:3) = (/ nu_div,  E_div, nu_div /)
-    CC(3,1:3) = (/ nu_div, nu_div,  E_div /)
-    CC(4,4) = G_div
-    CC(5,5) = G_div
-    CC(6,6) = G_div
+    CC = iso_compliance_voigt(E_Modul, nu)
 
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     If (out_amount == "DEBUG") THEN
