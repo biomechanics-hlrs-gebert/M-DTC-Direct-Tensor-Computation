@@ -72,6 +72,7 @@ CHARACTER(Len=*), PARAMETER :: FMT_DBG_SEP = "('#DBG#',75('='))"
 !------------------------------------------------------------------------------
 ! Provide colors on std_out (!) 
 ! Needs to compile with -fbackslash 
+! Use of a requires resetting it.
 !------------------------------------------------------------------------------
 CHARACTER(LEN=*), PARAMETER ::  FMT_Blck    = "\x1B[30m"
 CHARACTER(LEN=*), PARAMETER ::  FMT_Red     = "\x1B[31m"
@@ -223,40 +224,17 @@ INTEGER(KIND=ik), INTENT(IN) :: fh
 CHARACTER(LEN=*), INTENT(IN) :: txt
 INTEGER(KIND=ik) :: err
 
-INTEGER(KIND=mpi_ik) :: ierr = 0
-
-CHARACTER(LEN=mcl) :: delim
-INTEGER  (KIND=ik) :: ntokens, path_ntokens
-INTEGER  (KIND=ik) :: ii, jj, sw, mode
-
-CHARACTER(LEN=scl) :: ERR_COLOR, ERR_COLOR_LONG
-CHARACTER(LEN=scl) :: ERR_LBL, ERR_LBL_LONG
-
-ERR_LBL   = "EE"
-ERR_COLOR = FMT_Red
-
-ERR_LBL_LONG   = "EE Program halted"
-ERR_COLOR_LONG = FMT_Red
-
-
-mode = 0                ! Absolute or relative path
-sw = 2                  ! Whether it's the beginning or within a path
-ntokens = 0             ! Amount of words in message
-path_ntokens = 0        ! Amount of words in a path
-delim = '/'
-ii = 1
-jj = 1
+INTEGER(KIND=mpi_ik) :: ierr
 
 ! if err == 0 is a warning --> all "mpi-errors" are warnings :-)
 IF (err == 0) THEN
    CONTINUE
 ELSE
 
+   CALL stop_all(ierr)
+
    WRITE(fh, FMT_ERR) TRIM(txt)
-
-   CALL stop_all()
-
-   WRITE(*,FMT_ERR_STOP)
+   WRITE(fh, FMT_ERR_STOP)
 
    IF ( ierr /= 0 ) WRITE(*,'(A)') "MPI_FINALIZE did not succeed"
    STOP 
@@ -276,8 +254,10 @@ END SUBROUTINE print_err_stop
 !
 !> @brief
 !> Stop slaves properly
+!
+!> @param(out) ierr MPI Error code
 !------------------------------------------------------------------------------  
-SUBROUTINE stop_all()
+SUBROUTINE stop_all(ierr)
 
 Integer(mpi_ik) :: ierr
 

@@ -14,8 +14,10 @@ Document reasons for interfaces and implementations
 Code Reviews
 
 Run on vulcan
-
 Run on Hawk
+    without error std out/std err
+
+Restart
 
 int4.st
 
