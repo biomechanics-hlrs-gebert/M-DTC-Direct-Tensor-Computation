@@ -3,18 +3,18 @@
 # Directly_Discretizing_Tensor_Computation-DDTC - Start Application
 #
 # Author:    Johannes Gebert »gebert@hlrs.de«
-# Created:   22.11.2021
-# Last edit: 22.11.2021
+# Created:   24.11.2021
+# Last edit: 24.11.2021
 # ------------------------------------------------------------------------------
 #PBS -N DDTC
-#PBS -l select=1:node_type=clx384gb40c:mpiprocs=3
+#PBS -l select=1:node_type=rome:mpiprocs=3
 #PBS -l walltime=00:10:00
 #
 # Change to the direcotry that the job was submitted from
 cd $PBS_O_WORKDIR
 #
 # Load env
-source ./setenv.sh vulcan --no-output 
+source ./setenv.sh hawk --no-output 
 #
 # ------------------------------------------------------------------------------
 # Define an output file containing the std_out of the program. Currently, it 

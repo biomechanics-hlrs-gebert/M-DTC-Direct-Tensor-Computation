@@ -21,9 +21,9 @@ Module chain_variables
   ! New units are given several times to orchestrate the files (!)
   ! ---------------------------------------------------------------------------
   !> Logfile unit
-  Integer                     :: un_lf  ! = fhl
+  Integer                     :: un_lf ! Reassigned, therefore not coupled to meta file formats.
   !> Monitor file unit (default = stdout)
-  Integer                     :: un_mon! = fhmon
+  Integer                     :: un_mon = fhmon
   
   Character(len=mcl)          :: outpath = "./"
   Character(len=mcl)          :: inpath  = "./"

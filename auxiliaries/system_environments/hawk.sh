@@ -32,6 +32,9 @@
 # Unload MPT ------------------------------
 module unload mpt/2.23
 #
+# Unload MPT ------------------------------
+module load gcc/9.2.0
+#
 # MPI environment ------------------------
 module load openmpi/4.0.4
 #
@@ -41,9 +44,10 @@ export LD_LIBRARY_PATH=${mpi_prefix}/lib:$LD_LIBRARY_PATH
 #
 # ----------------------------------------
 # BLAS/LAPACK installation
-module load scalapack
-#
-export LAPACK_LIBPATH=/opt/hlrs/spack/rev-004_2020-06-17/scalapack/2.1.0-gcc-9.2.0-amna4d3j
+# module load scalapack
+export LAPACK_LIBPATH=$PWD/lib/lapack
+# 
+# export LAPACK_LIBPATH=/opt/hlrs/spack/rev-004_2020-06-17/scalapack/2.1.0-gcc-9.2.0-amna4d3j
 #
 # ----------------------------------------
 # METIS installation
@@ -55,9 +59,9 @@ export METIS_LIBPATH=${metis_prefix}/lib
 #
 # ----------------------------------------
 # PETSc installation
-module load petsc/3.12.2-int64
+# module load petsc/3.12.2-int64
 #
-petsc_prefix=/opt/hlrs/spack/rev-004_2020-06-17/petsc/3.12.2-gcc-9.2.0-5f6kltt5
+petsc_prefix=$PWD/petsc
 export PETSC_INCPATH=${petsc_prefix}/include
 export PETSC_LIBPATH=${petsc_prefix}/lib
 export LD_LIBRARY_PATH=${petsc_prefix}/lib:$LD_LIBRARY_PATH

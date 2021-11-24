@@ -68,18 +68,19 @@ fi
 #
 usage ()
 {
-    echo ""
-    echo "Usage:"
-    echo "     setenv.sh »system« [silent]"
-    echo ""
-    echo "Description:"
-    echo "     Sets the environment to run the directly discretizing tensor extraction"
-    echo "     for »system«."
-    echo ""
-    echo "Parameters:"
-    echo "     system : Valid values are 'zeus', 'julius' or 'hawk'."
-    echo "     silent : Any cmd arg 2 supresses all messages"
-    echo ""           
+    echo "-- "
+    echo "-- Usage:"
+    echo "--      setenv.sh »system« [silent]"
+    echo "-- "
+    echo "-- Description:"
+    echo "--      Sets the environment to run the directly discretizing tensor extraction"
+    echo "--      for »system«."
+    echo "-- "
+    echo "-- Parameters:"
+    echo "--      Valid systems are '${green}zeus${nc}', '${green}julius${nc}', '${green}vulcan${nc}' and '${green}hawk${nc}' respectively."
+    echo "--      Appending --no-output suppresses all output."
+    echo "-- "           
+    echo "--------------------------------------------------------------------------------"
 }
 #
 #------------------------------------------------------------------------------
@@ -92,10 +93,13 @@ if [ -z $1 ]; then
     usage
 else
     #
-    if [ -z $2 ]; then
+    if [ "$2" != "--no-output" ]; then
         echo "--------------------------------------------------------------------------------"
         echo "-- ${green}Setting environment${nc} for system: "$1
         echo "--"
+        export NO_OUTPUT=NO
+    else
+        export NO_OUTPUT=YES
     fi
     #
     sys_set=0
@@ -107,8 +111,8 @@ else
     done
 
     if [ $sys_set -eq 0 ]; then
-       echo ""
-       echo "${red}System $1 currently is not supported.${nc}"
+       echo "--"
+       echo "-- ${yellow}System ${red}$1 ${yellow}currently is not supported.${nc}"
        usage
     else
 	#
@@ -121,7 +125,7 @@ else
 	# PATH extensions ------------------------
 	export PATH=${prefix}/bin:$PATH
 	#
-	if [ -z $2 ]; then
+    if [ "NO_OUTPUT" != "YES" ]; then
 	    echo "-- ${green}Done${nc}"
 	    echo "--------------------------------------------------------------------------------"
 	fi
