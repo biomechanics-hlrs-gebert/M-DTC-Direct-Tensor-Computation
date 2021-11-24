@@ -63,4 +63,7 @@ export LD_LIBRARY_PATH=${petsc_prefix}/lib:$LD_LIBRARY_PATH
 #
 # ----------------------------------------
 # Define std_out
-export USE_STD_OUT=NO
+export USE_STD_OUT=NO#
+# ----------------------------------------
+# Root is a git repo?
+export PROVIDES_GIT="NO"

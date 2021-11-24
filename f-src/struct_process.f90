@@ -986,7 +986,7 @@ Program main_struct_process
 
          IF (cmd_arg == '') EXIT
 
-         IF (ii == 1) binary = cmd_arg
+         IF (ii == 0) binary = cmd_arg
 
          infile = TRIM(cmd_arg)
          

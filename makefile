@@ -45,8 +45,14 @@ trgt_vrsn="v1.0.0"
 bin_name="ddtc"
 long_name="Directly Discretizing Tensor Computation"
 # -----------------------------------------------------------------------------
-# https://jblevins.org/log/vc
-rev = $(shell git rev-parse HEAD)
+ifeq ($(PROVIDES_GIT),YES)
+# Get git hash https://jblevins.org/log/vc
+	rev = $(shell git rev-parse HEAD)
+else
+	rev = NO_GIT_REPOSITORY
+endif
+# -----------------------------------------------------------------------------
+
 # -----------------------------------------------------------------------------
 # Check for environment
 check-env:
@@ -522,7 +528,7 @@ $(obj_dir)pd_merge_branch_to_tree$(obj_ext):$(mod_dir)puredat$(mod_ext) $(mod_di
 # Final Link step of MAIN -----------------------------------------------------
 $(main_bin): $(c-objects) $(f-objects)
 	@echo "--------------------------------------------------------------------------------------------"
-	@echo '--- Get Github revision'
+	@echo '--- Write revision and git info'
 	@echo "CHARACTER(LEN = scl), PARAMETER :: revision = '$(trgt_vrsn)'" > $(f_src_dir)include_f90/revision_meta$(f90_ext)
 	@echo "CHARACTER(LEN = scl), PARAMETER :: hash = '$(rev)'" >> $(f_src_dir)include_f90/revision_meta$(f90_ext)
 	@echo "--------------------------------------------------------------------------------------------"
