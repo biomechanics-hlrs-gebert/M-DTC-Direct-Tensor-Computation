@@ -125,9 +125,20 @@ INQUIRE (FILE = TRIM(lockname), EXIST = exist)
 
 IF((restart .EQ. 'N') .AND. (exist)) THEN
    mssg='The .*.lock file is set and a restart prohibited by default or the user.'
+
+   INQUIRE (FILE = out%full, EXIST = exist)
+
+   ! Delete out meta if the lock file was set.
+   IF (exist) CALL execute_command_line ('rm '//TRIM(out%full))
+
    CALL print_err_stop(std_out, TRIM(ADJUSTL(mssg)), err=1_meta_ik)
 END IF
 
+
+
+!------------------------------------------------------------------------------
+! Create a new lock file.
+!------------------------------------------------------------------------------
 IF(((restart .EQ. 'Y') .AND. (.NOT. exist)) .OR. ((restart .EQ. 'N') .AND. (.NOT. exist))) THEN
    CALL execute_command_line ('touch '//TRIM(lockname), CMDSTAT=ios)
    CALL print_err_stop(std_out, 'The .*.lock file could not be set.', err=ios)

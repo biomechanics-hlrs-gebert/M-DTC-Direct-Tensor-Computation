@@ -993,22 +993,20 @@ Program main_struct_process
          cmd_arg_history = TRIM(cmd_arg_history)//' '//TRIM(cmd_arg)
 
          IF (cmd_arg(1:1) .EQ. '-') THEN
-            DO jj=2, LEN_TRIM(cmd_arg)
-                     SELECT CASE( cmd_arg(5:LEN_TRIM(cmd_arg)) )
-                        CASE('-restart', '-Restart')
-                           restart_cmdarg = 'Y'
-                        CASE('v', '-Version', '-version')
-                              CALL show_title(revision)
-                              GOTO 1001   ! Jump to the end of the program.
-                        CASE('h', '-Help', '-help')
-                           CALL usage()
-                           GOTO 1001   ! Jump to the end of the program.
-                     END SELECT
-                     !
-                     SELECT CASE( cmd_arg(3:4) )
-                        CASE('NO', 'no', 'No', 'nO');  restart_cmdarg = 'N'
-                     END SELECT
-            END DO
+            SELECT CASE( cmd_arg(2:LEN_TRIM(cmd_arg)) )
+               CASE('-restart', '-Restart')
+                  restart_cmdarg = 'Y'
+               CASE('v', '-Version', '-version')
+                     CALL show_title(revision)
+                     GOTO 1001   ! Jump to the end of the program.
+               CASE('h', '-Help', '-help')
+                  CALL usage()
+                  GOTO 1001   ! Jump to the end of the program.
+            END SELECT
+            !
+            SELECT CASE( cmd_arg(3:4) )
+               CASE('NO', 'no', 'No', 'nO');  restart_cmdarg = 'N'
+            END SELECT
          END IF
       END DO
 
@@ -1027,19 +1025,21 @@ Program main_struct_process
       CALL meta_append(m_rry)
       
       !------------------------------------------------------------------------------
-      ! Set input parameters
-      !------------------------------------------------------------------------------
-      ! Input data
-      muCT_pd_path = TRIM(in%path)
-      muCT_pd_name = TRIM(in%bsnm)
-      ! Output directory and 
-      outpath      = TRIM(out%p_n_bsnm)//"/"
-      project_name = TRIM(out%bsnm)
-
+      ! Set input paths
       !------------------------------------------------------------------------------
       ! It is strongly recommended not to play around with these paths carelessly.
       ! Some of the dependencies are easily overlooked.
       !------------------------------------------------------------------------------
+      muCT_pd_path = TRIM(in%path)
+      muCT_pd_name = TRIM(in%bsnm)
+
+      !------------------------------------------------------------------------------
+      ! Output directory and 
+      ! Implicitly creates a subdirectory.
+      !------------------------------------------------------------------------------
+      outpath = TRIM(out%p_n_bsnm)//"/"
+      project_name = TRIM(out%bsnm)
+
       pro_path = outpath
       pro_name = project_name
 
@@ -1065,6 +1065,7 @@ Program main_struct_process
          restart = restart_cmdarg
          mssg="The keyword »restart« was overwritten by the command flag --(no)-restart"
          WRITE(std_out, FMT_WRN) TRIM(mssg)
+         WRITE(std_out, FMT_WRN_SEP)
       END IF
 
       CALL meta_handle_lock_file(restart)
