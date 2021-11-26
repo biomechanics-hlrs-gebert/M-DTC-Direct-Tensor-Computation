@@ -1145,6 +1145,7 @@ Program main_struct_process
 
       !------------------------------------------------------------------------------
       ! Prepare output directory via calling the c function.
+      ! Required, because INQUIRE only acts on files, not on directories.
       ! File exists if stat_c_int = 0 
       !------------------------------------------------------------------------------
       c_char_array(1:LEN(TRIM(outpath)//CHAR(0))) = str_to_char(TRIM(outpath)//CHAR(0))
@@ -1176,6 +1177,10 @@ Program main_struct_process
       !------------------------------------------------------------------------------
       INQUIRE(FILE=TRIM(pro_path)//TRIM(pro_name)//'.head',EXIST=fexist)
 
+      !------------------------------------------------------------------------------
+      ! The Output name normally is different than the input name.
+      ! Therefore, an existing header implies a restart.
+      !------------------------------------------------------------------------------
       IF (.NOT. fexist) THEN ! Project header not available
          ! Raise root branch 
 
@@ -1186,17 +1191,34 @@ Program main_struct_process
             restart = 'N'
          END IF
 
+         !------------------------------------------------------------------------------
+         ! project_name --> out%p_n_bsnm/bsnm --> subdirectory with file name = bsnm.suf
+         !------------------------------------------------------------------------------
+         ! Tree description = out%p_n_bsnm/bsnm
+         ! Tree which is fed back = root. A collection of stream paths and Null pointers
+         !------------------------------------------------------------------------------
          Call raise_tree(Trim(project_name),root)
 
          Call include_branch_into_branch(s_b=params, t_b=root, blind=.TRUE.)
 
+         !------------------------------------------------------------------------------
+         ! Input data, basically.
+         ! Set the global variable pro_path/pro_name to the input data
+         !------------------------------------------------------------------------------
          !** Load puredat tree of micro-CT data and calculate the global
          !** parameters of the domain decomposition
          pro_path = muCT_pd_path
          pro_name = muCT_pd_name
 
+         !------------------------------------------------------------------------------
+         ! Read an existing input tree (with microfocus ct data).
+         !------------------------------------------------------------------------------
          phi_tree = read_tree()
 
+         !------------------------------------------------------------------------------
+         ! Output data, basically.
+         ! Set the global variable pro_path/pro_name to the output data
+         !------------------------------------------------------------------------------
          !** Set project name and path of global domain decomposition     
          pro_path = outpath
          pro_name = project_name
@@ -1209,7 +1231,9 @@ Program main_struct_process
       ELSE ! Project header available
          ! restart = 'Y'
 
-        !** Read root branch ******************************
+        !------------------------------------------------------------------------------
+        ! Read an existing output tree (with microfocus ct data).
+        !------------------------------------------------------------------------------
         root = read_tree()
 
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

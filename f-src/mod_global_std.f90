@@ -73,7 +73,7 @@ Module puredat_globals
    Character(len=pd_mcl) :: pro_name
 
    !> puredat monitor unit
-   Integer               :: pd_umon  != OUTPUT_UNIT
+   Integer :: pd_umon  != OUTPUT_UNIT
 
    ! PureDat Formatters
    Character(Len=*), Parameter :: PDF_E_A    = "('EE ',A)"

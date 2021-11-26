@@ -1115,7 +1115,7 @@ CONTAINS
     Character(len=*), Intent(in)  :: desc
     Type(tBranch)   , intent(out) :: tree
 
-    Integer                       :: alloc_stat
+    Integer :: alloc_stat
 
     !* Set description ********************************************************
     tree%desc = desc
