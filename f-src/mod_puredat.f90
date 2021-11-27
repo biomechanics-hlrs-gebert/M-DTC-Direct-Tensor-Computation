@@ -3365,7 +3365,7 @@ CONTAINS
   End Function read_tree
 
   !*********************************************************
-  !** Subroutine for reading a branch form header file *****
+  !** Subroutine for reading a branch from header file *****
   Recursive Subroutine read_branch(head,branch,size,pos,streams)
 
     character, dimension(:), intent(in)     :: head
@@ -3401,12 +3401,10 @@ CONTAINS
     ENd if
 
     Allocate(branch%branches(branch%no_branches), Stat=alloc_stat)
-    Call alloc_error(alloc_stat,'branch%branches' ,&
-         'read_branch', branch%no_branches)
+    Call alloc_error(alloc_stat,'branch%branches', 'read_branch', branch%no_branches)
 
     Allocate(branch%leaves(branch%no_leaves), Stat=alloc_stat)
-    Call alloc_error(alloc_stat,'branch%leaves' ,&
-         'read_branch', branch%no_leaves)
+    Call alloc_error(alloc_stat,'branch%leaves', 'read_branch', branch%no_leaves)
 
     line = char_to_str(head(pos:min(pos+pd_mcl-1,size)))
     pos=pos+len_trim(line)+1
@@ -3415,8 +3413,7 @@ CONTAINS
     If (streams_allocated) then
        If (.NOT.allocated(branch%streams)) then         
           allocate(branch%streams, Stat=alloc_stat)
-          Call alloc_error(alloc_stat,'branch%streams' ,&
-               'read_branch', branch%no_branches)
+          Call alloc_error(alloc_stat,'branch%streams', 'read_branch', branch%no_branches)
        End If
 
        Do ii = 1, no_streams
