@@ -1326,7 +1326,7 @@ DO ii=1, 6
          suf = ".char.st"
    END SELECT
 
-   IF (stda(ii,1) == 0) CONTINUE
+   ! IF (stda(ii,1) == 0) CYCLE
 
    IF(ii == rawdata) THEN
       OPEN(UNIT=free_file_handle, FILE=TRIM(in%p_n_bsnm)//TRIM(suf), &

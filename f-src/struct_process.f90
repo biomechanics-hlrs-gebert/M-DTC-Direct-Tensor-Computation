@@ -318,11 +318,13 @@ Contains
 
        !** Broadcast matrix size. TODO could also be included into part branches.
        Call mpi_bcast(m_size, 1_mpi_ik, MPI_INTEGER8, 0_mpi_ik, COMM_MPI, ierr)
-       
+               WRITE(*,*) "DEBUG_MASTER"
+
     !****************************************************************************
     !** Ranks > 0 -- Workers ****************************************************
     !****************************************************************************
     Else
+              WRITE(*,*) "DEBUG_WORKERS"
 
        Call mpi_recv(serial_pb_size, 1_mpi_ik, mpi_integer8, 0_mpi_ik, &
             rank_mpi, COMM_MPI, status_mpi, ierr)
@@ -482,8 +484,6 @@ Contains
        Call PetscViewerDestroy(PetscViewer, petsc_ierr)
     End If
     
-
-
 
     !***************************************************************************
     !** At this point the system matrix is assembled. To make it ready to be ***
@@ -1870,7 +1870,7 @@ Program main_struct_process
         Call exec_single_domain(root, nn, Domain, job_dir, Active, fh_mpi, &
              worker_rank_mpi, worker_size_mpi, worker_comm)
         !======================================================================
-        
+
         !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         If (out_amount == "DEBUG") THEN
            Write(un_lf, fmt_dbg_sep)
