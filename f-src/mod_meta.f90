@@ -1294,13 +1294,13 @@ WRITE(fhh, PDM_arrowsA) "description", "'"//TRIM(branch_description)//"'"
 WRITE(fhh, PDM_arrowsI0) "no_of_branches", 0
 WRITE(fhh, PDM_arrowsI0) "no_of_leaves", 6 
 WRITE(fhh, PDM_arrowsL) "streams_allocated", .TRUE.  
-WRITE(fhh, PDM_arrowsI0) "size_int1_stream", stda(1,1) ! 0
-WRITE(fhh, PDM_arrowsI0) "size_int2_stream", stda(2,1) ! 0 
-WRITE(fhh, PDM_arrowsI0) "size_int4_stream", stda(3,1) + 6 ! origin, dims
-WRITE(fhh, PDM_arrowsI0) "size_int8_stream", stda(4,1) ! 0
-WRITE(fhh, PDM_arrowsI0) "size_real_stream", stda(5,1) + 6 ! origin_shift, spcng
+WRITE(fhh, PDM_arrowsI0) "size_int1_stream", stda(1,1)
+WRITE(fhh, PDM_arrowsI0) "size_int2_stream", stda(2,1)/2
+WRITE(fhh, PDM_arrowsI0) "size_int4_stream", stda(3,1)/4 + 6 ! origin, d)
+WRITE(fhh, PDM_arrowsI0) "size_int8_stream", stda(4,1)/8
+WRITE(fhh, PDM_arrowsI0) "size_real_stream", stda(5,1)/8 + 6 ! origin_shift, sp)
 WRITE(fhh, PDM_arrowsI0) "size_char_stream", stda(6,1) + LEN_TRIM(field_content_desc)
-WRITE(fhh, PDM_arrowsI0) "size_log_stream", stda(7,1) ! 0
+WRITE(fhh, PDM_arrowsI0) "size_log_stream" , stda(7,1)
 
 !------------------------------------------------------------------------------
 ! Write the meta data into the stream files
@@ -1309,14 +1309,25 @@ WRITE(fhh, PDM_arrowsI0) "size_log_stream", stda(7,1) ! 0
 DO ii=1, 6 
    ! Not integrated with 2nd SELECT CASE(ii) to get a proper CONTINUE and suf
    SELECT CASE(ii)
-      CASE(1); suf = ".int1.st"
-      CASE(2); suf = ".int2.st"
-      CASE(3); suf = ".int4.st"
-      CASE(4); suf = ".int8.st"
-      CASE(5); suf = ".real8.st"
-      CASE(6); suf = ".char.st"
-      CASE DEFAULT; CONTINUE
+      CASE(1)
+         suf = ".int1.st"
+      CASE(2)
+         suf = ".int2.st"
+         stda(ii,:) = (stda(ii,:)/2)
+      CASE(3)
+         suf = ".int4.st"
+         stda(ii,:) = (stda(ii,:)/4)+6
+      CASE(4)
+         suf = ".int8.st"
+         stda(ii,:) = (stda(ii,:)/8)
+      CASE(5)
+         suf = ".real8.st"
+         stda(ii,:) = (stda(ii,:)/8)+6
+      CASE(6)
+         suf = ".char.st"
    END SELECT
+
+   IF (stda(ii,1) == 0) CONTINUE
 
    IF(ii == rawdata) THEN
       OPEN(UNIT=free_file_handle, FILE=TRIM(in%p_n_bsnm)//TRIM(suf), &
@@ -1331,6 +1342,8 @@ DO ii=1, 6
 
    SELECT CASE(ii)
       CASE(3)
+         CALL write_leaf_to_header(fhh, "Scalar data", ii, stda(ii,:))
+
          stda(ii,:) = stda(ii,:)+[3, stda(ii,3)+1, stda(ii,3)+3]
          CALL write_leaf_to_header(fhh, "Number of voxels per direction", ii, stda(ii,:))           
          WRITE(free_file_handle, *) vox_per_dim

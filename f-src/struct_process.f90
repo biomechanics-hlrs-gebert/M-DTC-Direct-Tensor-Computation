@@ -1187,7 +1187,7 @@ Program main_struct_process
 
          IF (restart == 'Y') THEN
             WRITE(std_out, FMT_WRN) 'Restart of partly computed results requested, but no project header found.'
-            WRITE(std_out, FMT_WRN) 'Program behaves like there was none.'
+            WRITE(std_out, FMT_WRN) 'Program creates a new header.'
             WRITE(std_out, FMT_MSG_SEP)
             restart = 'N'
          END IF
