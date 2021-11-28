@@ -596,7 +596,7 @@ DO ii =1, SIZE(m_in)
    CALL parse(str=m_in(ii), delims=' ', args=tokens, nargs=ntokens)
 
    SELECT CASE(tokens(1))
-      CASE('*', 'r', 'w')
+      CASE('*', 'd', 'r', 'w')
 
          IF (tokens(2) == TRIM(keyword)) THEN
             kywd_found = 1
@@ -1242,7 +1242,7 @@ CALL meta_read (stdout, 'TYPE', m_rry, datatype)
 ! Rename the raw file and enter the stda
 !------------------------------------------------------------------------------
 suf=''
-rawdata=1
+rawdata=0
 SELECT CASE(TRIM(datatype))
    CASE('int1')
       suf = ".int1.st"
@@ -1290,7 +1290,7 @@ OPEN(UNIT=fhh, FILE=TRIM(in%p_n_bsnm)//head_suf, &
 ! This stuff is hardcoded and not flexible yet.
 !------------------------------------------------------------------------------
 WRITE(fhh, PDM_branch)
-WRITE(fhh, PDM_arrowsA) "'"//TRIM(branch_description)//"'"
+WRITE(fhh, PDM_arrowsA) "description", "'"//TRIM(branch_description)//"'"
 WRITE(fhh, PDM_arrowsI0) "no_of_branches", 0
 WRITE(fhh, PDM_arrowsI0) "no_of_leaves", 6 
 WRITE(fhh, PDM_arrowsL) "streams_allocated", .TRUE.  
@@ -1309,14 +1309,13 @@ WRITE(fhh, PDM_arrowsI0) "size_log_stream", stda(7,1) ! 0
 DO ii=1, 6 
    ! Not integrated with 2nd SELECT CASE(ii) to get a proper CONTINUE and suf
    SELECT CASE(ii)
-      CASE(3)
-         suf = ".int4.st"
-      CASE(5)
-         suf = ".real8.st"
-      CASE(6)
-         suf = ".char.st"
-      CASE DEFAULT
-         CONTINUE
+      CASE(1); suf = ".int1.st"
+      CASE(2); suf = ".int2.st"
+      CASE(3); suf = ".int4.st"
+      CASE(4); suf = ".int8.st"
+      CASE(5); suf = ".real8.st"
+      CASE(6); suf = ".char.st"
+      CASE DEFAULT; CONTINUE
    END SELECT
 
    IF(ii == rawdata) THEN
@@ -1332,22 +1331,25 @@ DO ii=1, 6
 
    SELECT CASE(ii)
       CASE(3)
-         CALL write_leaf_to_header(fhh, "Number of voxels per direction", &
-            ii, stda(ii,:)+[3, stda(ii,3)+1, stda(ii,3)+3])           
+         stda(ii,:) = stda(ii,:)+[3, stda(ii,3)+1, stda(ii,3)+3]
+         CALL write_leaf_to_header(fhh, "Number of voxels per direction", ii, stda(ii,:))           
          WRITE(free_file_handle, *) vox_per_dim
 
-         CALL write_leaf_to_header(fhh, "Origin", &
-            ii, stda(ii,:)+[3, stda(ii,3)+1, stda(ii,3)+3])
+         ! stda relative to values before (!)
+         stda(ii,:) = stda(ii,:)+[0, stda(ii,3), stda(ii,3)]
+         CALL write_leaf_to_header(fhh, "Origin", ii, stda(ii,:))
          WRITE(free_file_handle, *) origin
             
       CASE(5)
-         CALL write_leaf_to_header(fhh, "Grid spacings", &
-            ii, stda(ii,:)+[3, stda(ii,3)+1, stda(ii,3)+3])
+         stda(ii,:) = stda(ii,:)+[3, stda(ii,3)+1, stda(ii,3)+3]
+         CALL write_leaf_to_header(fhh, "Grid spacings", ii, stda(ii,:))
          WRITE(free_file_handle, *) grid_spacings
 
+         ! stda relative to values before (!)
+         stda(ii,:) = stda(ii,:)+[0, stda(ii,3), stda(ii,3)]
+
          osagcs = "Origin shift against global coordinate system"
-         CALL write_leaf_to_header(fhh, TRIM(osagcs), &
-            ii, stda(ii,:)+[3, stda(ii,3)+1, stda(ii,3)+3])
+         CALL write_leaf_to_header(fhh, TRIM(osagcs), ii, stda(ii,:))
          WRITE(free_file_handle, *) origin_shift
 
       CASE(6)

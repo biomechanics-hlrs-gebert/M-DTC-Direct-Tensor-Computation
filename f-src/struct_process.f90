@@ -893,6 +893,7 @@ Program main_struct_process
   USE messages_errors
   USE puredat 
   USE meta
+  USE meta_puredat_interface
   USE chain_routines
   USE MPI
   USE decomp 
@@ -937,7 +938,7 @@ Program main_struct_process
 
   INTEGER  (KIND=ik) :: nn, ii, jj, kk, dc
   INTEGER  (KIND=ik) :: amount_domains, path_count
-  INTEGER  (KIND=ik) :: alloc_stat, aun
+  INTEGER  (KIND=ik) :: alloc_stat, aun, free_file_handle
   INTEGER  (KIND=ik) :: Domain, llimit, parts, elo_macro
   CHARACTER(LEN=8)   :: elt_micro, output
   REAL     (KIND=rk) :: strain
@@ -1190,6 +1191,14 @@ Program main_struct_process
             WRITE(std_out, FMT_MSG_SEP)
             restart = 'N'
          END IF
+
+         free_file_handle = give_new_unit()
+         CALL convert_meta_to_puredat(free_file_handle, m_rry)
+
+
+!!!!! DEBUG !!!!!
+         CALL print_err_stop(std_out, "Programm abfangen", 1)
+!!!!! DEBUG !!!!!
 
          !------------------------------------------------------------------------------
          ! project_name --> out%p_n_bsnm/bsnm --> subdirectory with file name = bsnm.suf
