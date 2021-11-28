@@ -31,8 +31,8 @@ IMPLICIT NONE
    INTEGER, PARAMETER :: ucl    = 10   ! Unit    character  length
    INTEGER, PARAMETER :: stdspc = 30   ! Keyword standard space
 
-   CHARACTER(LEN=kcl) :: meta_program_keyword
-   CHARACTER(LEN=kcl) :: meta_prgrm_mstr_app
+   CHARACTER(LEN=kcl) :: global_meta_program_keyword
+   CHARACTER(LEN=kcl) :: global_meta_prgrm_mstr_app
 
    ! Standard files
    INTEGER(KIND=meta_ik), PARAMETER :: fh_meta_in  = 20, fhmei  = 20
@@ -149,7 +149,6 @@ IF((restart .EQ. 'Y') .AND. (exist)) CONTINUE
 END SUBROUTINE meta_handle_lock_file
 
 
-
 !------------------------------------------------------------------------------
 ! SUBROUTINE: meta_append
 !---------------------------------------------------------------------------  
@@ -161,6 +160,26 @@ END SUBROUTINE meta_handle_lock_file
 !> @param[inout] meta_as_rry Meta data written into a character array
 !---------------------------------------------------------------------------  
 SUBROUTINE meta_append(meta_as_rry)
+
+CHARACTER(LEN=meta_mcl), DIMENSION(:), INTENT(INOUT) :: meta_as_rry      
+
+CALL meta_invoke(meta_as_rry)
+CALL meta_continue(meta_as_rry)
+
+END SUBROUTINE meta_append
+
+
+!------------------------------------------------------------------------------
+! SUBROUTINE: meta_invoke
+!---------------------------------------------------------------------------  
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Subroutine to open and prepare a meta file for use
+!
+!> @param[inout] meta_as_rry Meta data written into a character array
+!---------------------------------------------------------------------------  
+SUBROUTINE meta_invoke(meta_as_rry)
 
 CHARACTER(LEN=meta_mcl), DIMENSION(:), INTENT(INOUT), ALLOCATABLE :: meta_as_rry      
 
@@ -230,13 +249,30 @@ IF(ntokens /= 5_meta_ik) THEN
    CALL print_err_stop(std_out, TRIM(ADJUSTL(mssg)), 0)
 END IF
 
+END SUBROUTINE meta_invoke
+
+
+!------------------------------------------------------------------------------
+! SUBROUTINE: meta_continue
+!---------------------------------------------------------------------------  
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Subroutine to invoke the output meta file
+!
+!> @param[inout] m_in Meta data written into a character array
+!---------------------------------------------------------------------------  
+SUBROUTINE meta_continue(m_in)
+
+CHARACTER(LEN=meta_mcl), DIMENSION(:), INTENT(IN) :: m_in      
+
 !------------------------------------------------------------------------------
 ! Alter the meta file name
 ! The variable »alter« must be given and must be true, 
 ! because its a dangerous operation which may lead to data loss.
 !------------------------------------------------------------------------------
-CALL meta_read (fhmon, 'NEW_BSNM_FEATURE', meta_as_rry, out%features)
-CALL meta_read (fhmon, 'NEW_BSNM_PURPOSE', meta_as_rry, out%purpose)
+CALL meta_read (fhmon, 'NEW_BSNM_FEATURE', m_in, out%features)
+CALL meta_read (fhmon, 'NEW_BSNM_PURPOSE', m_in, out%purpose)
 
 IF ((out%purpose == in%purpose) .AND. (out%features == in%features)) THEN
    WRITE(std_out,FMT_WRN) 'The basename (in part) did not change.'
@@ -250,7 +286,7 @@ END IF
 out%bsnm =     TRIM(out%dataset)//&
           '_'//TRIM(out%type)//&
           '_'//TRIM(out%purpose)//&
-          '_'//TRIM(meta_prgrm_mstr_app)//&
+          '_'//TRIM(global_meta_prgrm_mstr_app)//&
           '_'//TRIM(out%features)
 
 out%p_n_bsnm = TRIM(out%path)//&
@@ -271,7 +307,7 @@ OPEN(UNIT=fhmeo, FILE=TRIM(out%full), ACTION='WRITE', ACCESS='APPEND', STATUS='O
 
 WRITE(fhmeo, '(A)')
 
-END SUBROUTINE meta_append
+END SUBROUTINE meta_continue
 
 
 
@@ -581,7 +617,7 @@ DO ii =1, SIZE(m_in)
          !------------------------------------------------------------------------------
          ! User tells, that the scope of another program begins.
          !------------------------------------------------------------------------------
-         IF ((.NOT. override) .AND. (tokens(2) == TRIM(meta_program_keyword))) THEN
+         IF ((.NOT. override) .AND. (tokens(2) == TRIM(global_meta_program_keyword))) THEN
             override = .TRUE.
          ELSE IF (override) THEN
             !------------------------------------------------------------------------------
@@ -1105,3 +1141,259 @@ IF(opened) CLOSE (fhmeo)
 END SUBROUTINE meta_close
 
 END MODULE meta
+
+
+!------------------------------------------------------------------------------
+! MODULE: meta_puredat_interface
+!------------------------------------------------------------------------------
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+! @Description:
+!> Module to convert a *.raw/*.meta data description into a PureDat description
+!
+! REVISION HISTORY:
+! 27 11 2021 - Initial version
+!------------------------------------------------------------------------------
+MODULE meta_puredat_interface
+
+   USE meta
+   USE messages_errors
+
+IMPLICIT NONE
+
+CONTAINS
+
+!------------------------------------------------------------------------------
+! SUBROUTINE: convert_meta_to_puredat
+!------------------------------------------------------------------------------
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Invole the conversion of meta/raw data to the PureDat format
+!
+!> @Description
+!> The routine requires an opened meta file!
+!
+!> @param[in] free_file_handle File handle for use in this routine
+!> @param[in] p_n_bsnm Path and basename of the *.meta and the *.raw file
+!------------------------------------------------------------------------------
+SUBROUTINE convert_meta_to_puredat(free_file_handle, m_rry)
+
+INTEGER(KIND=meta_ik), INTENT(IN) :: free_file_handle
+CHARACTER(LEN=meta_mcl), DIMENSION(:), ALLOCATABLE, INTENT(INOUT), OPTIONAL :: m_rry      
+
+CHARACTER(LEN=meta_mcl) :: suf, datatype, field_content_desc, osagcs
+
+REAL(KIND=meta_rk), DIMENSION(3) :: grid_spacings, origin_shift
+
+INTEGER(KIND=meta_ik), DIMENSION(7,3) :: stda ! Stream data, 7 streams; no_of_data, lb, ub
+INTEGER(KIND=meta_ik), DIMENSION(3) :: vox_per_dim, origin
+INTEGER(KIND=meta_ik) :: stdout, rawsize, rawdata, ii
+
+LOGICAL :: opened, fex
+
+
+!------------------------------------------------------------------------------
+! Initialize variables
+!------------------------------------------------------------------------------
+stdout = 6_meta_ik
+stda = 0_meta_ik
+opened = .FALSE.
+fex = .FALSE.
+
+!------------------------------------------------------------------------------
+! PureDat/Meta Module Formatters
+!------------------------------------------------------------------------------
+CHARACTER(Len=*), PARAMETER :: PDM_arrowsL  = "('<',A,'> ', L)"
+CHARACTER(Len=*), PARAMETER :: PDM_arrowsI0 = "('<',A,'> ', I0)"
+CHARACTER(Len=*), PARAMETER :: PDM_branch  = "('<==branch==>')"
+
+!------------------------------------------------------------------------------
+! Check whether the meta file is opened and establish the proper status
+!------------------------------------------------------------------------------
+INQUIRE(UNIT=fhmei, OPENED=opened)
+
+IF(.NOT. opened) THEN
+   IF(TRIM(in%full) == '') in%full = TRIM(p_n_bsnm)//meta_suf
+   CALL meta_invoke(m_rry)
+END IF
+
+!------------------------------------------------------------------------------
+! Gather the size of the resulting stream
+!------------------------------------------------------------------------------
+INQUIRE(FILE=TRIM(in%p_n_bsnm)//".raw", EXIST=fex, SIZE=rawsize)
+IF(.NOT. fex) CALL print_err_stop(stdout, TRIM(in%p_n_bsnm)//".raw does not exist.", 1)
+
+!------------------------------------------------------------------------------
+! Read all required keywords to write the information ino the PureDat format
+! stdout will be given to redirect errors to the command line or error file
+!------------------------------------------------------------------------------
+CALL meta_read (stdout, 'CT_SCAN', m_rry, branch_description)
+
+branch_description = TRIM(branch_description)//" scalar data structure"
+ 
+CALL meta_read (stdout, 'INTERNAL_ID', m_rry, field_content_desc)
+CALL meta_read (stdout, 'DIMENSIONS', m_rry, vox_per_dim)
+CALL meta_read (stdout, 'SPACING', m_rry, grid_spacings)
+CALL meta_read (stdout, 'ORIGIN', m_rry, origin)
+CALL meta_read (stdout, 'ORIGIN_SHIFT_GLBL', m_rry, origin_shift)
+CALL meta_read (stdout, 'TYPE', m_rry, datatype)
+
+!------------------------------------------------------------------------------
+! Rename the raw file and enter the stda
+!------------------------------------------------------------------------------
+suf=''
+rawdata=1
+SELECT CASE(TRIM(datatype))
+   CASE('int1')
+      suf = ".int1.st"
+      rawdata = 1
+   CASE('int2')
+      suf = ".int2.st"
+      rawdata = 2 
+   CASE('int4')
+      suf = ".int4.st"
+      rawdata = 3 
+   CASE('int8')
+      suf = ".int8.st"
+      rawdata = 4 
+   CASE('real8')
+      suf = ".real8.st"
+      rawdata = 5 
+END SELECT
+
+IF(suf /= '') THEN
+   stda(rawdata,:) = [rawsize, 1_meta_ik, rawsize] 
+
+   INQUIRE(FILE=TRIM(p_n_bsnm)//TRIM(suf), EXIST=fex)
+   IF(fex) CALL print_err_stop(stdout, TRIM(p_n_bsnm)//TRIM(suf)" already exists.", 1)
+
+   CALL EXECUTE_COMMAND_LINE &
+      ("mv "//TRIM(p_n_bsnm)//".raw "//TRIM(p_n_bsnm)//TRIM(suf), CMDSTAT=stat)
+
+   IF(stat /= 0) CALL print_err_stop(stdout, &
+      "Renaming "//TRIM(p_n_bsnm)//".raw to "//TRIM(p_n_bsnm)//TRIM(suf)//" failed.", 1)
+ELSE
+   CALL print_err_stop(stdout, 'No datatype given to convert meta/raw to PureDat.', 1)
+END IF
+
+
+!------------------------------------------------------------------------------
+! Invoke the header file
+!------------------------------------------------------------------------------
+INQUIRE(FILE=TRIM(p_n_bsnm)//head_suf, EXIST=fex)
+IF(fex) CALL print_err_stop(stdout, TRIM(p_n_bsnm)//head_suf//" already exists.", 1)
+
+OPEN(UNIT=fhh, FILE=TRIM(p_n_bsnm)//head_suf, &
+   ACTION='WRITE', ACCESS='SEQUENTIAL', STATUS='NEW')
+
+!------------------------------------------------------------------------------
+! Write the header header :-) 
+! This stuff is hardcoded and not flexible yet.
+!------------------------------------------------------------------------------
+WRITE(fhh, PDM_branch)
+WRITE(fhh, PDM_desc) "'"//TRIM(branch_description)//"'"
+WRITE(fhh, PDM_arrowsI0) "no_of_branches", 0
+WRITE(fhh, PDM_arrowsI0) "no_of_leaves", 6 
+WRITE(fhh, PDM_arrowsL) "streams_allocated", .TRUE.  
+WRITE(fhh, PDM_arrowsI0) "size_int1_stream", stda(1,1) ! 0
+WRITE(fhh, PDM_arrowsI0) "size_int2_stream", stda(2,1) ! 0 
+WRITE(fhh, PDM_arrowsI0) "size_int4_stream", stda(3,1) + 6 ! origin, dims
+WRITE(fhh, PDM_arrowsI0) "size_int8_stream", stda(4,1) ! 0
+WRITE(fhh, PDM_arrowsI0) "size_real_stream", stda(5,1) + 6 ! origin_shift, spcng
+WRITE(fhh, PDM_arrowsI0) "size_char_stream", stda(6,1) + LEN_TRIM(field_content_desc)
+WRITE(fhh, PDM_arrowsI0) "size_log_stream", stda(7,1) ! 0
+
+!------------------------------------------------------------------------------
+! Write the meta data into the stream files
+! Only int4, real8 and chars do get additional data.
+!------------------------------------------------------------------------------
+DO ii=1, 6 
+   ! Not integrated with 2nd SELECT CASE(ii) to get a proper CONTINUE and suf
+   SELECT CASE(ii)
+      CASE(3)
+         suf = ".int4.st"
+      CASE(5)
+         suf = ".real8.st"
+      CASE(6)
+         suf = ".char.st"
+      CASE DEFAULT
+         CONTINUE
+   END SELECT
+
+   IF(ii == rawdata) THEN
+      OPEN(UNIT=free_file_handle, FILE=TRIM(p_n_bsnm)//TRIM(suf), &
+         ACTION='WRITE', ACCESS='APPEND', STATUS='OLD')
+   ELSE
+      INQUIRE(FILE=FILE=TRIM(p_n_bsnm)//TRIM(suf), EXIST=fex)
+      IF(fex) CALL print_err_stop(stdout, TRIM(p_n_bsnm)//TRIM(suf)//" already exists.", 1)
+
+      OPEN(UNIT=free_file_handle, FILE=TRIM(p_n_bsnm)//TRIM(suf), &
+         ACTION='WRITE', ACCESS='SEQUENTIAL', STATUS='NEW')
+   END IF
+
+   SELECT CASE(ii)
+      CASE(3)
+         CALL write_leaf_to_header(fhh, "Number of voxels per direction", &
+            ii, stda(ii,:)+[3, stda(ii,3)+1, stda(ii,3)+3])           
+         WRITE(free_file_handle, *) vox_per_dim
+
+         CALL write_leaf_to_header(fhh, "Origin", &
+            ii, stda(ii,:)+[3, stda(ii,3)+1, stda(ii,3)+3])
+         WRITE(free_file_handle, *) origin
+            
+      CASE(5)
+         CALL write_leaf_to_header(fhh, "Grid spacings", &
+            ii, stda(ii,:)+[3, stda(ii,3)+1, stda(ii,3)+3])
+         WRITE(free_file_handle, *) grid_spacings
+
+         osagcs = "Origin shift against global coordinate system"
+         CALL write_leaf_to_header(fhh, TRIM(osagcs), &
+            ii, stda(ii,:)+[3, stda(ii,3)+1, stda(ii,3)+3])
+         WRITE(free_file_handle, *) origin_shift
+
+      CASE(6)
+         osagcs = "Field content description"
+         CALL write_leaf_to_header(fhh, TRIM(osagcs), &
+            ii, stda(ii,:)+[LEN_TRIM(field_content_desc), &
+            stda(ii,3)+1, stda(ii,3)+LEN_TRIM(field_content_desc)])
+         WRITE(free_file_handle, '(A)', ADVANCE='NO') TRIM(field_content_desc)
+   END SELECT
+
+   CLOSE (free_file_handle)
+END DO
+
+CLOSE(fhh)
+ 
+END SUBROUTINE convert_meta_to_puredat
+
+
+!------------------------------------------------------------------------------
+! SUBROUTINE: write_leaf_to_header
+!------------------------------------------------------------------------------
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Write the leaf data to the PureDat header.
+!
+!> @param[in] fh File handle
+!> @param[in] desc Description of the leaf
+!> @param[in] type Type of data o.t.l.
+!> @param[in] stda Stream data o.t.l.
+!------------------------------------------------------------------------------
+SUBROUTINE write_leaf_to_header(fh, desc, type, stda)
+
+CHARACTER(LEN=*), INTENT(IN) :: desc
+INTEGER(KIND=meta_ik), INTENT(IN) :: fh, type
+INTEGER(KIND=meta_ik), DIMENSION(3), INTENT(IN):: stda ! no_of_data, lb, ub
+
+WRITE(fh, "('<--leaf-->')")
+WRITE(fh, "('<description> ', A)") "'"//TRIM(desc)//"'"
+WRITE(fh, "('<no_of_data> ', I0)") stda(1)
+WRITE(fh, "('<type_of_data> ', I0)") type
+WRITE(fh, "('<lower_bound> ', I0)") stda(2)
+WRITE(fh, "('<upper_bound> ', I0)") stda(3)
+
+END SUBROUTINE write_leaf_to_header
+
+END MODULE meta_puredat_interface
