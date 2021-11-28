@@ -1198,11 +1198,6 @@ Program main_struct_process
          free_file_handle = give_new_unit()
          CALL convert_meta_to_puredat(free_file_handle, m_rry)
 
-
-!!!!! DEBUG !!!!!
-         CALL print_err_stop(std_out, "Programm abfangen", 1)
-!!!!! DEBUG !!!!!
-
          !------------------------------------------------------------------------------
          ! project_name --> out%p_n_bsnm/bsnm --> subdirectory with file name = bsnm.suf
          !------------------------------------------------------------------------------
