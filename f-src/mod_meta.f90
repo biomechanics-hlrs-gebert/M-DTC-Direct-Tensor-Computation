@@ -1247,23 +1247,26 @@ SELECT CASE(TRIM(datatype))
    CASE('int1')
       suf = ".int1.st"
       rawdata = 1
+      stda(rawdata,:) = [rawsize, 1_meta_ik, rawsize] 
    CASE('int2')
       suf = ".int2.st"
       rawdata = 2 
+      stda(rawdata,:) = [rawsize/2, 1_meta_ik, rawsize/2] 
    CASE('int4')
       suf = ".int4.st"
       rawdata = 3 
+      stda(rawdata,:) = [rawsize/4, 1_meta_ik, rawsize/4] 
    CASE('int8')
       suf = ".int8.st"
       rawdata = 4 
+      stda(rawdata,:) = [rawsize/8, 1_meta_ik, rawsize/8] 
    CASE('real8')
       suf = ".real8.st"
       rawdata = 5 
+      stda(rawdata,:) = [rawsize/8, 1_meta_ik, rawsize/8] 
 END SELECT
 
 IF(suf /= '') THEN
-   stda(rawdata,:) = [rawsize, 1_meta_ik, rawsize] 
-
    INQUIRE(FILE=TRIM(in%p_n_bsnm)//TRIM(suf), EXIST=fex)
    IF(fex) CALL print_err_stop(stdout, TRIM(in%p_n_bsnm)//TRIM(suf)//" already exists.", 1)
 
@@ -1295,10 +1298,10 @@ WRITE(fhh, PDM_arrowsI0) "no_of_branches", 0
 WRITE(fhh, PDM_arrowsI0) "no_of_leaves", 6 
 WRITE(fhh, PDM_arrowsL) "streams_allocated", .TRUE.  
 WRITE(fhh, PDM_arrowsI0) "size_int1_stream", stda(1,1)
-WRITE(fhh, PDM_arrowsI0) "size_int2_stream", stda(2,1)/2
-WRITE(fhh, PDM_arrowsI0) "size_int4_stream", stda(3,1)/4 + 6 ! origin, d)
-WRITE(fhh, PDM_arrowsI0) "size_int8_stream", stda(4,1)/8
-WRITE(fhh, PDM_arrowsI0) "size_real_stream", stda(5,1)/8 + 6 ! origin_shift, sp)
+WRITE(fhh, PDM_arrowsI0) "size_int2_stream", stda(2,1)
+WRITE(fhh, PDM_arrowsI0) "size_int4_stream", stda(3,1) + 6 ! origin, d)
+WRITE(fhh, PDM_arrowsI0) "size_int8_stream", stda(4,1)
+WRITE(fhh, PDM_arrowsI0) "size_real_stream", stda(5,1) + 6 ! origin_shift, sp)
 WRITE(fhh, PDM_arrowsI0) "size_char_stream", stda(6,1) + LEN_TRIM(field_content_desc)
 WRITE(fhh, PDM_arrowsI0) "size_log_stream" , stda(7,1)
 
@@ -1313,17 +1316,13 @@ DO ii=1, 6
          suf = ".int1.st"
       CASE(2)
          suf = ".int2.st"
-         stda(ii,:) = (stda(ii,:)/2)
       CASE(3)
          suf = ".int4.st"
-         stda(ii,:) = (stda(ii,:)/4)+6
       CASE(4)
          suf = ".int8.st"
-         stda(ii,:) = (stda(ii,:)/8)
       CASE(5)
          suf = ".real8.st"
-         stda(ii,:) = (stda(ii,:)/8)+6
-      CASE(6)
+     CASE(6)
          suf = ".char.st"
    END SELECT
 
@@ -1344,22 +1343,21 @@ DO ii=1, 6
       CASE(3)
          CALL write_leaf_to_header(fhh, "Scalar data", ii, stda(ii,:))
 
-         stda(ii,:) = stda(ii,:)+[3, stda(ii,3)+1, stda(ii,3)+3]
+         stda(ii,:) = [3, stda(ii,3)+1, stda(ii,3)+3]
          CALL write_leaf_to_header(fhh, "Number of voxels per direction", ii, stda(ii,:))           
          WRITE(free_file_handle, *) vox_per_dim
 
          ! stda relative to values before (!)
-         stda(ii,:) = stda(ii,:)+[0, stda(ii,3), stda(ii,3)]
+         stda(ii,:) = [3, stda(ii,3)+1, stda(ii,3)+3]
          CALL write_leaf_to_header(fhh, "Origin", ii, stda(ii,:))
          WRITE(free_file_handle, *) origin
             
       CASE(5)
-         stda(ii,:) = stda(ii,:)+[3, stda(ii,3)+1, stda(ii,3)+3]
+         stda(ii,:) = [3, stda(ii,3)+1, stda(ii,3)+3]
          CALL write_leaf_to_header(fhh, "Grid spacings", ii, stda(ii,:))
          WRITE(free_file_handle, *) grid_spacings
 
-         ! stda relative to values before (!)
-         stda(ii,:) = stda(ii,:)+[0, stda(ii,3), stda(ii,3)]
+         stda(ii,:) = [3, stda(ii,3)+1, stda(ii,3)+3]
 
          osagcs = "Origin shift against global coordinate system"
          CALL write_leaf_to_header(fhh, TRIM(osagcs), ii, stda(ii,:))
