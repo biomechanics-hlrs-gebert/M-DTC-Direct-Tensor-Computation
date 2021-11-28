@@ -1192,6 +1192,9 @@ Program main_struct_process
             restart = 'N'
          END IF
 
+         !------------------------------------------------------------------------------
+         ! Create a PureDat header file, based on the meta file and the raw bin blob
+         !------------------------------------------------------------------------------
          free_file_handle = give_new_unit()
          CALL convert_meta_to_puredat(free_file_handle, m_rry)
 
