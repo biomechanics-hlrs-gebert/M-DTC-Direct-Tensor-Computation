@@ -479,6 +479,7 @@ $(obj_dir)mod_struct_calcmat$(obj_ext)::$(mod_dir)global_std$(mod_ext)        $(
 $(obj_dir)struct_process$(obj_ext):$(mod_dir)global_std$(mod_ext)        $(mod_dir)mechanical$(mod_ext) \
                                    $(mod_dir)auxiliaries$(mod_ext)       $(obj_dir)OS$(obj_ext) \
                                    $(mod_dir)operating_system$(mod_ext)  $(mod_dir)puredat$(mod_ext) \
+                                   $(mod_dir)meta$(mod_ext) 			 $(mod_dir)meta_puredat_interface$(mod_ext) \
                                    $(mod_dir)decomp$(mod_ext)            $(mod_dir)timer$(mod_ext) \
                                    $(mod_dir)chain_routines$(mod_ext)    $(mod_dir)vtkio$(mod_ext) \
                                    $(obj_dir)metis_interface$(obj_ext)   $(mod_dir)metis$(mod_ext) \

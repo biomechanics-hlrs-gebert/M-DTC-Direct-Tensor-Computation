@@ -161,7 +161,7 @@ END SUBROUTINE meta_handle_lock_file
 !---------------------------------------------------------------------------  
 SUBROUTINE meta_append(meta_as_rry)
 
-CHARACTER(LEN=meta_mcl), DIMENSION(:), INTENT(INOUT) :: meta_as_rry      
+CHARACTER(LEN=meta_mcl), DIMENSION(:), ALLOCATABLE, INTENT(INOUT) :: meta_as_rry      
 
 CALL meta_invoke(meta_as_rry)
 CALL meta_continue(meta_as_rry)
@@ -184,10 +184,8 @@ SUBROUTINE meta_invoke(meta_as_rry)
 CHARACTER(LEN=meta_mcl), DIMENSION(:), INTENT(INOUT), ALLOCATABLE :: meta_as_rry      
 
 ! Internal Variables
-INTEGER  (KIND=meta_ik) :: ios, lines, ii
+INTEGER  (KIND=meta_ik) :: lines, ii, ntokens
 CHARACTER(LEN=meta_mcl) :: tokens(30)
-INTEGER  (KIND=meta_ik) :: ntokens
-
 LOGICAL :: exist
 
 !------------------------------------------------------------------------------
@@ -265,6 +263,9 @@ END SUBROUTINE meta_invoke
 SUBROUTINE meta_continue(m_in)
 
 CHARACTER(LEN=meta_mcl), DIMENSION(:), INTENT(IN) :: m_in      
+
+! Internal Variables
+INTEGER  (KIND=meta_ik) :: ios
 
 !------------------------------------------------------------------------------
 ! Alter the meta file name
@@ -1182,16 +1183,23 @@ SUBROUTINE convert_meta_to_puredat(free_file_handle, m_rry)
 INTEGER(KIND=meta_ik), INTENT(IN) :: free_file_handle
 CHARACTER(LEN=meta_mcl), DIMENSION(:), ALLOCATABLE, INTENT(INOUT), OPTIONAL :: m_rry      
 
-CHARACTER(LEN=meta_mcl) :: suf, datatype, field_content_desc, osagcs
+CHARACTER(LEN=meta_mcl) :: suf, datatype, branch_description, field_content_desc, osagcs
 
 REAL(KIND=meta_rk), DIMENSION(3) :: grid_spacings, origin_shift
 
 INTEGER(KIND=meta_ik), DIMENSION(7,3) :: stda ! Stream data, 7 streams; no_of_data, lb, ub
 INTEGER(KIND=meta_ik), DIMENSION(3) :: vox_per_dim, origin
-INTEGER(KIND=meta_ik) :: stdout, rawsize, rawdata, ii
+INTEGER(KIND=meta_ik) :: stdout, rawsize, rawdata, ii, stat
 
 LOGICAL :: opened, fex
 
+!------------------------------------------------------------------------------
+! PureDat/Meta Module Formatters
+!------------------------------------------------------------------------------
+CHARACTER(Len=*), PARAMETER :: PDM_arrowsA  = "('<',A,'> ', A)"
+CHARACTER(Len=*), PARAMETER :: PDM_arrowsL  = "('<',A,'> ', L)"
+CHARACTER(Len=*), PARAMETER :: PDM_arrowsI0 = "('<',A,'> ', I0)"
+CHARACTER(Len=*), PARAMETER :: PDM_branch  = "('<==branch==>')"
 
 !------------------------------------------------------------------------------
 ! Initialize variables
@@ -1202,20 +1210,11 @@ opened = .FALSE.
 fex = .FALSE.
 
 !------------------------------------------------------------------------------
-! PureDat/Meta Module Formatters
-!------------------------------------------------------------------------------
-CHARACTER(Len=*), PARAMETER :: PDM_arrowsL  = "('<',A,'> ', L)"
-CHARACTER(Len=*), PARAMETER :: PDM_arrowsI0 = "('<',A,'> ', I0)"
-CHARACTER(Len=*), PARAMETER :: PDM_branch  = "('<==branch==>')"
-
-!------------------------------------------------------------------------------
 ! Check whether the meta file is opened and establish the proper status
 !------------------------------------------------------------------------------
 INQUIRE(UNIT=fhmei, OPENED=opened)
-
 IF(.NOT. opened) THEN
-   IF(TRIM(in%full) == '') in%full = TRIM(p_n_bsnm)//meta_suf
-   CALL meta_invoke(m_rry)
+   CALL print_err_stop(stdout, TRIM(in%full)//" not opened. Check your implementation!", 1)
 END IF
 
 !------------------------------------------------------------------------------
@@ -1265,26 +1264,25 @@ END SELECT
 IF(suf /= '') THEN
    stda(rawdata,:) = [rawsize, 1_meta_ik, rawsize] 
 
-   INQUIRE(FILE=TRIM(p_n_bsnm)//TRIM(suf), EXIST=fex)
-   IF(fex) CALL print_err_stop(stdout, TRIM(p_n_bsnm)//TRIM(suf)" already exists.", 1)
+   INQUIRE(FILE=TRIM(in%p_n_bsnm)//TRIM(suf), EXIST=fex)
+   IF(fex) CALL print_err_stop(stdout, TRIM(in%p_n_bsnm)//TRIM(suf)//" already exists.", 1)
 
    CALL EXECUTE_COMMAND_LINE &
-      ("mv "//TRIM(p_n_bsnm)//".raw "//TRIM(p_n_bsnm)//TRIM(suf), CMDSTAT=stat)
+      ("mv "//TRIM(in%p_n_bsnm)//".raw "//TRIM(in%p_n_bsnm)//TRIM(suf), CMDSTAT=stat)
 
    IF(stat /= 0) CALL print_err_stop(stdout, &
-      "Renaming "//TRIM(p_n_bsnm)//".raw to "//TRIM(p_n_bsnm)//TRIM(suf)//" failed.", 1)
+      "Renaming "//TRIM(in%p_n_bsnm)//".raw to "//TRIM(in%p_n_bsnm)//TRIM(suf)//" failed.", 1)
 ELSE
    CALL print_err_stop(stdout, 'No datatype given to convert meta/raw to PureDat.', 1)
 END IF
 
-
 !------------------------------------------------------------------------------
 ! Invoke the header file
 !------------------------------------------------------------------------------
-INQUIRE(FILE=TRIM(p_n_bsnm)//head_suf, EXIST=fex)
-IF(fex) CALL print_err_stop(stdout, TRIM(p_n_bsnm)//head_suf//" already exists.", 1)
+INQUIRE(FILE=TRIM(in%p_n_bsnm)//head_suf, EXIST=fex)
+IF(fex) CALL print_err_stop(stdout, TRIM(in%p_n_bsnm)//head_suf//" already exists.", 1)
 
-OPEN(UNIT=fhh, FILE=TRIM(p_n_bsnm)//head_suf, &
+OPEN(UNIT=fhh, FILE=TRIM(in%p_n_bsnm)//head_suf, &
    ACTION='WRITE', ACCESS='SEQUENTIAL', STATUS='NEW')
 
 !------------------------------------------------------------------------------
@@ -1292,7 +1290,7 @@ OPEN(UNIT=fhh, FILE=TRIM(p_n_bsnm)//head_suf, &
 ! This stuff is hardcoded and not flexible yet.
 !------------------------------------------------------------------------------
 WRITE(fhh, PDM_branch)
-WRITE(fhh, PDM_desc) "'"//TRIM(branch_description)//"'"
+WRITE(fhh, PDM_arrowsA) "'"//TRIM(branch_description)//"'"
 WRITE(fhh, PDM_arrowsI0) "no_of_branches", 0
 WRITE(fhh, PDM_arrowsI0) "no_of_leaves", 6 
 WRITE(fhh, PDM_arrowsL) "streams_allocated", .TRUE.  
@@ -1322,13 +1320,13 @@ DO ii=1, 6
    END SELECT
 
    IF(ii == rawdata) THEN
-      OPEN(UNIT=free_file_handle, FILE=TRIM(p_n_bsnm)//TRIM(suf), &
+      OPEN(UNIT=free_file_handle, FILE=TRIM(in%p_n_bsnm)//TRIM(suf), &
          ACTION='WRITE', ACCESS='APPEND', STATUS='OLD')
    ELSE
-      INQUIRE(FILE=FILE=TRIM(p_n_bsnm)//TRIM(suf), EXIST=fex)
-      IF(fex) CALL print_err_stop(stdout, TRIM(p_n_bsnm)//TRIM(suf)//" already exists.", 1)
+      INQUIRE(FILE=TRIM(in%p_n_bsnm)//TRIM(suf), EXIST=fex)
+      IF(fex) CALL print_err_stop(stdout, TRIM(in%p_n_bsnm)//TRIM(suf)//" already exists.", 1)
 
-      OPEN(UNIT=free_file_handle, FILE=TRIM(p_n_bsnm)//TRIM(suf), &
+      OPEN(UNIT=free_file_handle, FILE=TRIM(in%p_n_bsnm)//TRIM(suf), &
          ACTION='WRITE', ACCESS='SEQUENTIAL', STATUS='NEW')
    END IF
 
