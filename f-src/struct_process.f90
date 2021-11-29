@@ -242,6 +242,7 @@ Contains
 
        Write(umon,FMT_MSG_SEP)
        Write(umon,FMT_MSG_AI0) "Domain No. : ",nn
+               WRITE(*,*) "DEBUG_MASTER 1"
 
        !**************************************************************************
        !** Generate Geometry
@@ -270,6 +271,7 @@ Contains
        WRITE(un_lf, '(2A)') 'End time: ', TRIM(str)
 
        close(umon)
+               WRITE(*,*) "DEBUG_MASTER 2"
 
        !** Look for the Domain branch ****************************************
        domain_desc=''
@@ -318,13 +320,13 @@ Contains
 
        !** Broadcast matrix size. TODO could also be included into part branches.
        Call mpi_bcast(m_size, 1_mpi_ik, MPI_INTEGER8, 0_mpi_ik, COMM_MPI, ierr)
-               WRITE(*,*) "DEBUG_MASTER"
+               WRITE(*,*) "DEBUG_MASTER 3"
 
     !****************************************************************************
     !** Ranks > 0 -- Workers ****************************************************
     !****************************************************************************
     Else
-              WRITE(*,*) "DEBUG_WORKERS"
+              WRITE(*,*) "DEBUG_WORKERS 1"
 
        Call mpi_recv(serial_pb_size, 1_mpi_ik, mpi_integer8, 0_mpi_ik, &
             rank_mpi, COMM_MPI, status_mpi, ierr)
@@ -348,6 +350,7 @@ Contains
        Call mpi_bcast(m_size, 1_mpi_ik, MPI_INTEGER8, 0_mpi_ik, COMM_MPI, ierr)
               
     End If
+              WRITE(*,*) "DEBUG_WORKERS 2"
 
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     If (out_amount == "DEBUG") THEN 
@@ -365,18 +368,22 @@ Contains
     !** system multiple times. Save the solutions to calculate effective    ***
     !** stiffness matirces.                                                 ***
     !**************************************************************************
+              WRITE(*,*) "DEBUG_WORKERS 3"
 
     !** Create Stiffness matrix **************************************
     call MatCreate(COMM_MPI, AA    , petsc_ierr)
     call MatCreate(COMM_MPI, AA_org, petsc_ierr)
-  
+                WRITE(*,*) "DEBUG_WORKERS 4"
+
     call MatSetSizes(AA,PETSC_DECIDE,PETSC_DECIDE,m_size,m_size,petsc_ierr)
     call MatSetFromOptions(AA,petsc_ierr)
     call MatSetUp(AA,petsc_ierr)
+              WRITE(*,*) "DEBUG_WORKERS 5"
 
     call MatSetSizes(AA_org,PETSC_DECIDE,PETSC_DECIDE,m_size,m_size,petsc_ierr)
     call MatSetFromOptions(AA_org,petsc_ierr)
     call MatSetUp(AA_org,petsc_ierr)
+              WRITE(*,*) "DEBUG_WORKERS 6"
 
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     If (out_amount == "DEBUG") THEN 

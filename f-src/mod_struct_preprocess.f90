@@ -78,6 +78,7 @@ Contains
 
     write(nn_char,'(I0)')ddc_nn
     glob_success = .TRUE.
+              WRITE(*,*) "DEBUG_GEN_GEOMETRY 1"
 
     !** Get global DDC parameters from root *********
     Call Search_branch("Global domain decomposition", root, ddc, success)
@@ -113,6 +114,7 @@ Contains
     !** Add branch for local ddc params to domain branch *****************
     desc=''
     Write(desc,'(A,I0)')"Local domain Decomposition of domain no ",ddc_nn
+              WRITE(*,*) "DEBUG_GEN_GEOMETRY 2"
 
     call add_branch_to_branch(db,loc_ddc)
     call raise_branch(trim(desc), 0_pd_ik, 0_pd_ik, loc_ddc)
@@ -133,7 +135,8 @@ Contains
     Case default
        continue
     End Select
-    
+                  WRITE(*,*) "DEBUG_GEN_GEOMETRY 3"
+
     !-------------------------------------------------------------
     Call pd_get(root%branches(1),"muCT puredat pro_path",char_arr)
     pro_path = char_to_str(char_arr)
@@ -149,6 +152,7 @@ Contains
 
     call pd_load_leaf(phi_desc%streams,phi_desc, "Grid spacings"                 , delta)  
     call pd_load_leaf(phi_desc%streams,phi_desc, "Number of voxels per direction", vdim)
+              WRITE(*,*) "DEBUG_GEN_GEOMETRY 4"
 
     if ( out_amount /= "PRODUCTION" ) then
        write(un_lf,FMT_MSG_A3F0) "Grid spacings", delta
