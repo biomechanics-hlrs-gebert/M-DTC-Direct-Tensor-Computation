@@ -10,7 +10,7 @@ Create documentation: »make docs«
 
 Many thanks to Dr.-Ing. Ralf Schneider who developed the program at its core.
 
-Cite the Directly Discretizing Tensor Computation (BibTex):
+## Cite the Directly Discretizing Tensor Computation (BibTex):
 
 ```
 @misc{DDTC,
