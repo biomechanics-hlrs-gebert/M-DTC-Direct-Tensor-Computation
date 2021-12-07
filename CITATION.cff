@@ -1,10 +1,27 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 authors:
-  - family-names: Gebert
-    given-names: Johannes
+  - familynames: "Schneider"
+    given-names: "Ralf"
+    orcid: "https://orcid.org/0000-0001-6583-9016
+  - family-names: "Gebert"
+    given-names: "Johannes"
     orcid: https://orcid.org/0000-0002-5245-2418
-title: "Directly Discretizing Tensor Computation (DDTC)""
+title: "Directly Discretizing Tensor Computation (DDTC)"
 version: 1.0.0
 date-released: 2021-12-08
-
+url: "https://github.com/JoGebert/Directly_Discretizing_Tensor_Computation-DDTC"
+preferred-citation:
+  type: software-code
+  authors:
+  - familynames: "Schneider"
+    given-names: "Ralf"
+    orcid: "https://orcid.org/0000-0001-6583-9016
+  - family-names: "Gebert"
+    given-names: "Johannes"
+    orcid: https://orcid.org/0000-0002-5245-2418
+  doi: "10.0000/00000"
+  title: "Directly Discretizing Tensor Computation (DDTC)"
+  version: 1.0.0
+  date-released: 2021-12-08
+  url: "https://github.com/JoGebert/Directly_Discretizing_Tensor_Computation-DDTC"
