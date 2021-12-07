@@ -29,7 +29,7 @@ IMPLICIT NONE
    ! Character lengths
    INTEGER, PARAMETER :: kcl    = 25   ! Keyword character  length
    INTEGER, PARAMETER :: ucl    = 10   ! Unit    character  length
-   INTEGER, PARAMETER :: stdspc = 45   ! Keyword standard space
+   INTEGER, PARAMETER :: stdspc = 30   ! Keyword standard space
 
    CHARACTER(LEN=kcl) :: meta_program_keyword
    CHARACTER(LEN=kcl) :: meta_prgrm_mstr_app
