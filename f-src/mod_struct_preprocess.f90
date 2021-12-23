@@ -59,22 +59,23 @@ Contains
     !--------------------------------------------------------------------------
     Integer(Kind=4)  , Dimension(:,:,:), Allocatable :: Phi
 
-    Integer(Kind=ik)                                 :: llimit, no_nodes=0, no_elems=0
+    Integer(Kind=ik) :: llimit, no_nodes=0, no_elems=0
 
-    Character(len=*), Parameter                      :: inpsep = "('#',79('='))"
+    Character(len=*), Parameter :: inpsep = "('#',79('='))"
 
-    Real(Kind=rk)      , Dimension(:), Allocatable   :: delta
-    Integer(kind=4)    , Dimension(:), Allocatable   :: vdim
-    Integer(kind=8)    , Allocatable, Dimension(:)   :: bpoints,x_D,nn_D
-    Integer(kind=8)                 , Dimension(3)   :: xa_n, xe_n, xa_n_ext, xe_n_ext
-    Integer(kind=8)                                  :: nn_1,nn_2,nn_3, ii,jj
-    Integer(kind=8)                                  :: pos_f
+    Character      , Dimension(:), Allocatable :: char_arr
+    Real(Kind=rk)  , Dimension(:), Allocatable :: delta
+    Integer(kind=4), Dimension(:), Allocatable :: vdim
+    Integer(kind=8), Dimension(:), Allocatable :: bpoints,x_D,nn_D
+    Integer(kind=8), Dimension(3) :: xa_n, xe_n, xa_n_ext, xe_n_ext
+    Integer(kind=8) :: nn_1,nn_2,nn_3, ii,jj
+    Integer(kind=8) :: pos_f
 
-    Logical                                          :: success
+    integer(kind=4) :: rank_mpi
 
-    Character, Dimension(:), Allocatable             :: char_arr
+    Logical :: success
     
-    Character(len=9)                                 :: nn_char
+    Character(len=9) :: nn_char
 
     write(nn_char,'(I0)')ddc_nn
     glob_success = .TRUE.
@@ -82,12 +83,23 @@ Contains
 
     !** Get global DDC parameters from root *********
     Call Search_branch("Global domain decomposition", root, ddc, success)
- 
+
     call pd_get(ddc,"nn_D",nn_D)
     call pd_get(ddc,"bpoints", bpoints)
     call pd_get(ddc,"x_D",x_D)
-    call pd_get(ddc,"x_D",x_D)
-    
+
+
+
+
+   CALL MPI_COMM_RANK(MPI_COMM_WORLD, rank_mpi, ierr)
+write(*,"(A,I0,A,3(' ',I0))") "rank_mpi: ", rank_mpi, "  ddc - nn_D: ", nn_D    
+write(*,"(A,I0,A,3(' ',I0))") "rank_mpi: ", rank_mpi, "  ddc - bpoints: ", bpoints
+write(*,"(A,I0,A,3(' ',I0))") "rank_mpi: ", rank_mpi, "  ddc - x_D: ", x_D
+
+
+
+
+
     !** Calculate special parameters of domain decomposition ********************
     nn_3 = INT( ddc_nn / ( nn_D(1)*nn_D(2) ))
     nn_2 = INT(( ddc_nn - nn_D(1)*nn_D(2)*nn_3 ) / ( nn_D(1) ))

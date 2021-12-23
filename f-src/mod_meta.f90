@@ -326,9 +326,8 @@ END SUBROUTINE meta_continue
 !> Meta log only gets called __after__ meta append or meta_close respectively. 
 !> This way, a log file is optional.
 !
-!> If Restart isn's set or .FALSE., then the program aborts in case a meta or
-!> a temporary log file is present as they might contain important data or
-!> debugging information. The temporaray logfile is a hidden one.
+!> In the meta file format, the restart procedure only is checked for the
+!> meta file itself.
 !>
 !> If the variable restart is not explicitly set .TRUE., the program will not 
 !> restart.
@@ -342,19 +341,15 @@ END SUBROUTINE meta_continue
 !> @param[in] suf Suffix of the file
 !> @param[in] restart Logfiles (temporary and permanent)
 !---------------------------------------------------------------------------  
-SUBROUTINE meta_start_ascii(fh, suf, restart)
+SUBROUTINE meta_start_ascii(fh, suf)
 
-INTEGER  (KIND=meta_ik), INTENT(IN) :: fh
+INTEGER(KIND=meta_ik), INTENT(IN) :: fh
 CHARACTER(LEN=*), INTENT(IN) :: suf
-CHARACTER, INTENT(IN), OPTIONAL :: restart
 
 CHARACTER(LEN=meta_mcl) :: temp_f_suf, perm_f_suf
-INTEGER  (KIND=meta_ik) :: ios
-CHARACTER :: restart_u
+INTEGER(KIND=meta_ik) :: ios
 
 LOGICAL :: exist_temp, exist_perm
-
-restart_u='N'
 
 ! The temporaray file is a hidden one.
 temp_f_suf = TRIM(out%path)//'.temporary'//TRIM(suf)
@@ -368,37 +363,16 @@ INQUIRE (FILE = temp_f_suf, EXIST = exist_temp)
 INQUIRE (FILE = out%p_n_bsnm//TRIM(suf), EXIST = exist_perm)
 
 !------------------------------------------------------------------------------
-! Check restart
+! Check whether file needs to be deleted.
 !------------------------------------------------------------------------------
-IF(PRESENT(restart)) restart_u=restart
+IF(exist_temp) THEN
+   CALL execute_command_line ('rm -r '//TRIM(temp_f_suf), CMDSTAT=ios)   
+   CALL print_err_stop(std_out, '»'//TRIM(temp_f_suf)//'« not deletable.',ios)
+END IF
 
-IF (restart_u .EQ. 'Y') THEN
-   ! if target_val if inquire(exist) = .FALSE. and stat_*l = 0 - the file does not exist
-   IF(exist_temp) THEN
-      CALL execute_command_line ('rm -r '//TRIM(temp_f_suf), CMDSTAT=ios)   
-      CALL print_err_stop(std_out, '»'//TRIM(temp_f_suf)//'« not deletable.',ios)
-   END IF
-
-   IF(exist_perm) THEN
-      CALL execute_command_line ('rm -r '//TRIM(out%p_n_bsnm)//TRIM(suf), CMDSTAT=ios)
-      CALL print_err_stop(std_out, '»'//TRIM(out%full)//'« not deletable.', ios)
-   END IF
-
-ELSE ! restart_u .EQ. 'N'
-   IF ((exist_temp) .OR. (exist_perm)) THEN
-
-
-      IF ((exist_temp) .AND. (exist_perm)) THEN 
-         mssg='The file '//TRIM(perm_f_suf)//' and the file '//TRIM(temp_f_suf)
-      ELSE IF  (exist_temp) THEN
-         mssg='The file '//TRIM(temp_f_suf)
-      ELSE ! (exist_perm) 
-         mssg='The file '//TRIM(perm_f_suf)
-      END IF
-
-      mssg = TRIM(mssg)//' already exist(s). Previous job maybe was aborted.'
-      CALL print_err_stop(std_out, mssg, 1)     
-   END IF
+IF(exist_perm) THEN
+   CALL execute_command_line ('rm -r '//TRIM(out%p_n_bsnm)//TRIM(suf), CMDSTAT=ios)
+   CALL print_err_stop(std_out, '»'//TRIM(out%full)//'« not deletable.', ios)
 END IF
 
 OPEN(UNIT=fh, FILE=TRIM(temp_f_suf), ACTION='WRITE', ACCESS='SEQUENTIAL', STATUS='NEW')
@@ -1141,6 +1115,34 @@ IF(opened) CLOSE (fhmeo)
  
 END SUBROUTINE meta_close
 
+
+!------------------------------------------------------------------------------
+! SUBROUTINE: meta_delete_empty_file
+!------------------------------------------------------------------------------
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Check filesize and delete if 0.
+!
+!> @param(in) filename Path and name of the file to be checked and deleted.
+!------------------------------------------------------------------------------
+SUBROUTINE meta_delete_empty_file(filename)
+
+CHARACTER(LEN=*), INTENT(IN) :: filename
+
+INTEGER(KIND=meta_ik) :: filesize = 0, ios
+
+!------------------------------------------------------------------------------
+! Check and close files - Routine: (fh, filename, abrt, stat)
+!------------------------------------------------------------------------------
+INQUIRE(FILE=TRIM(ADJUSTL(filename)), SIZE=filesize)
+
+IF(filesize == 0) THEN
+   CALL execute_command_line ('rm -r '//TRIM(ADJUSTL(filename)), CMDSTAT=ios)
+END IF
+ 
+END SUBROUTINE meta_delete_empty_file
+
 END MODULE meta
 
 
@@ -1187,9 +1189,10 @@ CHARACTER(LEN=meta_mcl) :: suf, datatype, branch_description, field_content_desc
 
 REAL(KIND=meta_rk), DIMENSION(3) :: grid_spacings, origin_shift
 
+INTEGER(KIND=meta_ik), DIMENSION(7) :: bytesizes = [ 1, 2, 4, 8, 8, 1, 1]
 INTEGER(KIND=meta_ik), DIMENSION(7,3) :: stda ! Stream data, 7 streams; no_of_data, lb, ub
 INTEGER(KIND=meta_ik), DIMENSION(3) :: vox_per_dim, origin
-INTEGER(KIND=meta_ik) :: stdout, rawsize, rawdata, ii, stat
+INTEGER(KIND=meta_ik) :: stdout, rawsize, rawdata, ii, stat, my_size, my_pos
 
 LOGICAL :: opened, fex
 
@@ -1312,70 +1315,96 @@ WRITE(fhh, PDM_arrowsI0) "size_log_stream" , stda(7,1)
 DO ii=1, 6 
    ! Not integrated with 2nd SELECT CASE(ii) to get a proper CONTINUE and suf
    SELECT CASE(ii)
-      CASE(1)
-         suf = ".int1.st"
-      CASE(2)
-         suf = ".int2.st"
-      CASE(3)
-         suf = ".int4.st"
-      CASE(4)
-         suf = ".int8.st"
-      CASE(5)
-         suf = ".real8.st"
-     CASE(6)
-         suf = ".char.st"
+      CASE(1); suf = ".int1.st"
+      CASE(2); suf = ".int2.st"
+      CASE(3); suf = ".int4.st"
+      CASE(4); suf = ".int8.st"
+      CASE(5); suf = ".real8.st"
+      CASE(6); suf = ".char.st"
    END SELECT
 
-   ! IF (stda(ii,1) == 0) CYCLE
-
    IF(ii == rawdata) THEN
+
+      INQUIRE(FILE=TRIM(in%p_n_bsnm)//TRIM(suf), SIZE=my_size)
+      
+
+      IF ((my_size/PRODUCT(vox_per_dim)) /= bytesizes(ii)) THEN
+         WRITE(std_out,'(A,I0)') "Size of scalar data input: ", my_size
+         WRITE(std_out,'(A,I0)') "Amount of points in image: ", PRODUCT(vox_per_dim)
+         WRITE(std_out,'(A,I0)') "Expected size per entry: ", bytesizes(ii), " Byte(s)"
+         WRITE(std_out,'(2A)') "Filename: ", TRIM(in%p_n_bsnm)//TRIM(suf)
+
+         mssg = ""
+         mssg = "Filesize of the raw data does not match the dimensions and data type.&
+            & Please check the raw data or the fortran source code of the meta/raw converter.&
+            & Converter assumes that only one blob of data set is containted in the raw file!&
+            & Converter cannot deal with multiple binary images within 1 raw file at the moment."
+         CALL print_err_stop(stdout, mssg, 1) 
+      END IF
+
+      ! It is the file of the original *.raw data
       OPEN(UNIT=free_file_handle, FILE=TRIM(in%p_n_bsnm)//TRIM(suf), &
-         ACTION='WRITE', ACCESS='APPEND', STATUS='OLD')
-   ELSE
+         ACCESS='STREAM', STATUS='OLD')
+
+
+   ELSE IF (ii == 6) THEN
+      ! It is the character stream file
       INQUIRE(FILE=TRIM(in%p_n_bsnm)//TRIM(suf), EXIST=fex)
       IF(fex) CALL print_err_stop(stdout, TRIM(in%p_n_bsnm)//TRIM(suf)//" already exists.", 1)
 
       OPEN(UNIT=free_file_handle, FILE=TRIM(in%p_n_bsnm)//TRIM(suf), &
-         ACTION='WRITE', ACCESS='SEQUENTIAL', STATUS='NEW')
+         ACCESS='STREAM', STATUS='NEW')
+   ELSE
+      ! It is another stream file
+      INQUIRE(FILE=TRIM(in%p_n_bsnm)//TRIM(suf), EXIST=fex)
+      IF(fex) CALL print_err_stop(stdout, TRIM(in%p_n_bsnm)//TRIM(suf)//" already exists.", 1)
+
+      OPEN(UNIT=free_file_handle, FILE=TRIM(in%p_n_bsnm)//TRIM(suf), &
+         ACCESS='STREAM', STATUS='NEW')
    END IF
+
+   INQUIRE(UNIT=free_file_handle, SIZE=my_size)
+
+   my_pos = my_size+1
 
    SELECT CASE(ii)
       CASE(3)
          CALL write_leaf_to_header(fhh, "Scalar data", ii, stda(ii,:))
-
+ 
          stda(ii,:) = [3, stda(ii,3)+1, stda(ii,3)+3]
          CALL write_leaf_to_header(fhh, "Number of voxels per direction", ii, stda(ii,:))           
-         WRITE(free_file_handle, *) vox_per_dim
+         WRITE(free_file_handle, POS=my_pos) INT(vox_per_dim, KIND=4)
 
          ! stda relative to values before (!)
          stda(ii,:) = [3, stda(ii,3)+1, stda(ii,3)+3]
          CALL write_leaf_to_header(fhh, "Origin", ii, stda(ii,:))
-         WRITE(free_file_handle, *) origin
-            
+         WRITE(free_file_handle, POS=my_pos+4*3) INT(origin, KIND=4)
+
       CASE(5)
          stda(ii,:) = [3, stda(ii,3)+1, stda(ii,3)+3]
          CALL write_leaf_to_header(fhh, "Grid spacings", ii, stda(ii,:))
-         WRITE(free_file_handle, *) grid_spacings
+         WRITE(free_file_handle, POS=my_pos) grid_spacings
 
          stda(ii,:) = [3, stda(ii,3)+1, stda(ii,3)+3]
 
          osagcs = "Origin shift against global coordinate system"
          CALL write_leaf_to_header(fhh, TRIM(osagcs), ii, stda(ii,:))
-         WRITE(free_file_handle, *) origin_shift
+         WRITE(free_file_handle, POS=my_pos+8*3) origin_shift
 
       CASE(6)
          osagcs = "Field content description"
          CALL write_leaf_to_header(fhh, TRIM(osagcs), &
             ii, stda(ii,:)+[LEN_TRIM(field_content_desc), &
             stda(ii,3)+1, stda(ii,3)+LEN_TRIM(field_content_desc)])
-         WRITE(free_file_handle, '(A)', ADVANCE='NO') TRIM(field_content_desc)
+         WRITE(free_file_handle, POS=my_pos) TRIM(field_content_desc)
    END SELECT
 
    CLOSE (free_file_handle)
+
+   CALL meta_delete_empty_file(TRIM(in%p_n_bsnm)//TRIM(suf))
 END DO
 
 CLOSE(fhh)
- 
 END SUBROUTINE convert_meta_to_puredat
 
 

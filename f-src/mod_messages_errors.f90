@@ -99,12 +99,12 @@ SUBROUTINE show_title(revision)
 CHARACTER(LEN=*), INTENT(IN) :: revision
 
 WRITE(std_out, FMT_TXT_SEP)
-WRITE(std_out, FMT_TXT)     'High Performance Computing Center | Stuttgart (HLRS)'
-WRITE(std_out, FMT_TXT)     ''
-WRITE(std_out, FMT_TXT)     'Directly Discretizing Tensor Computation '//TRIM(ADJUSTL(revision))
-WRITE(std_out, FMT_TXT)     ''     
-WRITE(std_out, FMT_TXT)     'Author: Dr.-Ing. Ralf Schneider (HLRS, NUM)'
-WRITE(std_out, FMT_TXT)     'Author: Johannes Gebert, M.Sc.  (HLRS, NUM)'
+WRITE(std_out, FMT_TXT) 'High-Performance Computing Center | Stuttgart (HLRS)'
+WRITE(std_out, FMT_TXT) ''
+WRITE(std_out, FMT_TXT) 'Directly Discretizing Tensor Computation '//TRIM(ADJUSTL(revision))
+WRITE(std_out, FMT_TXT) ''     
+WRITE(std_out, FMT_TXT) 'Author: Dr.-Ing. Ralf Schneider (HLRS, NUM)'
+WRITE(std_out, FMT_TXT) 'Author: Johannes Gebert, M.Sc.  (HLRS, NUM)'
 WRITE(std_out, FMT_TXT_SEP)
 END SUBROUTINE show_title
 

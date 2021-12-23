@@ -925,11 +925,11 @@ Program main_struct_process
   INTEGER(KIND=mpi_ik), Dimension(:)  , Allocatable  :: Activity, req_list
 
   !------------------------------------------------------------------------------------------------
-  CHARACTER(Len=mcl)                                :: link_name = 'struct process'
-  INTEGER  (kind=c_int )                            :: stat_c_int
-  INTEGER                                           :: stat
-  Type(tBranch)                                     :: root, phi_tree
-  Type(tBranch), pointer                            :: ddc, params, res
+  CHARACTER(Len=mcl)     :: link_name = 'struct process'
+  INTEGER  (kind=c_int ) :: stat_c_int
+  INTEGER                :: stat
+  Type(tBranch)          :: root, phi_tree
+  Type(tBranch), pointer :: ddc, params, res
   
   CHARACTER(LEN=4*mcl)                              :: job_dir
   CHARACTER           , DIMENSION(4*mcl)            :: c_char_array
@@ -953,7 +953,7 @@ Program main_struct_process
   INTEGER   (KIND=pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
   INTEGER   (KIND=pd_ik)                            :: serial_root_size
   INTEGER   (KIND=pd_ik), Dimension(no_streams)     :: dsize
-  Logical                                           :: success, fexist
+  Logical :: success, fexist, heaxist
 
 
   !----------------------------------------------------------------------------
@@ -1045,33 +1045,41 @@ Program main_struct_process
       ! Output directory and 
       ! Implicitly creates a subdirectory.
       !------------------------------------------------------------------------------
-      outpath = TRIM(out%p_n_bsnm)//"/"
+      outpath = TRIM(out%path)//"/"
       project_name = TRIM(out%bsnm)
 
       pro_path = outpath
       pro_name = project_name
 
-      CALL meta_read (std_out, 'MICRO_ELMNT_TYPE' , m_rry, elt_micro  )
+      
+      CALL meta_read (std_out, 'MICRO_ELMNT_TYPE' , m_rry, elt_micro)
       CALL meta_read (std_out, 'DBG_LVL'          , m_rry, out_amount )
-      CALL meta_read (std_out, 'OUT_FMT'          , m_rry, output     )
-      CALL meta_read (std_out, 'RESTART'          , m_rry, restart    )
+      CALL meta_read (std_out, 'OUT_FMT'          , m_rry, output)
+      CALL meta_read (std_out, 'RESTART'          , m_rry, restart)
       CALL meta_read (std_out, 'SIZE_DOMAIN'      , m_rry, bone%phdsize)
-      CALL meta_read (std_out, 'LO_BNDS_DMN_RANGE', m_rry, xa_d       )
-      CALL meta_read (std_out, 'UP_BNDS_DMN_RANGE', m_rry, xe_d       )
-      CALL meta_read (std_out, 'BINARIZE_LO'      , m_rry, llimit     )
-      CALL meta_read (std_out, 'MESH_PER_SUB_DMN' , m_rry, parts      )
-      CALL meta_read (std_out, 'RVE_STRAIN'       , m_rry, strain     )
-      CALL meta_read (std_out, 'YOUNG_MODULUS'    , m_rry, bone%E     )
-      CALL meta_read (std_out, 'POISSON_RATIO'    , m_rry, bone%nu    )
-      CALL meta_read (std_out, 'MACRO_ELMNT_ORDER', m_rry, elo_macro  )
+      CALL meta_read (std_out, 'LO_BNDS_DMN_RANGE', m_rry, xa_d)
+      CALL meta_read (std_out, 'UP_BNDS_DMN_RANGE', m_rry, xe_d)
+      CALL meta_read (std_out, 'BINARIZE_LO'      , m_rry, llimit)
+      CALL meta_read (std_out, 'MESH_PER_SUB_DMN' , m_rry, parts)
+      CALL meta_read (std_out, 'RVE_STRAIN'       , m_rry, strain)
+      CALL meta_read (std_out, 'YOUNG_MODULUS'    , m_rry, bone%E)
+      CALL meta_read (std_out, 'POISSON_RATIO'    , m_rry, bone%nu)
+      CALL meta_read (std_out, 'MACRO_ELMNT_ORDER', m_rry, elo_macro)
 
       !------------------------------------------------------------------------------
       ! Restart handling
       ! Done after meta_io to decide based on keywords
       !------------------------------------------------------------------------------
       IF (restart_cmdarg /= 'U') THEN
-         restart = restart_cmdarg
-         mssg="The keyword »restart« was overwritten by the command flag --(no)-restart"
+         mssg = "The keyword »restart« was overwritten by the command flag --"
+         IF (restart_cmdarg == 'N') THEN
+            restart = restart_cmdarg
+            mssg=TRIM(mssg)//"no-"
+         ELSE IF (restart_cmdarg == 'Y') THEN
+            restart = restart_cmdarg
+         END IF
+
+         mssg=TRIM(mssg)//"restart"
          WRITE(std_out, FMT_WRN) TRIM(mssg)
          WRITE(std_out, FMT_WRN_SEP)
       END IF
@@ -1084,11 +1092,11 @@ Program main_struct_process
       ! This log file may collide with the original log file (!)
       ! The regular struct_process log file contains still has the "old" basename!
       !------------------------------------------------------------------------------
-      CALL meta_start_ascii(fh=fhl  , suf=log_suf, restart=restart)
-      CALL meta_start_ascii(fh=fhmon, suf=mon_suf, restart=restart)
+      CALL meta_start_ascii(fhl, log_suf)
+      CALL meta_start_ascii(fhmon, mon_suf)
       
       IF (std_out/=6) THEN
-         CALL meta_start_ascii(fh=std_out, suf='.std_out', restart=restart)
+         CALL meta_start_ascii(std_out, '.std_out')
 
          CALL show_title(revision) 
       END IF
@@ -1180,24 +1188,40 @@ Program main_struct_process
       CALL link_start(link_name, .TRUE., .FALSE., success)
       IF (.NOT. success) CALL print_err_stop(std_out, "Something went wrong during link_start", 1)
    
+
       !------------------------------------------------------------------------------
-      ! Check whether there is already a project header
+      ! Allocate and init field for selected domain range
       !------------------------------------------------------------------------------
-      INQUIRE(FILE=TRIM(pro_path)//TRIM(pro_name)//'.head',EXIST=fexist)
+      amount_domains = (xe_d(1)-xa_d(1)+1) * (xe_d(2)-xa_d(2)+1) * (xe_d(3)-xa_d(3)+1)
+
+      Allocate(Domains(amount_domains),stat=alloc_stat)
+      Call alloc_err("Domains",alloc_stat)
+
+      Allocate(Domain_stats(amount_domains),stat=alloc_stat)
+      Call alloc_err("Domain_stats",alloc_stat)
+
+      Allocate(domain_path(0:amount_domains))
+      domain_path = ''
+
+
+      !------------------------------------------------------------------------------
+      ! New activity tracker unit
+      !------------------------------------------------------------------------------
+      aun = give_new_unit()
+
+      !------------------------------------------------------------------------------
+      ! Check whether there already is a project header
+      !------------------------------------------------------------------------------
+      INQUIRE(FILE=TRIM(pro_path)//TRIM(pro_name)//'.head', EXIST=heaxist)
 
       !------------------------------------------------------------------------------
       ! The Output name normally is different than the input name.
       ! Therefore, an existing header implies a restart.
       !------------------------------------------------------------------------------
-      IF (.NOT. fexist) THEN ! Project header not available
-         ! Raise root branch 
+      IF (restart == 'N') THEN ! Project header not available
 
-         IF (restart == 'Y') THEN
-            WRITE(std_out, FMT_WRN) 'Restart of partly computed results requested, but no project header found.'
-            WRITE(std_out, FMT_WRN) 'Program creates a new header.'
-            WRITE(std_out, FMT_MSG_SEP)
-            restart = 'N'
-         END IF
+         IF(heaxist) CALL print_err_stop(std_out, &
+            "Restart requested, but header already exists", 1)
 
          !------------------------------------------------------------------------------
          ! Create a PureDat header file, based on the meta file and the raw bin blob
@@ -1245,8 +1269,21 @@ Program main_struct_process
          
          call include_branch_into_branch(s_b=ddc, t_b=root, blind=.TRUE.)
 
-      ELSE ! Project header available
-         ! restart = 'Y'
+         !------------------------------------------------------------------------------
+         ! Initialize the activity tracker.
+         !------------------------------------------------------------------------------
+         OPEN(aun, FILE=TRIM(outpath)//"/"//trim(project_name)//"_Activity.raw", &
+            ACTION="WRITE", STATUS="REPLACE", ACCESS="STREAM")
+
+         Domain_stats = 1_ik
+
+         WRITE(aun) Domain_stats
+         FLUSH(aun)
+
+      ELSE ! restart = 'Y'         
+
+         IF(.NOT. heaxist) CALL print_err_stop(std_out, &
+            "Restart requested, but header does not exist", 1)
 
         !------------------------------------------------------------------------------
         ! Read an existing output tree (with microfocus ct data).
@@ -1311,26 +1348,34 @@ Program main_struct_process
             flush(un_lf)
          END If
          !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<     
-      END IF
 
+         !------------------------------------------------------------------------------
+         ! Read the activity tracker.
+         !------------------------------------------------------------------------------
+         INQUIRE(aun, EXIST=fexist)
 
-        
-       
-     Call pd_get(ddc,"nn_D",nn_D)
+         IF (.NOT. fexist) THEN
+            mssg='The file '//TRIM(outpath)//"/"//trim(project_name)//"does not exist."//'.'
+            CALL print_err_stop(std_out, TRIM(ADJUSTL(mssg)), err=1_ik)
+         END IF
 
-      !------------------------------------------------------------------------------
-      ! Allocate and init field for selected domain range
-      !------------------------------------------------------------------------------
-      amount_domains = (xe_d(1)-xa_d(1)+1) * (xe_d(2)-xa_d(2)+1) * (xe_d(3)-xa_d(3)+1)
-     
-     Allocate(Domains(amount_domains),stat=alloc_stat)
-     Call alloc_err("Domains",alloc_stat)
-     
-     Allocate(Domain_stats(amount_domains),stat=alloc_stat)
-     Call alloc_err("Domain_stats",alloc_stat)
-     
-     Allocate(domain_path(0:amount_domains))
-     domain_path = ''
+         ! Open to read
+         OPEN(aun, FILE=TRIM(outpath)//"/"//trim(project_name)//".status", &
+            ACTION="READ", STATUS="OLD", ACCESS="STREAM")
+
+         READ(aun) Domain_stats
+
+         CLOSE(aun)
+
+         ! Open to write
+         OPEN(aun, FILE=TRIM(outpath)//"/"//trim(project_name)//".status", &
+            ACTION="WRITE", STATUS="OLD", ACCESS="STREAM")
+
+      END IF ! restart == Yes/No
+
+         
+      Call pd_get(ddc,"nn_D",nn_D)
+
 
      !** Init Result branch ***************************************************
      !if ( Restart == "N" ) Then
@@ -1386,45 +1431,6 @@ Program main_struct_process
 
      !** serialize root branch ************************************************
      Call serialize_branch(root,serial_root,serial_root_size,.TRUE.)
-     
-     !** Init restart and result files ****************************************
-     aun = give_new_unit()
-      IF (restart == "Y") THEN
-
-         !------------------------------------------------------------------------------
-         ! outpath --> Due to a "/" which is inserted after building the path.......
-         ! More like a workaround at the moment
-         !------------------------------------------------------------------------------
-         INQUIRE(aun, EXIST=fexist)
-
-         IF (.NOT. fexist) THEN
-            mssg='The file '//TRIM(outpath)//"/"//trim(project_name)//"does not exist."//'.'
-            CALL print_err_stop(std_out, TRIM(ADJUSTL(mssg)), err=1_ik)
-         END IF
-
-
-         OPEN(aun, FILE=TRIM(outpath)//"/"//trim(project_name)//"_Activity.raw", &
-            ACTION="READ", STATUS="OLD", ACCESS="STREAM")
-
-         READ(aun) Domain_stats
-
-         CLOSE(aun)
-
-         OPEN(aun, FILE=TRIM(outpath)//"/"//trim(project_name)//"_Activity.raw", &
-            ACTION="WRITE", STATUS="OLD", ACCESS="STREAM")
-
-      ELSE
-
-         !** Init State tracker file *******************************************
-         OPEN(aun, FILE=TRIM(outpath)//"/"//trim(project_name)//"_Activity.raw", &
-            ACTION="WRITE", STATUS="REPLACE", ACCESS="STREAM")
-
-         Domain_stats = 1_ik
-
-         WRITE(aun) Domain_stats
-         FLUSH(aun)
-
-      END IF
 
      !** Init Domain Cross Reference and domain paths *************************
      dc = 0
