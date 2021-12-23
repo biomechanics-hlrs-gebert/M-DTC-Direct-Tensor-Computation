@@ -1047,7 +1047,7 @@ str = ''
 
 DO ii=1, SIZE(real_1D)
    str = ''
-   WRITE(str, '(F30.7)') real_1D(ii)
+   WRITE(str, '(F15.7)') real_1D(ii)
 
    CALL trimzero(str)
 
@@ -1328,19 +1328,19 @@ DO ii=1, 6
       INQUIRE(FILE=TRIM(in%p_n_bsnm)//TRIM(suf), SIZE=my_size)
       
 
-      IF ((my_size/PRODUCT(vox_per_dim)) /= bytesizes(ii)) THEN
-         WRITE(std_out,'(A,I0)') "Size of scalar data input: ", my_size
-         WRITE(std_out,'(A,I0)') "Amount of points in image: ", PRODUCT(vox_per_dim)
-         WRITE(std_out,'(A,I0)') "Expected size per entry: ", bytesizes(ii), " Byte(s)"
-         WRITE(std_out,'(2A)') "Filename: ", TRIM(in%p_n_bsnm)//TRIM(suf)
+      ! IF ((my_size/PRODUCT(vox_per_dim)) /= bytesizes(ii)) THEN
+      !    WRITE(std_out,'(A,I0)') "Size of scalar data input: ", my_size
+      !    WRITE(std_out,'(A,I0)') "Amount of points in image: ", PRODUCT(vox_per_dim)
+      !    WRITE(std_out,'(A,I0)') "Expected size per entry: ", bytesizes(ii), " Byte(s)"
+      !    WRITE(std_out,'(2A)') "Filename: ", TRIM(in%p_n_bsnm)//TRIM(suf)
 
-         mssg = ""
-         mssg = "Filesize of the raw data does not match the dimensions and data type.&
-            & Please check the raw data or the fortran source code of the meta/raw converter.&
-            & Converter assumes that only one blob of data set is containted in the raw file!&
-            & Converter cannot deal with multiple binary images within 1 raw file at the moment."
-         CALL print_err_stop(stdout, mssg, 1) 
-      END IF
+      !    mssg = ""
+      !    mssg = "Filesize of the raw data does not match the dimensions and data type.&
+      !       & Please check the raw data or the fortran source code of the meta/raw converter.&
+      !       & Converter assumes that only one blob of data set is containted in the raw file!&
+      !       & Converter cannot deal with multiple binary images within 1 raw file at the moment."
+      !    CALL print_err_stop(stdout, mssg, 1) 
+      ! END IF
 
       ! It is the file of the original *.raw data
       OPEN(UNIT=free_file_handle, FILE=TRIM(in%p_n_bsnm)//TRIM(suf), &
@@ -1405,6 +1405,18 @@ DO ii=1, 6
 END DO
 
 CLOSE(fhh)
+
+! DEBUG
+CALL execute_command_line ('cp  '//TRIM(in%p_n_bsnm)//".head "//&
+   TRIM(in%p_n_bsnm)//".head_bckp")
+CALL execute_command_line ('cp  '//TRIM(in%p_n_bsnm)//".real8.st "//&
+   TRIM(in%p_n_bsnm)//".real8.st_bckp")
+! DEBUG
+
+! CALL execute_command_line ("cp  &
+! &/home/geb/09_trinity_site/check_values/trunk/regression/solid_cube/solid_cube.head &
+! &/home/geb/01_bin_gebert/DDTC/datasets/SC00-0_tc_Pro_DDTC_Tensors.head")
+
 END SUBROUTINE convert_meta_to_puredat
 
 

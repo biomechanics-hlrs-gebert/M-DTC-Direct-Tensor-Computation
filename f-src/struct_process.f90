@@ -1045,8 +1045,8 @@ Program main_struct_process
       ! Output directory and 
       ! Implicitly creates a subdirectory.
       !------------------------------------------------------------------------------
-      outpath = TRIM(out%path)//"/"
-      project_name = TRIM(out%bsnm)
+      outpath = TRIM(in%path)//"/"
+      project_name = TRIM(in%bsnm)
 
       pro_path = outpath
       pro_name = project_name
@@ -1243,26 +1243,9 @@ Program main_struct_process
          Call include_branch_into_branch(s_b=params, t_b=root, blind=.TRUE.)
 
          !------------------------------------------------------------------------------
-         ! Input data, basically.
-         ! Set the global variable pro_path/pro_name to the input data
-         !------------------------------------------------------------------------------
-         !** Load puredat tree of micro-CT data and calculate the global
-         !** parameters of the domain decomposition
-         pro_path = muCT_pd_path
-         pro_name = muCT_pd_name
-
-         !------------------------------------------------------------------------------
          ! Read an existing input tree (with microfocus ct data).
          !------------------------------------------------------------------------------
          phi_tree = read_tree()
-
-         !------------------------------------------------------------------------------
-         ! Output data, basically.
-         ! Set the global variable pro_path/pro_name to the output data
-         !------------------------------------------------------------------------------
-         !** Set project name and path of global domain decomposition     
-         pro_path = outpath
-         pro_name = project_name
 
          allocate(ddc)
          ddc = calc_general_ddc_params(bone%phdsize, phi_tree)
@@ -1272,7 +1255,7 @@ Program main_struct_process
          !------------------------------------------------------------------------------
          ! Initialize the activity tracker.
          !------------------------------------------------------------------------------
-         OPEN(aun, FILE=TRIM(outpath)//"/"//trim(project_name)//"_Activity.raw", &
+         OPEN(aun, FILE=TRIM(outpath)//"/"//trim(project_name)//".status", &
             ACTION="WRITE", STATUS="REPLACE", ACCESS="STREAM")
 
          Domain_stats = 1_ik
@@ -1373,9 +1356,16 @@ Program main_struct_process
 
       END IF ! restart == Yes/No
 
+      !------------------------------------------------------------------------------
+      ! Rename files to output nomenclature
+      !------------------------------------------------------------------------------
+      outpath = TRIM(out%path)//"/"
+      project_name = TRIM(out%bsnm)
+
+      pro_path = outpath
+      pro_name = project_name
          
       Call pd_get(ddc,"nn_D",nn_D)
-
 
      !** Init Result branch ***************************************************
      !if ( Restart == "N" ) Then
@@ -1812,8 +1802,8 @@ Program main_struct_process
       !------------------------------------------------------------------------------
       ! Extend project_name and outpath with rank bone%number
       !------------------------------------------------------------------------------
-      WRITE(outpath     ,'(A,A,I7.7,A)') TRIM(outpath     ),"Rank_",rank_mpi,"/"
-      WRITE(project_name,'(A,A,I7.7)'  ) TRIM(project_name),"_"    ,rank_mpi
+      WRITE(outpath,'(A,A,I7.7,A)') TRIM(outpath),"Rank_",rank_mpi,"/"
+      WRITE(project_name,'(A,A,I7.7)') TRIM(project_name),"_",rank_mpi
      
       !------------------------------------------------------------------------------
       ! Prepare output directory via calling the c function.
