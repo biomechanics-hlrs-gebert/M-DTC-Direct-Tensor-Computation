@@ -111,7 +111,7 @@ Contains
     !----------------------------------------------------------------
     Integer(kind=mpi_ik)              :: ierr
     Integer(kind=mpi_ik), Dimension(MPI_STATUS_SIZE)   :: status_mpi
-    Type(tBranch), pointer            :: bb, db, pb, mb, params,resb
+    Type(tBranch), pointer            :: bb, db, pb, mb, meta_para,resb
 
     Character(Len=mcl)                :: desc, mesh_desc, filename
     Character(Len=mcl)                :: elt_micro
@@ -175,11 +175,11 @@ Contains
     write(nn_char,'(I0)')nn
 
     !** Get basic infos ------------------------------------------
-    CALL Search_branch("Input parameters", root, params, success, DEBUG)
-    CALL pd_get(params, "No of mesh parts per subdomain", parts)
-    CALL pd_get(params, "Physical domain size" , mc%phdsize, 3)
-    CALL pd_get(params, "Young_s modulus" , mc%E)
-    CALL pd_get(params, "Poisson_s ratio" , mc%nu)
+    CALL Search_branch("Input parameters", root, meta_para, success, DEBUG)
+    CALL pd_get(meta_para, "No of mesh parts per subdomain", parts)
+    CALL pd_get(meta_para, "Physical domain size" , mc%phdsize, 3)
+    CALL pd_get(meta_para, "Young_s modulus" , mc%E)
+    CALL pd_get(meta_para, "Poisson_s ratio" , mc%nu)
      
     !****************************************************************************
     !** Rank = 0 -- Local master of comm_mpi ************************************
@@ -929,7 +929,7 @@ Program main_struct_process
   INTEGER  (kind=c_int ) :: stat_c_int
   INTEGER                :: stat
   Type(tBranch)          :: root, phi_tree
-  Type(tBranch), pointer :: ddc, params, res
+  Type(tBranch), pointer :: ddc, meta_para, res
   
   CHARACTER(LEN=4*mcl)                              :: job_dir
   CHARACTER           , DIMENSION(4*mcl)            :: c_char_array
@@ -940,8 +940,9 @@ Program main_struct_process
   CHARACTER(LEN=mcl)                                :: infile=''  , cmd_arg='notempty', cmd_arg_history=''
   CHARACTER(LEN=mcl)                                :: muCT_pd_path, muCT_pd_name, domain_desc, binary
 
-  INTEGER  (KIND=ik)  , DIMENSION(:), ALLOCATABLE   :: Domains, Domain_stats, act_domains, nn_D
-  INTEGER  (KIND=ik)  , DIMENSION(3)                :: xa_d, xe_d
+  INTEGER(KIND=ik), DIMENSION(:), ALLOCATABLE   :: Domains, Domain_stats, act_domains, nn_D
+  INTEGER(KIND=ik), DIMENSION(3) :: xa_d, xe_d, vdim
+  REAL(KIND=rk), DIMENSION(3) :: delta
 
   INTEGER  (KIND=ik) :: nn, ii, jj, kk, dc
   INTEGER  (KIND=ik) :: amount_domains, path_count
@@ -1045,18 +1046,19 @@ Program main_struct_process
       ! Output directory and 
       ! Implicitly creates a subdirectory.
       !------------------------------------------------------------------------------
-      outpath = TRIM(in%path)//"/"
-      project_name = TRIM(in%bsnm)
+      outpath = TRIM(out%path)//"/"
+      project_name = TRIM(out%bsnm)
 
       pro_path = outpath
       pro_name = project_name
 
-      
       CALL meta_read (std_out, 'MICRO_ELMNT_TYPE' , m_rry, elt_micro)
       CALL meta_read (std_out, 'DBG_LVL'          , m_rry, out_amount )
       CALL meta_read (std_out, 'OUT_FMT'          , m_rry, output)
       CALL meta_read (std_out, 'RESTART'          , m_rry, restart)
       CALL meta_read (std_out, 'SIZE_DOMAIN'      , m_rry, bone%phdsize)
+      CALL meta_read (std_out, 'SPACING'          , m_rry, delta)
+      CALL meta_read (std_out, 'DIMENSIONS'       , m_rry, vdim)
       CALL meta_read (std_out, 'LO_BNDS_DMN_RANGE', m_rry, xa_d)
       CALL meta_read (std_out, 'UP_BNDS_DMN_RANGE', m_rry, xe_d)
       CALL meta_read (std_out, 'BINARIZE_LO'      , m_rry, llimit)
@@ -1106,6 +1108,8 @@ Program main_struct_process
       CALL meta_write (fhmeo, 'OUT_FMT'          , output     )
       CALL meta_write (fhmeo, 'RESTART'          , restart    )
       CALL meta_write (fhmeo, 'SIZE_DOMAIN'      , '(mm)' , bone%phdsize)
+      CALL meta_write (fhmeo, 'SPACING'          , '(mm)' , delta)
+      CALL meta_write (fhmeo, 'DIMENSIONS'       , '(-)'  , vdim)
       CALL meta_write (fhmeo, 'LO_BNDS_DMN_RANGE', '(-)'  , xa_d)
       CALL meta_write (fhmeo, 'UP_BNDS_DMN_RANGE', '(-)'  , xe_d)
       CALL meta_write (fhmeo, 'BINARIZE_LO'      , '(-)'  , llimit)
@@ -1135,28 +1139,32 @@ Program main_struct_process
       END IF
 
       !------------------------------------------------------------------------------
-      ! Raise and build params tree
+      ! Raise and build meta_para tree
       ! Hardcoded, implicitly given order of the leafs. 
-      ! DO NOT CHANGE ORDER WITHOUT MODIFYING ALL OTHER INDICES REGARDING »params«
+      ! DO NOT CHANGE ORDER WITHOUT MODIFYING ALL OTHER INDICES REGARDING »meta_para«
       !------------------------------------------------------------------------------
-      Allocate(params)
-      Call raise_tree("Input parameters", params)
+      Allocate(meta_para)
+      Call raise_tree("Input parameters", meta_para)
 
-      CALL add_leaf_to_branch(params, "muCT puredat pro_path"                , mcl            , str_to_char(muCT_pd_path))
-      CALL add_leaf_to_branch(params, "muCT puredat pro_name"                , mcl            , str_to_char(muCT_pd_name))
-      CALL add_leaf_to_branch(params, "Physical domain size"                 , 3_ik           , bone%phdsize)
-      CALL add_leaf_to_branch(params, "Lower bounds of selected domain range", 3_ik           , xa_d)
-      CALL add_leaf_to_branch(params, "Upper bounds of selected domain range", 3_ik           , xe_d)     
-      CALL add_leaf_to_branch(params, "Lower limit of iso value"             , 1_ik           , [llimit])     
-      CALL add_leaf_to_branch(params, "Element type  on micro scale"         , len(elt_micro) , str_to_char(elt_micro))     
-      CALL add_leaf_to_branch(params, "No of mesh parts per subdomain"       , 1              , [parts])
-      CALL add_leaf_to_branch(params, "Output Format"                        , len(output)    , str_to_char(output))
-      CALL add_leaf_to_branch(params, "Average strain on RVE"                , 1              , [strain])   
-      CALL add_leaf_to_branch(params, "Young_s modulus"                      , 1              , [bone%E])
-      CALL add_leaf_to_branch(params, "Poisson_s ratio"                      , 1              , [bone%nu])
-      CALL add_leaf_to_branch(params, "Element order on macro scale"         , 1              , [elo_macro])
-      CALL add_leaf_to_branch(params, "Output amount"                        , len(out_amount), str_to_char(out_amount))
-      CALL add_leaf_to_branch(params, "Restart"                              , 1              , str_to_char(restart))
+      write(*,*) "Strain on RVE: ", strain
+
+      CALL add_leaf_to_branch(meta_para, "muCT puredat pro_path"                , mcl , str_to_char(muCT_pd_path))
+      CALL add_leaf_to_branch(meta_para, "muCT puredat pro_name"                , mcl , str_to_char(muCT_pd_name))
+      CALL add_leaf_to_branch(meta_para, "Physical domain size"                 , 3_ik, bone%phdsize)
+      CALL add_leaf_to_branch(meta_para, "Grid spacings"                        , 3_ik, delta)
+      CALL add_leaf_to_branch(meta_para, "Number of voxels per direction"       , 3_ik, vdim)
+      CALL add_leaf_to_branch(meta_para, "Lower bounds of selected domain range", 3_ik, xa_d)
+      CALL add_leaf_to_branch(meta_para, "Upper bounds of selected domain range", 3_ik, xe_d)     
+      CALL add_leaf_to_branch(meta_para, "Lower limit of iso value"             , 1_ik, [llimit])     
+      CALL add_leaf_to_branch(meta_para, "Element type  on micro scale"         , len(elt_micro) , str_to_char(elt_micro))     
+      CALL add_leaf_to_branch(meta_para, "No of mesh parts per subdomain"       , 1              , [parts])
+      CALL add_leaf_to_branch(meta_para, "Output Format"                        , len(output)    , str_to_char(output))
+      CALL add_leaf_to_branch(meta_para, "Average strain on RVE"                , 1              , [strain])   
+      CALL add_leaf_to_branch(meta_para, "Young_s modulus"                      , 1              , [bone%E])
+      CALL add_leaf_to_branch(meta_para, "Poisson_s ratio"                      , 1              , [bone%nu])
+      CALL add_leaf_to_branch(meta_para, "Element order on macro scale"         , 1              , [elo_macro])
+      CALL add_leaf_to_branch(meta_para, "Output amount"                        , len(out_amount), str_to_char(out_amount))
+      CALL add_leaf_to_branch(meta_para, "Restart"                              , 1              , str_to_char(restart))
 
 
       !------------------------------------------------------------------------------
@@ -1232,7 +1240,6 @@ Program main_struct_process
          !------------------------------------------------------------------------------
          ! project_name --> out%p_n_bsnm/bsnm --> subdirectory with file name = bsnm.suf
          !------------------------------------------------------------------------------
-         ! Tree description = out%p_n_bsnm/bsnm
          ! Tree which is fed back = root. A collection of stream paths and Null pointers
          !------------------------------------------------------------------------------
          Call raise_tree(Trim(project_name),root)
@@ -1240,12 +1247,22 @@ Program main_struct_process
          !------------------------------------------------------------------------------
          ! Source branch / target branch
          !------------------------------------------------------------------------------
-         Call include_branch_into_branch(s_b=params, t_b=root, blind=.TRUE.)
+         Call include_branch_into_branch(s_b=meta_para, t_b=root, blind=.TRUE.)
 
          !------------------------------------------------------------------------------
          ! Read an existing input tree (with microfocus ct data).
          !------------------------------------------------------------------------------
+         !** Load puredat tree of micro-CT data and calculate the global
+         !** parameters of the domain decomposition
+         pro_path = muCT_pd_path
+         pro_name = muCT_pd_name
+
          phi_tree = read_tree()
+
+         ! !** Set project name and path of global domain decomposition     
+         pro_path = outpath
+         pro_name = project_name
+
 
          allocate(ddc)
          ddc = calc_general_ddc_params(bone%phdsize, phi_tree)
@@ -1307,7 +1324,7 @@ Program main_struct_process
             CALL print_err_stop(std_out, mssg, 1)
          END IF
 
-         CALL search_branch("Input parameters", root, params, success)
+         CALL search_branch("Input parameters", root, meta_para, success)
 
          IF (.NOT. success) then
             mssg = "No branch named 'Input parameters', however a restart was requested."
@@ -1319,8 +1336,8 @@ Program main_struct_process
          ! Hardcoded, implicitly given order of the leafs. 
          ! DO NOT CHANGE INDICES WITHOUT MODYFING THE »add_leaf_to_branch« SEQUENCES.
          !------------------------------------------------------------------------------
-         params%leaves(14)%p_char = str_to_char(out_amount)
-         params%leaves(15)%p_char = "Y"
+         meta_para%leaves(14)%p_char = str_to_char(out_amount)
+         meta_para%leaves(15)%p_char = "Y"
 
          !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
          If (out_amount == "DEBUG") THEN 
@@ -1355,15 +1372,6 @@ Program main_struct_process
             ACTION="WRITE", STATUS="OLD", ACCESS="STREAM")
 
       END IF ! restart == Yes/No
-
-      !------------------------------------------------------------------------------
-      ! Rename files to output nomenclature
-      !------------------------------------------------------------------------------
-      outpath = TRIM(out%path)//"/"
-      project_name = TRIM(out%bsnm)
-
-      pro_path = outpath
-      pro_name = project_name
          
       Call pd_get(ddc,"nn_D",nn_D)
 
@@ -1492,7 +1500,7 @@ Program main_struct_process
      !*************************************************************************
      !** Start Workers ********************************************************
 
-     Call Start_Timer("Broadcast Init Params")
+     Call Start_Timer("Broadcast Init meta_para")
      
      Call mpi_bcast(pro_path, INT(mcl,mpi_ik), MPI_CHAR, 0_mpi_ik, MPI_COMM_WORLD, ierr)
 
@@ -1505,7 +1513,7 @@ Program main_struct_process
      Call mpi_bcast(serial_root, INT(serial_root_size,mpi_ik), MPI_INTEGER8, 0_mpi_ik,&
           MPI_COMM_WORLD, ierr)
 
-     Call End_Timer("Broadcast Init Params")
+     Call End_Timer("Broadcast Init meta_para")
 
      !** Execute collective mpi_comm_split. Since mpi_comm_world rank 0 is
      !** the head master worker_comm is not needed and it should not be in
@@ -1522,7 +1530,7 @@ Program main_struct_process
   Else
      
      !** Broadcast recieve init parameters ************************************
-     Call Start_Timer("Broadcast Init Params")
+     Call Start_Timer("Broadcast Init meta_para")
      
      Call mpi_bcast(outpath         , INT(mcl,mpi_ik), MPI_CHAR    , 0_mpi_ik, MPI_COMM_WORLD, ierr)
      Call mpi_bcast(project_name    , INT(mcl,mpi_ik), MPI_CHAR    , 0_mpi_ik, MPI_COMM_WORLD, ierr)
@@ -1531,7 +1539,7 @@ Program main_struct_process
      !** Serial_root_size == -1 ==> Signal that amount_domains < size_mpi-1 ****
      If ( serial_root_size == -1 ) then
 
-        Call End_Timer("Broadcast Init Params")
+        Call End_Timer("Broadcast Init meta_para")
         
         Goto 1001
 
@@ -1542,7 +1550,7 @@ Program main_struct_process
      Call mpi_bcast(serial_root, INT(serial_root_size,mpi_ik), MPI_INTEGER8, 0_mpi_ik,&
           MPI_COMM_WORLD, ierr)
 
-     Call End_Timer("Broadcast Init Params")
+     Call End_Timer("Broadcast Init meta_para")
 
      !** Deserialize root branch **********************************************
      Call Start_Timer("Deserialize root branch")
@@ -1562,10 +1570,10 @@ Program main_struct_process
      Call End_Timer("Deserialize root branch")
 
      !** Init Domain Cross Reference ******************************************
-     Call pd_get(root%branches(1),"Lower bounds of selected domain range",xa_d,3)
-     Call pd_get(root%branches(1),"Upper bounds of selected domain range",xe_d,3)
+     Call pd_get(root%branches(1), "Lower bounds of selected domain range", xa_d, 3)
+     Call pd_get(root%branches(1), "Upper bounds of selected domain range", xe_d, 3)
      
-     amount_domains = (xe_d(1)-xa_d(1)+1) * &
+     amount_domains= (xe_d(1)-xa_d(1)+1) * &
                      (xe_d(2)-xa_d(2)+1) * &
                      (xe_d(3)-xa_d(3)+1)
 

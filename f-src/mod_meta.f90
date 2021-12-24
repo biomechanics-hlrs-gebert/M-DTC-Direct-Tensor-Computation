@@ -1270,8 +1270,8 @@ SELECT CASE(TRIM(datatype))
 END SELECT
 
 IF(suf /= '') THEN
-   INQUIRE(FILE=TRIM(in%p_n_bsnm)//TRIM(suf), EXIST=fex)
-   IF(fex) CALL print_err_stop(stdout, TRIM(in%p_n_bsnm)//TRIM(suf)//" already exists.", 1)
+   INQUIRE(FILE=TRIM(out%p_n_bsnm)//TRIM(suf), EXIST=fex)
+   IF(fex) CALL print_err_stop(stdout, TRIM(out%p_n_bsnm)//TRIM(suf)//" already exists.", 1)
 
    CALL EXECUTE_COMMAND_LINE &
       ("mv "//TRIM(in%p_n_bsnm)//".raw "//TRIM(in%p_n_bsnm)//TRIM(suf), CMDSTAT=stat)

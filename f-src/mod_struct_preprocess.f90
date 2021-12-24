@@ -44,7 +44,7 @@ Contains
     Type(tBranch), Pointer                          :: loc_ddc, ddc, bounds_b
 
     !-- Branch pointers -------------------------------------------------------
-    Type(tBranch), Pointer                          :: db, params, res_b
+    Type(tBranch), Pointer                          :: db, meta_para, res_b
 
     !-- Mesh Variables --------------------------------------------------------
     Real(Kind=rk)    , Dimension(:,:) , Allocatable :: nodes, displ
@@ -156,15 +156,11 @@ write(*,"(A,I0,A,3(' ',I0))") "rank_mpi: ", rank_mpi, "  ddc - x_D: ", x_D
     !-------------------------------------------------------------
     Call pd_get(root%branches(1),"muCT puredat pro_path",char_arr)
 
-write(*,*) "Char_arr: ", char_arr
-
     pro_path = char_to_str(char_arr)
     deallocate(char_arr)
     
     Call pd_get(root%branches(1),"muCT puredat pro_name",char_arr)
 
-write(*,*) "Char_arr: ", char_arr
-   
     pro_name = char_to_str(char_arr)
     deallocate(char_arr)
               WRITE(*,*) "DEBUG_GEN_GEOMETRY 3.1"
@@ -177,9 +173,10 @@ write(*,*) "Char_arr: ", char_arr
 
     call pd_load_leaf(phi_desc%streams,phi_desc, "Grid spacings", delta)  
                   WRITE(*,*) "DEBUG_GEN_GEOMETRY 3.4"
-
+! delta = [ 1.0, 1.0, 1.0]
     call pd_load_leaf(phi_desc%streams,phi_desc, "Number of voxels per direction", vdim)
               WRITE(*,*) "DEBUG_GEN_GEOMETRY 4"
+! vdim = [ 21,21,21]
 
     if ( out_amount /= "PRODUCTION" ) then
        write(un_lf,FMT_MSG_A3F0) "Grid spacings", delta
@@ -190,7 +187,7 @@ write(*,*) "Char_arr: ", char_arr
 
     call alloc_err("phi", alloc_stat)
 
-    !** Read PHI from file ****************************************************
+    !** Read PHI (scalar binary values) from file *************************
     Do jj = xa_n(3), xe_n(3)
        Do ii = xa_n(2), xe_n(2)
 
@@ -318,9 +315,9 @@ write(*,*) "Char_arr: ", char_arr
        !close(un_abq)
     End if
     
-    Call Search_branch("Input parameters", root, params, success)
-    call pd_get(params,"No of mesh parts per subdomain",parts)
-    Call pd_get(params,'Element order on macro scale', elo_macro)
+    Call Search_branch("Input parameters", root, meta_para, success)
+    call pd_get(meta_para,"No of mesh parts per subdomain",parts)
+    Call pd_get(meta_para,'Element order on macro scale', elo_macro)
     
     !=========================================================================
     ! Perform domain decomposition by metis

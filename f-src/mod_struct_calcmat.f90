@@ -52,7 +52,7 @@ contains
     integer(Kind=ik)                             :: no_elem_nodes,micro_elem_nodes
     integer(Kind=ik)                             :: no_lc
     Real(Kind=rk),    Dimension(3)               :: min_c, max_c
-    Type(tBranch), Pointer                       :: ddc, loc_ddc, params, db
+    Type(tBranch), Pointer                       :: ddc, loc_ddc, meta_para, db
     Character(Len=mcl)                           :: desc
 
     Real(kind=rk), Dimension(1)                  :: tmp_real_fd1
@@ -99,12 +99,12 @@ contains
        continue
     End Select
 
-    !** Load input params *****************************************************
-    Call Search_branch("Input parameters", root, params, success)
-    Call pd_get(params, "Young_s modulus", E_Modul)
-    Call pd_get(params, "Poisson_s ratio", nu)
-    Call pd_get(params, "Average strain on RVE", rve_strain)
-    Call pd_get(params, "Element order on macro scale", macro_order)
+    !** Load input meta_para *****************************************************
+    Call Search_branch("Input parameters", root, meta_para, success)
+    Call pd_get(meta_para, "Young_s modulus", E_Modul)
+    Call pd_get(meta_para, "Poisson_s ratio", nu)
+    Call pd_get(meta_para, "Average strain on RVE", rve_strain)
+    Call pd_get(meta_para, "Element order on macro scale", macro_order)
 
     !**************************************************************************
     !** Load domain decomposition parameters **********************************

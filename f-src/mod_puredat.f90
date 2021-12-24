@@ -317,6 +317,8 @@ Implicit None
   !> \date 08.06.2012
   Interface pd_get
 
+     Module Procedure pd_get_3_vector
+
      Module Procedure pd_get_4_scalar
      Module Procedure pd_get_5_scalar
 
@@ -2932,6 +2934,60 @@ CONTAINS
     End If
 
   End Subroutine pd_get_5_scalar
+
+   !============================================================================
+   !> Function which retrieves int 4 leaf data to a constant array
+   !>
+   !> Function which retrieves int 4 leaf data from the corresponding leaf
+   !> pointer to a constant array of rank 1 and type int(kind=4). The 
+   !> leaf is searched !!non recursively!! in the given branch by full 
+   !> comparison of trim(branch%leaves(ii)%desc) == trim(desc).
+   Subroutine pd_get_3_vector(branch, desc, values, size)
+
+      Type(tBranch)    , Intent(in) :: branch
+      Character(Len=*) , Intent(in) :: desc
+      Integer(kind=8) ,  Intent(in) :: size
+      
+      Integer(kind=4) , Intent(out), Dimension(size) :: values
+
+      Integer :: ii
+      Logical :: desc_found
+
+      desc_found=.FALSE.
+      
+      Do ii = 1, branch%no_leaves
+
+         If (trim(branch%leaves(ii)%desc) == trim(desc)) then
+            
+            If (size /= branch%leaves(ii)%dat_no)  then
+               Write(pd_umon,'( A)')"Something bad and unexpected happend during retrival&
+                     & of leaf data pointer"
+               Write(pd_umon,'( A)')trim(desc)
+               Write(pd_umon,'(3A)')"In puredat function pd_get_3_vector (",TRIM(branch%desc),")"
+               Write(pd_umon,'( A)')"The specified leaf size is not equal to the size        !!!"
+               Write(pd_umon,'( A)')"of the passed actual argument                           !!!"
+               Write(pd_umon,'( A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+               stop
+            End If
+            
+            values = branch%leaves(ii)%p_int4
+            desc_found = .TRUE.
+
+         End If
+
+      end Do
+
+      If (.NOT. desc_found) then
+         Write(pd_umon,'(A)')"Something bad and unexpected happend during retrival&
+               & of leaf data pointer"
+         Write(pd_umon,'(A)')trim(desc)
+         Write(pd_umon,'(A)')"In puredat function pd_get_4(branch,desc)"
+         Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
+         Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+         stop
+      End If
+
+   End Subroutine pd_get_3_vector
 
   !============================================================================
   !> Function which retrieves integer 8 leaf data to an allocatable array

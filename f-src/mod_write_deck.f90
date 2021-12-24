@@ -16,12 +16,12 @@ contains
   !**
   !** Write FMPS Loadcase Input Decks
   !** 
-  Subroutine write_fmps_decks(job_dir, ddc_nn, params, db)
+  Subroutine write_fmps_decks(job_dir, ddc_nn, meta_para, db)
 
     !-- Input Parameters ------------------------------------------------------
     Character(LEN=*), Intent(in)        :: job_dir
     Integer(Kind=ik), Intent(in)        :: ddc_nn
-    Type(tBranch)   , Intent(In)        :: params
+    Type(tBranch)   , Intent(In)        :: meta_para
     Type(tBranch)   , Intent(InOut)     :: db
 
     Type(tBranch)   , Pointer           :: fb, ifb
@@ -49,17 +49,17 @@ contains
 
     !--------------------------------------------------------------------------
 
-    call pd_get(params,'Element type  on micro scale',char_arr)
+    call pd_get(meta_para,'Element type  on micro scale',char_arr)
     elt_micro = char_to_str(char_arr)
     deallocate(char_arr)
 
-    Call pd_get(params, 'No of mesh parts'     , parts)
-    Call pd_get(params, "Young_s modulus"      , e_modul)
-    Call pd_get(params, "Poisson_s ratio"      , nu)
+    Call pd_get(meta_para, 'No of mesh parts'     , parts)
+    Call pd_get(meta_para, "Young_s modulus"      , e_modul)
+    Call pd_get(meta_para, "Poisson_s ratio"      , nu)
 
-    Call pd_get(params, "Element order on macro scale", elo_macro)
-    Call pd_get(params, 'FMPS Solver to use'          , no_solver)
-    Call pd_get(params, 'FMPS Parser Scratch'         , pscratch)
+    Call pd_get(meta_para, "Element order on macro scale", elo_macro)
+    Call pd_get(meta_para, 'FMPS Solver to use'          , no_solver)
+    Call pd_get(meta_para, 'FMPS Parser Scratch'         , pscratch)
 
     IF (elo_macro == 1) no_nodes_macro = 8
 
