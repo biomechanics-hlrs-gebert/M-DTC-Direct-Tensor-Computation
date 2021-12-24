@@ -71,15 +71,12 @@ Contains
     Integer(kind=8) :: nn_1,nn_2,nn_3, ii,jj
     Integer(kind=8) :: pos_f
 
-    integer(kind=4) :: rank_mpi
-
     Logical :: success
     
     Character(len=9) :: nn_char
 
     write(nn_char,'(I0)')ddc_nn
     glob_success = .TRUE.
-              WRITE(*,*) "DEBUG_GEN_GEOMETRY 1"
 
     !** Get global DDC parameters from root *********
     Call Search_branch("Global domain decomposition", root, ddc, success)
@@ -87,22 +84,6 @@ Contains
     call pd_get(ddc,"nn_D",nn_D)
     call pd_get(ddc,"bpoints", bpoints)
     call pd_get(ddc,"x_D",x_D)
-
-   CALL MPI_COMM_RANK(MPI_COMM_WORLD, rank_mpi, ierr)
-write(*,"(A,I0,A,3(' ',I0))") "rank_mpi: ", rank_mpi, "  ddc - nn_D: ", nn_D    
-write(*,"(A,I0,A,3(' ',I0))") "rank_mpi: ", rank_mpi, "  ddc - bpoints: ", bpoints
-write(*,"(A,I0,A,3(' ',I0))") "rank_mpi: ", rank_mpi, "  ddc - x_D: ", x_D
-
-! DDTC
-! rank_mpi: 1  ddc - nn_D:  0 0 0
-! rank_mpi: 1  ddc - bpoints:  1 1 1
-! rank_mpi: 1  ddc - x_D:  20 20 20
-
-! Struct_process
-! rank_mpi: 1  ddc - nn_D:  9 9 9
-! rank_mpi: 1  ddc - bpoints:  1 1 1
-! rank_mpi: 1  ddc - x_D:  2 2 2
-
 
     !** Calculate special parameters of domain decomposition ********************
     nn_3 = INT( ddc_nn / ( nn_D(1)*nn_D(2) ))
@@ -130,7 +111,6 @@ write(*,"(A,I0,A,3(' ',I0))") "rank_mpi: ", rank_mpi, "  ddc - x_D: ", x_D
     !** Add branch for local ddc params to domain branch *****************
     desc=''
     Write(desc,'(A,I0)')"Local domain Decomposition of domain no ",ddc_nn
-              WRITE(*,*) "DEBUG_GEN_GEOMETRY 2"
 
     call add_branch_to_branch(db,loc_ddc)
     call raise_branch(trim(desc), 0_pd_ik, 0_pd_ik, loc_ddc)
@@ -151,7 +131,6 @@ write(*,"(A,I0,A,3(' ',I0))") "rank_mpi: ", rank_mpi, "  ddc - x_D: ", x_D
     Case default
        continue
     End Select
-                  WRITE(*,*) "DEBUG_GEN_GEOMETRY 3"
 
     !-------------------------------------------------------------
     Call pd_get(root%branches(1),"muCT puredat pro_path",char_arr)
@@ -163,20 +142,13 @@ write(*,"(A,I0,A,3(' ',I0))") "rank_mpi: ", rank_mpi, "  ddc - x_D: ", x_D
 
     pro_name = char_to_str(char_arr)
     deallocate(char_arr)
-              WRITE(*,*) "DEBUG_GEN_GEOMETRY 3.1"
 
     phi_desc = read_tree()
-              WRITE(*,*) "DEBUG_GEN_GEOMETRY 3.2"
 
     call open_stream_files(phi_desc, "read" , "old")
-              WRITE(*,*) "DEBUG_GEN_GEOMETRY 3.3"
 
     call pd_load_leaf(phi_desc%streams,phi_desc, "Grid spacings", delta)  
-                  WRITE(*,*) "DEBUG_GEN_GEOMETRY 3.4"
-! delta = [ 1.0, 1.0, 1.0]
     call pd_load_leaf(phi_desc%streams,phi_desc, "Number of voxels per direction", vdim)
-              WRITE(*,*) "DEBUG_GEN_GEOMETRY 4"
-! vdim = [ 21,21,21]
 
     if ( out_amount /= "PRODUCTION" ) then
        write(un_lf,FMT_MSG_A3F0) "Grid spacings", delta

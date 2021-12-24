@@ -1189,7 +1189,7 @@ CHARACTER(LEN=meta_mcl) :: suf, datatype, branch_description, field_content_desc
 
 REAL(KIND=meta_rk), DIMENSION(3) :: grid_spacings, origin_shift
 
-INTEGER(KIND=meta_ik), DIMENSION(7) :: bytesizes = [ 1, 2, 4, 8, 8, 1, 1]
+! INTEGER(KIND=meta_ik), DIMENSION(7) :: bytesizes = [ 1, 2, 4, 8, 8, 1, 1]
 INTEGER(KIND=meta_ik), DIMENSION(7,3) :: stda ! Stream data, 7 streams; no_of_data, lb, ub
 INTEGER(KIND=meta_ik), DIMENSION(3) :: vox_per_dim, origin
 INTEGER(KIND=meta_ik) :: stdout, rawsize, rawdata, ii, stat, my_size, my_pos
@@ -1405,17 +1405,6 @@ DO ii=1, 6
 END DO
 
 CLOSE(fhh)
-
-! DEBUG
-CALL execute_command_line ('cp  '//TRIM(in%p_n_bsnm)//".head "//&
-   TRIM(in%p_n_bsnm)//".head_bckp")
-CALL execute_command_line ('cp  '//TRIM(in%p_n_bsnm)//".real8.st "//&
-   TRIM(in%p_n_bsnm)//".real8.st_bckp")
-! DEBUG
-
-! CALL execute_command_line ("cp  &
-! &/home/geb/09_trinity_site/check_values/trunk/regression/solid_cube/solid_cube.head &
-! &/home/geb/01_bin_gebert/DDTC/datasets/SC00-0_tc_Pro_DDTC_Tensors.head")
 
 END SUBROUTINE convert_meta_to_puredat
 
