@@ -26,20 +26,24 @@ USE global_std
 USE user_interaction
 
 IMPLICIT NONE
-Interface mpi_read_raw
-   Module Procedure mpi_read_raw_rk4
-   Module Procedure mpi_read_raw_rk8
-   Module Procedure mpi_read_raw_ik4
-   Module Procedure mpi_read_raw_ik2
-End Interface mpi_read_raw
+INTERFACE mpi_read_raw
+   MODULE PROCEDURE mpi_read_raw_rk4
+   MODULE PROCEDURE mpi_read_raw_rk8
+   MODULE PROCEDURE mpi_read_raw_ik4
+   MODULE PROCEDURE mpi_read_raw_ik2
+END INTERFACE mpi_read_raw
 
-Interface mpi_write_raw
-   Module Procedure mpi_write_raw_ik4
-   Module Procedure mpi_write_raw_ik2
-End Interface mpi_write_raw
+INTERFACE mpi_write_raw
+   MODULE PROCEDURE mpi_write_raw_ik4
+   MODULE PROCEDURE mpi_write_raw_ik2
+END INTERFACE mpi_write_raw
+
+INTERFACE ser_write_raw
+   MODULE PROCEDURE ser_write_raw_ik2
+   MODULE PROCEDURE ser_write_raw_ik4
+END INTERFACE ser_write_raw
 
 CONTAINS
-
 
 !------------------------------------------------------------------------------
 ! SUBROUTINE: get_rank_section
@@ -128,7 +132,7 @@ CALL MPI_COMM_SIZE(MPI_COMM_WORLD, size_mpi, ierr)
 
 CALL MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(filename), MPI_MODE_RDONLY, MPI_INFO_NULL, fh, ierr)
 
-CALL MPI_TYPE_CREATE_SUBARRAY (3_mik, dims, subarray_dims, subarray_origin - 1_mik, &
+CALL MPI_TYPE_CREATE_SUBARRAY (3_mik, dims, subarray_dims, subarray_origin, &
    MPI_ORDER_FORTRAN, MPI_INTEGER2, type_subarray,ierr)
 
 CALL MPI_TYPE_COMMIT(type_subarray, ierr)
@@ -180,7 +184,7 @@ CALL MPI_COMM_SIZE(MPI_COMM_WORLD, size_mpi, ierr)
 
 CALL MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(filename), MPI_MODE_RDONLY, MPI_INFO_NULL, fh, ierr)
 
-CALL MPI_TYPE_CREATE_SUBARRAY (3_mik, dims, subarray_dims, subarray_origin - 1_mik, &
+CALL MPI_TYPE_CREATE_SUBARRAY (3_mik, dims, subarray_dims, subarray_origin, &
    MPI_ORDER_FORTRAN, MPI_INTEGER, type_subarray,ierr)
 
 CALL MPI_TYPE_COMMIT(type_subarray, ierr)
@@ -343,7 +347,7 @@ END SUBROUTINE mpi_read_raw_rk8
 !> @author Johannes Gebert - HLRS - NUM - gebert@hlrs.de
 !
 !> @brief
-!> Write the raw data of a vtk file
+!> Write raw binary data
 !
 !> @description
 !
@@ -370,7 +374,7 @@ CHARACTER(LEN=scl) :: datarep = 'EXTERNAL32'
 
 CALL MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(filename), MPI_MODE_WRONLY+MPI_MODE_CREATE, MPI_INFO_NULL, fh, ierr)
 
-CALL MPI_TYPE_CREATE_SUBARRAY(3_mik, dims, subarray_dims, subarray_origin - 1_mik, &
+CALL MPI_TYPE_CREATE_SUBARRAY(3_mik, dims, subarray_dims, subarray_origin, &
    MPI_ORDER_FORTRAN, MPI_INTEGER2, type_subarray, ierr)
 
 CALL MPI_TYPE_COMMIT(type_subarray, ierr)
@@ -391,7 +395,7 @@ END SUBROUTINE mpi_write_raw_ik2
 !> @author Johannes Gebert - HLRS - NUM - gebert@hlrs.de
 !
 !> @brief
-!> Write the raw data of a vtk file
+!> Write raw binary data
 !
 !> @description
 !
@@ -417,7 +421,7 @@ CHARACTER(LEN=scl) :: datarep = 'EXTERNAL32'
 
 CALL MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(filename), MPI_MODE_WRONLY+MPI_MODE_CREATE, MPI_INFO_NULL, fh, ierr)
 
-CALL MPI_TYPE_CREATE_SUBARRAY(3_mik, dims, subarray_dims, subarray_origin - 1_mik, &
+CALL MPI_TYPE_CREATE_SUBARRAY(3_mik, dims, subarray_dims, subarray_origin, &
    MPI_ORDER_FORTRAN, MPI_INTEGER, type_subarray, ierr)
 
 CALL MPI_TYPE_COMMIT(type_subarray, ierr)
@@ -430,8 +434,57 @@ CALL MPI_TYPE_FREE(type_subarray, ierr)
 CALL MPI_FILE_CLOSE(fh, ierr)
 
 END SUBROUTINE mpi_write_raw_ik4
-END MODULE raw_binary
 
+
+!------------------------------------------------------------------------------
+! SUBROUTINE: ser_write_raw_ik2
+!------------------------------------------------------------------------------  
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Write raw binary data serially. 
+!
+!> @param[in] fh File handle
+!> @param[in] filename Name of the file
+!------------------------------------------------------------------------------
+SUBROUTINE ser_write_raw_ik2(fh, filename, array)
+
+INTEGER(KIND=ik), INTENT(IN) :: fh
+INTEGER(KIND=INT16), DIMENSION(:,:,:), INTENT(IN) :: array
+CHARACTER(len=*), INTENT(IN) :: filename
+
+OPEN (UNIT=fh, FILE=filename, ACCESS="STREAM", FORM="UNFORMATTED", &
+   CONVERT='BIG_ENDIAN', STATUS="OLD", POSITION="APPEND")                                       
+WRITE(UNIT=fh) array
+CLOSE(UNIT=fh)
+
+END SUBROUTINE ser_write_raw_ik2
+
+!------------------------------------------------------------------------------
+! SUBROUTINE: ser_write_raw_ik4
+!------------------------------------------------------------------------------  
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Write raw binary data serially. 
+!
+!> @param[in] fh File handle
+!> @param[in] filename Name of the file
+!------------------------------------------------------------------------------
+SUBROUTINE ser_write_raw_ik4(fh, filename, array)
+
+INTEGER(KIND=ik), INTENT(IN) :: fh
+INTEGER(KIND=INT32), DIMENSION(:,:,:), INTENT(IN) :: array
+CHARACTER(len=*), INTENT(IN) :: filename
+
+OPEN (UNIT=fh, FILE=filename, ACCESS="STREAM", FORM="UNFORMATTED", &
+   CONVERT='BIG_ENDIAN', STATUS="OLD", POSITION="APPEND")                                       
+WRITE(UNIT=fh) array
+CLOSE(UNIT=fh)
+
+END SUBROUTINE ser_write_raw_ik4
+
+END MODULE raw_binary
 
 
 !------------------------------------------------------------------------------
@@ -509,9 +562,9 @@ WRITE(fh,'(A)')          "DATASET STRUCTURED_POINTS"
 WRITE(fh,'(A,3(I5))')    "DIMENSIONS", dims
 WRITE(fh,'(A,3(F11.6))') "SPACING ", spcng
 WRITE(fh,'(A,3(F11.6))') "ORIGIN ", origin
+WRITE(fh,'(A, I0)')      "POINT_DATA ", PRODUCT(INT(dims, KIND=INT64))
 WRITE(fh,'(A)')          "SCALARS DICOMImage "//TRIM(ADJUSTL(datatype))
 WRITE(fh,'(A)')          "LOOKUP_TABLE default"
-WRITE(fh,'(A)')          ""
 
 CLOSE(UNIT=fh)
 END SUBROUTINE write_vtk_struct_points_header
