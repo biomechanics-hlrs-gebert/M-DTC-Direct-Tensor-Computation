@@ -28,15 +28,17 @@ Character(Len=*), Parameter :: FMT_ERR_AI0  = "('EE ', *(A,I0))"
 !------------------------------------------------------------------------------
 ! Text formats
 !------------------------------------------------------------------------------
-CHARACTER(Len=*), PARAMETER :: FMT_TXT      = "('-- ',A)"
+CHARACTER(Len=*), PARAMETER :: FMT_TXT      = "('-- ',10A)"
 CHARACTER(Len=*), PARAMETER :: FMT_TXT_SEP  = "(80('-'))"
 
 CHARACTER(Len=*), PARAMETER :: FMT_TXT_AF0A = "('-- ',A,1X,F0.6,1x,A)"
+CHARACTER(Len=*), PARAMETER :: FMT_TXT_AF15A = "('-- ',A,1X,F15.6,1x,A)"
+CHARACTER(Len=*), PARAMETER :: FMT_TXT_A3I0 = "('-- ',A,3(1x,I0))"
 
 !------------------------------------------------------------------------------
-! Message formats
+! Message/debug formats
 !------------------------------------------------------------------------------
-CHARACTER(Len=*), PARAMETER :: FMT_MSG      = "('MM ',A)"
+CHARACTER(Len=*), PARAMETER :: FMT_MSG      = "('MM ',10A)"
 CHARACTER(Len=*), PARAMETER :: FMT_MSG_SEP  = "(80('-'))"
 !
 CHARACTER(Len=*), PARAMETER :: FMT_MSG_AxI0 = "('MM ',A,*(1x, I0))"
@@ -109,9 +111,9 @@ INTEGER(KIND=ik) :: ii
 
 stp = .FALSE.
 
-IF (command_argument_count() == 0) THEN 
+CALL GET_COMMAND_ARGUMENT(0, binary)
 
-    CALL GET_COMMAND_ARGUMENT(0, binary)
+IF (command_argument_count() == 0) THEN 
 
     CALL usage(binary)
 
@@ -133,7 +135,7 @@ ELSE
             CASE('-restart', '-Restart')
                 restart = 'Y'
             CASE('v', '-Version', '-version')
-                CALL show_title(longname, revision)
+                CALL show_title()
                 stp = .TRUE. 
             CASE('h', '-Help', '-help')
                 CALL usage(binary)
@@ -160,19 +162,13 @@ END SUBROUTINE get_cmd_args
 !> @author Johannes Gebert - HLRS - NUM - gebert@hlrs.de
 !
 !> @brief
-!> Show brief information about the program
-!
-!> @param[in] application_name Name of the program
-!> @param[in] revision Ravision of the program
+!> Show brief information about the program. Variables from global_std module!
 !------------------------------------------------------------------------------
-SUBROUTINE show_title(application_name, revision)
-
-CHARACTER(LEN=*), INTENT(IN) :: application_name, revision
-
+SUBROUTINE show_title()
 WRITE(std_out, FMT_TXT_SEP)
 WRITE(std_out, FMT_TXT) 'High-Performance Computing Center | Stuttgart (HLRS)'
 WRITE(std_out, FMT_TXT) ''
-WRITE(std_out, FMT_TXT) TRIM(ADJUSTL(application_name))//' '//TRIM(ADJUSTL(revision))
+WRITE(std_out, FMT_TXT) TRIM(ADJUSTL(longname))//' '//TRIM(ADJUSTL(revision))
 WRITE(std_out, FMT_TXT) ''     
 WRITE(std_out, FMT_TXT) 'Developer & maintainer: Johannes Gebert, M.Sc. (HLRS, NUM)'
 WRITE(std_out, FMT_TXT_SEP)
