@@ -4,8 +4,8 @@ analysis with 24 (or 60) appropriate load cases, depending of the order of the m
 
 This program formerly was known as »struct process«
 
-Build the program:    »make«
-Create documentation: »make docs«
+Build the program:    ```make```
+Create documentation: ```make docs```
 
 Many thanks to Dr.-Ing. Ralf Schneider who developed the program at its core.
 ## Cite the Directly Discretizing Tensor Computation (BibTex):

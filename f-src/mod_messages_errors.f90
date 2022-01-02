@@ -123,7 +123,7 @@ SUBROUTINE usage()
 WRITE(std_out, FMT_TXT_SEP)
 WRITE(std_out, FMT_TXT) 'Directly Discretizing Tensor Computation | Usage:'
 WRITE(std_out, FMT_TXT_SEP)
-WRITE(std_out, FMT_TXT) './ddtc_vx.y.z_x86_64 »flags« »basename.meta«'
+WRITE(std_out, FMT_TXT) './ddtc_vx.y.z_x86_64 <flags> <basename.meta>'
 WRITE(std_out, FMT_TXT) ''
 WRITE(std_out, FMT_TXT) '-h/ --help      This message.'
 WRITE(std_out, FMT_TXT) '-v/ --version   Version of the program'

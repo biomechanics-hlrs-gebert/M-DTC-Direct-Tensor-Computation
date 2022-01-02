@@ -5,12 +5,11 @@
 ! MODULE: strings
 !
 !> @author George Benthien
-!> @author Ralf Schneider, schneider@hlrs.de, HLRS/NUM
 !> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
 !
 !> @Descrition: 
 !> Several functions to get some string work done. Mainly developed by 
-!> Ralf Schneider and George Benthien
+!> George Benthien
 !> http://numerical.recipes/forum/showthread.php?t=1659
 !> http://www.gbenthien.net/strings/index.html
 !> slight modifications by Johannes Gebert on 06.03.2021

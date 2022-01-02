@@ -1,9 +1,9 @@
 !------------------------------------------------------------------------------
-! MODULE: standards
+! MODULE: global standards
 !------------------------------------------------------------------------------
 !> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
 !
-! DESCRIPTION: 
+! @description: 
 !> Module containing all recurring definitions of kinds and numbers.
 !------------------------------------------------------------------------------
 MODULE global_std

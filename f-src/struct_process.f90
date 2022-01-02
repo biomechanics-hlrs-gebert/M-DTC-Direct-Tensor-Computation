@@ -905,11 +905,11 @@ Program main_struct_process
   TYPE(materialcard)                                 :: bone
 
   !-- MPI Variables -------------------------------------------------------------------------------
-  INTEGER(KIND=mpi_ik)                               :: ierr, petsc_ierr, rank_mpi, size_mpi
-  INTEGER(KIND=mpi_ik)                               :: worker_rank_mpi, worker_size_mpi
-  INTEGER(KIND=mpi_ik)                               :: Active, request, finished
-  INTEGER(KIND=mpi_ik)                               :: worker_comm
-  INTEGER(KIND=mpi_ik), Dimension(no_streams)        :: fh_mpi
+  INTEGER(KIND=mpi_ik) :: ierr, petsc_ierr, rank_mpi, size_mpi
+  INTEGER(KIND=mpi_ik) :: worker_rank_mpi, worker_size_mpi
+  INTEGER(KIND=mpi_ik) :: Active, request, finished
+  INTEGER(KIND=mpi_ik) :: worker_comm
+  INTEGER(KIND=mpi_ik), Dimension(no_streams) :: fh_mpi
 
   INTEGER(KIND=mpi_ik), Dimension(MPI_STATUS_SIZE)   :: status_mpi
   INTEGER(KIND=mpi_ik), Dimension(:,:), Allocatable  :: statuses_mpi
@@ -922,30 +922,30 @@ Program main_struct_process
   Type(tBranch)          :: root, phi_tree
   Type(tBranch), pointer :: ddc, meta_para, res
   
-  CHARACTER(LEN=4*mcl)                              :: job_dir
-  CHARACTER           , DIMENSION(4*mcl)            :: c_char_array
-  CHARACTER           , DIMENSION(:), ALLOCATABLE   :: char_arr
-  CHARACTER(LEN=4*mcl), DIMENSION(:), ALLOCATABLE   :: domain_path
-  CHARACTER(LEN=mcl)  , DIMENSION(:), ALLOCATABLE   :: m_rry      
-  CHARACTER(LEN=1)                                  :: restart='N', restart_cmdarg='U' ! U = 'undefined'
-  CHARACTER(LEN=mcl)                                :: infile=''  , cmd_arg='notempty', cmd_arg_history=''
-  CHARACTER(LEN=mcl)                                :: muCT_pd_path, muCT_pd_name, domain_desc, binary
+  CHARACTER(LEN=4*mcl) :: job_dir
+  CHARACTER           , DIMENSION(4*mcl) :: c_char_array
+  CHARACTER           , DIMENSION(:), ALLOCATABLE :: char_arr
+  CHARACTER(LEN=4*mcl), DIMENSION(:), ALLOCATABLE :: domain_path
+  CHARACTER(LEN=mcl)  , DIMENSION(:), ALLOCATABLE :: m_rry      
+  CHARACTER(LEN=1)   :: restart='N', restart_cmdarg='U' ! U = 'undefined'
+  CHARACTER(LEN=mcl) :: infile=''  , cmd_arg='notempty', cmd_arg_history=''
+  CHARACTER(LEN=mcl) :: muCT_pd_path, muCT_pd_name, domain_desc, binary
 
   INTEGER(KIND=ik), DIMENSION(:), ALLOCATABLE   :: Domains, Domain_stats, act_domains, nn_D
   INTEGER(KIND=ik), DIMENSION(3) :: xa_d, xe_d, vdim
   REAL(KIND=rk), DIMENSION(3) :: delta
 
-  INTEGER  (KIND=ik) :: nn, ii, jj, kk, dc
-  INTEGER  (KIND=ik) :: amount_domains, path_count
-  INTEGER  (KIND=ik) :: alloc_stat, aun, free_file_handle
-  INTEGER  (KIND=ik) :: Domain, llimit, parts, elo_macro
-  CHARACTER(LEN=8)   :: elt_micro, output
-  REAL     (KIND=rk) :: strain
+  INTEGER(KIND=ik) :: nn, ii, jj, kk, dc
+  INTEGER(KIND=ik) :: amount_domains, path_count
+  INTEGER(KIND=ik) :: alloc_stat, aun, free_file_handle
+  INTEGER(KIND=ik) :: Domain, llimit, parts, elo_macro
+  CHARACTER(LEN=8) :: elt_micro, output
+  REAL(KIND=rk) :: strain
   
-  INTEGER   (KIND=pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
-  INTEGER   (KIND=pd_ik)                            :: serial_root_size
-  INTEGER   (KIND=pd_ik), Dimension(no_streams)     :: dsize
-  Logical :: success, fexist, heaxist
+  INTEGER(KIND=pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
+  INTEGER(KIND=pd_ik), Dimension(no_streams) :: dsize
+  INTEGER(KIND=pd_ik) :: serial_root_size
+  Logical :: success, fexist, heaxist, stp = .FALSE.
 
 
   !----------------------------------------------------------------------------
@@ -975,44 +975,8 @@ Program main_struct_process
       !------------------------------------------------------------------------------
       ! Parse the command arguments
       !------------------------------------------------------------------------------
-      IF (command_argument_count() == 0) THEN 
-         CALL usage()
-         GOTO 1001
-      END IF
-
-      DO ii=0, 15 ! Read up to 15 command arguments.
-         
-         CALL GET_COMMAND_ARGUMENT(ii, cmd_arg)
-
-         IF (cmd_arg == '') EXIT
-
-         IF (ii == 0) binary = cmd_arg
-
-         infile = TRIM(cmd_arg)
-         
-         cmd_arg_history = TRIM(cmd_arg_history)//' '//TRIM(cmd_arg)
-
-         IF (cmd_arg(1:1) .EQ. '-') THEN
-            SELECT CASE( cmd_arg(2:LEN_TRIM(cmd_arg)) )
-               CASE('-restart', '-Restart')
-                  restart_cmdarg = 'Y'
-               CASE('v', '-Version', '-version')
-                     CALL show_title(revision)
-                     GOTO 1001   ! Jump to the end of the program.
-               CASE('h', '-Help', '-help')
-                  CALL usage()
-                  GOTO 1001   ! Jump to the end of the program.
-            END SELECT
-            !
-            SELECT CASE( cmd_arg(3:4) )
-               CASE('NO', 'no', 'No', 'nO');  restart_cmdarg = 'N'
-            END SELECT
-         END IF
-      END DO
-
-      IF(TRIM(infile) == '') THEN
-         CALL print_err_stop(std_out, 'No input file given via command argument.', 1)
-      END IF 
+      CALL get_cmd_args(binary, infile, stp, restart_cmdarg, cmd_arg_history=cmd_arg_history)
+      IF(stp) GOTO 1001
 
       in%full = TRIM(infile)
     
@@ -1021,7 +985,7 @@ Program main_struct_process
       ! Define the new application name first
       !------------------------------------------------------------------------------
       global_meta_prgrm_mstr_app = 'DDTC' 
-      global_meta_program_keyword = 'STRUCT_PROCESS'
+      global_meta_program_keyword = 'TENSOR-COMPUTATION'
       CALL meta_append(m_rry)
       
       !------------------------------------------------------------------------------
@@ -1063,21 +1027,7 @@ Program main_struct_process
       ! Restart handling
       ! Done after meta_io to decide based on keywords
       !------------------------------------------------------------------------------
-      IF (restart_cmdarg /= 'U') THEN
-         mssg = "The keyword »restart« was overwritten by the command flag --"
-         IF (restart_cmdarg == 'N') THEN
-            restart = restart_cmdarg
-            mssg=TRIM(mssg)//"no-"
-         ELSE IF (restart_cmdarg == 'Y') THEN
-            restart = restart_cmdarg
-         END IF
-
-         mssg=TRIM(mssg)//"restart"
-         WRITE(std_out, FMT_WRN) TRIM(mssg)
-         WRITE(std_out, FMT_WRN_SEP)
-      END IF
-
-      CALL meta_handle_lock_file(restart)
+      CALL meta_handle_lock_file(restart, restart_cmdarg)
 
       !------------------------------------------------------------------------------
       ! Spawn a log file and a results file

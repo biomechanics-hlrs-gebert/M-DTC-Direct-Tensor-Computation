@@ -108,6 +108,9 @@ else
         system=`basename -s .sh $sys_file`
         #
         test $system = $1 && source ${prefix}/auxiliaries/system_environments/${sys_file} && sys_set=1
+        #
+        # System
+        export DDTC_SYS=$1
     done
 
     if [ $sys_set -eq 0 ]; then

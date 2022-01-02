@@ -65,10 +65,6 @@ export USE_STD_OUT=YES
 tmpi_prefix="/opt/tmpi"
 #
 # ----------------------------------------
-# Architecture
-export DDTC_ARCH="julius"
-#
-# ----------------------------------------
 # Root is a git repo?
 export PROVIDES_GIT="YES"
 #

@@ -56,14 +56,14 @@ endif
 # -----------------------------------------------------------------------------
 # Check for environment
 check-env:
-ifeq ($(DDTC_ARCH),)
-	@echo "---------------------------------------"
-	@echo "Please source setenv.sh »system« first."
-	@echo "---------------------------------------"
+ifeq ($(DDTC_SYS),)
+	@echo "------------------------------------------"
+	@echo "-- Please source setenv.sh »system« first."
+	@echo "------------------------------------------"
 else
-	@echo "--------------------------------------------------------------------------------------------"
-	@echo "Environment to build for: "$(DDTC_ARCH)
-	@echo "--------------------------------------------------------------------------------------------"
+	@echo "------------------------------------------"
+	@echo "-- Environment to build for: "$(DDTC_SYS)
+	@echo "------------------------------------------"
 	$(MAKE) all
 endif
 #
@@ -99,21 +99,20 @@ lib_dir         = $(build_path)/lib/
 linpack_src_dir = $(build_path)/linpack/
 bin_dir         = $(build_path)/bin/
 #
-# Directory for documentation -----------------------------
+# Directory for documentation
 doc_dir  = $(build_path)/doc/
 html_dir = $(build_path)/html/
 tex_dir  = $(build_path)/latex/
-#
-#------------------------------------------------------------------------------
-# Clean command ---------------------------------------------------------------
-clean_cmd = rm -rf
-#
 #------------------------------------------------------------------------------
 # file extensions -------------------------------------------------------------
 f90_ext  = .f90
 obj_ext  = .o
 mod_ext  = .mod
 c_ext    =.c
+#
+#------------------------------------------------------------------------------
+# Clean command ---------------------------------------------------------------
+clean_cmd = rm -rf
 #
 #------------------------------------------------------------------------------
 # Binary suffix ---------------------------------------------------------------
@@ -139,7 +138,7 @@ ifeq ($(PrgEnv),gnu)
    c_flags_f90     = -J$(mod_dir) -I$(mod_dir) $(mod_path_flag)\
                     -fdefault-integer-8 \
 					-fdefault-real-8 \
-					-g \
+					-ggdb \
 					-o \
 					-O3 \
 					-fbacktrace \
@@ -533,7 +532,7 @@ $(main_bin): $(c-objects) $(f-objects)
 	@echo "CHARACTER(LEN = scl), PARAMETER :: revision = '$(trgt_vrsn)'" > $(f_src_dir)include_f90/revision_meta$(f90_ext)
 	@echo "CHARACTER(LEN = scl), PARAMETER :: hash = '$(rev)'" >> $(f_src_dir)include_f90/revision_meta$(f90_ext)
 	@echo "--------------------------------------------------------------------------------------------"
-	@echo '--- Final link step of struct-process executable'
+	@echo '--- Final link step of $(long_name) executable'
 	@echo "--------------------------------------------------------------------------------------------"
 	$(compiler) $(link_flags) $(c-objects) $(f-objects) $(lll_extra) -o $(main_bin)
 	@echo
