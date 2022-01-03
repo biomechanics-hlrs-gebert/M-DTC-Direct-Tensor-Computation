@@ -1,122 +1,25 @@
 !==============================================================================
-!> \file mod_math.f90
-!> Module with mathematical subroutines
+!> \file mod_tensor_opt.f90
+!> Module to optimize tensors with respect to their rotary dof in R3
 !>
 !> \author Ralf Schneider
 !> \date 11.06.2012
+!>
+!> \author Johannes Gebert
+!> \date 03.01.2022
 
 Module math
 
   USE global_std
-  use chain_routines
+  USE math
+  USE chain_routines
   USE auxiliaries
 
   Implicit None
 
-  Real(kind=rk), Parameter :: num_zero   = 1.E-9_rk
-  Real(kind=rk), Parameter :: sq2        = sqrt(2._rk)
-  Real(kind=rk), Parameter :: pi         = acos(-1._rk)
-  Real(kind=rk), Parameter :: inv180     = 1._rk/180._rk
-  Real(kind=rk), Parameter :: pi_div_180 = acos(-1._rk)/180._rk
-  
-
-  !-- Higher dimensional numbers
-  TYPE Quaternion
-     REAL (KIND=rk)            :: w,x,y,z
-  END TYPE Quaternion
-
   Logical, Parameter       :: mmdbg=.false.
 
 contains
-
-  Function rot_x(alpha) Result(aa)
-
-    Real(kind=rk),                 intent(in) :: alpha
-    Real(kind=rk), Dimension(3,3)             :: aa
-    
-    aa(1,:) = (/ 1._rk ,   0._rk    ,   0._rk     /)
-    aa(2,:) = (/ 0._rk , cos(alpha) , -sin(alpha) /)
-    aa(3,:) = (/ 0._rk , sin(alpha) ,  cos(alpha) /)
-
-  End Function rot_x
-
-  Function rot_y(alpha) Result(aa)
-
-    Real(kind=rk),                 intent(in) :: alpha
-    Real(kind=rk), Dimension(3,3)             :: aa
-    
-    aa(1,:) = (/ cos(alpha) ,   0._rk    ,  sin(alpha) /)
-    aa(2,:) = (/   0._rk    ,   1._rk    ,   0._rk     /)
-    aa(3,:) = (/-sin(alpha) ,   0._rk    ,  cos(alpha) /)
-
-  End Function rot_y
-
-  Function rot_z(alpha) Result(aa)
-
-    Real(kind=rk),                 intent(in) :: alpha
-    Real(kind=rk), Dimension(3,3)             :: aa
-    
-    aa(1,:) = (/ cos(alpha) , -sin(alpha) ,   0._rk     /)
-    aa(2,:) = (/ sin(alpha) ,  cos(alpha) ,   0._rk     /)
-    aa(3,:) = (/   0._rk    ,   0._rk     ,   1._rk     /)
-
-  End Function rot_z
-
-  !****************************************************************************
-  !*                                                                         **
-  !* Subroutine to perform a rotation on a list of coordinates               **
-  !*                                                                         **
-  !* last edited : on  05.03.2009                                            **
-  !*               by  Ralf Schneider                                        **
-  !*                                                                         **  
-  Function rot_alg(axis, angle) Result(rr)
-
-    real(kind=rk), dimension(3)           , Intent(In) :: axis
-    !real(kind=rk), dimension(3)           , Intent(InOut) :: axis
-
-    real(kind=rk)                         , Intent(In)    :: angle
-
-    real(kind=rk), dimension(3, 3)                        :: rr
-
-    !**************************************************************************
-
-    !** normalize rotation axis ***********************************************
-    !axis = axis / sqrt(sum(axis*axis))
-
-    !** Setup transformation matrix *******************************************
-    rr(1,1) = cos(angle) + axis(1)*axis(1)* (1._8 - cos(angle))
-    rr(1,2) = axis(1)*axis(2)* (1._8 - cos(angle)) - axis(3) * sin(angle)
-    rr(1,3) = axis(1)*axis(3)* (1._8 - cos(angle)) + axis(2) * sin(angle)
-
-    rr(2,1) = axis(2)*axis(1)* (1._8 - cos(angle)) + axis(3) * sin(angle)
-    rr(2,2) = cos(angle) + axis(2)*axis(2)* (1._8 - cos(angle))
-    rr(2,3) = axis(2)*axis(3)* (1._8 - cos(angle)) - axis(1) * sin(angle)
-
-    rr(3,1) = axis(3)*axis(1)* (1._8 - cos(angle)) - axis(2) * sin(angle)
-    rr(3,2) = axis(3)*axis(2)* (1._8 - cos(angle)) + axis(1) * sin(angle)
-    rr(3,3) = cos(angle) + axis(3)*axis(3)* (1._8 - cos(angle))
-
-  End Function rot_alg
-
-  Function tra_R6(aa) Result(BB)
-
-    Real(kind=rk), Dimension(3,3), intent(in) :: aa
-    Real(kind=rk), Dimension(6,6)             :: BB
-
-    Real(kind=rk), Parameter :: sq2 = sqrt(2._rk)
-
-    BB(1,:) = (/ aa(1,1)**2 , aa(1,2)**2 , aa(1,3)**2 , sq2*aa(1,1)*aa(1,2) , sq2*aa(1,1)*aa(1,3), sq2*aa(1,2)*aa(1,3)  /)
-    BB(2,:) = (/ aa(2,1)**2 , aa(2,2)**2 , aa(2,3)**2 , sq2*aa(2,1)*aa(2,2) , sq2*aa(2,1)*aa(2,3), sq2*aa(2,2)*aa(2,3)  /)
-    BB(3,:) = (/ aa(3,1)**2 , aa(3,2)**2 , aa(3,3)**2 , sq2*aa(3,1)*aa(3,2) , sq2*aa(3,1)*aa(3,3), sq2*aa(3,2)*aa(3,3)  /)
-    
-    BB(4,:) = (/ sq2*aa(2,1)*aa(1,1) , sq2*aa(2,2)*aa(1,2) , sq2*aa(2,3)*aa(1,3) , &
-         aa(2,1)*aa(1,2)+aa(2,2)*aa(1,1) , aa(2,1)*aa(1,3)+aa(2,3)*aa(1,1) , aa(2,2)*aa(1,3)+aa(2,3)*aa(1,2) /)
-    BB(5,:) = (/ sq2*aa(1,1)*aa(3,1) , sq2*aa(1,2)*aa(3,2) , sq2*aa(1,3)*aa(3,3) ,  &
-         aa(1,1)*aa(3,2)+aa(1,2)*aa(3,1) , aa(1,1)*aa(3,3)+aa(1,3)*aa(3,1) , aa(1,2)*aa(3,3)+aa(1,3)*aa(3,2) /)
-    BB(6,:) = (/ sq2*aa(2,1)*aa(3,1) , sq2*aa(2,2)*aa(3,2) , sq2*aa(2,3)*aa(3,3) ,  &
-         aa(2,1)*aa(3,2)+aa(2,2)*aa(3,1) , aa(2,1)*aa(3,3)+aa(2,3)*aa(3,1) , aa(2,2)*aa(3,3)+aa(2,3)*aa(3,2) /)
-
-  End Function tra_R6
 
   !============================================================================
   !> Subroutine which optimizes a 6x6 marix according to an monotropic
@@ -135,24 +38,24 @@ contains
   !>
   subroutine opt_mono(EE_orig, EE, fdir, fcrit)
 
-    Real(kind=rk)    , Dimension(6,6), intent(in)      :: EE_orig
-    Real(kind=rk)    , Dimension(6,6), intent(out)     :: EE     
-    real(kind=rk)                    , intent(out)     :: fcrit
-    Real(kind=rk)    , Dimension(3,3), intent(out)     :: fdir
+    Real(kind=rk), Dimension(6,6), intent(in)  :: EE_orig
+    Real(kind=rk), Dimension(6,6), intent(out) :: EE     
+    real(kind=rk)                , intent(out) :: fcrit
+    Real(kind=rk), Dimension(3,3), intent(out) :: fdir
 
-    Integer(kind=ik)                                   :: kk_eta, kk_phi, kk
-    Integer(kind=ik)                                   :: ii_eta, ii_phi, ii, jj
+    Integer(kind=ik) :: kk_eta, kk_phi, kk
+    Integer(kind=ik) :: ii_eta, ii_phi, ii, jj
 
-    Real(kind=rk)                                      :: alpha, phi, eta
+    Real(kind=rk) :: alpha, phi, eta
 
-    Real(kind=rk)    , Dimension(3)                    :: n
-    Real(kind=rk)    , Dimension(3,3)                  :: aa
-    Real(kind=rk)    , Dimension(6,6)                  :: BB, tmp_r6x6
+    Real(kind=rk), Dimension(3)   :: n
+    Real(kind=rk), Dimension(3,3) :: aa
+    Real(kind=rk), Dimension(6,6) :: BB, tmp_r6x6
 
-    Integer          , Dimension(:,:,:,:), ALLOCATABLE :: ang
-    Real(kind=rk)    , Dimension(:,:,:)  , ALLOCATABLE :: crit
-    Real(kind=rk)    , Dimension(0 :16)                :: crit_min
-    Integer          , Dimension(3)                    :: s_loop,e_loop, mlc
+    Integer      , Dimension(:,:,:,:), ALLOCATABLE :: ang
+    Real(kind=rk), Dimension(:,:,:)  , ALLOCATABLE :: crit
+    Real(kind=rk), Dimension(0 :16) :: crit_min
+    Integer      , Dimension(3)     :: s_loop,e_loop, mlc
 
     Real(kind=rk), Parameter :: num_zero = 1.E-9_rk
     Real(kind=rk), Parameter :: pi  = acos(-1._rk)

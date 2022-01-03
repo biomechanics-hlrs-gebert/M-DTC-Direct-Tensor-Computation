@@ -24,37 +24,37 @@ Contains
     !****************************************************************************
     !** Declarations ************************************************************
 
-    Type(tBranch), Intent(InOut)                            :: root
-    Character(LEN=*), Intent(in)                            :: job_dir
-    integer(Kind=ik), Intent(in)                            :: ddc_nn, lin_nn
-    Integer(kind=mpi_ik), Dimension(no_streams), Intent(in) :: fh_mpi
-    Logical      , Intent(Out)                              :: glob_success
+    Type(tBranch), Intent(InOut) :: root
+    Character(LEN=*), Intent(in) :: job_dir
+    integer(Kind=ik), Intent(in) :: ddc_nn, lin_nn
+    Integer(kind=mik), Dimension(no_streams), Intent(in) :: fh_mpi
+    Logical, Intent(Out) :: glob_success
 
     !-- MPI Variables ---------------------------------------------------------
-    Integer(kind=mpi_ik)                                    :: ierr
-    Integer(kind=mpi_ik), Dimension(MPI_STATUS_SIZE)        :: status_mpi
+    Integer(kind=mik) :: ierr
+    Integer(kind=mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
         
     !-- Chain Variables -------------------------------------------------------
     Character(Len=*), Parameter :: link_name = 'gen_quadmesh'
 
     !-- Puredat Variables -----------------------------------------------------
-    Type(tBranch)                                   :: phi_desc
+    Type(tBranch) :: phi_desc
 
     !-- Decomp Variables ------------------------------------------------------
-    Type(tBranch), Pointer                          :: loc_ddc, ddc, bounds_b
+    Type(tBranch), Pointer :: loc_ddc, ddc, bounds_b
 
     !-- Branch pointers -------------------------------------------------------
-    Type(tBranch), Pointer                          :: db, meta_para, res_b
+    Type(tBranch), Pointer :: db, meta_para, res_b
 
     !-- Mesh Variables --------------------------------------------------------
     Real(Kind=rk)    , Dimension(:,:) , Allocatable :: nodes, displ
     Integer(Kind=ik) , Dimension(:)   , Allocatable :: elem_col,node_col, cref
     Integer(Kind=ik) , Dimension(:,:) , Allocatable :: elems
-    Character(Len=mcl)                              :: elt_micro, desc, filename
-    Integer(Kind=ik)                                :: elo_macro,alloc_stat
+    Character(Len=mcl) :: elt_micro, desc, filename
+    Integer(Kind=ik)   :: elo_macro,alloc_stat
     !-- Parted Mesh -----------------------------------------------------------
-    Type(tBranch), Pointer                          :: PMesh
-    INTEGER(kind=ik)                                :: parts
+    Type(tBranch), Pointer :: PMesh
+    INTEGER(kind=ik)       :: parts
 
     !--------------------------------------------------------------------------
     Integer(Kind=4)  , Dimension(:,:,:), Allocatable :: Phi
@@ -217,7 +217,7 @@ Contains
     Call MPI_FILE_WRITE_AT(FH_MPI(5), &
          Int(res_b%leaves(18)%lbound-1+(lin_nn-1), MPI_OFFSET_KIND), &
          Real(no_elems,pd_rk), &
-         Int(1,pd_mpi_ik), MPI_Real8, &
+         Int(1,pd_mik), MPI_Real8, &
          status_mpi, ierr)
     
     !============================================================================

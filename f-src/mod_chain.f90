@@ -12,7 +12,7 @@
 Module chain_variables
  
   USE global_std
-  USE messages_errors
+  USE user_interaction
   USE meta
 
   Implicit None
@@ -21,13 +21,13 @@ Module chain_variables
   ! New units are given several times to orchestrate the files (!)
   ! ---------------------------------------------------------------------------
   !> Logfile unit
-  Integer                     :: un_lf ! Reassigned, therefore not coupled to meta file formats.
+  Integer :: un_lf ! Reassigned, therefore not coupled to meta file formats.
   !> Monitor file unit (default = stdout)
-  Integer                     :: un_mon = fhmon
+  Integer :: un_mon = fhmon
   
-  Character(len=mcl)          :: outpath = "./"
-  Character(len=mcl)          :: inpath  = "./"
-  Character(len=mcl)          :: project_name
+  Character(len=mcl) :: outpath = "./"
+  Character(len=mcl) :: inpath  = "./"
+  Character(len=mcl) :: project_name
 
   !-- Variables for reading input ---------------------------------------------
   Character(Len=mcl)            :: chp_char
@@ -38,10 +38,6 @@ Module chain_variables
   Real(Kind=8)                  :: chp_real
   Real(Kind=8)   , Dimension(3) :: chp_real_3vector
 
-  !> Amount of monitor an log data written. Recognized keywords are:
-  !> PRODUCTION, DEBUG and FE_RESULTS
-  Character(Len=mcl)            :: out_amount  = "PRODUCTION" ! "DEBUG" ! 
-  
 End Module chain_variables
 
 !==============================================================================
@@ -51,7 +47,7 @@ End Module chain_variables
 !> error handling
 Module chain_routines
    
-   USE messages_errors
+   USE user_interaction
    USE chain_variables
    USE timer
 

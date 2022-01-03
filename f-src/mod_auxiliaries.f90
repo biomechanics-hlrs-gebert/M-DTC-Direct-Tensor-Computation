@@ -15,7 +15,7 @@
 MODULE auxiliaries
 
 USE global_std
-USE messages_errors
+USE user_interaction
 USE strings
 
 

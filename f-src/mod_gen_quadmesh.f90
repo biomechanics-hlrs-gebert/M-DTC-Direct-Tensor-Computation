@@ -2,7 +2,7 @@ Module gen_quadmesh
 
   Use decomp
   Use chain_routines
-  USE messages_errors
+  USE user_interaction
 
   implicit none
 
@@ -10,7 +10,7 @@ Module gen_quadmesh
   Type tconreg
  
      Integer(kind=ik) :: color
-     Logical          :: tb   = .FALSE.
+     Logical :: tb   = .FALSE.
      
      Type(tconreg), Pointer    :: next => null()
 
@@ -25,18 +25,18 @@ contains
     !-- Parameters ------------------------------------------------------------
 
     !** Iso Field *************************************************************
-    Integer(Kind=4)    , Intent(In), Dimension(1:,1:,1:) :: Phi
-    Real(Kind=rk)      , Intent(in), Dimension(3)        :: delta
+    Integer(Kind=4), Intent(In), Dimension(1:,1:,1:) :: Phi
+    Real(Kind=rk)  , Intent(in), Dimension(3) :: delta
 
     !** Domain decomposition **************************************************
-    Type(tBranch)      , Intent(In)                   :: ddc
-    Type(tBranch)      , Intent(In)                   :: loc_ddc
+    Type(tBranch), Intent(In) :: ddc
+    Type(tBranch), Intent(In) :: loc_ddc
     
     !** Iso Value limit *******************************************************
-    Integer(Kind=ik)   , Intent(In)                 :: llimit
+    Integer(Kind=ik)   , Intent(In) :: llimit
 
     !** Type of elements in micro mesh ****************************************
-    Character(len=*)   , Intent(In)                 :: elt_micro
+    Character(len=*)   , Intent(In) :: elt_micro
 
     !** Fiels which are generated and passed out ******************************
     Real(Kind=rk)   , Dimension(:,:), Allocatable, Intent(Out) :: nodes
@@ -45,31 +45,31 @@ contains
     Integer(Kind=ik), Dimension(:)  , Allocatable, Intent(Out) :: node_col
 
     !** Sizes *****************************************************************
-    Integer(Kind=ik)                             , Intent(Out) :: no_nodes
-    Integer(Kind=ik)                             , Intent(Out) :: no_elems
+    Integer(Kind=ik), Intent(Out) :: no_nodes
+    Integer(Kind=ik), Intent(Out) :: no_elems
 
     !--------------------------------------------------------------------------
     Integer(Kind=ik), Dimension(:), Allocatable :: nodes_no, node_cref
 
-    Type(tconreg), Pointer                      :: cregs, start_cregs, tmp_creg
+    Type(tconreg), Pointer :: cregs, start_cregs, tmp_creg
 
-    Integer(kind=ik)                            :: ii, jj, kk, ll
-    Integer(kind=ik)                            :: lb_nodes_no, ub_nodes_no
-    Integer(kind=ik)                            :: min_col, max_col
+    Integer(kind=ik) :: ii, jj, kk, ll
+    Integer(kind=ik) :: lb_nodes_no, ub_nodes_no
+    Integer(kind=ik) :: min_col, max_col
 
-    Integer                                     :: min_val_phi, max_val_phi
-    Integer(Kind=ik), Dimension(3)              :: x_D_nodes
-    Real(Kind=rk)   , Dimension(3)              :: x_min, x_max
-    Integer         , Dimension(27)             :: el_nn
+    Integer                         :: min_val_phi, max_val_phi
+    Integer(Kind=ik), Dimension(3)  :: x_D_nodes
+    Real(Kind=rk)   , Dimension(3)  :: x_min, x_max
+    Integer         , Dimension(27) :: el_nn
 
-    integer                                     :: no_elem_nodes, alloc_stat
+    integer :: no_elem_nodes, alloc_stat
 
-    Logical                                     :: Change, next_exists
+    Logical :: Change, next_exists
 
     Integer(kind=ik), Allocatable, Dimension(:) :: bpoints, xa_n, xe_n
     Integer(kind=ik), Allocatable, Dimension(:) :: x_VD, x_D
-    Character(len=9)                            :: nn_char
-    Integer(kind=ik)                            :: ddc_nn
+    Character(len=9) :: nn_char
+    Integer(kind=ik) :: ddc_nn
     !--------------------------------------------------------------------------
     call pd_get(loc_ddc,"nn",ddc_nn)
     write(nn_char,'(I0)')ddc_nn

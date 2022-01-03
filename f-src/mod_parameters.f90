@@ -1,9 +1,11 @@
-!******************************************************************************
-!**                                                                          **
-!** petsc_options module                                                     **
-!**                                                                          **
-!** by Ralf Schneider                                                        **
-!**                                                                          **
+!------------------------------------------------------------------------------
+! MODULE: petsc_opt
+!------------------------------------------------------------------------------  
+!> @author Ralf Schneider - HLRS - NUM - schneider@hlrs.de
+!
+!> @brief
+!> Set PETSc options.
+!------------------------------------------------------------------------------
 module petsc_opt
 
   USE global_std
@@ -15,7 +17,7 @@ contains
   
   Subroutine Set_PETSc_Options()
 
-    Integer(kind=mpi_ik) :: petsc_ierr
+    Integer(kind=mik) :: petsc_ierr
     
     Call PetscOptionsSetValue(PETSC_NULL_OPTIONS,"-mat_type"    , "mpiaij",petsc_ierr)
     Call PetscOptionsSetValue(PETSC_NULL_OPTIONS,"-pc_type"     , "jacobi",petsc_ierr)

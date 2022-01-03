@@ -11,6 +11,62 @@
 !> \todo Warning in log_tree wenn pointer of leaf nicht korrekt connected
 
 !==============================================================================
+!> Global variables for the puredat data handling library
+!> \author Ralf Schneider
+!> \date 22.01.2010
+!>
+!> \date last modifications: 21.11.2021 (Johannes Gebert)
+!>
+Module puredat_globals
+  
+   Implicit None
+
+   !> Number of currently used stream variables in puredat_streams
+   !>
+   !> The total number of currently used stream variables which is the  
+   !> number of arrays defined in puredat_streams independently from 
+   !> their data type
+   Integer, Parameter :: no_streams = 7
+
+   !> Maximum character length used in puredat library
+   Integer, Parameter :: pd_mcl = 512
+   !> Maximum Character Length in pd_ik elements
+   Integer, Parameter :: pd_ce  = 512/8
+
+   !============================================================================
+   !== files and paths
+   !> puredat project path
+   !>
+   !> Path to puredat project files which means header-, stream- and 
+   !> log-files
+   Character(len=pd_mcl) :: pro_path
+   !> puredat project name
+   !>
+   !> Base name of the puredat project files which are ...
+   Character(len=pd_mcl) :: pro_name
+
+   !> puredat monitor unit
+   Integer :: pd_umon  != OUTPUT_UNIT
+
+   ! PureDat Formatters
+   Character(Len=*), Parameter :: PDF_E_A    = "('EE ',A)"
+   Character(Len=*), Parameter :: PDF_E_AI0  = "('EE ',*(A,1X,I0))"
+   Character(Len=*), Parameter :: PDF_E_STOP = "('EE PROGRAM STOPPED ..... ',/,'<',98('='),'>')"
+
+   Character(Len=*), Parameter :: PDF_W_A    = "('WW ',A)"
+   Character(Len=*), Parameter :: PDF_W_AI0  = "('WW ',*(A,1X,I0))"
+
+   Character(Len=*), Parameter :: PDF_M_A    = "('MM ',A)"
+   Character(Len=*), Parameter :: PDF_M_AI0  = "('MM ',A,1X,I0)"
+
+   Character(Len=*), Parameter :: PDF_TIME   = "('MM ',A,1X,F0.6,' sec')"
+
+   Character(Len=*), Parameter :: PDF_SEP    = "('<',98('='),'>')"
+
+End Module puredat_globals
+
+
+!==============================================================================
 !> Global integer and real kinds for the puredat data handling library
 !> \author Ralf Schneider
 !> \date 22.01.2010
@@ -19,9 +75,9 @@ Module puredat_precision
 
   Implicit none
   
-  Integer, Parameter :: pd_ik = 8         !** Puredat Integer kind parameter
-  Integer, Parameter :: pd_rk = 8         !** Puredat Real    kind parameter
-  Integer, Parameter :: pd_mpi_ik = 4     !** Puredat Integer MPI kind parameter
+  Integer, Parameter :: pd_ik = 8  !** Puredat Integer kind parameter
+  Integer, Parameter :: pd_rk = 8  !** Puredat Real    kind parameter
+  Integer, Parameter :: pd_mik = 4 !** Puredat Integer MPI kind parameter
   
 End Module puredat_precision
 
@@ -250,7 +306,7 @@ End Module puredat_com
 !>
 Module puredat
 
-USE messages_errors
+USE user_interaction
 USE puredat_types
 USE puredat_globals
 USE puredat_com
@@ -2547,8 +2603,8 @@ CONTAINS
     Type(tStreams)  , Intent(InOut)              :: streams
     Character(len=*), intent(In)                 :: action, status
 
-    Integer(kind=pd_mpi_ik), Intent(InOut), Dimension(no_streams) :: fh_mpi
-    Integer(kind=pd_mpi_ik)                      :: ierr
+    Integer(kind=pd_mik), Intent(InOut), Dimension(no_streams) :: fh_mpi
+    Integer(kind=pd_mik)                      :: ierr
     
     Character(len=*), intent(In),optional        :: position
     Character(len=pd_mcl)                        :: lpos
@@ -4939,10 +4995,10 @@ CONTAINS
   Recursive Subroutine store_parallel_branch(br, FH_MPI)
 
     type(tBranch)          , Intent(in)                        :: br
-    Integer(kind=pd_mpi_ik), Intent(in), Dimension(no_streams) :: fh_mpi
+    Integer(kind=pd_mik), Intent(in), Dimension(no_streams) :: fh_mpi
 
-    Integer(kind=pd_mpi_ik)                                     :: ierr
-    Integer(kind=pd_mpi_ik), Dimension(MPI_STATUS_SIZE)         :: status_mpi
+    Integer(kind=pd_mik)                                     :: ierr
+    Integer(kind=pd_mik), Dimension(MPI_STATUS_SIZE)         :: status_mpi
     Integer(kind=pd_ik)                                         :: ii
     
     Do ii = 1, br%no_leaves
@@ -4955,37 +5011,37 @@ CONTAINS
              Call MPI_FILE_WRITE_AT(FH_MPI(1), &
                   Int(br%leaves(ii)%lbound-1, MPI_OFFSET_KIND), &
                   br%leaves(ii)%p_int1, &
-                  Int(br%leaves(ii)%dat_no,pd_mpi_ik), MPI_INTEGER1, &
+                  Int(br%leaves(ii)%dat_no,pd_mik), MPI_INTEGER1, &
                   status_mpi, ierr)
           Case (2)
              Call MPI_FILE_WRITE_AT(FH_MPI(2), &
                   Int((br%leaves(ii)%lbound-1), MPI_OFFSET_KIND), &
                   br%leaves(ii)%p_int2, &
-                  Int(br%leaves(ii)%dat_no,pd_mpi_ik), MPI_INTEGER2, &
+                  Int(br%leaves(ii)%dat_no,pd_mik), MPI_INTEGER2, &
                   status_mpi, ierr)
           Case (3)
              Call MPI_FILE_WRITE_AT(FH_MPI(3), &
                   Int((br%leaves(ii)%lbound-1), MPI_OFFSET_KIND), &
                   br%leaves(ii)%p_int4, &
-                  Int(br%leaves(ii)%dat_no,pd_mpi_ik), MPI_INTEGER4, &
+                  Int(br%leaves(ii)%dat_no,pd_mik), MPI_INTEGER4, &
                   status_mpi, ierr)
           Case (4)
              Call MPI_FILE_WRITE_AT(FH_MPI(4), &
                   Int((br%leaves(ii)%lbound-1), MPI_OFFSET_KIND), &
                   br%leaves(ii)%p_int8, &
-                  Int(br%leaves(ii)%dat_no,pd_mpi_ik), MPI_INTEGER8, &
+                  Int(br%leaves(ii)%dat_no,pd_mik), MPI_INTEGER8, &
                   status_mpi, ierr)
           Case (5)
              Call MPI_FILE_WRITE_AT(FH_MPI(5), &
                   Int((br%leaves(ii)%lbound-1), MPI_OFFSET_KIND), &
                   br%leaves(ii)%p_real8, &
-                  Int(br%leaves(ii)%dat_no,pd_mpi_ik), MPI_REAL8, &
+                  Int(br%leaves(ii)%dat_no,pd_mik), MPI_REAL8, &
                   status_mpi, ierr)
           Case (6)
              Call MPI_FILE_WRITE_AT(FH_MPI(6), &
                   Int(br%leaves(ii)%lbound-1, MPI_OFFSET_KIND), &
                   br%leaves(ii)%p_char, &
-                  Int(br%leaves(ii)%dat_no,pd_mpi_ik), MPI_character, &
+                  Int(br%leaves(ii)%dat_no,pd_mik), MPI_character, &
                   status_mpi, ierr)
 
           Case default

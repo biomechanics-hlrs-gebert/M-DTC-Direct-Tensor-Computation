@@ -24,65 +24,68 @@ contains
     
     !==========================================================================
     !** Declarations **********************************************************
-    Type(tBranch), Intent(InOut)          :: root
-    integer(Kind=ik), Intent(in)          :: ddc_nn
+    Type(tBranch), Intent(InOut) :: root
+    integer(Kind=ik), Intent(in) :: ddc_nn
       
-    Character(len=*), Parameter                :: link_name="struct_calcmat_fmps"
+    Character(len=*), Parameter :: link_name="struct_calcmat_fmps"
 
-    Integer(Kind=8)                                    :: no_dat, no_nodes,no_cnodes
-    Integer(Kind=8), Dimension(:), Allocatable         :: no_cnodes_pp
-    Integer(Kind=8)                                    :: macro_order
+    Integer(Kind=8)                            :: no_dat, no_nodes,no_cnodes
+    Integer(Kind=8), Dimension(:), Allocatable :: no_cnodes_pp
+    Integer(Kind=8)                            :: macro_order
 
-    integer(Kind=8), Dimension(:), allocatable         :: cref_cnodes
-    Real(kind=8)   , Dimension(:)  , allocatable       :: tmp_nn
-    Real(kind=8)   , Dimension(:,:), allocatable       :: nodes, vv, ff, stiffness
+    integer(Kind=8), Dimension(:), allocatable   :: cref_cnodes
+    Real(kind=8)   , Dimension(:)  , allocatable :: tmp_nn
+    Real(kind=8)   , Dimension(:,:), allocatable :: nodes, vv, ff, stiffness
 
-    Real(kind=8)   , Dimension(:,:,:), allocatable     :: uu, rforces
+    Real(kind=8)   , Dimension(:,:,:), allocatable :: uu, rforces
 
     Real(kind=8)   , Dimension(:,:,:)    , allocatable :: calc_rforces
-    Real(kind=8)   , Dimension(6)                :: ro_stress
-    Real(kind=8)   , Dimension(6,6)              :: CC
-    Real(kind=8)   , Dimension(6,6)              :: cc_mean, EE, fv,meps
-    Real(kind=8)   , Dimension( 8)               :: tmp_r8 
-    Real(kind=8)   , Dimension(12)               :: tmp_r12
+    Real(kind=8)   , Dimension(6)   :: ro_stress
+    Real(kind=8)   , Dimension(6,6) :: CC
+    Real(kind=8)   , Dimension(6,6) :: cc_mean, EE, fv,meps
+    Real(kind=8)   , Dimension( 8)  :: tmp_r8 
+    Real(kind=8)   , Dimension(12)  :: tmp_r12
 
-    Real(kind=8)                                 :: E_Modul, nu, rve_strain
-    Real(kind=8)                                 :: v_elem, v_cube
-    integer(Kind=ik)                             :: ii, jj, kk, ll
-    integer(Kind=ik)                             :: no_elem_nodes,micro_elem_nodes
-    integer(Kind=ik)                             :: no_lc
-    Real(Kind=rk),    Dimension(3)               :: min_c, max_c
-    Type(tBranch), Pointer                       :: ddc, loc_ddc, meta_para, db
-    Character(Len=mcl)                           :: desc
+    Real(kind=8)                   :: E_Modul, nu, rve_strain
+    Real(kind=8)                   :: v_elem, v_cube
+    integer(Kind=ik)               :: ii, jj, kk, ll
+    integer(Kind=ik)               :: no_elem_nodes,micro_elem_nodes
+    integer(Kind=ik)               :: no_lc
+    Real(Kind=rk),    Dimension(3) :: min_c, max_c
+    Type(tBranch), Pointer         :: ddc, loc_ddc, meta_para, db
+    Character(Len=mcl)             :: desc
 
-    Real(kind=rk), Dimension(1)                  :: tmp_real_fd1
+    Real(kind=rk), Dimension(1) :: tmp_real_fd1
 
-    Type(tBranch),pointer                        :: mesh
-    Type(tLeaf),  pointer                        :: node_leaf_pointer
-    Real(kind=rk)                                   :: alpha, phi, eta
-    Integer                                         :: ii_phi,ii_eta,kk_phi,kk_eta
-    Real(kind=rk), Dimension (3)                    :: n
-    Real(kind=rk), Dimension (3,3)                  :: aa
-    Real(kind=rk), Dimension (6,6)                  :: ee_orig, BB
+    Type(tBranch),pointer :: mesh
+    Type(tLeaf),  pointer :: node_leaf_pointer
+
+    Real(kind=rk) :: alpha, phi, eta
+    Integer       :: ii_phi,ii_eta,kk_phi,kk_eta
+
+    Real(kind=rk), Dimension (3)   :: n
+    Real(kind=rk), Dimension (3,3) :: aa
+    Real(kind=rk), Dimension (6,6) :: ee_orig, BB
 
     Integer      , Dimension (:,:,:,:), Allocatable :: ang
     Real(kind=rk), Dimension (:,:,:)  , Allocatable :: crit_1,crit_2
-    Real(kind=rk), Dimension (0 :16)                :: crit_min
-    Integer      , Dimension (3)                    :: s_loop,e_loop, mlc
+    Real(kind=rk), Dimension (0 :16) :: crit_min
+    Integer      , Dimension (3)     :: s_loop,e_loop, mlc
 
-    Real(kind=rk)                                   :: div_10_exp_jj
-    Real(kind=rk)                                   :: cos_alpha, sin_alpha           
-    Real(kind=rk)                                   :: One_Minus_cos_alpha 
-    Real(kind=rk)                                   :: n12, n13, n23
+    Real(kind=rk) :: div_10_exp_jj
+    Real(kind=rk) :: cos_alpha, sin_alpha           
+    Real(kind=rk) :: One_Minus_cos_alpha 
+    Real(kind=rk) :: n12, n13, n23
 
     Real(kind=rk), Dimension(:), Allocatable :: delta, x_D_phy
-    Integer                                  :: num_leaves, alloc_stat
     Type(tLeaf), Allocatable, Dimension(:)   :: leaf_list
-    Real(kind=8)   , Dimension(:,:,:), allocatable      :: edat
-    Integer(Kind=ik), Dimension(:), Allocatable         :: xa_n, xe_n
-    Logical                                             :: success
+    Integer :: num_leaves, alloc_stat
+    
+    Real(kind=8)   , Dimension(:,:,:), allocatable :: edat
+    Integer(Kind=ik), Dimension(:), Allocatable    :: xa_n, xe_n
+    Logical :: success
 
-    Character(len=9)                                    :: nn_char
+    Character(len=9) :: nn_char
     !  Type(tPs_ortho) :: oc
     !==========================================================================
     write(nn_char,'(I0)')ddc_nn
@@ -368,7 +371,7 @@ contains
     !    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
     !     Int(root%branches(4)%leaves(1)%lbound-1+(nn-1)*no_lc*no_lc, MPI_OFFSET_KIND), &
     !     reshape(ff,[no_lc*no_lc]), &
-    !     Int(no_lc*no_lc,pd_mpi_ik), MPI_Real8, &
+    !     Int(no_lc*no_lc,pd_mik), MPI_Real8, &
     !     status_mpi, ierr)
     
     !****************************************************************************
@@ -379,7 +382,7 @@ contains
     !Call MPI_FILE_WRITE_AT(FH_MPI(5), &
     !     Int(root%branches(4)%leaves(2)%lbound-1+(nn-1)*no_lc*no_lc, MPI_OFFSET_KIND), &
     !     reshape(stiffness,[no_lc*no_lc]), &
-    !     Int(no_lc*no_lc,pd_mpi_ik), MPI_Real8, &
+    !     Int(no_lc*no_lc,pd_mik), MPI_Real8, &
     !     status_mpi, ierr)
     
     If (out_amount /= "PRODUCTION" ) then
@@ -394,7 +397,7 @@ contains
     !Call MPI_FILE_WRITE_AT(FH_MPI(5), &
     !     Int(root%branches(4)%leaves(3)%lbound-1+(nn-1), MPI_OFFSET_KIND), &
     !     tmp_real_fd1, &
-    !     Int(1,pd_mpi_ik), MPI_Real8, &
+    !     Int(1,pd_mik), MPI_Real8, &
     !     status_mpi, ierr)
     
     !****************************************************************************
@@ -475,13 +478,13 @@ contains
 !!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
 !!$         Int(root%branches(4)%leaves(4)%lbound-1+(nn-1)*6*no_lc, MPI_OFFSET_KIND), &
 !!$         reshape(int_stress,[6*no_lc]), &
-!!$         Int(6*no_lc,pd_mpi_ik), MPI_Real8, &
+!!$         Int(6*no_lc,pd_mik), MPI_Real8, &
 !!$         status_mpi, ierr)
 !!$    !call add_leaf_to_branch(res_tree, "Averaged strains",  6*no_lc, reshape(int_strain,[6*no_lc]))
 !!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
 !!$         Int(root%branches(4)%leaves(5)%lbound-1+(nn-1)*6*no_lc, MPI_OFFSET_KIND), &
 !!$         reshape(int_strain,[6*no_lc]), &
-!!$         Int(6*no_lc,pd_mpi_ik), MPI_Real8, &
+!!$         Int(6*no_lc,pd_mik), MPI_Real8, &
 !!$         status_mpi, ierr)
     
     !****************************************************************************
@@ -516,7 +519,7 @@ contains
 !!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
 !!$         Int(root%branches(4)%leaves(6)%lbound-1+(nn-1)*36, MPI_OFFSET_KIND), &
 !!$         reshape(cc_mean,[36]), &
-!!$         Int(36,pd_mpi_ik), MPI_Real8, &
+!!$         Int(36,pd_mik), MPI_Real8, &
 !!$         status_mpi, ierr)
        
     !Call add_leaf_to_branch(res_tree, &
@@ -524,7 +527,7 @@ contains
 !!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
 !!$         Int(root%branches(4)%leaves(7)%lbound-1+(nn-1), MPI_OFFSET_KIND), &
 !!$         tmp_real_fd1, &
-!!$         Int(1,pd_mpi_ik), MPI_Real8, &
+!!$         Int(1,pd_mik), MPI_Real8, &
 !!$         status_mpi, ierr)
     
     Select Case (timer_level)
@@ -555,7 +558,7 @@ contains
 !!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
 !!$         Int(root%branches(4)%leaves(8)%lbound-1+(nn-1)*36, MPI_OFFSET_KIND), &
 !!$         reshape(ee,[36]), &
-!!$         Int(36,pd_mpi_ik), MPI_Real8, &
+!!$         Int(36,pd_mik), MPI_Real8, &
 !!$         status_mpi, ierr)
     
     !call add_leaf_to_branch(res_tree, &
@@ -563,7 +566,7 @@ contains
 !!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
 !!$         Int(root%branches(4)%leaves(9)%lbound-1+(nn-1), MPI_OFFSET_KIND), &
 !!$         tmp_real_fd1, &
-!!$         Int(1,pd_mpi_ik), MPI_Real8, &
+!!$         Int(1,pd_mik), MPI_Real8, &
 !!$         status_mpi, ierr)
     
     EE_Orig = EE
@@ -1106,14 +1109,14 @@ contains
 !!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
 !!$         Int(root%branches(4)%leaves(10)%lbound-1+(nn-1), MPI_OFFSET_KIND), &
 !!$         tmp_real_fd1, &
-!!$         Int(1,pd_mpi_ik), MPI_Real8, &
+!!$         Int(1,pd_mik), MPI_Real8, &
 !!$         status_mpi, ierr)
     
     !call add_leaf_to_branch(res_tree,"Rotation Vector CR_1", 3_pd_ik, n)
 !!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
 !!$         Int(root%branches(4)%leaves(11)%lbound-1+(nn-1)*3, MPI_OFFSET_KIND), &
 !!$         n, &
-!!$         Int(3,pd_mpi_ik), MPI_Real8, &
+!!$         Int(3,pd_mik), MPI_Real8, &
 !!$         status_mpi, ierr)
        
     !=========================================================================
@@ -1211,7 +1214,7 @@ contains
 !!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
 !!$         Int(root%branches(4)%leaves(12)%lbound-1+(nn-1)*9, MPI_OFFSET_KIND), &
 !!$         reshape(aa,[9_pd_ik]), &
-!!$         Int(9,pd_mpi_ik), MPI_Real8, &
+!!$         Int(9,pd_mik), MPI_Real8, &
 !!$         status_mpi, ierr)
 
     !call add_leaf_to_branch(res_tree,"Optimized Effective stiffness CR_1", 36_pd_ik, &
@@ -1219,7 +1222,7 @@ contains
 !!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
 !!$         Int(root%branches(4)%leaves(13)%lbound-1+(nn-1)*36, MPI_OFFSET_KIND), &
 !!$         reshape(EE,[36_pd_ik]), &
-!!$         Int(36,pd_mpi_ik), MPI_Real8, &
+!!$         Int(36,pd_mik), MPI_Real8, &
 !!$         status_mpi, ierr)
  
     !=========================================================================
@@ -1541,14 +1544,14 @@ contains
 !!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
 !!$         Int(root%branches(4)%leaves(14)%lbound-1+(nn-1), MPI_OFFSET_KIND), &
 !!$         tmp_real_fd1, &
-!!$         Int(1,pd_mpi_ik), MPI_Real8, &
+!!$         Int(1,pd_mik), MPI_Real8, &
 !!$         status_mpi, ierr)
     
     !call add_leaf_to_branch(res_tree,"Rotation Vector CR_2", 3_pd_ik, n)
 !!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
 !!$         Int(root%branches(4)%leaves(15)%lbound-1+(nn-1)*3, MPI_OFFSET_KIND), &
 !!$         n, &
-!!$         Int(3,pd_mpi_ik), MPI_Real8, &
+!!$         Int(3,pd_mik), MPI_Real8, &
 !!$         status_mpi, ierr)
     
     !=========================================================================
@@ -1646,7 +1649,7 @@ contains
 !!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
 !!$         Int(root%branches(4)%leaves(16)%lbound-1+(nn-1)*9, MPI_OFFSET_KIND), &
 !!$         reshape(aa,[9_pd_ik]), &
-!!$         Int(9,pd_mpi_ik), MPI_Real8, &
+!!$         Int(9,pd_mik), MPI_Real8, &
 !!$         status_mpi, ierr)
     
     !call add_leaf_to_branch(res_tree,"Optimized Effective stiffness CR_2", 36_pd_ik, &
@@ -1654,7 +1657,7 @@ contains
 !!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
 !!$         Int(root%branches(4)%leaves(17)%lbound-1+(nn-1)*36, MPI_OFFSET_KIND), &
 !!$         reshape(EE,[36_pd_ik]), &
-!!$         Int(36,pd_mpi_ik), MPI_Real8, &
+!!$         Int(36,pd_mik), MPI_Real8, &
 !!$         status_mpi, ierr)
         
     Select Case (timer_level)
