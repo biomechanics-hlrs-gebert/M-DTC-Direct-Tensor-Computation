@@ -4,15 +4,16 @@
 !>
 Module calcmat
 
-  use tensors
-  Use decomp
-  use mat_matrices
-  use chain_routines
-  use auxiliaries
+  USE tensors
+  USE decomp
+  USE mat_matrices
+  USE mechanical
+  USE chain_routines
+  USE auxiliaries
   USE user_interaction
   USE formatted_plain
-  use linFE
-  use mpi
+  USE linFE
+  USE mpi
   
   implicit none
 

@@ -71,7 +71,7 @@
 !>
 !>  \section modified Last modified:
 !>  by: Johannes Gebert \n
-!>  on : 29.10.2021
+!>  on: 03.01.2022
 !------------------------------------------------------------------------------
 Module sp_aux_routines
 
@@ -96,18 +96,18 @@ Contains
   Subroutine exec_single_domain(root, lin_nn, nn, job_dir, Active, fh_mpi, &
        rank_mpi, size_mpi, comm_mpi)
 
-    TYPE(materialcard)                :: mc
+    TYPE(materialcard) :: mc
 
-    LOGICAL, PARAMETER                :: DEBUG=.TRUE.
+    LOGICAL, PARAMETER :: DEBUG=.TRUE.
     
     Integer(kind=mik), intent(out) :: Active
 
-    Type(tBranch), Intent(inOut)      :: root
-    Integer(kind=ik), Intent(in)      :: nn, lin_nn
-    Character(LEN=*), Intent(in)      :: job_dir
+    Type(tBranch), Intent(inOut) :: root
+    Integer(kind=ik), Intent(in) :: nn, lin_nn
+    Character(LEN=*), Intent(in) :: job_dir
+    Integer(kind=mik), Intent(In) :: rank_mpi, size_mpi, comm_mpi
     Integer(kind=mik), Intent(In), Dimension(no_streams) :: fh_mpi
-    Integer(kind=mik), Intent(In)     :: rank_mpi, size_mpi, comm_mpi
-
+    
     !----------------------------------------------------------------
     Integer(kind=mik)                 :: ierr
     Integer(kind=mik), Dimension(MPI_STATUS_SIZE)   :: status_mpi
@@ -152,7 +152,7 @@ Contains
     Real   (kind=rk), Dimension(:), Allocatable   :: glob_displ, glob_force
     Real   (kind=rk), Dimension(:), Allocatable   :: zeros_R8
 
-    Character, Dimension(:), Allocatable           :: char_arr
+    Character, Dimension(:), Allocatable :: char_arr
     
     CHARACTER(LEN=8) :: date
     CHARACTER(LEN=10) :: time
@@ -969,7 +969,7 @@ Program main_struct_process
 
       std_out = determine_stout()
 
-      IF (std_out==6) CALL show_title(revision)
+      IF (std_out==6) CALL show_title()
 
       Call Start_Timer("Init Process")
     
@@ -1041,7 +1041,7 @@ Program main_struct_process
       IF (std_out/=6) THEN
          CALL meta_start_ascii(std_out, '.std_out')
 
-         CALL show_title(revision) 
+         CALL show_title() 
       END IF
 
       CALL meta_write (fhmeo, 'MICRO_ELMNT_TYPE' , elt_micro  )
@@ -1219,8 +1219,13 @@ Program main_struct_process
 
       ELSE ! restart = 'Y'         
 
-         IF(.NOT. heaxist) CALL print_err_stop(std_out, &
-            "Restart requested, but header does not exist", 1)
+         IF(.NOT. heaxist) THEN  
+            mssg="Restart requested, but header does not exist. &
+            &Please specify 'RESTART = N' if there was no previous computation. &
+            &Currently, the restart procedure does not support an automatic switch &
+            &to 'RESTART = N'."
+            CALL print_err_stop(std_out, mssg, 1)
+         END IF
 
         !------------------------------------------------------------------------------
         ! Read an existing output tree (with microfocus ct data).
@@ -1495,9 +1500,10 @@ Program main_struct_process
      Call assign_pd_root (root)
      Call set_bounds_in_branch(root,root%streams)
 
-     Call pd_get(root%branches(1),"Output amount", char_arr)
-     out_amount = char_to_str(char_arr)
-     deallocate(char_arr)
+     ! Commented out since out_amount is a parametrized global variable 
+     ! Call pd_get(root%branches(1),"Output amount", char_arr)
+     ! out_amount = char_to_str(char_arr)
+     ! deallocate(char_arr)
 
      Call pd_get(root%branches(1),"Restart", char_arr)
      restart = char_to_str(char_arr)
@@ -1512,7 +1518,6 @@ Program main_struct_process
      amount_domains= (xe_d(1)-xa_d(1)+1) * &
                      (xe_d(2)-xa_d(2)+1) * &
                      (xe_d(3)-xa_d(3)+1)
-
      
      Allocate(Domains(amount_domains),stat=alloc_stat)
      Call alloc_err("Domains",alloc_stat)

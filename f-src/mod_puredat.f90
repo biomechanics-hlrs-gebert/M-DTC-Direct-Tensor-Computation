@@ -77,7 +77,7 @@ Module puredat_precision
   
   Integer, Parameter :: pd_ik = 8  !** Puredat Integer kind parameter
   Integer, Parameter :: pd_rk = 8  !** Puredat Real    kind parameter
-  Integer, Parameter :: pd_mik = 8 !** Puredat Integer MPI kind parameter
+  Integer, Parameter :: pd_mik = 4 !** Puredat Integer MPI kind parameter
   
 End Module puredat_precision
 
@@ -106,7 +106,7 @@ Module puredat_types
      !> Array of dimension puredat_constants::no_streams which holds the 
      !> dimensions of the puredat streams. If a stream is not in use the
      !> corresponding element of dim_st = 0
-     Integer(Kind=pd_ik)  , Dimension(no_streams) :: dim_st = 0
+     Integer(Kind=pd_ik), Dimension(no_streams) :: dim_st = 0
 
      !> Stream position
      !>
@@ -115,24 +115,25 @@ Module puredat_types
      !> If a stream is not in use the corresponding element of ii_st = 0
      Integer(Kind=pd_ik)  , Dimension(no_streams) :: ii_st
 
-     Integer(Kind=pd_ik)                          :: no_leaves    = 0
-     Integer(Kind=pd_ik)                          :: no_branches  = 0
+     Integer(Kind=pd_ik):: no_leaves    = 0
+     Integer(Kind=pd_ik):: no_branches  = 0
 
      Character(len=pd_mcl), Dimension(no_streams) :: stream_files = ""
-     Logical              , Dimension(no_streams) :: ifopen       = .FALSE.
-     Integer              , Dimension(no_streams) :: units        = -1
+     
+     Logical, Dimension(no_streams) :: ifopen = .FALSE.
+     Integer, Dimension(no_streams) :: units  = -1
 
      !> Global stream variables
-     Integer(kind=1)      , Dimension(:), pointer :: int1_st  => null()
-     Integer(kind=2)      , Dimension(:), pointer :: int2_st  => null()
-     Integer(kind=4)      , Dimension(:), pointer :: int4_st  => null()
-     Integer(kind=8)      , Dimension(:), pointer :: int8_st  => null()
+     Integer(kind=1), Dimension(:), pointer :: int1_st  => null()
+     Integer(kind=2), Dimension(:), pointer :: int2_st  => null()
+     Integer(kind=4), Dimension(:), pointer :: int4_st  => null()
+     Integer(kind=8), Dimension(:), pointer :: int8_st  => null()
      !
-     Real(kind=8)         , Dimension(:), pointer :: real8_st => null()
+     Real(kind=8), Dimension(:), pointer :: real8_st => null()
      !
-     Character            , Dimension(:), pointer :: char_st  => null()
+     Character, Dimension(:), pointer :: char_st  => null()
      !> Global stream variable for logical data
-     Logical(Kind=1)      , Dimension(:), pointer :: log_st   => null()
+     Logical(Kind=1), Dimension(:), pointer :: log_st   => null()
 
   End type tStreams
 
@@ -145,9 +146,9 @@ Module puredat_types
   Type tLeaf
 
      !> ASCII description of what the data are
-     Character(Len=pd_mcl)             :: desc
+     Character(Len=pd_mcl) :: desc
      !> Number of data
-     Integer(Kind=pd_ik)               :: dat_no
+     Integer(Kind=pd_ik) :: dat_no
      !> Data Type
      !>
      !> Currently the reference is <br>
@@ -158,27 +159,27 @@ Module puredat_types
      !> 5: 8 Byte Floating point data <BR>
      !> 6: 1 Byte Character data <BR>
      !> 7: Logical data <BR>
-     Integer(Kind=1)                   :: dat_ty
+     Integer(Kind=1) :: dat_ty
 
      !> Lower bound index in stream array
-     Integer(Kind=pd_ik)               :: lbound
+     Integer(Kind=pd_ik) :: lbound
 
      !> Upper bound index in stream array
-     Integer(Kind=pd_ik)               :: ubound
+     Integer(Kind=pd_ik) :: ubound
 
-     Integer(kind=pd_ik)               :: pstat = 0
+     Integer(kind=pd_ik)  :: pstat = 0
 
      !> Data chunk pointer to x Byte y data
-     Integer(Kind=1), Dimension(:),Pointer   :: p_int1  => null()
-     Integer(Kind=2), Dimension(:),Pointer   :: p_int2  => null()
-     Integer(Kind=4), Dimension(:),Pointer   :: p_int4  => null()
-     Integer(Kind=8), Dimension(:),Pointer   :: p_int8  => null()
+     Integer(Kind=1), Dimension(:),Pointer :: p_int1  => null()
+     Integer(Kind=2), Dimension(:),Pointer :: p_int2  => null()
+     Integer(Kind=4), Dimension(:),Pointer :: p_int4  => null()
+     Integer(Kind=8), Dimension(:),Pointer :: p_int8  => null()
 
-     Real   (Kind=8), Dimension(:),Pointer   :: p_real8 => null()
+     Real   (Kind=8), Dimension(:),Pointer :: p_real8 => null()
      
-     Character      , Dimension(:),Pointer   :: p_char  => null()
+     Character      , Dimension(:),Pointer :: p_char  => null()
      
-     Logical(Kind=1), Dimension(:),Pointer   :: p_log   => null()
+     Logical(Kind=1), Dimension(:),Pointer :: p_log   => null()
 
   End Type tLeaf
 
@@ -190,19 +191,19 @@ Module puredat_types
   Type tBranch
 
      !> ASCII description of what the data are
-     Character(Len=pd_mcl)                   :: desc 
+     Character(Len=pd_mcl) :: desc 
      !> Number of childdren of type tBranch
-     Integer(Kind=pd_ik)                     :: no_branches = 0
+     Integer(Kind=pd_ik) :: no_branches = 0
      !> Number of childdren of type tLeaf
-     Integer(Kind=pd_ik)                     :: no_leaves = 0
+     Integer(Kind=pd_ik) :: no_leaves = 0
 
      !> Pointer to branch children
-     Type(tBranch), Dimension(:), Pointer    :: branches => null()
+     Type(tBranch), Dimension(:), Pointer :: branches => null()
      !> Pointer to leaf children
-     Type(tLeaf)  , Dimension(:), Pointer    :: leaves   => null()
+     Type(tLeaf)  , Dimension(:), Pointer :: leaves   => null()
 
      !> Streams
-     Type(tStreams), Allocatable             :: streams
+     Type(tStreams), Allocatable :: streams
 
   End Type tBranch
 
@@ -574,8 +575,8 @@ CONTAINS
   !> assignment.
   Subroutine Assign_branches(branchl, branchr)
 
-    Type(tBranch), Intent(out)          :: branchl
-    Type(tBranch), Intent(in)           :: branchr
+    Type(tBranch), Intent(out) :: branchl
+    Type(tBranch), Intent(in)  :: branchr
 
     branchl%desc        =  branchr%desc
     branchl%no_branches =  branchr%no_branches
@@ -627,7 +628,7 @@ CONTAINS
   !> get_data_size_rec
   Subroutine get_data_size(br,dsize)
 
-    Type(tBranch), Intent(in)                     :: br
+    Type(tBranch), Intent(in) :: br
     Integer(kind=pd_ik), intent(Out),Dimension(2) :: dsize
 
     dsize = 0
@@ -642,10 +643,10 @@ CONTAINS
   !> tBranch structure
   recursive Subroutine get_data_size_rec(br,dsize)
 
-    Type(tBranch), Intent(in)        :: br
+    Type(tBranch), Intent(in) :: br
     Integer(kind=pd_ik),Dimension(2) :: dsize
 
-    Integer(kind=pd_ik)              :: ii
+    Integer(kind=pd_ik) :: ii
     
     Do ii = 1, br%no_leaves
 
@@ -687,7 +688,7 @@ CONTAINS
   !> get_stream_size_rec
   Subroutine get_stream_size(br,dsize)
 
-    Type(tBranch), Intent(in)                              :: br
+    Type(tBranch), Intent(in) :: br
     Integer(kind=pd_ik), intent(Out),Dimension(no_streams) :: dsize
 
     dsize = 0
@@ -702,10 +703,10 @@ CONTAINS
   !> tBranch structure
   recursive Subroutine get_stream_size_rec(br,dsize)
 
-    Type(tBranch), Intent(in)                 :: br
+    Type(tBranch), Intent(in) :: br
     Integer(kind=pd_ik),Dimension(no_streams) :: dsize
 
-    Integer(kind=pd_ik)                       :: ii
+    Integer(kind=pd_ik) :: ii
     
     Do ii = 1, br%no_leaves
        dsize(br%leaves(ii)%dat_ty) = dsize(br%leaves(ii)%dat_ty) + br%leaves(ii)%dat_no     
@@ -735,14 +736,14 @@ CONTAINS
 
     Type(tBranch), Intent(inout) :: t_b
 
-    Character(Len=*)   , Intent(in) :: desc
-    Integer(Kind=1)    , Intent(in) :: dat_ty 
+    Character(Len=*), Intent(in) :: desc
+    Integer(Kind=1) , Intent(in) :: dat_ty 
     Integer(Kind=pd_ik), Intent(in) :: dat_no
 
     !> Pointer to leaf children
     Type(tLeaf), Dimension(:), Pointer   :: leaves
 
-    Integer(kind=pd_ik)                  :: ii
+    Integer(kind=pd_ik) :: ii
 
     leaves     => t_b%leaves
     t_b%leaves => Null()
@@ -791,19 +792,19 @@ CONTAINS
   !> that the data resides directly in the leaf.
   Subroutine add_filled_leaf_to_branch_4(t_b, desc, dat_no, values)
 
-    Type(tBranch), Intent(inout)                  :: t_b
+    Type(tBranch), Intent(inout) :: t_b
 
-    Character(Len=*)   , Intent(in)               :: desc
-    Integer(Kind=1)    , Parameter                :: dat_ty = 4
-    Integer(Kind=pd_ik), Intent(in)               :: dat_no
+    Character(Len=*)   , Intent(in) :: desc
+    Integer(Kind=1)    , Parameter  :: dat_ty = 4
+    Integer(Kind=pd_ik), Intent(in) :: dat_no
 
     Integer(Kind=8)    , Intent(in), Dimension(:) :: values
 
     !> Pointer to leaf children
-    Type(tLeaf), Dimension(:), Pointer   :: leaves
+    Type(tLeaf), Dimension(:), Pointer :: leaves
 
-    Integer(kind=pd_ik)                  :: ii
-    Integer                              :: alloc_stat
+    Integer(kind=pd_ik) :: ii
+    Integer             :: alloc_stat
 
     leaves     => t_b%leaves
     t_b%leaves => Null()
@@ -859,19 +860,19 @@ CONTAINS
   !> that the data resides directly in the leaf.
   Subroutine add_filled_leaf_to_branch_5(t_b, desc, dat_no, values)
 
-    Type(tBranch), Intent(inout)                  :: t_b
+    Type(tBranch), Intent(inout) :: t_b
 
-    Character(Len=*)   , Intent(in)               :: desc
-    Integer(Kind=1)    , Parameter                :: dat_ty=5
-    Integer(Kind=pd_ik), Intent(in)               :: dat_no
+    Character(Len=*)   , Intent(in) :: desc
+    Integer(Kind=1)    , Parameter  :: dat_ty=5
+    Integer(Kind=pd_ik), Intent(in) :: dat_no
 
     Real(Kind=8)       , Intent(in), Dimension(:) :: values
 
     !> Pointer to leaf children
-    Type(tLeaf), Dimension(:), Pointer   :: leaves
+    Type(tLeaf), Dimension(:), Pointer :: leaves
 
-    Integer(kind=pd_ik)                  :: ii
-    Integer                              :: alloc_stat
+    Integer(kind=pd_ik) :: ii
+    Integer             :: alloc_stat
 
     leaves     => t_b%leaves
     t_b%leaves => Null()
@@ -928,19 +929,19 @@ CONTAINS
   !> that the data resides directly in the leaf.
   Subroutine add_filled_leaf_to_branch_6(t_b, desc, dat_no, values)
 
-    Type(tBranch), Intent(inout)                  :: t_b
+    Type(tBranch), Intent(inout) :: t_b
 
-    Character(Len=*)   , Intent(in)               :: desc
-    Integer(Kind=1)    , PARAMETER                :: dat_ty = 6
-    Integer(Kind=pd_ik), Intent(in)               :: dat_no
+    Character(Len=*)   , Intent(in) :: desc
+    Integer(Kind=1)    , PARAMETER  :: dat_ty = 6
+    Integer(Kind=pd_ik), Intent(in) :: dat_no
 
-    character          , Intent(in), Dimension(:) :: values
+    character, Intent(in), Dimension(:) :: values
 
     !> Pointer to leaf children
-    Type(tLeaf), Dimension(:), Pointer   :: leaves
+    Type(tLeaf), Dimension(:), Pointer :: leaves
 
-    Integer(kind=pd_ik)                  :: ii
-    Integer                              :: alloc_stat
+    Integer(kind=pd_ik) :: ii
+    Integer             :: alloc_stat
 
     leaves     => t_b%leaves
     t_b%leaves => Null()
@@ -991,13 +992,13 @@ CONTAINS
   !> !! The pstat attribute is set to 0.
   Subroutine add_empty_leaf_to_branch(t_b,n)
 
-    Type(tBranch), Intent(inout)             :: t_b
+    Type(tBranch), Intent(inout) :: t_b
     Integer(kind=pd_ik), intent(in),optional :: n
     
     !> Pointer to leaf children
     Type(tLeaf), Dimension(:), Pointer   :: leaves
 
-    Integer(kind=pd_ik)                  :: ii, loc_n
+    Integer(kind=pd_ik) :: ii, loc_n
 
     If (present(n)) then
        loc_n = n
@@ -1048,13 +1049,13 @@ CONTAINS
   !> No initialisation is performed. Neither on the new element nor on n_b.
   Subroutine add_branch_to_branch(t_b,n_b)
 
-    Type(tBranch), Intent(inout)                       :: t_b
-    Type(tBranch), Intent(  out), Pointer, optional    :: n_b
+    Type(tBranch), Intent(inout) :: t_b
+    Type(tBranch), Intent(  out), Pointer, optional :: n_b
 
     !> Pointer to branch children
     Type(tBranch), Dimension(:), Pointer :: branches
 
-    Integer(kind=pd_ik)                  :: ii
+    Integer(kind=pd_ik) :: ii
 
     branches     => t_b%branches
     t_b%branches => Null()
@@ -1083,14 +1084,14 @@ CONTAINS
   !> set_bounds_in_branch is necessary outside this routine.
   Subroutine delete_branch_from_branch(desc, br, rem_data)
 
-    Character(len=*), Intent(in)               :: desc
-    Type(tBranch), intent(InOut)               :: br
+    Character(len=*), Intent(in) :: desc
+    Type(tBranch), intent(InOut) :: br
 
-    Logical                                    :: success, skip
-    Type(tBranch), Dimension(:), Pointer       :: branches
+    Logical :: success, skip
+    Type(tBranch), Dimension(:), Pointer :: branches
     Integer(kind=pd_ik), Dimension(no_streams) :: rem_data
-
-    Integer(kind=pd_ik)                        :: ii, jj, kk
+ 
+    Integer(kind=pd_ik) :: ii, jj, kk
     
     branches => Null()
 
@@ -1230,7 +1231,7 @@ CONTAINS
   !> structures !!
   Recursive Subroutine destroy_tree(branch, no_data)
 
-    Type(tBranch), Intent(InOut)                              :: branch
+    Type(tBranch), Intent(InOut) :: branch
     Integer(kind=pd_ik), Dimension(no_streams), Intent(InOut) :: no_data
 
     Integer :: ii, alloc_stat
@@ -1405,10 +1406,10 @@ CONTAINS
   !> \param[inout] The raised branch
   Subroutine raise_branch(desc, no_branches, no_leaves, branch)
 
-    Character(Len=*)   , Intent(In)     :: desc
-    Integer(Kind=pd_ik), Intent(In)     :: no_branches
-    Integer(Kind=pd_ik), Intent(In)     :: no_leaves
-    Type(tBranch)      , Intent(InOut)  :: branch
+    Character(Len=*)   , Intent(In)    :: desc
+    Integer(Kind=pd_ik), Intent(In)    :: no_branches
+    Integer(Kind=pd_ik), Intent(In)    :: no_leaves
+    Type(tBranch)      , Intent(InOut) :: branch
 
     Integer :: alloc_stat, ii
 
@@ -1473,7 +1474,7 @@ CONTAINS
   !> calling "set_bounds_in_branch"
   Subroutine raise_leaves(no_leaves, desc, dat_ty, dat_no, lb, ub, branch)
 
-    Integer         , Intent(in)                       :: no_leaves
+    Integer, Intent(in) :: no_leaves
 
     Character(Len=*), Intent(in), Dimension(no_leaves) :: desc
 
@@ -1520,8 +1521,8 @@ CONTAINS
   !> by the leaves of type tLeaf in a tBranch structure to their stream targets
   Recursive Subroutine connect_pointers(streams, branch)
 
-    Type(tStreams)   , Intent(inout)         :: streams
-    Type(tBranch)    , Intent(inout)         :: branch
+    Type(tStreams), Intent(inout) :: streams
+    Type(tBranch) , Intent(inout) :: branch
 
     Integer :: ii
 
@@ -1599,26 +1600,26 @@ CONTAINS
   Subroutine include_branch_into_branch(s_b, t_b, s_streams, t_streams, &
                                         clean_target_files, blind)
 
-    Type(tBranch) , Intent(inout)                        :: s_b
-    Type(tBranch) , Intent(inout)                        :: t_b
+    Type(tBranch) , Intent(inout) :: s_b
+    Type(tBranch) , Intent(inout) :: t_b
     Type(tStreams), Intent(inout), Allocatable, Optional :: s_streams 
     Type(tStreams), Intent(inout), Allocatable, Optional :: t_streams 
     Type(tStreams)               , Allocatable           :: src_streams
-    Type(tStreams)                                       :: trg_streams
+    Type(tStreams) :: trg_streams
 
-    Logical, Intent(in), optional                        :: clean_target_files
-    Logical, intent(in), Optional                        :: blind
+    Logical, Intent(in), optional :: clean_target_files
+    Logical, intent(in), Optional :: blind
 
-    Logical                                 :: s_root = .True.
-    Logical                                 :: t_root = .True.
-    Logical                                 :: ctf    = .False.
+    Logical :: s_root = .True.
+    Logical :: t_root = .True.
+    Logical :: ctf    = .False.
 
-    Logical                                 :: loc_blind
+    Logical :: loc_blind
 
     !> Pointer to branch children
     Type(tBranch), Dimension(:), Pointer :: branches
 
-    Integer(kind=pd_ik)                  :: ii
+    Integer(kind=pd_ik) :: ii
 
     !** Handle optional parameters ********************************************
 
@@ -1759,10 +1760,10 @@ CONTAINS
     Type(tBranch) , Intent(InOut) :: branch
     Type(tStreams), Intent(InOut) :: streams
 
-    Integer                        :: ii
+    Integer :: ii
+    Logical :: loc_blind
     Logical, intent(in), Optional  :: blind
-    Logical                        :: loc_blind
-
+    
     if(present(blind))then
        loc_blind=blind
     else
@@ -1811,10 +1812,10 @@ CONTAINS
   !> in a tBranch structure.
   recursive subroutine reset_bounds_in_branch(branch, t_streams)
 
-    Type(tBranch) , Intent(InOut)  :: branch
-    Type(tStreams), Intent(InOut)  :: t_streams
+    Type(tBranch) , Intent(InOut) :: branch
+    Type(tStreams), Intent(InOut) :: t_streams
    
-    Integer(kind=pd_ik)            :: ii
+    Integer(kind=pd_ik) :: ii
     
     Do ii = 1, branch%no_branches 
 
@@ -1844,10 +1845,10 @@ CONTAINS
   !> parts of the target streams t_streams.
   recursive subroutine set_bounds_in_branch(branch, t_streams)
 
-    Type(tBranch) , Intent(InOut)  :: branch
-    Type(tStreams), Intent(InOut)  :: t_streams
+    Type(tBranch) , Intent(InOut) :: branch
+    Type(tStreams), Intent(InOut) :: t_streams
    
-    Integer(kind=pd_ik)            :: ii
+    Integer(kind=pd_ik) :: ii
     
     Do ii = 1, branch%no_branches 
 
@@ -1879,9 +1880,9 @@ CONTAINS
   !> members in a tBranch structure
   subroutine shift_bounds_in_branch(branch, t_streams, s_streams)
 
-    Type(tBranch) , Intent(InOut)  :: branch
-    Type(tStreams), Intent(InOut)  :: t_streams
-    Type(tStreams), Intent(In   )  :: s_streams
+    Type(tBranch) , Intent(InOut) :: branch
+    Type(tStreams), Intent(InOut) :: t_streams
+    Type(tStreams), Intent(In   ) :: s_streams
 
     Integer(kind=pd_ik), dimension(no_streams) :: offset
 
@@ -1900,10 +1901,10 @@ CONTAINS
   !> members in a tBranch structure
   recursive subroutine shift_bounds_rec(branch, offset)
 
-    Type(tBranch)                             , Intent(InOut) :: branch
+    Type(tBranch) , Intent(InOut) :: branch
     Integer(kind=pd_ik), dimension(no_streams), intent(in)    :: offset
 
-    Integer                                                   :: ii
+    Integer :: ii
 
     Do ii = 1, branch%no_branches 
 
@@ -1929,10 +1930,10 @@ CONTAINS
   !> Subroutine for counting the branches and leaves in a tBranch structure
   Recursive Subroutine count_elems(branch, no_branches, no_leaves)
     
-    Type(tBranch), Intent(In)          :: branch
+    Type(tBranch), Intent(In) :: branch
     Integer(Kind=pd_ik), Intent(InOut) :: no_branches, no_leaves 
-
-    Integer(Kind=pd_ik)                :: ii
+ 
+    Integer(Kind=pd_ik) :: ii
     
     no_branches = no_branches + branch%no_branches
     no_leaves   = no_leaves   + branch%no_leaves  
@@ -1963,7 +1964,7 @@ CONTAINS
 
     Integer(Kind=pd_ik), Dimension(no_streams) :: data_size
 
-    Integer(Kind=pd_ik)           :: ii
+    Integer(Kind=pd_ik) :: ii
     
     If ( associated(streams%int1_st ) .OR. &
          associated(streams%int2_st ) .OR. &
@@ -2145,7 +2146,7 @@ CONTAINS
     Type(tBranch) , Intent(InOut) :: branch
     Type(tStreams), Intent(InOut) :: streams
 
-    Integer(Kind=pd_ik)           :: ii
+    Integer(Kind=pd_ik) :: ii
 
     Do ii = 1, branch%no_branches
 
@@ -2333,9 +2334,9 @@ CONTAINS
     Character(len=*), intent(In)    :: action, status
 
     Character(len=*), intent(In),optional :: position
-    Character(len=pd_mcl)                 :: lpos
+    Character(len=pd_mcl) :: lpos
 
-    Character(len=10)               :: faction
+    Character(len=10) :: faction
 
     logical :: fexist
     Integer :: ii, funit
@@ -2466,13 +2467,13 @@ CONTAINS
   !> statement
   Subroutine open_stream_files_from_streams(streams, action, status, position)
 
-    Type(tStreams)  , Intent(InOut)              :: streams
-    Character(len=*), intent(In)                 :: action, status
+    Type(tStreams)  , Intent(InOut) :: streams
+    Character(len=*), intent(In)    :: action, status
 
-    Character(len=*), intent(In),optional        :: position
-    Character(len=pd_mcl)                        :: lpos
+    Character(len=*), intent(In),optional :: position
+    Character(len=pd_mcl)                 :: lpos
 
-    Character(len=10)                            :: faction
+    Character(len=10) :: faction
 
     logical :: fexist
     Integer :: ii, funit
@@ -2600,17 +2601,17 @@ CONTAINS
   !> Remark: Subroutine is in pre alpha state !!!
   Subroutine open_stream_files_from_streams_mpi(streams, action, status, fh_mpi, position)
 
-    Type(tStreams)  , Intent(InOut)              :: streams
-    Character(len=*), intent(In)                 :: action, status
+    Type(tStreams)  , Intent(InOut) :: streams
+    Character(len=*), intent(In)    :: action, status
 
     Integer(kind=pd_mik), Intent(InOut), Dimension(no_streams) :: fh_mpi
-    Integer(kind=pd_mik)                      :: ierr
+    Integer(kind=pd_mik) :: ierr
     
-    Character(len=*), intent(In),optional        :: position
-    Character(len=pd_mcl)                        :: lpos
+    Character(len=*), intent(In),optional :: position
+    Character(len=pd_mcl) :: lpos
 
-    Character(len=10)                            :: faction
-
+    Character(len=10) :: faction
+ 
     logical :: fexist
     Integer :: ii, funit
 
@@ -2775,8 +2776,8 @@ CONTAINS
   !> structure
   Subroutine close_stream_files_from_tree(tree,clean)
 
-    Type(tBranch), Intent(InOut)           :: tree
-    Logical      , intent(in)   , optional :: clean
+    Type(tBranch), Intent(InOut)  :: tree
+    Logical, intent(in), optional :: clean
 
     Logical :: loc_clean
 
@@ -2819,8 +2820,8 @@ CONTAINS
   !> structure
   Subroutine close_stream_files_from_streams(streams,clean)
 
-    Type(tStreams), Intent(InOut)              :: streams
-    Logical       , intent(in)   , optional    :: clean
+    Type(tStreams), Intent(InOut) :: streams
+    Logical, intent(in), optional :: clean
 
     Logical :: loc_clean
 
@@ -3000,9 +3001,9 @@ CONTAINS
    !> comparison of trim(branch%leaves(ii)%desc) == trim(desc).
    Subroutine pd_get_3_vector(branch, desc, values, size)
 
-      Type(tBranch)    , Intent(in) :: branch
-      Character(Len=*) , Intent(in) :: desc
-      Integer(kind=8) ,  Intent(in) :: size
+      Type(tBranch)   , Intent(in) :: branch
+      Character(Len=*), Intent(in) :: desc
+      Integer(kind=8) , Intent(in) :: size
       
       Integer(kind=4) , Intent(out), Dimension(size) :: values
 
@@ -3054,8 +3055,8 @@ CONTAINS
   !> comparison of trim(branch%leaves(ii)%desc) == trim(desc).
   Subroutine pd_get_4(branch, desc, values)
 
-    Type(tBranch)    , Intent(in) :: branch
-    Character(Len=*) , Intent(in) :: desc
+    Type(tBranch)   , Intent(in) :: branch
+    Character(Len=*), Intent(in) :: desc
 
     Integer(kind=8) , Intent(out), Allocatable, Dimension(:) :: values
 
@@ -3098,9 +3099,9 @@ CONTAINS
   !> comparison of trim(branch%leaves(ii)%desc) == trim(desc).
   Subroutine pd_get_4_vector(branch, desc, values, size)
 
-    Type(tBranch)    , Intent(in) :: branch
-    Character(Len=*) , Intent(in) :: desc
-    Integer(kind=8) ,  Intent(in) :: size
+    Type(tBranch)   , Intent(in) :: branch
+    Character(Len=*), Intent(in) :: desc
+    Integer(kind=8) , Intent(in) :: size
     
     Integer(kind=8) , Intent(out), Dimension(size) :: values
 
@@ -3152,10 +3153,10 @@ CONTAINS
   !> of trim(branch%leaves(ii)%desc) == trim(desc).
   Subroutine pd_get_5(branch, desc, values)
 
-    Type(tBranch)    , Intent(in) :: branch
-    Character(Len=*) , Intent(in) :: desc
+    Type(tBranch)   , Intent(in) :: branch
+    Character(Len=*), Intent(in) :: desc
 
-    Real(kind=8)     , Intent(out), Allocatable, Dimension(:) :: values
+    Real(kind=8)    , Intent(out), Allocatable, Dimension(:) :: values
 
     Integer :: ii, alloc_stat
     Logical :: desc_found
@@ -3198,9 +3199,9 @@ CONTAINS
   !> comparison of trim(branch%leaves(ii)%desc) == trim(desc).
   Subroutine pd_get_5_vector(branch, desc, values, size)
 
-    Type(tBranch)    , Intent(in) :: branch
-    Character(Len=*) , Intent(in) :: desc
-    Integer(kind=8) ,  Intent(in) :: size
+    Type(tBranch)   , Intent(in) :: branch
+    Character(Len=*), Intent(in) :: desc
+    Integer(kind=8) , Intent(in) :: size
     
     Real(kind=8) , Intent(out), Dimension(size) :: values
 
@@ -3254,8 +3255,8 @@ CONTAINS
   !> of trim(branch%leaves(ii)%desc) == trim(desc).
   Subroutine pd_get_6(branch, desc, values)
 
-    Type(tBranch)    , Intent(in) :: branch
-    Character(Len=*) , Intent(in) :: desc
+    Type(tBranch)   , Intent(in) :: branch
+    Character(Len=*), Intent(in) :: desc
 
     Character, Intent(out), Allocatable, Dimension(:) :: values
 
@@ -3313,8 +3314,8 @@ CONTAINS
   !> leaf%dat_no
   Subroutine pd_get_leaf_4_2D_const(leaf, values)
 
-    Type(tLeaf)     , Intent(in)                   :: leaf
-    Integer(kind=8) , Intent(out), Dimension(:,:)  :: values
+    Type(tLeaf)    , Intent(in) :: leaf
+    Integer(kind=8), Intent(out), Dimension(:,:) :: values
 
     values = reshape(leaf%p_int8,shape(values))
           
@@ -3342,8 +3343,8 @@ CONTAINS
   !> desc to branch%leaves(ii)%desc.
   Subroutine pd_get_leaf_pointer(branch, desc, leaf_p)
 
-    Type(tBranch)    , Intent(in) :: branch
-    Character(Len=*) , Intent(in) :: desc
+    Type(tBranch)   , Intent(in) :: branch
+    Character(Len=*), Intent(in) :: desc
 
     Type(tLeaf), intent(out), Pointer :: leaf_p
 
@@ -3433,10 +3434,10 @@ CONTAINS
 
     Type(tStreams), Intent(inout), optional :: streams
 
-    Type(tBranch)         :: tree
-    Integer               :: io_stat=0
-    Integer               :: un_head, alloc_stat
-    Logical               :: fexist
+    Type(tBranch) :: tree
+    Integer       :: io_stat=0
+    Integer       :: un_head, alloc_stat
+    Logical       :: fexist
     Integer(kind=pd_ik)   :: fsize, pos
     character, dimension(:), Allocatable :: head
     
@@ -3480,10 +3481,10 @@ CONTAINS
   !** Subroutine for reading a branch from header file *****
   Recursive Subroutine read_branch(head,branch,size,pos,streams)
 
-    character, dimension(:), intent(in)     :: head
-    Type(tBranch), Intent(inOut)            :: branch
-    Integer(kind=pd_ik), Intent(inOut)      :: pos
-    Integer(kind=pd_ik), Intent(in)         :: size
+    character, dimension(:), intent(in) :: head
+    Type(tBranch), Intent(inOut)        :: branch
+    Integer(kind=pd_ik), Intent(inOut)  :: pos
+    Integer(kind=pd_ik), Intent(in)     :: size
     Type(tStreams), Intent(inout), Optional :: streams
 
     Integer               :: alloc_stat, ii
@@ -3557,9 +3558,9 @@ CONTAINS
   !** Subroutine for reading a branch form header file *****
   Recursive Subroutine read_branch_ws(un_head,branch,success)
 
-    Integer      , Intent(in)     :: un_head
-    Type(tBranch), Intent(inOut)  :: branch
-    Logical      , Intent(inOut)  :: success
+    Integer      , Intent(in)    :: un_head
+    Type(tBranch), Intent(inOut) :: branch
+    Logical      , Intent(inOut) :: success
 
     Integer               :: alloc_stat, ii, io_stat
     Character(Len=pd_mcl) :: tmp_char
@@ -3637,12 +3638,12 @@ CONTAINS
   !** Subroutine for reading a leaf form header file *******
   Function read_leaf_ws(un_head,success) Result(leaf)
 
-    Integer      , Intent(in)      :: un_head
-    Logical      , intent(out)     :: success
-    Type(tLeaf)                    :: leaf
+    Integer, Intent(in)  :: un_head
+    Logical, intent(out) :: success
+    Type(tLeaf) :: leaf
 
     Character(Len=pd_mcl) :: tmp_char
-    integer               :: io_stat
+    integer :: io_stat
 
     Read(un_head,*,iostat=io_stat)
     if(io_stat /= 0) then
@@ -3696,7 +3697,7 @@ CONTAINS
     Character, Dimension(:), Intent(in) :: head
     Integer(kind=pd_ik), Intent(in)     :: size
     Integer(kind=pd_ik), Intent(inout)  :: pos
-    Type(tLeaf)                         :: leaf
+    Type(tLeaf) :: leaf
     
     Character(Len=pd_mcl) :: tmp_char, line
 
@@ -3862,8 +3863,8 @@ CONTAINS
   !> Function which retrieves all stream data from stream files
   subroutine read_streams_from_streams(streams)
 
-    Type(tStreams)    , Intent(inout)                      :: streams
-    Integer                                               :: alloc_stat
+    Type(tStreams), Intent(inout) :: streams
+    Integer :: alloc_stat
 
     CALL OPEN_STREAM_FILES(streams, "read", "old")
 
@@ -3967,14 +3968,14 @@ CONTAINS
 
   Subroutine pd_load_leaf_1(streams,branch,desc, values)
 
-    Type(tStreams)   , Intent(in)                         :: streams
-    Type(tBranch)    , Intent(in)                         :: branch
-    Character(Len=*) , Intent(in)                         :: desc
+    Type(tStreams)  , Intent(in) :: streams
+    Type(tBranch)   , Intent(in) :: branch
+    Character(Len=*), Intent(in) :: desc
 
-    Integer(kind=1)  , Intent(out), Allocatable, Dimension(:) :: values
+    Integer(kind=1), Intent(out), Allocatable, Dimension(:) :: values
 
-    Integer              :: ii, alloc_stat
-    Logical              :: desc_found=.FALSE.
+    Integer :: ii, alloc_stat
+    Logical :: desc_found=.FALSE.
 
     Do ii = 1, branch%no_leaves
 
@@ -4009,14 +4010,14 @@ CONTAINS
   !> !! The passed in tBranch structure is NOT cycled recursively.
   Subroutine pd_load_leaf_2(streams,branch,desc, values)
 
-    Type(tStreams)   , Intent(in)                         :: streams
-    Type(tBranch)    , Intent(in)                         :: branch
-    Character(Len=*) , Intent(in)                         :: desc
+    Type(tStreams)  , Intent(in) :: streams
+    Type(tBranch)   , Intent(in) :: branch
+    Character(Len=*), Intent(in) :: desc
 
-    Integer(kind=2)  , Intent(out), Allocatable, Dimension(:) :: values
+    Integer(kind=2), Intent(out), Allocatable, Dimension(:) :: values
 
-    Integer              :: ii, alloc_stat
-    Logical              :: desc_found=.FALSE.
+    Integer :: ii, alloc_stat
+    Logical :: desc_found=.FALSE.
 
     Do ii = 1, branch%no_leaves
 
@@ -4051,14 +4052,14 @@ CONTAINS
   !> !! The passed in tBranch structure is NOT cycled recursively.
   Subroutine pd_load_leaf_3(streams,branch,desc, values)
 
-    Type(tStreams)   , Intent(in)                         :: streams
-    Type(tBranch)    , Intent(in)                         :: branch
-    Character(Len=*) , Intent(in)                         :: desc
+    Type(tStreams)  , Intent(in) :: streams
+    Type(tBranch)   , Intent(in) :: branch
+    Character(Len=*), Intent(in) :: desc
 
     Integer(kind=4)  , Intent(out), Allocatable, Dimension(:) :: values
 
-    Integer              :: ii, alloc_stat
-    Logical              :: desc_found=.FALSE.
+    Integer :: ii, alloc_stat
+    Logical :: desc_found=.FALSE.
 
     Do ii = 1, branch%no_leaves
 
@@ -4093,14 +4094,14 @@ CONTAINS
   !> !! The passed in tBranch structure is NOT cycled recursively.
   Subroutine pd_load_leaf_4(streams,branch,desc, values)
 
-    Type(tStreams)   , Intent(in)                         :: streams
-    Type(tBranch)    , Intent(in)                         :: branch
-    Character(Len=*) , Intent(in)                         :: desc
+    Type(tStreams)  , Intent(in) :: streams
+    Type(tBranch)   , Intent(in) :: branch
+    Character(Len=*), Intent(in) :: desc
 
-    Integer(kind=8)  , Intent(out), Allocatable, Dimension(:) :: values
+    Integer(kind=8), Intent(out), Allocatable, Dimension(:) :: values
 
-    Integer              :: ii, alloc_stat
-    Logical              :: desc_found=.FALSE.
+    Integer :: ii, alloc_stat
+    Logical :: desc_found=.FALSE.
 
     Do ii = 1, branch%no_leaves
 
@@ -4135,14 +4136,14 @@ CONTAINS
   !> !! The passed in tBranch structure is NOT cycled recursively.
   Subroutine pd_load_leaf_5(streams,branch,desc, values)
 
-    Type(tStreams)   , Intent(in)                         :: streams
-    Type(tBranch)    , Intent(in)                         :: branch
-    Character(Len=*) , Intent(in)                         :: desc
+    Type(tStreams)  , Intent(in) :: streams
+    Type(tBranch)   , Intent(in) :: branch
+    Character(Len=*), Intent(in) :: desc
 
-    Real(kind=8)     , Intent(out), Allocatable, Dimension(:) :: values
+    Real(kind=8), Intent(out), Allocatable, Dimension(:) :: values
 
-    Integer              :: ii, alloc_stat
-    Logical              :: desc_found=.FALSE.
+    Integer :: ii, alloc_stat
+    Logical :: desc_found=.FALSE.
 
     Do ii = 1, branch%no_leaves
 
@@ -4177,14 +4178,14 @@ CONTAINS
   !> !! The passed in tBranch structure is NOT cycled recursively.  
   Subroutine pd_load_leaf_6(streams,branch,desc, values)
 
-    Type(tStreams)   , Intent(in)                         :: streams
-    Type(tBranch)    , Intent(in)                         :: branch
-    Character(Len=*) , Intent(in)                         :: desc
+    Type(tStreams)  , Intent(in) :: streams
+    Type(tBranch)   , Intent(in) :: branch
+    Character(Len=*), Intent(in) :: desc
 
-    Character        , Intent(out), Allocatable, Dimension(:) :: values
+    Character, Intent(out), Allocatable, Dimension(:) :: values
 
-    Integer              :: ii, alloc_stat
-    Logical              :: desc_found=.FALSE.
+    Integer :: ii, alloc_stat
+    Logical :: desc_found=.FALSE.
 
     Do ii = 1, branch%no_leaves
 
@@ -4222,16 +4223,16 @@ CONTAINS
   !> !! The passed in tBranch structure is NOT cycled recursively.  
   Subroutine pd_load_leaf_4_2D(streams,branch,desc, values, factor)
 
-    Type(tStreams)   , Intent(in)                         :: streams
-    Type(tBranch)    , Intent(in)                         :: branch
-    Character(Len=*) , Intent(in)                         :: desc
+    Type(tStreams)  , Intent(in) :: streams
+    Type(tBranch)   , Intent(in) :: branch
+    Character(Len=*), Intent(in) :: desc
 
-    Integer(kind=8)  , Intent(out), Allocatable, Dimension(:,:) :: values
+    Integer(kind=8), Intent(out), Allocatable, Dimension(:,:) :: values
 
-    Integer(pd_ik)   , intent(in)                         :: factor
+    Integer(pd_ik), intent(in) :: factor
 
-    Integer              :: ii, alloc_stat
-    Logical              :: desc_found=.FALSE.
+    Integer :: ii, alloc_stat
+    Logical :: desc_found=.FALSE.
 
     Do ii = 1, branch%no_leaves
 
@@ -4278,16 +4279,16 @@ CONTAINS
   !> !! The passed in tBranch structure is NOT cycled recursively.  
   Subroutine pd_load_leaf_5_2D(streams,branch,desc, values, factor)
 
-    Type(tStreams)   , Intent(in)                         :: streams
-    Type(tBranch)    , Intent(in)                         :: branch
-    Character(Len=*) , Intent(in)                         :: desc
+    Type(tStreams)  , Intent(in) :: streams
+    Type(tBranch)   , Intent(in) :: branch
+    Character(Len=*), Intent(in) :: desc
 
-    Real(kind=8)     , Intent(out), Allocatable, Dimension(:,:) :: values
+    Real(kind=8), Intent(out), Allocatable, Dimension(:,:) :: values
 
-    Integer(pd_ik)   , intent(in)                         :: factor
+    Integer(pd_ik), intent(in) :: factor
 
-    Integer              :: ii, alloc_stat
-    Logical              :: desc_found=.FALSE.
+    Integer :: ii, alloc_stat
+    Logical :: desc_found=.FALSE.
 
     Do ii = 1, branch%no_leaves
 
@@ -4324,9 +4325,9 @@ CONTAINS
   !> Function which retrieves integer 1 leaf data from stream files
   Subroutine pd_read_leaf_1(streams, leaf, values)
 
-    Type(tStreams)   , Intent(in)                :: streams
-    Type(tLeaf)      , Intent(In)                :: leaf
-    Integer(kind=1)  , Intent(out), Dimension(*) :: values
+    Type(tStreams) , Intent(in) :: streams
+    Type(tLeaf)    , Intent(In) :: leaf
+    Integer(kind=1), Intent(out), Dimension(*) :: values
 
     read(streams%units(1),pos=(leaf%lbound-1)*1+1) values(1:leaf%dat_no)
 
@@ -4336,9 +4337,9 @@ CONTAINS
   !> Function which retrieves integer 2 leaf data from stream files
   Subroutine pd_read_leaf_2(streams, leaf, values)
 
-    Type(tStreams)   , Intent(in)                :: streams
-    Type(tLeaf)      , Intent(In)                :: leaf
-    Integer(kind=2)  , Intent(out), Dimension(*) :: values
+    Type(tStreams) , Intent(in) :: streams
+    Type(tLeaf)    , Intent(In) :: leaf
+    Integer(kind=2), Intent(out), Dimension(*) :: values
 
     read(streams%units(2),pos=(leaf%lbound-1)*2+1) values(1:leaf%dat_no)
 
@@ -4348,9 +4349,9 @@ CONTAINS
   !> Function which retrieves integer 4 leaf data from stream files
   Subroutine pd_read_leaf_3(streams, leaf, values)
 
-    Type(tStreams)   , Intent(in)                :: streams
-    Type(tLeaf)      , Intent(In)                :: leaf
-    Integer(kind=4)  , Intent(out), Dimension(*) :: values
+    Type(tStreams) , Intent(in) :: streams
+    Type(tLeaf)    , Intent(In) :: leaf
+    Integer(kind=4), Intent(out), Dimension(*) :: values
 
     read(streams%units(3),pos=(leaf%lbound-1)*4+1) values(1:leaf%dat_no)
 
@@ -4360,9 +4361,9 @@ CONTAINS
   !> Function which retrieves integer 8 leaf data from stream files
   Subroutine pd_read_leaf_4(streams, leaf, values)
 
-    Type(tStreams)   , Intent(in)                :: streams
-    Type(tLeaf)      , Intent(In)                :: leaf
-    Integer(kind=8)  , Intent(out), Dimension(:) :: values
+    Type(tStreams) , Intent(in) :: streams
+    Type(tLeaf)    , Intent(In) :: leaf
+    Integer(kind=8), Intent(out), Dimension(:) :: values
 
     read(streams%units(4),pos=(leaf%lbound-1)*8+1) values
 
@@ -4372,9 +4373,9 @@ CONTAINS
   !> Function which retrieves integer 8 leaf data from stream files
   Subroutine pd_read_leaf_4_scal(streams, leaf, value)
 
-    Type(tStreams)   , Intent(in)                :: streams
-    Type(tLeaf)      , Intent(In)                :: leaf
-    Integer(kind=8)  , Intent(out)               :: value
+    Type(tStreams) , Intent(in) :: streams
+    Type(tLeaf)    , Intent(In) :: leaf
+    Integer(kind=8), Intent(out)               :: value
 
     read(streams%units(4),pos=(leaf%lbound-1)*8+1) value
 
@@ -4384,9 +4385,9 @@ CONTAINS
   !> Function which retrieves integer 8 leaf data from stream files
   Subroutine pd_read_leaf_4_2D(streams, leaf, values)
 
-    Type(tStreams)   , Intent(in)                  :: streams
-    Type(tLeaf)      , Intent(In)                  :: leaf
-    Integer(kind=8)  , Intent(out), Dimension(:,:) :: values
+    Type(tStreams) , Intent(in)   :: streams
+    Type(tLeaf)    , Intent(In)   :: leaf
+    Integer(kind=8), Intent(out), Dimension(:,:) :: values
 
     read(streams%units(4),pos=(leaf%lbound-1)*8+1) values
 
@@ -4396,9 +4397,9 @@ CONTAINS
   !> Function which retrieves real 8 leaf data from stream files
   Subroutine pd_read_leaf_5(streams, leaf, values)
 
-    Type(tStreams)   , Intent(in)                :: streams
-    Type(tLeaf)      , Intent(In)                :: leaf
-    Real(kind=8)     , Intent(out), Dimension(:) :: values
+    Type(tStreams), Intent(in) :: streams
+    Type(tLeaf)   , Intent(In) :: leaf
+    Real(kind=8)  , Intent(out), Dimension(:) :: values
 
     read(streams%units(5),pos=(leaf%lbound-1)*8+1) values
 
@@ -4408,9 +4409,9 @@ CONTAINS
   !> Function which retrieves real 8 leaf data from stream files
   Subroutine pd_read_leaf_5_2D(streams, leaf, values)
 
-    Type(tStreams)   , Intent(in)                  :: streams
-    Type(tLeaf)      , Intent(In)                  :: leaf
-    Real(kind=8)     , Intent(out), Dimension(:,:) :: values
+    Type(tStreams), Intent(in) :: streams
+    Type(tLeaf)   , Intent(In) :: leaf
+    Real(kind=8)  , Intent(out), Dimension(:,:) :: values
 
     read(streams%units(5),pos=(leaf%lbound-1)*8+1) values
 
@@ -4420,9 +4421,9 @@ CONTAINS
   !> Function which retrieves character leaf data from stream files
   Subroutine pd_read_leaf_6(streams, leaf, values)
 
-    Type(tStreams)   , Intent(in)                :: streams
-    Type(tLeaf)      , Intent(In)                :: leaf
-    Character        , Intent(out), Dimension(*) :: values
+    Type(tStreams), Intent(in) :: streams
+    Type(tLeaf)   , Intent(In) :: leaf
+    Character     , Intent(out), Dimension(*) :: values
 
     read(streams%units(6),pos=(leaf%lbound-1)*1+1) values(1:leaf%dat_no)
 
@@ -4440,8 +4441,8 @@ CONTAINS
   !> Function which writes a complete puredat tree to disk
   Subroutine write_tree(tree)
 
-    Type(tBranch)   , Intent(In)    :: tree 
-    Integer                         :: un_head
+    Type(tBranch), Intent(In):: tree 
+    Integer:: un_head
     !**********************************************************
 
     un_head = pd_give_new_unit()
@@ -4458,8 +4459,8 @@ CONTAINS
   !> Function which writes a purdat branch to disk
   Recursive Subroutine write_branch(branch,un_head)
 
-    Type(tBranch)   , Intent(In) :: branch
-    Integer         , Intent(In) :: un_head    
+    Type(tBranch), Intent(In) :: branch
+    Integer, Intent(In) :: un_head    
 
     Integer(kind=pd_ik) :: ii
     
@@ -4495,8 +4496,8 @@ CONTAINS
   !> Function which writes a purdat leaf to disc
   Subroutine write_leaf(leaf,un_head)
     
-    Type(tLeaf)   , Intent(In) :: leaf 
-    Integer         , Intent(In) :: un_head    
+    Type(tLeaf), Intent(In) :: leaf 
+    Integer, Intent(In) :: un_head    
 
     Write(un_head, fmt_lsep)
     Write(un_head, '(4(A))')'<description> ' , "'", Trim(leaf%desc), "'"
@@ -4511,13 +4512,13 @@ CONTAINS
   !> Function which stores integer 1 leaf data
   Subroutine  pd_store_1(streams,branch,desc,values,blind)
 
-    Type(tStreams)   , Intent(inout)                    :: streams
-    Type(tBranch)    , Intent(inout)                    :: branch
-    Character(Len=*) , Intent(in)                       :: desc
-    Integer(Kind=1)  , Intent(in), Dimension(*)         :: values
-    Logical          , intent(in), Optional             :: blind
-    Integer              :: ii
-    Logical              :: desc_found, loc_blind
+    Type(tStreams)  , Intent(inout)            :: streams
+    Type(tBranch)   , Intent(inout)            :: branch
+    Character(Len=*), Intent(in)               :: desc
+    Integer(Kind=1) , Intent(in), Dimension(*) :: values
+    Logical         , intent(in), Optional     :: blind
+    Integer :: ii
+    Logical :: desc_found, loc_blind
 
     if(present(blind))then
        loc_blind=blind
@@ -4563,13 +4564,13 @@ CONTAINS
   !> Function which stores integer 2 leaf data
   Subroutine  pd_store_2(streams,branch,desc,values,blind)
 
-    Type(tStreams)   , Intent(inout)                    :: streams
-    Type(tBranch)    , Intent(inout)                    :: branch
-    Character(Len=*) , Intent(in)                       :: desc
-    Integer(kind=2)  , Intent(in), Dimension(*)         :: values
-    Logical          , intent(in), Optional             :: blind
-    Integer              :: ii
-    Logical              :: desc_found, loc_blind
+    Type(tStreams)  , Intent(inout) :: streams
+    Type(tBranch)   , Intent(inout) :: branch
+    Character(Len=*), Intent(in)    :: desc
+    Integer(kind=2) , Intent(in), Dimension(*) :: values
+    Logical         , intent(in), Optional :: blind
+    Integer :: ii
+    Logical :: desc_found, loc_blind
 
     if(present(blind))then
        loc_blind=blind
@@ -4614,13 +4615,13 @@ CONTAINS
   !> Function which stores integer 4 leaf data
   Subroutine  pd_store_3(streams,branch,desc,values,blind)
 
-    Type(tStreams)   , Intent(inout)                    :: streams
-    Type(tBranch)    , Intent(inout)                    :: branch
-    Character(Len=*) , Intent(in)                       :: desc
-    Integer(kind=4)  , Intent(in), Dimension(*)         :: values
-    Logical          , intent(in), Optional             :: blind
-    Integer              :: ii
-    Logical              :: desc_found, loc_blind
+    Type(tStreams)  , Intent(inout) :: streams
+    Type(tBranch)   , Intent(inout) :: branch
+    Character(Len=*), Intent(in)    :: desc
+    Integer(kind=4) , Intent(in), Dimension(*) :: values
+    Logical         , intent(in), Optional     :: blind
+    Integer :: ii
+    Logical :: desc_found, loc_blind
 
     if(present(blind))then
        loc_blind=blind
@@ -4665,13 +4666,13 @@ CONTAINS
   !> Function which stores integer 8 leaf data
   Subroutine  pd_store_4(streams,branch,desc,values,blind)
 
-    Type(tStreams)   , Intent(inout)                    :: streams
-    Type(tBranch)    , Intent(inout)                    :: branch
-    Character(Len=*) , Intent(in)                       :: desc
-    Integer(kind=8)  , Intent(in), Dimension(*)         :: values
-    Logical          , intent(in), Optional             :: blind
-    Integer              :: ii
-    Logical              :: desc_found, loc_blind
+    Type(tStreams)  , Intent(inout):: streams
+    Type(tBranch)   , Intent(inout):: branch
+    Character(Len=*), Intent(in)   :: desc
+    Integer(kind=8) , Intent(in), Dimension(*):: values
+    Logical         , intent(in), Optional    :: blind
+    Integer :: ii
+    Logical :: desc_found, loc_blind
 
     if(present(blind))then
        loc_blind=blind
@@ -4716,13 +4717,13 @@ CONTAINS
   !> Function which stores integer 8 leaf data
   Subroutine  pd_store_4_2D(streams,branch,desc,values,blind)
 
-    Type(tStreams)   , Intent(inout)                    :: streams
-    Type(tBranch)    , Intent(inout)                    :: branch
-    Character(Len=*) , Intent(in)                       :: desc
-    Integer(kind=pd_ik)  , Intent(in), Dimension(:,:)       :: values
-    Logical          , intent(in), Optional             :: blind
-    Integer              :: ii
-    Logical              :: desc_found, loc_blind
+    Type(tStreams)   , Intent(inout) :: streams
+    Type(tBranch)    , Intent(inout) :: branch
+    Character(Len=*) , Intent(in)    :: desc
+    Integer(kind=pd_ik)  , Intent(in), Dimension(:,:) :: values
+    Logical, intent(in), Optional :: blind
+    Integer :: ii
+    Logical :: desc_found, loc_blind
 
     if(present(blind))then
        loc_blind=blind
@@ -4772,13 +4773,13 @@ CONTAINS
   !> Function which stores real 8 leaf data
   Subroutine  pd_store_5(streams,branch,desc,values,blind)
 
-    Type(tStreams)   , Intent(inout)                    :: streams
-    Type(tBranch)    , Intent(inout)                    :: branch
-    Character(Len=*) , Intent(in)                       :: desc
-    Real(kind=pd_rk) , Intent(in), Dimension(*)         :: values
-    Logical          , intent(in), Optional             :: blind
-    Integer              :: ii
-    Logical              :: desc_found, loc_blind
+    Type(tStreams)  , Intent(inout) :: streams
+    Type(tBranch)   , Intent(inout) :: branch
+    Character(Len=*), Intent(in)    :: desc
+    Real(kind=pd_rk), Intent(in), Dimension(*) :: values
+    Logical         , intent(in), Optional :: blind
+    Integer :: ii
+    Logical :: desc_found, loc_blind
 
     if(present(blind))then
        loc_blind=blind
@@ -4824,13 +4825,13 @@ CONTAINS
   !> Function which stores real 8 leaf data
   Subroutine  pd_store_5_2D(streams,branch,desc,values,blind)
 
-    Type(tStreams)   , Intent(inout)                    :: streams
-    Type(tBranch)    , Intent(inout)                    :: branch
-    Character(Len=*) , Intent(in)                       :: desc
-    Real(kind=pd_rk) , Intent(in), Dimension(:,:)       :: values
-    Logical          , intent(in), Optional             :: blind
-    Integer              :: ii
-    Logical              :: desc_found, loc_blind
+    Type(tStreams)  , Intent(inout) :: streams
+    Type(tBranch)   , Intent(inout) :: branch
+    Character(Len=*), Intent(in)    :: desc
+    Real(kind=pd_rk), Intent(in), Dimension(:,:) :: values
+    Logical         , intent(in), Optional :: blind
+    Integer :: ii
+    Logical :: desc_found, loc_blind
 
     if(present(blind))then
        loc_blind=blind
@@ -4881,14 +4882,14 @@ CONTAINS
   !> Function which stores character leaf data
   Subroutine  pd_store_6(streams,branch,desc,values,blind)
 
-    Type(tStreams)   , Intent(inout)                    :: streams
-    Type(tBranch)    , Intent(inout)                    :: branch
-    Character(Len=*) , Intent(in)                       :: desc
-    Character        , Intent(in), Dimension(*)         :: values
-    Logical          , intent(in), Optional             :: blind
+    Type(tStreams)  , Intent(inout) :: streams
+    Type(tBranch)   , Intent(inout) :: branch
+    Character(Len=*), Intent(in)    :: desc
+    Character, Intent(in), Dimension(*) :: values
+    Logical  , intent(in), Optional     :: blind
 
-    Integer              :: ii
-    Logical              :: desc_found, loc_blind
+    Integer :: ii
+    Logical :: desc_found, loc_blind
 
     if(present(blind))then
        loc_blind=blind
@@ -4935,14 +4936,14 @@ CONTAINS
   !> Function which stores character leaf data
   Subroutine  pd_store_6_str(streams,branch,desc,values,blind)
 
-    Type(tStreams)   , Intent(inout)                    :: streams
-    Type(tBranch)    , Intent(inout)                    :: branch
-    Character(Len=*) , Intent(in)                       :: desc
-    Character(Len=*) , Intent(in)                       :: values
-    Logical          , intent(in), Optional             :: blind
+    Type(tStreams)  , Intent(inout) :: streams
+    Type(tBranch)   , Intent(inout) :: branch
+    Character(Len=*), Intent(in) :: desc
+    Character(Len=*), Intent(in) :: values
+    Logical         , intent(in), Optional :: blind
 
-    Integer              :: ii
-    Logical              :: desc_found, loc_blind
+    Integer :: ii
+    Logical :: desc_found, loc_blind
 
     if(present(blind))then
        loc_blind=blind
@@ -4994,12 +4995,12 @@ CONTAINS
   !> structured with only small data chunks in the leaves.
   Recursive Subroutine store_parallel_branch(br, FH_MPI)
 
-    type(tBranch)          , Intent(in)                        :: br
+    type(tBranch), Intent(in) :: br
     Integer(kind=pd_mik), Intent(in), Dimension(no_streams) :: fh_mpi
 
-    Integer(kind=pd_mik)                                     :: ierr
-    Integer(kind=pd_mik), Dimension(MPI_STATUS_SIZE)         :: status_mpi
-    Integer(kind=pd_ik)                                         :: ii
+    Integer(kind=pd_mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
+    Integer(kind=pd_mik) :: ierr
+    Integer(kind=pd_ik) :: ii
     
     Do ii = 1, br%no_leaves
 
@@ -5067,11 +5068,11 @@ CONTAINS
   !> resulting sequential leaf bounds are derived
   Subroutine dump_branch(branch)
 
-    Type(tBranch)   , Intent(In)    :: branch
-    Integer                         :: un_head
-    Type(tBranch)                   :: tmp_tree
-    Integer(kind=pd_ik)             :: ii, wskip
-    Character(len=pd_mcl)           :: tmp_line
+    Type(tBranch), Intent(In) :: branch
+    Integer               :: un_head
+    Type(tBranch)         :: tmp_tree
+    Integer(kind=pd_ik)   :: ii, wskip
+    Character(len=pd_mcl) :: tmp_line
     !**********************************************************
 
     !** Raise temporary tree structure ***
@@ -5151,11 +5152,11 @@ CONTAINS
   !> Function dumps writes a purdat branch recursively to disk
   Recursive Subroutine dump_branch_rec(branch,un_head, streams)
 
-    Type(tBranch)    , Intent(In)    :: branch
-    Integer          , Intent(In)    :: un_head
+    Type(tBranch), Intent(In) :: branch
+    Integer, Intent(In) :: un_head
 
-    Type(tStreams)   , Intent(InOut) :: streams
-    Integer(kind=pd_ik)              :: ii
+    Type(tStreams), Intent(InOut) :: streams
+    Integer(kind=pd_ik) :: ii
     
     Write(un_head, fmt_bsep)
     Write(un_head, '(4(A))')'<description> ', "'", Trim(branch%desc), "'"
@@ -5179,9 +5180,9 @@ CONTAINS
   !> Function which dumpes a purdat leaf to disc
   Subroutine dump_leaf(leaf, un_head, streams)
     
-    Type(tLeaf)      , Intent(In)    :: leaf 
-    Integer          , Intent(In)    :: un_head    
-    Type(tStreams)   , Intent(InOut) :: streams
+    Type(tLeaf)   , Intent(In)    :: leaf 
+    Integer       , Intent(In)    :: un_head    
+    Type(tStreams), Intent(InOut) :: streams
     
     Write(un_head, fmt_lsep)
     Write(un_head, '(4(A))')'<description> ' , "'", Trim(leaf%desc), "'"
@@ -5274,9 +5275,9 @@ CONTAINS
     Integer(kind=1)      , Dimension(:), Allocatable, Intent(Out) :: dat_ty
     Integer(kind=pd_ik)  , Dimension(:), Allocatable, Intent(Out) :: offsets
 
-    Integer(kind=pd_ik)              :: c
-    Integer(kind=pd_ik)              :: alloc_stat
-    Integer(kind=pd_ik)              :: ii
+    Integer(kind=pd_ik) :: c
+    Integer(kind=pd_ik) :: alloc_stat
+    Integer(kind=pd_ik) :: ii
 
     c=0
 
@@ -5334,9 +5335,9 @@ CONTAINS
     Integer(kind=1)      , Dimension(:), Intent(InOut) :: dat_ty
     Integer(kind=pd_ik)  , Dimension(:), Intent(InOut) :: offsets
 
-    Integer(kind=pd_ik)                , Intent(inout) :: c
+    Integer(kind=pd_ik), Intent(inout) :: c
 
-    Integer(kind=pd_ik)                                :: ii
+    Integer(kind=pd_ik) :: ii
 
     Do ii = 1, tree%no_leaves
 
@@ -5361,13 +5362,13 @@ CONTAINS
   !> Subroutine which serializes a complete tBranch structure
   Subroutine serialize_branch(branch,head,size,sdat)
 
-    Type(tBranch)      , Intent(In)                               :: branch
+    Type(tBranch)      , Intent(In) :: branch
     Integer(kind=pd_ik), Intent(inout), Dimension(:), Allocatable :: head
-    Integer(kind=pd_ik), Intent(Out)                              :: size
-    Logical, optional                                             :: sdat
+    Integer(kind=pd_ik), Intent(Out) :: size
+    Logical, optional                :: sdat
 
-    Integer(kind=pd_ik)              :: alloc_stat
-    Logical                          :: loc_sdat
+    Integer(kind=pd_ik) :: alloc_stat
+    Logical :: loc_sdat
     
     !**********************************************************
 
@@ -5414,10 +5415,10 @@ CONTAINS
   !> necessary to serializes a complete tBranch structure
   Recursive Subroutine get_serial_branch_size(branch, size)
     
-    Type(tBranch)      , Intent(In)    :: branch
+    Type(tBranch), Intent(In) :: branch
     Integer(kind=pd_ik), Intent(InOut) :: size
 
-    Integer(kind=pd_ik)                :: ii
+    Integer(kind=pd_ik) :: ii
 
     !** Account for fixed components ***
     size = size + pd_ce + 2 
@@ -5451,10 +5452,10 @@ CONTAINS
   !> regarded !
   Recursive Subroutine get_serial_branch_size_with_data(branch, size)
     
-    Type(tBranch)      , Intent(In)    :: branch
+    Type(tBranch), Intent(In) :: branch
     Integer(kind=pd_ik), Intent(InOut) :: size
 
-    Integer(kind=pd_ik)                :: ii
+    Integer(kind=pd_ik) :: ii
 
     !** Account for fixed components ***
     size = size + pd_ce + 2 
@@ -5515,10 +5516,10 @@ CONTAINS
     Integer(kind=pd_ik), Dimension(:), Intent(out)   :: head
     Integer(kind=pd_ik)              , Intent(InOut) :: pos
 
-    Integer(kind=pd_ik),Dimension(pd_ce)             :: char_mold
-    Integer(kind=pd_ik),Dimension(pd_ce*no_streams)  :: char_mold7
+    Integer(kind=pd_ik),Dimension(pd_ce) :: char_mold
+    Integer(kind=pd_ik),Dimension(pd_ce*no_streams) :: char_mold7
 
-    Integer(kind=pd_ik)                              :: ii
+    Integer(kind=pd_ik) :: ii
 
     !** Fixed Components ******************************************************
     head(pos:pos+pd_ce-1) = Transfer(branch%desc,char_mold)
@@ -5604,10 +5605,10 @@ CONTAINS
     Integer(kind=pd_ik), Dimension(:), Intent(out)   :: head
     Integer(kind=pd_ik)              , Intent(InOut) :: pos
 
-    Integer(kind=pd_ik),Dimension(pd_ce)             :: char_mold
+    Integer(kind=pd_ik),Dimension(pd_ce) :: char_mold
     Integer(kind=pd_ik),Dimension(pd_ce*no_streams)  :: char_mold7
 
-    Integer(kind=pd_ik)                              :: ii, no_int8_elems
+    Integer(kind=pd_ik) :: ii, no_int8_elems
 
     !** Fixed Components ******************************************************
     head(pos:pos+pd_ce-1) = Transfer(branch%desc,char_mold)
@@ -5737,12 +5738,12 @@ CONTAINS
   !> Subroutine which deserializes a tBranch structure
   Subroutine deserialize_branch(branch, head, sdat)
 
-    Type(tBranch)                    , Intent(Out) :: branch
+    Type(tBranch), Intent(Out) :: branch
     Integer(kind=pd_ik), Dimension(:), Intent(in)  :: head
     Logical, optional                              :: sdat
 
-    Logical                                        :: loc_sdat
-    Integer(kind=pd_ik)                            :: pos
+    Logical :: loc_sdat
+    Integer(kind=pd_ik) :: pos
 
     If ( present(sdat) ) then
        loc_sdat = sdat
@@ -5773,8 +5774,8 @@ CONTAINS
     Integer(kind=pd_ik), Dimension(:), Intent(in)    :: head
     Integer(kind=pd_ik)              , Intent(InOut) :: pos!, no_l,no_b
 
-    CHARACTER(len=pd_mcl)                            :: char_mold
-    Integer(kind=pd_ik)                              :: ii
+    CHARACTER(len=pd_mcl) :: char_mold
+    Integer(kind=pd_ik)   :: ii
 
     !** Fixed Components ******************************************************
     branch%desc = Transfer(head(pos:pos+pd_ce-1),branch%desc)
@@ -5872,8 +5873,8 @@ CONTAINS
     Integer(kind=pd_ik), Dimension(:), Intent(in)    :: head
     Integer(kind=pd_ik)              , Intent(InOut) :: pos!, no_l,no_b
 
-    CHARACTER(len=pd_mcl)                            :: char_mold
-    Integer(kind=pd_ik)                              :: ii, no_int8_elems
+    CHARACTER(len=pd_mcl) :: char_mold
+    Integer(kind=pd_ik)   :: ii, no_int8_elems
 
     !** Fixed Components ******************************************************
     branch%desc = Transfer(head(pos:pos+pd_ce-1),branch%desc)
@@ -6038,11 +6039,11 @@ CONTAINS
 
     Character(len=*)       , Intent(In)         :: descr
     Type(tBranch)          , Intent(In), Target :: branch
-    Type(tBranch), Pointer , Intent(out)        :: out_branch
-    Logical                , Intent(inout)      :: success
-    Logical                , Intent(in)         :: wrn
+    Type(tBranch), Pointer , Intent(out)   :: out_branch
+    Logical, Intent(inout) :: success
+    Logical, Intent(in)    :: wrn
 
-    Integer                                     :: ii
+    Integer :: ii
 
     If (Trim(descr) == Trim(branch%desc)) Then
 
@@ -6081,9 +6082,9 @@ CONTAINS
     Character(len=*)       , Intent(In)         :: descr
     Type(tBranch)          , Intent(In), Target :: branch
     Type(tBranch), Pointer , Intent(out)        :: out_branch
-    Logical                , Intent(inout)      :: success
+    Logical, Intent(inout) :: success
 
-    Integer                                     :: ii
+    Integer :: ii
 
     If (Trim(descr) == Trim(branch%desc)) Then
 
@@ -6112,10 +6113,10 @@ CONTAINS
   !> get_branch_num_rec
   Subroutine get_branch_num(descr, branch, num)
 
-    Character(len=*)       , Intent(In)         :: descr
-    Type(tBranch)          , Intent(In)         :: branch
+    Character(len=*), Intent(In) :: descr
+    Type(tBranch)   , Intent(In) :: branch
 
-    Integer(kind=pd_ik)    , Intent(inout)      :: num
+    Integer(kind=pd_ik), Intent(inout) :: num
 
     num = 0
 
@@ -6131,12 +6132,12 @@ CONTAINS
   !> tbranch::desc and counting its multiplicity
   Recursive Subroutine get_branch_num_rec(descr, branch, num)
 
-    Character(len=*)       , Intent(In)         :: descr
-    Type(tBranch)          , Intent(In)         :: branch
+    Character(len=*) , Intent(In) :: descr
+    Type(tBranch)    , Intent(In) :: branch
 
-    Integer(kind=pd_ik)    , Intent(inout)      :: num
+    Integer(kind=pd_ik), Intent(inout) :: num
 
-    Integer                                     :: ii
+    Integer :: ii
 
     If (Trim(descr) == Trim(branch%desc)) Then
        num = num + 1
@@ -6157,10 +6158,10 @@ CONTAINS
     Character(len=*)       , Intent(In)         :: descr
     Type(tBranch)          , Intent(In), Target :: branch
     Type(tBranch), Pointer , Intent(out)        :: out_branch
-    Integer(kind=pd_ik)    , Intent(in)         :: num
-    Logical                , Intent(inout)      :: success
+    Integer(kind=pd_ik), Intent(in)    :: num
+    Logical            , Intent(inout) :: success
 
-    Integer(kind=pd_ik)                         :: count    
+    Integer(kind=pd_ik) :: count    
 
     count = 0
     call get_branch_with_num_rec(descr, branch, num, out_branch, count, success)
@@ -6175,13 +6176,13 @@ CONTAINS
   !> tbranch::desc
   Recursive Subroutine get_branch_with_num_rec(descr, branch, num, out_branch, count, success)
 
-    Character(len=*)       , Intent(In)         :: descr
-    Type(tBranch)          , Intent(In), Target :: branch
-    Type(tBranch), Pointer , Intent(out)        :: out_branch
-    Integer(kind=pd_ik)    , Intent(in)         :: num
-    Integer(kind=pd_ik)    , Intent(inout)      :: count
-    Logical                , Intent(inout)      :: success
-    Integer                                     :: ii
+    Character(len=*), Intent(In)         :: descr
+    Type(tBranch)   , Intent(In), Target :: branch
+    Type(tBranch), Pointer , Intent(out) :: out_branch
+    Integer(kind=pd_ik), Intent(in)    :: num
+    Integer(kind=pd_ik), Intent(inout) :: count
+    Logical            , Intent(inout) :: success
+    Integer :: ii
 
     success = .FALSE.
     count = count + 1
@@ -6217,10 +6218,10 @@ CONTAINS
   !> get_leaf_num_rec
   Subroutine get_leaf_num(descr, branch, num)
 
-    Character(len=*)       , Intent(In)         :: descr
-    Type(tBranch)          , Intent(In)         :: branch
+    Character(len=*), Intent(In) :: descr
+    Type(tBranch)   , Intent(In) :: branch
 
-    Integer(kind=pd_ik)    , Intent(inout)      :: num
+    Integer(kind=pd_ik), Intent(inout) :: num
 
     num = 0
 
@@ -6236,13 +6237,13 @@ CONTAINS
   !> tleaf::desc and counting its multiplicity
   Recursive Subroutine get_leaf_num_rec(descr, branch, num)
 
-    Character(len=*)       , Intent(In)         :: descr
-    Type(tBranch)          , Intent(In)         :: branch
+    Character(len=*), Intent(In) :: descr
+    Type(tBranch)   , Intent(In) :: branch
 
-    Integer(kind=pd_ik)    , Intent(inout)      :: num
+    Integer(kind=pd_ik), Intent(inout) :: num
 
-    Integer                                     :: ii
-
+    Integer :: ii
+ 
     Leaf_cycle : Do ii = 1, branch%no_leaves
 
        If (Trim(descr) == Trim(branch%leaves(ii)%desc)) Then
@@ -6267,15 +6268,15 @@ CONTAINS
   !> leaf_count
   Subroutine get_leaf_list(descr, branch, leaf_num, leaf_list)
     
-    Character(len=*)       , Intent(In)                 :: descr
-    Type(tBranch)          , Intent(In)                 :: branch
-    Integer(kind=pd_ik)    , Intent(out)                :: leaf_num
+    Character(len=*), Intent(In) :: descr
+    Type(tBranch)   , Intent(In) :: branch
+    Integer(kind=pd_ik), Intent(out) :: leaf_num
         
     Type(tLeaf), Dimension(:), Allocatable, intent(out) :: leaf_list
     
-    Integer(kind=pd_ik)                                 :: leaf_count
+    Integer(kind=pd_ik) :: leaf_count
 
-    integer                                             :: alloc_stat
+    integer :: alloc_stat
 
     leaf_num = 0
 
@@ -6300,14 +6301,14 @@ CONTAINS
   Recursive Subroutine get_leaf_list_rec(descr, branch, leaf_num, &
                                          leaf_count, leaf_list)
 
-    Character(len=*)       , Intent(In)             :: descr
-    Type(tBranch)          , Intent(In)             :: branch
-    Integer(kind=pd_ik)    , Intent(in)             :: leaf_num
-    Integer(kind=pd_ik)    , Intent(inOut)          :: leaf_count
+    Character(len=*), Intent(In) :: descr
+    Type(tBranch)   , Intent(In) :: branch
+    Integer(kind=pd_ik) , Intent(in) :: leaf_num
+    Integer(kind=pd_ik) , Intent(inOut) :: leaf_count
 
     Type(tLeaf), Dimension(leaf_num), intent(inout) :: leaf_list
 
-    Integer                                         :: ii
+    Integer :: ii
 
     Leaf_cycle : Do ii = 1, branch%no_leaves
 
@@ -6333,11 +6334,11 @@ CONTAINS
   Subroutine get_leaf_with_num(tree, num, out_leaf, success)
 
     Type(tBranch)          , Intent(In), Target :: tree
-    Type(tLeaf),   Pointer , Intent(out)        :: out_leaf
-    Integer(kind=pd_ik)    , Intent(in)         :: num
-    Logical                , Intent(inout)      :: success
+    Type(tLeaf),   Pointer , Intent(out)   :: out_leaf
+    Integer(kind=pd_ik)    , Intent(in)    :: num
+    Logical                , Intent(inout) :: success
 
-    Integer(kind=pd_ik)                         :: count    
+    Integer(kind=pd_ik) :: count    
 
     count = 0
     call get_leaf_with_num_rec(tree, num, out_leaf, count, success)
@@ -6353,11 +6354,11 @@ CONTAINS
   Recursive Subroutine get_leaf_with_num_rec(tree, num, out_leaf, count, success)
 
     Type(tBranch)          , Intent(In), Target :: tree
-    Type(tLeaf),   Pointer , Intent(out)        :: out_leaf
-    Integer(kind=pd_ik)    , Intent(in)         :: num
-    Integer(kind=pd_ik)    , Intent(inout)      :: count
-    Logical                , Intent(inout)      :: success
-    Integer                                     :: ii
+    Type(tLeaf),   Pointer , Intent(out)   :: out_leaf
+    Integer(kind=pd_ik), Intent(in)    :: num
+    Integer(kind=pd_ik), Intent(inout) :: count
+    Logical            , Intent(inout) :: success
+    Integer :: ii
 
     success = .FALSE.
     count = count + 1
@@ -6408,14 +6409,14 @@ CONTAINS
   !> Subroutine for logging a complete puredat tree with all content
   Subroutine log_tree(tree, unit_lf, data, commands)
 
-    Type(tBranch)   , Intent(In)                 :: tree
-    Integer         , Intent(in)                 :: unit_lf
-    Logical         , Intent(In), Optional       :: data, commands
+    Type(tBranch), Intent(In) :: tree
+    Integer, Intent(in) :: unit_lf
+    Logical, Intent(In), Optional :: data, commands
 
-    Integer                                      :: spacer
+    Integer :: spacer
 
-    Character(Len=pd_mcl)                        :: sep_dash  = ''
-    Logical                                      :: loc_data, loc_commands
+    Character(Len=pd_mcl) :: sep_dash  = ''
+    Logical :: loc_data, loc_commands
 
     If (present(data)) Then
        loc_data = data
@@ -6444,19 +6445,19 @@ CONTAINS
   !> Subroutine for logging a tBranch structure 
   Recursive Subroutine log_branch(branch, unit_lf, fmt_str_in, data, commands)
 
-    Type(tBranch)   , Intent(In)            :: branch
-    Integer         , Intent(in)            :: unit_lf
+    Type(tBranch)   , Intent(In) :: branch
+    Integer         , Intent(in) :: unit_lf
     Character(len=*), Intent(In) , optional :: fmt_str_in
     Logical         , Intent(In) , optional :: data, commands
 
-    Integer(kind=pd_ik)                     :: ii, lt_desc, len_fmt_str
-    Integer                                 :: spacer
+    Integer(kind=pd_ik) :: ii, lt_desc, len_fmt_str
+    Integer :: spacer
 
-    Character(Len=pd_mcl)                   :: b_sep
+    Character(Len=pd_mcl) :: b_sep
 
-    Character(len=pd_mcl)                   :: fmt_str   = ''
+    Character(len=pd_mcl) :: fmt_str   = ''
 
-    Logical                                 :: loc_data, loc_commands
+    Logical :: loc_data, loc_commands
 
     spacer=Len_Trim(branch%desc)+23
 
@@ -6557,16 +6558,16 @@ CONTAINS
   !> Subroutine for logging a tBranch structure
   Subroutine log_leaf(tree, unit_lf, fmt_str_in, data, commands, parent)
 
-    Type(tLeaf)     , Intent(In)            :: tree
-    Integer         , Intent(in)            :: unit_lf
+    Type(tLeaf)     , Intent(In) :: tree
+    Integer         , Intent(in) :: unit_lf
     Character(len=*), Intent(In) , optional :: fmt_str_in
     Logical         , Intent(In) , optional :: data, commands
     Type(tBranch)   , Intent(in) , optional :: parent
 
-    Character(Len=pd_mcl)           :: b_sep, fmt_str
-    Integer                         :: lt_desc, len_fmt_str
+    Character(Len=pd_mcl) :: b_sep, fmt_str
+    Integer :: lt_desc, len_fmt_str
 
-    Logical                         :: loc_data, loc_commands
+    Logical :: loc_data, loc_commands
 
     if (present(fmt_str_in)) then
        fmt_str     = fmt_str_in
@@ -6639,8 +6640,8 @@ CONTAINS
     !> It is meant to be called only by log_leaf
     Subroutine Log_Leaf_data(un_lf, leaf, fmt_str)
 
-      Integer         , Intent(in) :: un_lf
-      Type(tLeaf)     , Intent(In) :: leaf
+      Integer    , Intent(in) :: un_lf
+      Type(tLeaf), Intent(In) :: leaf
       Character(Len=*), Intent(In) :: fmt_str
 
       Integer :: ii, pos, cpos
@@ -6893,8 +6894,8 @@ CONTAINS
   !> Subroutine for I/O error handling while operating on files
   SUBROUTINE file_err(in_file,io_stat, called, routine)
 
-    INTEGER(kind=pd_ik)        , Intent(in)   :: io_stat
-    CHARACTER (LEN=*)          , Intent(in)   :: in_file
+    INTEGER(kind=pd_ik), Intent(in) :: io_stat
+    CHARACTER (LEN=*)  , Intent(in) :: in_file
     CHARACTER (LEN=*), optional, Intent(in)   :: called, routine
 
     IF (io_stat /= 0) THEN
@@ -6914,8 +6915,8 @@ CONTAINS
   !> Subroutine for allocation error handling
   Subroutine alloc_error(alloc_stat, field, routine, dim)
 
-   Integer(kind=pd_ik), Intent(in)           :: alloc_stat
-   Character(Len=*)   , Intent(in)           :: field, routine
+   Integer(kind=pd_ik), Intent(in) :: alloc_stat
+   Character(Len=*)   , Intent(in) :: field, routine
    Integer(kind=pd_ik), Intent(in) ,optional :: dim
 
    IF (alloc_stat /= 0) Then
@@ -6931,8 +6932,8 @@ CONTAINS
   !> Subroutine for deallocation error handling
   Subroutine dealloc_error(alloc_stat, field, routine)
 
-    Integer(kind=pd_ik), Intent(in)           :: alloc_stat
-    Character(Len=*)   , Intent(in)           :: field, routine
+    Integer(kind=pd_ik), Intent(in) :: alloc_stat
+    Character(Len=*)   , Intent(in) :: field, routine
 
    IF (alloc_stat /= 0) Then
       WRITE(mssg, '(5A)') "Dellocation of the field/structure ", field, &
@@ -6946,7 +6947,7 @@ CONTAINS
   !> Subroutine for consistency error handling
   Subroutine cons_error(routine, msg)
 
-   Character(Len=*)   , Intent(in)           :: routine, msg
+   Character(Len=*), Intent(in) :: routine, msg
 
    WRITE(mssg, '(4A)') "A consistency error occoured in routine: ", TRIM(routine), " ", TRIM(msg)
    CALL print_err_stop(pd_umon, mssg, 1)
@@ -6958,7 +6959,7 @@ CONTAINS
 
     character, dimension(:) , intent(in) :: char_arr
 
-    character(len=size(char_arr))        :: str
+    character(len=size(char_arr)) :: str
 
     Integer :: ii
     
@@ -6974,7 +6975,7 @@ CONTAINS
   !----------------------------------------------------------------------------
   Function str_to_char(str) result(char_arr)
 
-    character(len=*)  , intent(in) :: str
+    character(len=*), intent(in) :: str
 
     character, dimension(len(str)) :: char_arr
 

@@ -27,7 +27,6 @@ Internally and for general program output, the PureDat format gets used.
   * mpirun
 * Working installation of METIS with 64Bit index length
 * Working installation of PETSc with 64Bit index length
-
 ### Optional: Gnu debugging
 * [gdb](https://www.gnu.org/software/gdb/)
 * [tmpi](https://github.com/Azrael3000/tmpi)
