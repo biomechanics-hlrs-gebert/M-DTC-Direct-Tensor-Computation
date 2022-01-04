@@ -22,22 +22,22 @@ module decomp
   Type tDecomp
      
      !> Number of domain in global numbering scheme
-     Integer(kind=ik)               :: nn
+     Integer(kind=ik) :: nn
 
      !> Maximum number of domains in global numbering sheme
-     Integer(kind=ik)               :: nn_D_max
+     Integer(kind=ik) :: nn_D_max
      !> Number of points in complete decomposed volume
      Integer(kind=ik), Dimension(3) :: x_VD
 
      !> Position of Domain on each axis in global numbering sheme
-     Integer(kind=ik)               :: nn_1, nn_2, nn_3
+     Integer(kind=ik) :: nn_1, nn_2, nn_3
      !> Number of points in domain
-     Integer(kind=ik)               :: no_dat_D
+     Integer(kind=ik) :: no_dat_D
 
      !> Points on each domain edge
      Integer(kind=ik), Dimension(3) :: x_D
      !> Physical dimension of domain
-     Real(kind=rk)   , Dimension(3) :: x_D_phy
+     Real(kind=rk), Dimension(3) :: x_D_phy
      !> Number of Domains on each axis
      Integer(kind=ik), Dimension(3) :: nn_D
      !> Lower left and upper right corner of domain
@@ -46,7 +46,7 @@ module decomp
      Integer(kind=ik), Dimension(3) :: xa_n_ext, xe_n_ext
 
      !> Grid spacing / Voxel size
-     Real(kind=rk)   , Dimension(3) :: delta
+     Real(kind=rk), Dimension(3) :: delta
 
      !> Boundary points (Domain extension)
      Integer(kind=ik), Dimension(3) :: bpoints = (/1_ik, 1_ik, 1_ik/)
@@ -58,13 +58,13 @@ module decomp
   Type tScalar_field
 
      !> Field content description
-     Character       , Dimension(:), Allocatable :: desc
+     Character, Dimension(:), Allocatable :: desc
      !> Field origin (in voxel coordinates)
-     Integer(Kind=4) , Dimension(3)              :: orig
+     Integer(Kind=4), Dimension(3) :: orig
      !> Field dimension (in voxel coordinates) 
      !> => No. of voxels on each domain axis
-     Integer(Kind=4) , Dimension(3)              :: vdim
-     Real(kind=rk)   , Dimension(3)              :: delta, shift
+     Integer(Kind=4), Dimension(3) :: vdim
+     Real(kind=rk)  , Dimension(3) :: delta, shift
 
   End Type tScalar_field
 
@@ -96,7 +96,7 @@ Contains
     Type(tScalar_Field)           , Intent(in) :: phi_desc
     Integer                       , Intent(In) :: un
 
-    Type(tDecomp)                              :: dc
+    Type(tDecomp) :: dc
 
     !--------------------------------------------------------------------------
     
@@ -235,29 +235,27 @@ Contains
   !> The description of phi is passed as a puredat tBranch structure
   Function calc_general_ddc_params(x_D_phy_in, phi_desc) Result(dc)
 
-    Real(Kind=rk)   , Dimension(3), Intent(In)    :: x_D_phy_in
-    Type(tBranch)                 , Intent(inOut) :: phi_desc
+    Real(Kind=rk), Dimension(3), Intent(In) :: x_D_phy_in
+    Type(tBranch), Intent(inOut) :: phi_desc
 
-    Type(tBranch)                                 :: dc
+    Type(tBranch):: dc
 
-    Real(Kind=rk)   , Dimension(:), Allocatable   :: delta
-    Integer(kind=4) , Dimension(:), Allocatable   :: vdim
+    Real(Kind=rk) , Dimension(:), Allocatable :: delta
+    Integer(kind=4) , Dimension(:), Allocatable :: vdim
 
-    Integer(kind=ik), Dimension(3)                :: x_D, nn_D
-    Real(kind=rk)   , Dimension(3)                :: x_D_phy
-    Integer(kind=ik), Dimension(1)                :: nn_D_max, no_dat_D
+    Integer(kind=ik), Dimension(3) :: x_D, nn_D
+    Real(kind=rk)   , Dimension(3) :: x_D_phy
+    Integer(kind=ik), Dimension(1) :: nn_D_max, no_dat_D
 
-    Integer(kind=ik), Dimension(3), parameter     :: bpoints=[1_ik,1_ik,1_ik]
+    Integer(kind=ik), Dimension(3), parameter :: bpoints=[1_ik,1_ik,1_ik]
 
     !--------------------------------------------------------------------------
 
     !** Get phi description ***************************************************
     call open_stream_files(phi_desc, "read" , "old")
 
-    call pd_load_leaf(phi_desc%streams,phi_desc,"Grid spacings", &
-                delta)  
-    call pd_load_leaf(phi_desc%streams,phi_desc,"Number of voxels per direction", &
-                vdim)
+    call pd_load_leaf(phi_desc%streams,phi_desc,"Grid spacings", delta)  
+    call pd_load_leaf(phi_desc%streams,phi_desc,"Number of voxels per direction", vdim)
 
     call close_stream_files(phi_desc)
 

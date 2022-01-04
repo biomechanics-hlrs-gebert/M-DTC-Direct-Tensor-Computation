@@ -106,10 +106,10 @@ Contains
     Integer(kind=ik), Intent(in)      :: nn, lin_nn
     Character(LEN=*), Intent(in)      :: job_dir
     Integer(kind=mik), Intent(In), Dimension(no_streams) :: fh_mpi
-    Integer(kind=mik), Intent(In)  :: rank_mpi, size_mpi, comm_mpi
+    Integer(kind=mik), Intent(In)     :: rank_mpi, size_mpi, comm_mpi
 
     !----------------------------------------------------------------
-    Integer(kind=mik)              :: ierr
+    Integer(kind=mik)                 :: ierr
     Integer(kind=mik), Dimension(MPI_STATUS_SIZE)   :: status_mpi
     Type(tBranch), pointer            :: bb, db, pb, mb, meta_para,resb
 
@@ -132,7 +132,7 @@ Contains
 
     Character(len=mcl)                :: timer_name, domain_desc, part_desc
 
-    Integer(kind=mik)              :: petsc_ierr
+    Integer(kind=pik)                 :: petsc_ierr
     Type(tMat)                        :: AA, AA_org
     Type(tVec)                        :: XX
     Type(tVec), Dimension(24)         :: FF
@@ -900,14 +900,13 @@ Program main_struct_process
   USE petsc_opt
   
   Implicit None
-  ! Parameters
-  Character(Len=mcl) :: out_amount  = "DEBUG" ! "PRODUCTION" ! "DEBUG" ! 
-  
+ 
   ! Always provide in/out for meta driven environments
   TYPE(materialcard) :: bone
  
   !-- MPI Variables -------------------------------------------------------------------------------
-  INTEGER(KIND=mik) :: ierr, petsc_ierr, rank_mpi, size_mpi
+  INTEGER(KIND=mik) :: ierr, rank_mpi, size_mpi
+  INTEGER(KIND=pik) :: petsc_ierr
   INTEGER(KIND=mik) :: worker_rank_mpi, worker_size_mpi
   INTEGER(KIND=mik) :: Active, request, finished, worker_comm
   INTEGER(KIND=mik), Dimension(no_streams) :: fh_mpi

@@ -122,7 +122,7 @@ ifeq ($(PE),gnu)
 	f90_prod_flags = -fdefault-integer-8 -fdefault-real-8 -O3 -fbounds-check
 
 	c_flags_c       = $(inc_path_flag) -finstrument-functions
-	c_flags_linpack = -J$(mod_dir) -I$(mod_dir) -fdefault-integer-8 -g -O3 \
+	c_flags_linpack = -J$(mod_dir) -I$(st_mod_dir) -fdefault-integer-8 -g -O3 \
 					  -Wall -finstrument-functions # -fopenmp
 
 	ifeq ($(compile_MODE),prod)
@@ -321,13 +321,13 @@ $(obj_dir)mod_linfe$(obj_ext):$(st_mod_dir)global_std$(mod_ext) \
 # -----------------------------------------------------------------------------
 # LinPack Objects (Blas 1 and LinPack)
 $(obj_dir)mod_blas_1$(obj_ext):$(st_mod_dir)global_std$(mod_ext) $(linpack_src_dir)mod_blas_1$(f90_ext)
-	@echo "----- Compiling " $< " -----"
+	@echo "----- Compiling " $(linpack_src_dir)mod_blas_1$(f90_ext) " -----"
 	$(compiler) $(c_flags_linpack) -c $(linpack_src_dir)mod_blas_1$(f90_ext) -o $@
 	@echo 
 
 $(obj_dir)mod_linpack$(obj_ext):$(st_mod_dir)global_std$(mod_ext) $(mod_dir)blas_1$(mod_ext) \
                                 $(linpack_src_dir)mod_linpack$(f90_ext)
-	@echo "----- Compiling " mod_linpack$(f90_ext) " -----"
+	@echo "----- Compiling " $(linpack_src_dir)mod_linpack$(f90_ext) " -----"
 	$(compiler) $(c_flags_linpack) -c $(linpack_src_dir)mod_linpack$(f90_ext) -o $@
 	@echo 
 
@@ -375,7 +375,7 @@ $(obj_dir)mod_write_deck$(obj_ext):$(st_mod_dir)global_std$(mod_ext)        $(mo
                                    $(mod_dir)chain_routines$(mod_ext)    $(mod_dir)vtkio$(mod_ext) \
                                    $(obj_dir)metis_interface$(obj_ext)   $(mod_dir)metis$(mod_ext) \
                                    $(mod_dir)linfe$(mod_ext)             $(mod_dir)mesh_partitioning$(mod_ext) \
-                                   $(mod_dir)strings$(mod_ext)           $(f_src_dir)mod_write_deck$(f90_ext)
+                                   $(st_mod_dir)strings$(mod_ext)           $(f_src_dir)mod_write_deck$(f90_ext)
 	@echo "----- Compiling " mod_write_deck$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_write_deck$(f90_ext) -o $@
 	@echo 
@@ -418,7 +418,7 @@ $(obj_dir)mod_struct_calcmat$(obj_ext)::$(st_mod_dir)global_std$(mod_ext)     $(
 $(obj_dir)struct_process$(obj_ext):$(st_mod_dir)global_std$(mod_ext)     $(st_mod_dir)mechanical$(mod_ext) \
                                    $(mod_dir)auxiliaries$(mod_ext)       $(obj_dir)OS$(obj_ext) \
                                    $(mod_dir)operating_system$(mod_ext)  $(mod_dir)puredat$(mod_ext) \
-                                   $(st_mod_dir)meta$(mod_ext) 			 $(mod_dir)meta_puredat_interface$(mod_ext) \
+                                   $(st_mod_dir)meta$(mod_ext) 			 $(st_mod_dir)meta_puredat_interface$(mod_ext) \
                                    $(mod_dir)decomp$(mod_ext)            $(mod_dir)timer$(mod_ext) \
                                    $(mod_dir)chain_routines$(mod_ext)    $(mod_dir)vtkio$(mod_ext) \
                                    $(obj_dir)metis_interface$(obj_ext)   $(mod_dir)metis$(mod_ext) \

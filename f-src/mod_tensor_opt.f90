@@ -8,18 +8,19 @@
 !> \author Johannes Gebert
 !> \date 03.01.2022
 
-Module math
+Module tensor_opt
 
-  USE global_std
-  USE math
-  USE chain_routines
-  USE auxiliaries
+   USE global_std
+   USE math
+   USE formatted_plain
+   USE chain_routines
+   USE auxiliaries
 
-  Implicit None
+   Implicit None
 
-  Logical, Parameter       :: mmdbg=.false.
+   Logical, Parameter :: mmdbg=.false.
 
-contains
+   contains
 
   !============================================================================
   !> Subroutine which optimizes a 6x6 marix according to an monotropic
@@ -590,9 +591,9 @@ contains
     EE = matmul(matmul(transpose(BB),EE_Orig),BB)
 
     If (mmdbg) then 
-       Call Write_matrix(un_lf, "Final coordinate system CR_1", 'std', mat=aa)
+       Call write_matrix(un_lf, "Final coordinate system CR_1", 'std', mat=aa)
 
-       Call Write_matrix(un_lf, "Inlined anisotropic stiffness CR_1", 'std', 'MPa', EE)
+       Call write_matrix(un_lf, "Inlined anisotropic stiffness CR_1", 'std', 'MPa', EE)
        CALL check_sym(un_lf, EE, "Inlined anisotropic stiffness CR_1")
     End If
 
@@ -754,4 +755,4 @@ write(*,*)lb(1:2)
 
   End Subroutine sort_arrays
 
-End Module math
+End Module tensor_opt

@@ -77,7 +77,7 @@ Module puredat_precision
   
   Integer, Parameter :: pd_ik = 8  !** Puredat Integer kind parameter
   Integer, Parameter :: pd_rk = 8  !** Puredat Real    kind parameter
-  Integer, Parameter :: pd_mik = 4 !** Puredat Integer MPI kind parameter
+  Integer, Parameter :: pd_mik = 8 !** Puredat Integer MPI kind parameter
   
 End Module puredat_precision
 

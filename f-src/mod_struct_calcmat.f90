@@ -9,7 +9,8 @@ Module calcmat
   use mat_matrices
   use chain_routines
   use auxiliaries
-  USE messages_errors
+  USE user_interaction
+  USE formatted_plain
   use linFE
   use mpi
   
