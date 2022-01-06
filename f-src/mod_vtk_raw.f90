@@ -41,6 +41,9 @@ END INTERFACE mpi_write_raw
 INTERFACE ser_write_raw
    MODULE PROCEDURE ser_write_raw_ik2
    MODULE PROCEDURE ser_write_raw_ik4
+   MODULE PROCEDURE ser_write_raw_ik8
+   MODULE PROCEDURE ser_write_raw_rk4
+   MODULE PROCEDURE ser_write_raw_rk8
 END INTERFACE ser_write_raw
 
 CONTAINS
@@ -120,8 +123,7 @@ INTEGER(KIND=ik),DIMENSION(3), INTENT(IN) :: dims, subarray_dims, subarray_origi
 INTEGER(KIND=INT16), DIMENSION (:,:,:), ALLOCATABLE, INTENT(OUT) :: subarray
 
 ! file handle fh is provided by mpi itself and mustn't be given by the program/call/user
-INTEGER(KIND=mik) :: ierr, type_subarray, my_rank, size_mpi
-INTEGER(KIND=ik) :: fh
+INTEGER(KIND=mik) :: ierr, type_subarray, my_rank, size_mpi, fh
 CHARACTER(LEN=scl) :: datarep
 
 datarep = 'EXTERNAL32'
@@ -133,8 +135,8 @@ CALL MPI_COMM_SIZE(MPI_COMM_WORLD, size_mpi, ierr)
 
 CALL MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(filename), MPI_MODE_RDONLY, MPI_INFO_NULL, fh, ierr)
 
-CALL MPI_TYPE_CREATE_SUBARRAY (3_mik, dims, subarray_dims, subarray_origin, &
-   MPI_ORDER_FORTRAN, MPI_INTEGER2, type_subarray,ierr)
+CALL MPI_TYPE_CREATE_SUBARRAY (3_mik, INT(dims, KIND=mik), INT(subarray_dims, KIND=mik), &
+   INT(subarray_origin, KIND=mik), MPI_ORDER_FORTRAN, MPI_INTEGER2, type_subarray, ierr)
 
 CALL MPI_TYPE_COMMIT(type_subarray, ierr)
 
@@ -142,7 +144,7 @@ CALL MPI_FILE_SET_VIEW(fh, disp, MPI_INTEGER2, type_subarray, TRIM(datarep), MPI
 
 ALLOCATE(subarray(subarray_dims(1), subarray_dims(2), subarray_dims(3)))
 
-CALL MPI_FILE_READ_ALL(fh, subarray, SIZE(subarray), MPI_INTEGER2, MPI_STATUS_IGNORE, ierr)
+CALL MPI_FILE_READ_ALL(fh, subarray, INT(SIZE(subarray), KIND=mik), MPI_INTEGER2, MPI_STATUS_IGNORE, ierr)
 
 CALL MPI_TYPE_FREE(type_subarray, ierr)
 
@@ -173,8 +175,7 @@ INTEGER(KIND=ik),DIMENSION(3), INTENT(IN) :: dims, subarray_dims, subarray_origi
 INTEGER(KIND=INT32), DIMENSION (:,:,:), ALLOCATABLE, INTENT(OUT) :: subarray
 
 ! file handle fh is provided by mpi itself and mustn't be given by the program/call/user
-INTEGER(KIND=mik) :: ierr, type_subarray, my_rank, size_mpi
-INTEGER(KIND=ik) :: fh
+INTEGER(KIND=mik) :: ierr, type_subarray, my_rank, size_mpi, fh
 CHARACTER(LEN=scl) :: datarep
 
 datarep = 'EXTERNAL32'
@@ -186,16 +187,16 @@ CALL MPI_COMM_SIZE(MPI_COMM_WORLD, size_mpi, ierr)
 
 CALL MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(filename), MPI_MODE_RDONLY, MPI_INFO_NULL, fh, ierr)
 
-CALL MPI_TYPE_CREATE_SUBARRAY (3_mik, dims, subarray_dims, subarray_origin, &
-   MPI_ORDER_FORTRAN, MPI_INTEGER, type_subarray,ierr)
+CALL MPI_TYPE_CREATE_SUBARRAY (3_mik, INT(dims, KIND=mik), INT(subarray_dims, KIND=mik), & 
+   INT(subarray_origin, KIND=mik), MPI_ORDER_FORTRAN, MPI_INTEGER4, type_subarray,ierr)
 
 CALL MPI_TYPE_COMMIT(type_subarray, ierr)
 
-CALL MPI_FILE_SET_VIEW(fh, disp, MPI_INTEGER, type_subarray, TRIM(datarep), MPI_INFO_NULL, ierr)
+CALL MPI_FILE_SET_VIEW(fh, disp, MPI_INTEGER4, type_subarray, TRIM(datarep), MPI_INFO_NULL, ierr)
 
 ALLOCATE(subarray(subarray_dims(1), subarray_dims(2), subarray_dims(3)))
 
-CALL MPI_FILE_READ_ALL(fh, subarray, SIZE(subarray), MPI_INTEGER, MPI_STATUS_IGNORE, ierr)
+CALL MPI_FILE_READ_ALL(fh, subarray, INT(SIZE(subarray), KIND=mik), MPI_INTEGER4, MPI_STATUS_IGNORE, ierr)
 
 CALL MPI_TYPE_FREE(type_subarray, ierr)
 
@@ -253,14 +254,12 @@ END SUBROUTINE uik2_to_ik2
 SUBROUTINE mpi_read_raw_rk4(filename, disp, dims, subarray_dims, subarray_origin, subarray)
 
 CHARACTER(LEN=*), INTENT(IN) :: filename
-! MPI_OFFSET_KIND needs ik=8 in this case.
 INTEGER(KIND=MPI_OFFSET_KIND), INTENT(IN) :: disp
 INTEGER(KIND=ik),DIMENSION(3), INTENT(IN) :: dims, subarray_dims, subarray_origin
 REAL(KIND=REAL32), DIMENSION (:,:,:), ALLOCATABLE, INTENT(OUT) :: subarray
 
 ! file handle fh is provided by mpi itself and mustn't be given by the program/call/user
-INTEGER(KIND=mik) :: ierr, type_subarray, my_rank, size_mpi
-INTEGER(KIND=ik) :: fh
+INTEGER(KIND=mik) :: ierr, type_subarray, my_rank, size_mpi, fh
 CHARACTER(LEN=scl) :: datarep
 
 datarep = 'EXTERNAL32'
@@ -271,9 +270,9 @@ CALL MPI_COMM_RANK(MPI_COMM_WORLD, my_rank, ierr)
 CALL MPI_COMM_SIZE(MPI_COMM_WORLD, size_mpi, ierr)
 
 CALL MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(filename), MPI_MODE_RDONLY, MPI_INFO_NULL, fh, ierr)
-
-CALL MPI_TYPE_CREATE_SUBARRAY (3_mik, dims, subarray_dims, subarray_origin - 1_mik, &
-   MPI_ORDER_FORTRAN, MPI_REAL, type_subarray,ierr)
+  
+CALL MPI_TYPE_CREATE_SUBARRAY (3_mik, INT(dims, KIND=mik), INT(subarray_dims, KIND=mik), & 
+   INT(subarray_origin, KIND=mik), MPI_ORDER_FORTRAN, MPI_REAL, type_subarray,ierr)
 
 CALL MPI_TYPE_COMMIT(type_subarray, ierr)
 
@@ -281,7 +280,7 @@ CALL MPI_FILE_SET_VIEW(fh, disp, MPI_REAL, type_subarray, TRIM(datarep), MPI_INF
 
 ALLOCATE(subarray(subarray_dims(1), subarray_dims(2), subarray_dims(3)))
 
-CALL MPI_FILE_READ_ALL(fh, subarray, SIZE(subarray), MPI_INTEGER, MPI_STATUS_IGNORE, ierr)
+CALL MPI_FILE_READ_ALL(fh, subarray, INT(SIZE(subarray), KIND=mik), MPI_REAL, MPI_STATUS_IGNORE, ierr)
 
 CALL MPI_TYPE_FREE(type_subarray, ierr)
 
@@ -313,8 +312,7 @@ INTEGER(KIND=ik),DIMENSION(3), INTENT(IN) :: dims, subarray_dims, subarray_origi
 REAL(KIND=REAL64), DIMENSION (:,:,:), ALLOCATABLE, INTENT(OUT) :: subarray
 
 ! file handle fh is provided by mpi itself and mustn't be given by the program/call/user
-INTEGER(KIND=mik) :: ierr, type_subarray, my_rank, size_mpi
-INTEGER(KIND=ik) :: fh
+INTEGER(KIND=mik) :: ierr, type_subarray, my_rank, size_mpi, fh
 CHARACTER(LEN=scl) :: datarep
 
 datarep = 'EXTERNAL32'
@@ -327,8 +325,8 @@ CALL MPI_COMM_SIZE(MPI_COMM_WORLD, size_mpi, ierr)
 ! file handle fh is provided by mpi itself and mustn't be given by the program/call/user
 CALL MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(filename), MPI_MODE_RDONLY, MPI_INFO_NULL, fh, ierr)
 
-CALL MPI_TYPE_CREATE_SUBARRAY (3_mik, dims, subarray_dims, subarray_origin - 1_mik, &
-   MPI_ORDER_FORTRAN, MPI_DOUBLE_PRECISION, type_subarray, ierr)
+CALL MPI_TYPE_CREATE_SUBARRAY (3_mik, INT(dims, KIND=mik), INT(subarray_dims, KIND=mik), & 
+   INT(subarray_origin, KIND=mik), MPI_ORDER_FORTRAN, MPI_DOUBLE_PRECISION, type_subarray,ierr)
 
 CALL MPI_TYPE_COMMIT(type_subarray, ierr)
 
@@ -336,7 +334,7 @@ CALL MPI_FILE_SET_VIEW(fh, disp, MPI_DOUBLE_PRECISION, type_subarray, TRIM(datar
 
 ALLOCATE(subarray(subarray_dims(1), subarray_dims(2), subarray_dims(3)))
 
-CALL MPI_FILE_READ_ALL(fh, subarray, SIZE(subarray), MPI_INTEGER, MPI_STATUS_IGNORE, ierr)
+CALL MPI_FILE_READ_ALL(fh, subarray, INT(SIZE(subarray), KIND=mik), MPI_DOUBLE_PRECISION, MPI_STATUS_IGNORE, ierr)
 
 CALL MPI_TYPE_FREE(type_subarray, ierr)
 
@@ -352,8 +350,6 @@ END SUBROUTINE mpi_read_raw_rk8
 !
 !> @brief
 !> Write raw binary data
-!
-!> @description
 !
 !> @param[in] fh File handle
 !> @param[in] disp Length of the header (bytes) - position to write to
@@ -373,20 +369,19 @@ INTEGER(KIND=ik),DIMENSION(3), INTENT(IN) :: dims, subarray_dims, subarray_origi
 INTEGER(KIND=INT16), DIMENSION (:,:,:), INTENT(IN) :: subarray
 
 ! file handle fh is provided by mpi itself and mustn't be given by the program/call/user
-INTEGER(KIND=mik)  :: ierr, type_subarray
-INTEGER(KIND=ik)   :: fh
+INTEGER(KIND=mik)  :: fh, ierr, type_subarray
 CHARACTER(LEN=scl) :: datarep = 'EXTERNAL32'
 
 CALL MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(filename), MPI_MODE_WRONLY+MPI_MODE_CREATE, MPI_INFO_NULL, fh, ierr)
 
-CALL MPI_TYPE_CREATE_SUBARRAY(3_mik, dims, subarray_dims, subarray_origin, &
-   MPI_ORDER_FORTRAN, MPI_INTEGER2, type_subarray, ierr)
+CALL MPI_TYPE_CREATE_SUBARRAY (3_mik, INT(dims, KIND=mik), INT(subarray_dims, KIND=mik), & 
+   INT(subarray_origin, KIND=mik), MPI_ORDER_FORTRAN, MPI_INTEGER2, type_subarray,ierr)
 
 CALL MPI_TYPE_COMMIT(type_subarray, ierr)
 
-CALL MPI_FILE_SET_VIEW( fh, disp, MPI_INTEGER2, type_subarray, TRIM(datarep), MPI_INFO_NULL, ierr)
+CALL MPI_FILE_SET_VIEW(fh, disp, MPI_INTEGER2, type_subarray, TRIM(datarep), MPI_INFO_NULL, ierr)
 
-CALL MPI_FILE_WRITE_ALL(fh, subarray, SIZE(subarray), MPI_INTEGER2, MPI_STATUS_IGNORE, ierr)
+CALL MPI_FILE_WRITE_ALL(fh, subarray, INT(SIZE(subarray), KIND=mik), MPI_INTEGER2, MPI_STATUS_IGNORE, ierr)
 
 CALL MPI_TYPE_FREE(type_subarray, ierr)
 CALL MPI_FILE_CLOSE(fh, ierr)
@@ -421,20 +416,22 @@ INTEGER(KIND=ik),DIMENSION(3), INTENT(IN) :: dims, subarray_dims, subarray_origi
 INTEGER(KIND=INT32), DIMENSION (:,:,:), INTENT(IN) :: subarray
 
 ! file handle fh is provided by mpi itself and mustn't be given by the program/call/user
-INTEGER(KIND=mik)  :: ierr, type_subarray
-INTEGER(KIND=ik)   :: fh
+INTEGER(KIND=mik)  :: fh, ierr, type_subarray
 CHARACTER(LEN=scl) :: datarep = 'EXTERNAL32'
 
-CALL MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(filename), MPI_MODE_WRONLY+MPI_MODE_CREATE, MPI_INFO_NULL, fh, ierr)
+CALL MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(filename), &
+   MPI_MODE_WRONLY+MPI_MODE_CREATE, MPI_INFO_NULL, fh, ierr)
 
-CALL MPI_TYPE_CREATE_SUBARRAY(3_mik, dims, subarray_dims, subarray_origin, &
-   MPI_ORDER_FORTRAN, MPI_INTEGER, type_subarray, ierr)
+CALL MPI_TYPE_CREATE_SUBARRAY (3_mik, INT(dims, KIND=mik), INT(subarray_dims, KIND=mik), & 
+   INT(subarray_origin, KIND=mik), MPI_ORDER_FORTRAN, MPI_INTEGER4, type_subarray,ierr)
 
 CALL MPI_TYPE_COMMIT(type_subarray, ierr)
 
-CALL MPI_FILE_SET_VIEW( fh, disp, MPI_INTEGER, type_subarray, TRIM(datarep), MPI_INFO_NULL, ierr)
+CALL MPI_FILE_SET_VIEW(fh, disp, MPI_INTEGER4, type_subarray, &
+   TRIM(datarep), MPI_INFO_NULL, ierr)
 
-CALL MPI_FILE_WRITE_ALL(fh, subarray, SIZE(subarray), MPI_INTEGER, MPI_STATUS_IGNORE, ierr)
+CALL MPI_FILE_WRITE_ALL(fh, subarray, INT(SIZE(subarray), KIND=mik), &
+   MPI_INTEGER4, MPI_STATUS_IGNORE, ierr)
 
 CALL MPI_TYPE_FREE(type_subarray, ierr)
 CALL MPI_FILE_CLOSE(fh, ierr)
@@ -489,6 +486,78 @@ WRITE(UNIT=fh) array
 CLOSE(UNIT=fh)
 
 END SUBROUTINE ser_write_raw_ik4
+
+!------------------------------------------------------------------------------
+! SUBROUTINE: ser_write_raw_ik8
+!------------------------------------------------------------------------------  
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Write raw binary data serially. 
+!
+!> @param[in] fh File handle
+!> @param[in] filename Name of the file
+!------------------------------------------------------------------------------
+SUBROUTINE ser_write_raw_ik8(fh, filename, array)
+
+INTEGER(KIND=ik), INTENT(IN) :: fh
+INTEGER(KIND=INT64), DIMENSION(:,:,:), INTENT(IN) :: array
+CHARACTER(len=*), INTENT(IN) :: filename
+
+OPEN (UNIT=fh, FILE=filename, ACCESS="STREAM", FORM="UNFORMATTED", &
+   CONVERT='BIG_ENDIAN', STATUS="OLD", POSITION="APPEND")                                       
+WRITE(UNIT=fh) array
+CLOSE(UNIT=fh)
+
+END SUBROUTINE ser_write_raw_ik8
+
+!------------------------------------------------------------------------------
+! SUBROUTINE: ser_write_raw_rk4
+!------------------------------------------------------------------------------  
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Write raw binary data serially. 
+!
+!> @param[in] fh File handle
+!> @param[in] filename Name of the file
+!------------------------------------------------------------------------------
+SUBROUTINE ser_write_raw_rk4(fh, filename, array)
+
+INTEGER(KIND=ik), INTENT(IN) :: fh
+REAL(KIND=REAL32), DIMENSION(:,:,:), INTENT(IN) :: array
+CHARACTER(len=*), INTENT(IN) :: filename
+
+OPEN (UNIT=fh, FILE=filename, ACCESS="STREAM", FORM="UNFORMATTED", &
+   CONVERT='BIG_ENDIAN', STATUS="OLD", POSITION="APPEND")                                       
+WRITE(UNIT=fh) array
+CLOSE(UNIT=fh)
+
+END SUBROUTINE ser_write_raw_rk4
+
+!------------------------------------------------------------------------------
+! SUBROUTINE: ser_write_raw_rk8
+!------------------------------------------------------------------------------  
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Write raw binary data serially. 
+!
+!> @param[in] fh File handle
+!> @param[in] filename Name of the file
+!------------------------------------------------------------------------------
+SUBROUTINE ser_write_raw_rk8(fh, filename, array)
+
+INTEGER(KIND=ik), INTENT(IN) :: fh
+REAL(KIND=REAL64), DIMENSION(:,:,:), INTENT(IN) :: array
+CHARACTER(len=*), INTENT(IN) :: filename
+
+OPEN (UNIT=fh, FILE=filename, ACCESS="STREAM", FORM="UNFORMATTED", &
+   CONVERT='BIG_ENDIAN', STATUS="OLD", POSITION="APPEND")                                       
+WRITE(UNIT=fh) array
+CLOSE(UNIT=fh)
+
+END SUBROUTINE ser_write_raw_rk8
 
 END MODULE raw_binary
 

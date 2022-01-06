@@ -1,3 +1,3 @@
-CHARACTER(LEN=scl), PARAMETER :: longname = 'Computed Tomography Image Filter'
-CHARACTER(LEN=scl), PARAMETER :: revision = 'V5.0.0'
-CHARACTER(LEN=scl), PARAMETER :: hash = '52f0359083aeaa859034f10c5405bfa790685d21'
+CHARACTER(LEN=scl), PARAMETER :: longname = 'Rotational Tensor Optimization'
+CHARACTER(LEN=scl), PARAMETER :: revision = ''
+CHARACTER(LEN=scl), PARAMETER :: hash = 'ddcb4f2106f202cdf1b1c51131132ee27cd741f4'
