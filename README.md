@@ -11,7 +11,9 @@ Many thanks to Dr.-Ing. Ralf Schneider who developed the program at its core.
 ## Cite the Directly Discretizing Tensor Computation (BibTex):
 ```
 @misc{DDTC,
-title={{Directly Discretizing Tensor Computation: A program to compute the anisotropic elastic behavior of heterogenous structures.}},
+title={{Directly Discretizing Tensor Computation: A program to compute the apparent stiffness of control volumes of heterogeneous structures.
+
+.}},
 howpublished="\url{https://github.com/JoGebert/Directly_Discretizing_Tensor_Computation-DDTC/}"
 }
 ```
