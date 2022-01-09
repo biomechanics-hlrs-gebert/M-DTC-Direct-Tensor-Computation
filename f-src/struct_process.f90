@@ -220,8 +220,8 @@ Contains
        !**************************************************************************
        !** Write log and monitor file
        !**************************************************************************
-       Write(un_lf,FMT_MSG_AI0) "Domain No. : ",nn
-       Write(un_lf,FMT_MSG)     "Job_dir    : "//Trim(job_dir)
+       Write(un_lf,FMT_MSG_xAI0) "Domain No. : ",nn
+       Write(un_lf,FMT_MSG)      "Job_dir    : "//Trim(job_dir)
 
        CALL DATE_AND_TIME(DATE=date, TIME=time, ZONE=timezone)
  
@@ -241,7 +241,7 @@ Contains
             status="replace")
 
        Write(umon,FMT_MSG_SEP)
-       Write(umon,FMT_MSG_AI0) "Domain No. : ",nn
+       Write(umon,FMT_MSG_xAI0) "Domain No. : ",nn
 
        !**************************************************************************
        !** Generate Geometry
@@ -1076,7 +1076,7 @@ Program main_struct_process
       ! resolve without a remainder. "-1" to take the master process into account.
       !------------------------------------------------------------------------------
       IF (MOD(size_mpi-1, parts) /= 0) THEN
-         CALL print_err_stop(std_out, 'Skipping processors due to a subdomain remainder is not supported.', 1)
+         CALL print_err_stop(std_out, 'More processors than subdomains. This case is not supported.', 1)
       END IF
 
       !------------------------------------------------------------------------------
@@ -1412,13 +1412,13 @@ Program main_struct_process
 
         Else If ((count( Domain_stats < 10 )*parts) < size_mpi-1) then
            Write(un_mon, FMT_ERR)   "Remaining amount_domains < Number of Solution Master"
-           Write(un_mon, FMT_ERR_AI0) "Remaining amount_domains:   ", count( Domain_stats < 10 )
-           Write(un_mon, FMT_ERR_AI0) "Number of solution masters: ", (size_mpi-1)/parts
+           Write(un_mon, FMT_ERR_xAI0) "Remaining amount_domains:   ", count( Domain_stats < 10 )
+           Write(un_mon, FMT_ERR_xAI0) "Number of solution masters: ", (size_mpi-1)/parts
         Else
 
            Write(un_mon, FMT_ERR)"Restart on fully finished job."
         End If
-        Write(un_mon,FMT_ERR)"This case is not supported."
+        Write(un_mon, FMT_ERR)"This case is not supported."
         
         Call mpi_bcast(pro_path, INT(mcl,mik), MPI_CHAR, 0_mik,&
                        MPI_COMM_WORLD, ierr)
@@ -1447,7 +1447,7 @@ Program main_struct_process
 
      Call mpi_bcast(pro_name, INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
 
-     write(un_lf,FMT_MSG_AI0)"Broadcasting serialized root of size [Byte] ", serial_root_size*8
+     write(un_lf, FMT_MSG_xAI0)"Broadcasting serialized root of size [Byte] ", serial_root_size*8
      
      Call mpi_bcast(serial_root_size, 1_mik, MPI_INTEGER8, 0_mik, MPI_COMM_WORLD, ierr)
      
@@ -1625,7 +1625,7 @@ Program main_struct_process
          End Do
          
          !** Log to global stdout **********************************************
-         Write(un_mon,FMT_MSG_2AI0)"MPI rank: ",ii, "      Domain number: ",Domains(nn)
+         Write(un_mon, FMT_MSG_xAI0)"MPI rank: ",ii, "      Domain number: ",Domains(nn)
          flush(un_mon)
 
          nn = nn + 1_mik
@@ -1812,7 +1812,7 @@ Program main_struct_process
         ! DEBUG INFORMATION
         If (out_amount == "DEBUG") THEN
            Write(un_lf, fmt_dbg_sep)
-           Write(un_lf, fmt_MSG_AI0)"Root pointer before exec_single_domain on proc ",rank_mpi
+           Write(un_lf, fmt_MSG_xAI0)"Root pointer before exec_single_domain on proc ",rank_mpi
            Call log_tree(root, un_lf, .True.)
            Write(un_lf, fmt_dbg_sep)
         END If
@@ -1826,7 +1826,7 @@ Program main_struct_process
         ! DEBUG INFORMATION
         If (out_amount == "DEBUG") THEN
            Write(un_lf, fmt_dbg_sep)
-           Write(un_lf, fmt_MSG_AI0)"Root pointer after exec_single_domain on proc ",rank_mpi
+           Write(un_lf, fmt_MSG_xAI0)"Root pointer after exec_single_domain on proc ",rank_mpi
            Call log_tree(root,un_lf,.True.)
            Write(un_lf, fmt_dbg_sep)
         END If
@@ -1838,7 +1838,7 @@ Program main_struct_process
 
         !** Look for the Domain branch ****************************************
         domain_desc=''
-        Write(domain_desc, '(A,I0)')'Domain ',Domain
+        Write(domain_desc, FMT_TXT_AxI0)'Domain ',Domain
         
 !!$        Call search_branch(trim(domain_desc), root, db, success)
 
@@ -1955,10 +1955,10 @@ Program main_struct_process
   
   ! DEBUG INFORMATION
   If (out_amount == "DEBUG") THEN
-     Write(un_lf,fmt_dbg_sep)
-     Write(un_lf,fmt_MSG_AI0)"Final Root pointer proc",rank_mpi
+     Write(un_lf, fmt_dbg_sep)
+     Write(un_lf, fmt_MSG_xAI0)"Final Root pointer proc",rank_mpi
      Call log_tree(root,un_lf,.True.)
-     Write(un_lf,fmt_dbg_sep)
+     Write(un_lf, fmt_dbg_sep)
   END If
   ! DEBUG INFORMATION
   

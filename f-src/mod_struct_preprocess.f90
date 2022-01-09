@@ -151,8 +151,8 @@ Contains
     call pd_load_leaf(phi_desc%streams,phi_desc, "Number of voxels per direction", vdim)
 
     if ( out_amount /= "PRODUCTION" ) then
-       write(un_lf,FMT_MSG_A3F0) "Grid spacings", delta
-       write(un_lf,FMT_MSG_A3I0) "Number of voxels per direction", vdim
+       write(un_lf,FMT_MSG_AxF0) "Grid spacings", delta
+       write(un_lf,FMT_MSG_AxI0) "Number of voxels per direction", vdim
     End if
     
     allocate(Phi(xa_n(1):xe_n(1), xa_n(2):xe_n(2), xa_n(3):xe_n(3)), stat=alloc_stat)
@@ -204,7 +204,7 @@ Contains
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     If (out_amount == "DEBUG") THEN
        Write(un_lf,fmt_dbg_sep)
-       Write(un_lf,fmt_MSG_AI0)"Root pointer after exec_single_domain"
+       Write(un_lf,fmt_MSG_xAI0)"Root pointer after exec_single_domain"
        Call log_tree(root,un_lf,.True.)
        Write(un_lf,fmt_dbg_sep)
     END If
@@ -415,11 +415,11 @@ Contains
     max_c = Real(xe_n    ,rk) * delta
 
     if ( out_amount /= "PRODUCTION" ) then
-       Write(un_lf,FMT_MSG_A3F0)'Minimum Coordinates',min_c
-       Write(un_lf,FMT_MSG_A3F0)'Maximum Coordinates',max_c
+       Write(un_lf,FMT_MSG_AxF0)'Minimum Coordinates',min_c
+       Write(un_lf,FMT_MSG_AxF0)'Maximum Coordinates',max_c
        Write(un_lf,*)
        
-       Write(un_lf,FMT_MSG_A3F0)'Cube dimensions',dim_c
+       Write(un_lf,FMT_MSG_AxF0)'Cube dimensions',dim_c
        Write(un_lf,*)
     End if
     
@@ -477,7 +477,7 @@ Contains
        End Do
 
        if ( out_amount /= "PRODUCTION" ) then
-          Write(un_lf,FMT_MSG_AI0)'Number of constrained nodes in Part ',jj," : ",no_bnodes
+          Write(un_lf,FMT_MSG_xAI0)'Number of constrained nodes in Part ',jj," : ",no_bnodes
        End if
        
        Allocate(bnode_ids(no_bnodes))
@@ -571,7 +571,7 @@ Contains
           
        End Do
 
-       Write(un_lf,FMT_MSG_AI0)'Number of constrained DOF',b_items
+       Write(un_lf,FMT_MSG_xAI0)'Number of constrained DOF',b_items
 
        no_cdofs_all(jj) = b_items
 

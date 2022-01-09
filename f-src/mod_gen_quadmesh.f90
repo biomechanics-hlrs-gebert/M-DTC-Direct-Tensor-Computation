@@ -125,8 +125,8 @@ contains
 
     Else
 
-       Write(un_lf,FMT_MSG_AI0)'Minimal value in phi = ',min_val_phi
-       Write(un_lf,FMT_MSG_AI0)'Maximal value in phi = ',max_val_phi
+       Write(un_lf,FMT_MSG_xAI0)'Minimal value in phi = ',min_val_phi
+       Write(un_lf,FMT_MSG_xAI0)'Maximal value in phi = ',max_val_phi
 
     End If
 
@@ -168,7 +168,7 @@ contains
     Allocate(nodes_no(lb_nodes_no:ub_nodes_no),stat=alloc_stat)
     call alloc_err("nodes_no",alloc_stat)
 
-    Write(un_lf, FMT_MSG_2AI0)'Allocated nodes numbers with index range : ',lb_nodes_no,'-',ub_nodes_no
+    Write(un_lf, FMT_MSG_xAI0)'Allocated nodes numbers with index range : ',lb_nodes_no,'-',ub_nodes_no
 
     nodes_no  = 0
     elems     = 0
@@ -265,7 +265,7 @@ contains
        End Do
     End Do
 
-    write(un_lf,FMT_MSG_AI0)'No nodes found in domain : ',no_nodes
+    write(un_lf,FMT_MSG_xAI0)'No nodes found in domain : ',no_nodes
 
     Do ii = 1, no_elems
        elems(1:no_elem_nodes,ii) = nodes_no(elems( 1:no_elem_nodes,ii))       
@@ -572,8 +572,8 @@ contains
 1000 Continue
 
     If (out_amount /= "PRODUCTION" ) then
-       Write(un_lf,FMT_MSG_AI0)"Remaining nodes   : ",no_nodes
-       Write(un_lf,FMT_MSG_AI0)"Remaining elements: ",no_elems
+       Write(un_lf,FMT_MSG_xAI0)"Remaining nodes   : ",no_nodes
+       Write(un_lf,FMT_MSG_xAI0)"Remaining elements: ",no_elems
     End If
     
   End Subroutine gen_quadmesh_from_phi
@@ -651,9 +651,9 @@ contains
     If ( (max_val_phi < llimit) ) Then
 
        Write(un_lf,FMT_ERR_SEP)
-       Write(un_lf,FMT_ERR_AI0) 'Isovalue = ',llimit,' not enclosed in field'
-       Write(un_lf,FMT_ERR_AI0) 'Minimum value in PHI = ',min_val_phi
-       Write(un_lf,FMT_ERR_AI0) 'Maximum value in PHI = ',max_val_phi
+       Write(un_lf,FMT_ERR_xAI0) 'Isovalue = ',llimit,' not enclosed in field'
+       Write(un_lf,FMT_ERR_xAI0) 'Minimum value in PHI = ',min_val_phi
+       Write(un_lf,FMT_ERR_xAI0) 'Maximum value in PHI = ',max_val_phi
        Write(un_lf,FMT_ERR_SEP)
 
        no_nodes = 0
@@ -663,8 +663,8 @@ contains
 
     Else
 
-       Write(un_lf,FMT_MSG_AI0)'Minimal value in phi = ',min_val_phi
-       Write(un_lf,FMT_MSG_AI0)'Maximal value in phi = ',max_val_phi
+       Write(un_lf,FMT_MSG_xAI0)'Minimal value in phi = ',min_val_phi
+       Write(un_lf,FMT_MSG_xAI0)'Maximal value in phi = ',max_val_phi
 
     End If
 
@@ -693,8 +693,8 @@ contains
 
     Else
 
-       write(*,*)"El_Type not supported in gen_quadmesh !!!"
-       write(*,*)"Program stopped                       !!!"
+       write(*,'(A)')"El_Type not supported in gen_quadmesh !!!"
+       write(*,'(A)')"Program stopped                       !!!"
        stop
 
     End if
@@ -707,7 +707,7 @@ contains
     call alloc_err("nodes_no",alloc_stat)
 
     If (out_amount /= "PRODUCTION" ) then
-       Write(un_lf, FMT_MSG_2AI0)'Allocated nodes numbers with index range : ',lb_nodes_no,'-',ub_nodes_no
+       Write(un_lf, FMT_MSG_xAI0)'Allocated nodes numbers with index range : ',lb_nodes_no,'-',ub_nodes_no
     End If
     
     nodes_no  = 0
@@ -806,7 +806,7 @@ contains
     End Do
 
     If (out_amount /= "PRODUCTION" ) then
-       write(un_lf,FMT_MSG_AI0)'No nodes found in domain : ',no_nodes
+       write(un_lf,FMT_MSG_xAI0)'No nodes found in domain : ',no_nodes
     End If
     
     Do ii = 1, no_elems
@@ -1102,8 +1102,8 @@ contains
     !** Error with Iso-Value continue *****************************************
 1000 Continue
 
-    Write(un_lf,FMT_MSG_AI0)"Remaining nodes   : ",no_nodes
-    Write(un_lf,FMT_MSG_AI0)"Remaining elements: ",no_elems
+    Write(un_lf,FMT_MSG_xAI0)"Remaining nodes   : ",no_nodes
+    Write(un_lf,FMT_MSG_xAI0)"Remaining elements: ",no_elems
 
     Call end_timer("+-- Coloring connected domains")
 

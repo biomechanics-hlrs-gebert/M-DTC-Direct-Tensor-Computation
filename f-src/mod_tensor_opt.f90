@@ -114,8 +114,8 @@ Module tensor_opt
 
     mlc = minloc(crit)-1
     If (mmdbg) then
-       write(un_lf,FMT_MSG_A3I0)'Initial Minloc  CR_1 : ',mlc
-       write(un_lf,FMT_MSG_AF0) 'Initial Minimum CR_1 : ',crit_min(0)
+       write(un_lf,FMT_MSG_AxI0)'Initial Minloc  CR_1 : ',mlc
+       write(un_lf,FMT_MSG_xAF0) 'Initial Minimum CR_1 : ',crit_min(0)
     End If
 
     jj = 1
@@ -132,10 +132,10 @@ Module tensor_opt
        kk = 0
 
        If (mmdbg) then
-          write(un_lf,FMT_MSG_AI0) 'Iteration            : ',jj
+          write(un_lf,FMT_MSG_xAI0) 'Iteration            : ',jj
           
-          write(un_lf,FMT_MSG_A3I0)'Loop start           : ',s_loop
-          write(un_lf,FMT_MSG_A3I0)'Loop end             : ',e_loop
+          write(un_lf,FMT_MSG_AxI0)'Loop start           : ',s_loop
+          write(un_lf,FMT_MSG_AxI0)'Loop end             : ',e_loop
        End If
 
        Do ii_eta = s_loop(3), e_loop(3)
@@ -176,7 +176,7 @@ Module tensor_opt
        crit_min(jj) = minval(crit(0:kk-1,0:kk_phi-1,0:kk_eta-1))
 
        If (mmdbg) then
-          write(un_lf,FMT_MSG_AF0)'Minimum CR_1         : ',crit_min(jj)
+          write(un_lf,FMT_MSG_xAF0)'Minimum CR_1         : ',crit_min(jj)
        End If
 
        If ( (abs(crit_min(jj-1)-crit_min(jj)) < num_zero) .OR. (jj > 16)) Exit
@@ -220,7 +220,7 @@ Module tensor_opt
     EE = matmul(matmul(transpose(BB),EE),BB)
 
     If (mmdbg) then
-       Call Write_matrix(un_lf, "Backrotated anisotropic stiffness CR_1", 'std', 'MPa', EE)
+       Call Write_matrix(un_lf, "Backrotated anisotropic stiffness CR_1", EE, fmti='std', unit='MPa')
       !  call write_real_matrix(un_lf,EE_orig,6_ik,6_ik,&
       !       "eff_S","wxmaxima")
       !  Call Write_matrix(un_lf, "Backrotated anisotropic stiffness CR_1", 'std', 'MPa', EE_orig)
@@ -302,7 +302,7 @@ Module tensor_opt
     EE = matmul(matmul(transpose(BB),EE_Orig),BB)
 
     If (mmdbg) then 
-       Call Write_matrix(un_lf, "Final coordinate system CR_1", 'std', mat=aa)
+       Call Write_matrix(un_lf, "Final coordinate system CR_1", mat=aa, fmti='std')
       !  call write_real_matrix(un_lf,aa,3_ik,3_ik,&
       !       "R3_trafo","wxmaxima")
       !  call write_real_matrix(un_lf, EE,6_ik,6_ik,&
@@ -332,27 +332,25 @@ Module tensor_opt
   !>
   subroutine opt_ortho(EE_orig, EE, fdir, fcrit)
 
-    Real(kind=rk)   , Dimension(6,6)    , intent(in)  :: EE_orig
-    Real(kind=rk)   , Dimension(6,6)    , intent(out) :: EE     
-    real(kind=rk)                       , intent(out) :: fcrit
-    Real(kind=rk)   , Dimension(3,3)    , intent(out) :: fdir
+    Real(kind=rk), Dimension(6,6), intent(in)  :: EE_orig
+    Real(kind=rk), Dimension(6,6), intent(out) :: EE     
+    real(kind=rk)                , intent(out) :: fcrit
+    Real(kind=rk), Dimension(3,3), intent(out) :: fdir
 
-    Integer(kind=ik)                                   :: kk_eta, kk_phi, kk
-    Integer(kind=ik)                                   :: ii_eta, ii_phi, ii, jj
+    Integer(kind=ik) :: kk_eta, kk_phi, kk
+    Integer(kind=ik) :: ii_eta, ii_phi, ii, jj
  
-   Real(kind=rk)                                       :: alpha, phi, eta
+    Real(kind=rk) :: alpha, phi, eta, sym
 
-    Real   (kind=rk), Dimension(3)                    :: n
-    Real   (kind=rk), Dimension(3,3)                  :: aa
-    Real   (kind=rk), Dimension(6,6)                  :: BB, tmp_r6x6
+    Real   (kind=rk), Dimension(3)   :: n
+    Real   (kind=rk), Dimension(3,3) :: aa
+    Real   (kind=rk), Dimension(6,6) :: BB, tmp_r6x6
 
     Integer(kind=ik), Dimension(:,:,:,:), ALLOCATABLE :: ang
     Real   (kind=rk), Dimension(:,:,:)  , ALLOCATABLE :: crit
-    Real   (kind=rk), Dimension(0 :16)                :: crit_min
-    Integer         , Dimension(3)                    :: s_loop,e_loop, mlc
+    Real   (kind=rk), Dimension(0 :16) :: crit_min
+    Integer         , Dimension(3)     :: s_loop,e_loop, mlc
 
-    Real   (kind=rk), Parameter                       :: num_zero = 1.E-9_rk
-    Real   (kind=rk), Parameter                       :: pi  = acos(-1._rk)
     !**************************************************************************
 
     ALLOCATE(ang(3,0:180,0:180,0:90))
@@ -409,8 +407,8 @@ Module tensor_opt
 
     mlc = minloc(crit)-1
     If (mmdbg) then
-       write(un_lf,FMT_MSG_A3I0)'Initial Minloc  CR_1 : ',mlc
-       write(un_lf,FMT_MSG_AF0) 'Initial Minimum CR_1 : ',crit_min(0)
+       write(un_lf,FMT_MSG_AxI0)'Initial Minloc  CR_1 : ',mlc
+       write(un_lf,FMT_MSG_xAF0) 'Initial Minimum CR_1 : ',crit_min(0)
     End If
 
     jj = 1
@@ -427,10 +425,10 @@ Module tensor_opt
        kk = 0
 
        If (mmdbg) then
-          write(un_lf,FMT_MSG_AI0) 'Iteration            : ',jj
+          write(un_lf,FMT_MSG_xAI0) 'Iteration            : ',jj
           
-          write(un_lf,FMT_MSG_A3I0)'Loop start           : ',s_loop
-          write(un_lf,FMT_MSG_A3I0)'Loop end             : ',e_loop
+          write(un_lf,FMT_MSG_AxI0)'Loop start           : ',s_loop
+          write(un_lf,FMT_MSG_AxI0)'Loop end             : ',e_loop
        End If
 
        Do ii_eta = s_loop(3), e_loop(3)
@@ -473,7 +471,7 @@ Module tensor_opt
        crit_min(jj) = minval(crit(0:kk-1,0:kk_phi-1,0:kk_eta-1))
 
        If (mmdbg) then
-          write(un_lf,FMT_MSG_AF0)'Minimum CR_1         : ',crit_min(jj)
+          write(un_lf,FMT_MSG_xAF0)'Minimum CR_1         : ',crit_min(jj)
        End If
 
        If ( (abs(crit_min(jj-1)-crit_min(jj)) < num_zero) .OR. (jj > 16)) Exit
@@ -516,7 +514,7 @@ Module tensor_opt
     EE = matmul(matmul(transpose(BB),EE),BB)
 
     If (mmdbg) then
-       Call Write_matrix(un_lf, "Backrotated anisotropic stiffness CR_1", 'std', 'MPa', EE)
+       Call Write_matrix(un_lf, "Backrotated anisotropic stiffness CR_1", EE, fmti='std', unit='MPa')
     End If
     !=========================================================
 
@@ -591,10 +589,11 @@ Module tensor_opt
     EE = matmul(matmul(transpose(BB),EE_Orig),BB)
 
     If (mmdbg) then 
-       Call write_matrix(un_lf, "Final coordinate system CR_1", 'std', mat=aa)
+       Call write_matrix(un_lf, "Final coordinate system CR_1", mat=aa, fmti='std')
 
-       Call write_matrix(un_lf, "Inlined anisotropic stiffness CR_1", 'std', 'MPa', EE)
-       CALL check_sym(un_lf, EE, "Inlined anisotropic stiffness CR_1")
+       Call write_matrix(un_lf, "Inlined anisotropic stiffness CR_1", EE, fmti='std', unit='MPa')
+       CALL check_sym(EE, sym)
+       WRITE (un_lf, FMT_TXT_AxF0) "Inlined anisotropic stiffness CR_1, symmetry: ", sym
     End If
 
     fdir = aa
@@ -605,17 +604,17 @@ Module tensor_opt
   !> Subroutine which calculates a histogram
   subroutine calc_hist(phi, hist, csize)
 
-    Real(kind=rk), dimension(:,:,:) , intent(in)              :: phi
+    Real(kind=rk), dimension(:,:,:), intent(in) :: phi
 
-    Integer(kind=ik) , dimension(:), Allocatable, intent(out) :: hist
+    Integer(kind=ik), dimension(:), Allocatable, intent(out) :: hist
 
-    Integer(kind=ik) , optional                               :: csize
+    Integer(kind=ik), optional :: csize
 
-    Integer(kind=ik) , dimension(3)                           :: sphi
+    Integer(kind=ik), dimension(3) :: sphi
 
     Integer(kind=ik) :: hist_lbound, hist_ubound, ii,jj,kk
 
-    Real(kind=ik)                                             :: ics_loc
+    Real(kind=ik) :: ics_loc
 
     !--------------------------------------------------------------------------
 
@@ -661,11 +660,11 @@ Module tensor_opt
 
     Real(kind=rk)   , Dimension(:,:), Allocatable, Intent(In)  :: node_ls
     Integer(kind=ik), Dimension(:,:), Allocatable, Intent(in)  :: cell_ls
-    Real(Kind=rk)                                , Intent(Out) :: arr
+    Real(Kind=rk), Intent(Out) :: arr
 
     Real(Kind=rk), Dimension(3) :: c, a, cxa
 
-    Integer(Kind=ik)            :: ii
+    Integer(Kind=ik) :: ii
 
     !--------------------------------------------------------------------------
 
@@ -698,9 +697,9 @@ Module tensor_opt
 
     !**************************************************************************
     !* Variables declaration    
-    Logical                                  :: unsorted
-    Integer                                  :: ii,dim
-    Real(Kind=rk)                            :: tmp_r
+    Logical :: unsorted
+    Integer :: ii,dim
+    Real(Kind=rk) :: tmp_r
 
     !==========================================================================
 

@@ -19,33 +19,33 @@ contains
   Subroutine write_fmps_decks(job_dir, ddc_nn, meta_para, db)
 
     !-- Input Parameters ------------------------------------------------------
-    Character(LEN=*), Intent(in)        :: job_dir
-    Integer(Kind=ik), Intent(in)        :: ddc_nn
-    Type(tBranch)   , Intent(In)        :: meta_para
-    Type(tBranch)   , Intent(InOut)     :: db
+    Character(LEN=*), Intent(in) :: job_dir
+    Integer(Kind=ik), Intent(in) :: ddc_nn
+    Type(tBranch), Intent(In)    :: meta_para
+    Type(tBranch), Intent(InOut) :: db
 
-    Type(tBranch)   , Pointer           :: fb, ifb
+    Type(tBranch), Pointer :: fb, ifb
 
-    Integer                             :: elo_macro
-    Real(Kind=rk)                       :: e_modul,nu
+    Integer       :: elo_macro
+    Real(Kind=rk) :: e_modul,nu
 
-    Character(Len=8)                    :: elt_micro
-    Integer                             :: no_solver,pscratch, parts
+    Character(Len=8) :: elt_micro
+    Integer          :: no_solver,pscratch, parts
 
     !-- Parameters ------------------------------------------------------------
-    Character(len=*), Parameter         :: inpsep = "('#',79('='))"
+    Character(len=*), Parameter :: inpsep = "('#',79('='))"
 
     !--------------------------------------------------------------------------
 
-    Character(Len=mcl)                 :: desc, line
+    Character(Len=mcl) :: desc, line
 
-    integer                            :: no_elem_nodes
-    integer                            :: no_nodes_macro
+    integer :: no_elem_nodes
+    integer :: no_nodes_macro
 
-    integer(Kind=ik)                                 :: ii, jj
-    integer(Kind=ik), Dimension(128)                 :: crp
-    Character, Dimension(:), Allocatable             :: char_arr
-    Character(Len=:), Allocatable                    :: alloc_str
+    integer(Kind=ik)                    :: ii, jj
+    integer(Kind=ik), Dimension(128)    :: crp
+    Character, Dimension(:), Allocatable:: char_arr
+    Character(Len=:), Allocatable       :: alloc_str
 
     !--------------------------------------------------------------------------
 
@@ -53,13 +53,13 @@ contains
     elt_micro = char_to_str(char_arr)
     deallocate(char_arr)
 
-    Call pd_get(meta_para, 'No of mesh parts'     , parts)
-    Call pd_get(meta_para, "Young_s modulus"      , e_modul)
-    Call pd_get(meta_para, "Poisson_s ratio"      , nu)
+    Call pd_get(meta_para, 'No of mesh parts', parts)
+    Call pd_get(meta_para, "Young_s modulus" , e_modul)
+    Call pd_get(meta_para, "Poisson_s ratio" , nu)
 
     Call pd_get(meta_para, "Element order on macro scale", elo_macro)
-    Call pd_get(meta_para, 'FMPS Solver to use'          , no_solver)
-    Call pd_get(meta_para, 'FMPS Parser Scratch'         , pscratch)
+    Call pd_get(meta_para, 'FMPS Solver to use' , no_solver)
+    Call pd_get(meta_para, 'FMPS Parser Scratch', pscratch)
 
     IF (elo_macro == 1) no_nodes_macro = 8
 
@@ -428,11 +428,11 @@ contains
     min_c = Real(xa_n - 1,rk) * delta
     max_c = Real(xe_n    ,rk) * delta
 
-    Write(un_lf,FMT_MSG_A3F0)'Minimum Coordinates',min_c
-    Write(un_lf,FMT_MSG_A3F0)'Maximum Coordinates',max_c
+    Write(un_lf,FMT_MSG_AxF0)'Minimum Coordinates',min_c
+    Write(un_lf,FMT_MSG_AxF0)'Maximum Coordinates',max_c
     Write(un_lf,*)
 
-    Write(un_lf,FMT_MSG_A3F0)'Cube dimensions',dim_c
+    Write(un_lf,FMT_MSG_AxF0)'Cube dimensions',dim_c
     Write(un_lf,*)
 
     parts         = size(PMesh)
@@ -561,7 +561,7 @@ contains
 
        End Do
 
-       Write(un_lf,FMT_MSG_AI0)'Number of constrained nodes in Part ',jj," : ",no_bnodes
+       Write(un_lf,FMT_MSG_xAI0)'Number of constrained nodes in Part ',jj," : ",no_bnodes
 
        call add_branch_to_branch(part_b,bounds_b)
        call raise_branch("Boundaries", no_nodes_macro*3, 0, bounds_b)
@@ -686,7 +686,7 @@ contains
 
        End Do
 
-       Write(un_lf,FMT_MSG_AI0)'Number of constrained DOF',b_items
+       Write(un_lf,FMT_MSG_AxI0)'Number of constrained DOF',b_items
 
        no_cdofs_all(jj) = b_items
 

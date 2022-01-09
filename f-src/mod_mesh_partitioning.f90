@@ -14,7 +14,7 @@ module mesh_partitioning
 
      Integer(kind=ik) :: nnodes, nelems, nouter_nds
 
-     INTEGER(KIND=IK), DIMENSION(:)  , Allocatable :: NN, ncolor, cneigh, bnodes
+     INTEGER(KIND=IK), DIMENSION(:) , Allocatable :: NN, ncolor, cneigh, bnodes
      REAL(KIND=RK)   , DIMENSION(:,:), Allocatable :: COOR
      INTEGER(KIND=IK), DIMENSION(:,:), Allocatable :: EIND,neigh
 
@@ -28,37 +28,37 @@ contains
     !** Declarations ************************************************************
    
     !** Parted Mesh *************************************************************
-    Type(tBranch)   , intent(Inout)       :: PMesh
-    Character(LEN=*), Intent(in)          :: job_dir
-    Integer(kind=ik), intent(in)          :: ddc_nn
+    Type(tBranch)   , intent(Inout) :: PMesh
+    Character(LEN=*), Intent(in) :: job_dir
+    Integer(kind=ik), intent(in) :: ddc_nn
 
     !** Metis variables *********************************************************
-    Integer  (kind=C_INT64_T) , Intent(In)                  :: ne
-    Integer  (kind=C_INT64_T) , intent(In)                  :: nnodes
+    Integer(kind=C_INT64_T), Intent(In) :: ne
+    Integer(kind=C_INT64_T), intent(In) :: nnodes
 
-    Integer  (kind=C_INT64_T)                               :: nn
-    Integer  (kind=C_INT64_T) , Dimension(:)  , Allocatable :: eptr
-    Integer  (kind=C_INT64_T) , Dimension(:,:), Allocatable :: eind
-    Integer  (kind=C_INT64_T) , Dimension(:)  , Allocatable :: vwgt, vsize
-    Integer  (kind=C_INT64_T)                               :: ncommon
-    Integer  (kind=C_INT64_T) , Intent(in)                  :: parts
-    Real     (kind=c_double)  , Dimension(:)  , Allocatable :: tpwgts
-    Integer  (kind=C_INT64_T) , Dimension(40)               :: options
-    Integer  (kind=C_INT64_T)                               :: objval
-    Integer  (kind=C_INT64_T) , Dimension(:)  , Allocatable :: depart
-    Integer  (kind=C_INT64_T) , Dimension(:)  , Allocatable :: dnpart
+    Integer(kind=C_INT64_T)                             :: nn
+    Integer(kind=C_INT64_T), Dimension(:), Allocatable :: eptr
+    Integer(kind=C_INT64_T), Dimension(:,:), Allocatable :: eind
+    Integer(kind=C_INT64_T), Dimension(:), Allocatable :: vwgt, vsize
+    Integer(kind=C_INT64_T)                             :: ncommon
+    Integer(kind=C_INT64_T), Intent(in)                 :: parts
+    Real   (kind=c_double), Dimension(:), Allocatable :: tpwgts
+    Integer(kind=C_INT64_T), Dimension(40)              :: options
+    Integer(kind=C_INT64_T)                             :: objval
+    Integer(kind=C_INT64_T), Dimension(:), Allocatable :: depart
+    Integer(kind=C_INT64_T), Dimension(:), Allocatable :: dnpart
 
-    Real     (kind=C_double)  , Dimension(:,:), intent(in)  :: nodes
+    Real(kind=C_double), Dimension(:,:), intent(in) :: nodes
 
     !****************************************************************************
-    Integer(kind=ik)  , Dimension(:)  , Allocatable :: nnodes_pp, nelems_pp, nouter_nds_pp
-    INTEGER(kind=ik)                                :: ii,jj,kk,idum, tmp_i8
-    INTEGER(kind=ik)  , Dimension(:)  , Allocatable :: cref
-    Character(Len=mcl)                              :: desc, filename
-    INTEGER(kind=ik)  , Dimension(1,2)              :: bounds
-    Character(len=mcl)                              :: vtk_file
-    Integer  (kind=ik), Dimension(:,:), Allocatable :: elems
-    Integer  (kind=ik)                              :: nn_el
+    Integer(kind=ik), Dimension(:), Allocatable :: nnodes_pp, nelems_pp, nouter_nds_pp
+    INTEGER(kind=ik)                            :: ii,jj,kk,idum, tmp_i8
+    INTEGER(kind=ik), Dimension(:), Allocatable :: cref
+    Character(Len=mcl)                          :: desc, filename
+    INTEGER(kind=ik), Dimension(1,2)            :: bounds
+    Character(len=mcl)                          :: vtk_file
+    Integer(kind=ik), Dimension(:,:), Allocatable :: elems
+    Integer(kind=ik)                              :: nn_el
     
     !== Code ====================================================================
 
@@ -67,10 +67,10 @@ contains
     nn = ne * nn_el
 
     If (out_amount /= "PRODUCTION" ) then
-       Write(un_lf,fmt_msg_AI0)"Number of Nodes          :",nnodes
-       Write(un_lf,fmt_msg_AI0)"Number of Elements       :",ne
-       Write(un_lf,fmt_msg_AI0)"Length of Element descr. :",nn
-       Write(un_lf,fmt_msg_AI0)"Number of Nodes per Elem.:",nn_el
+       Write(un_lf,fmt_msg_xAI0)"Number of Nodes          :",nnodes
+       Write(un_lf,fmt_msg_xAI0)"Number of Elements       :",ne
+       Write(un_lf,fmt_msg_xAI0)"Length of Element descr. :",nn
+       Write(un_lf,fmt_msg_xAI0)"Number of Nodes per Elem.:",nn_el
     End If
     
     Do ii = 1, Parts
@@ -80,11 +80,11 @@ contains
        Call raise_leaves(5,&
             ["Node Numbers       ", "Coordinates        ", &
              "Global Node Numbers", "Element Numbers    ", &
-             "Topology           "                          ],&
-            [4_1,     5_1,     4_1,     4_1,     4_1        ],&
-            [0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik    ],&
-            [0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik    ],&
-            [0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik    ],&
+             "Topology           "                       ],&
+            [4_1,     5_1,     4_1,     4_1,     4_1     ],&
+            [0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik ],&
+            [0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik ],&
+            [0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik ],&
             PMesh%branches(ii))
        
        call raise_branch("Connections", 0_pd_ik, 2_pd_ik, PMesh%branches(ii)%branches(1))
@@ -141,7 +141,7 @@ contains
             depart, dnpart)
 
        If (out_amount /= "PRODUCTION" ) then
-          Write(un_lf,fmt_msg_AI0)"objval of dual  partitioning =",objval
+          Write(un_lf,fmt_msg_xAI0)"objval of dual  partitioning =",objval
        End If
        
        call end_timer("  +-- Metis")
@@ -152,8 +152,8 @@ contains
        eind   = eind   + 1
 
        If (out_amount /= "PRODUCTION" ) then
-          write(un_lf,fmt_msg_AI0)"MinVal in depart:",minval(depart)
-          write(un_lf,fmt_msg_AI0)"MaxVal in depart:",maxval(depart)
+          write(un_lf,fmt_msg_xAI0)"MinVal in depart:",minval(depart)
+          write(un_lf,fmt_msg_xAI0)"MaxVal in depart:",maxval(depart)
        End If
 
        call end_timer("  +-- Shift C-Style indicees")
@@ -191,7 +191,7 @@ contains
           Allocate(PMesh%branches(ii)%leaves(5)%p_int8(nn_el*nelems_pp(ii)))
 
           If (out_amount /= "PRODUCTION" ) then
-             write(un_lf,fmt_msg_AI0)"No Elems in part",ii,"=",nelems_pp(ii)
+             write(un_lf,fmt_msg_xAI0)"No Elems in part",ii,"=",nelems_pp(ii)
           End If
 
        End Do
@@ -251,7 +251,7 @@ contains
           PMesh%branches(ii)%leaves(3)%pstat  = 1
           Allocate(PMesh%branches(ii)%leaves(3)%p_int8(0:idum))
           
-          write(un_lf,fmt_msg_ai0)"NODES in part",ii,"--",&
+          write(un_lf,fmt_msg_xai0)"NODES in part",ii,"--",&
                PMesh%branches(ii)%leaves(1)%dat_no
 
           nnodes_pp(ii) = idum

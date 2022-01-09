@@ -157,7 +157,7 @@ contains
     micro_elem_nodes = 20
 
     If (out_amount /= "PRODUCTION" ) then
-       write(un_lf,FMT_MSG_AI0)"Set number of nodes per micro element to : " , &
+       write(un_lf, FMT_MSG_xAI0)"Set number of nodes per micro element to : " , &
             micro_elem_nodes
     End If
     
@@ -166,8 +166,8 @@ contains
 
     If (out_amount /= "PRODUCTION" ) then
        write(un_lf,*)
-       write(un_lf,FMT_MSG_AI0)"Read no_nodes  from domain branch : " , no_nodes
-       write(un_lf,FMT_MSG_AI0)"Read no_cnodes from domain branch : " , no_cnodes
+       write(un_lf,FMT_MSG_xAI0)"Read no_nodes  from domain branch : " , no_nodes
+       write(un_lf,FMT_MSG_xAI0)"Read no_cnodes from domain branch : " , no_cnodes
     End If
     
     !**************************************************************************
@@ -193,7 +193,7 @@ contains
 
     call get_leaf_list("Displacements", mesh, num_leaves, leaf_list)
     If (out_amount /= "PRODUCTION" ) then
-       write(un_lf,FMT_MSG_AI0)"Number of leaves with desc = Displacements     : ",&
+       write(un_lf,FMT_MSG_AxI0)"Number of leaves with desc = Displacements     : ",&
             num_leaves
     End If
     
@@ -209,7 +209,7 @@ contains
 
     call get_leaf_list("Avg. Element Data", mesh, num_leaves, leaf_list)
     If (out_amount /= "PRODUCTION" ) then
-       write(un_lf,FMT_MSG_AI0)"Number of leaves with desc = Avg. Element Data : ",&
+       write(un_lf,FMT_MSG_xAI0)"Number of leaves with desc = Avg. Element Data : ",&
             num_leaves
     End If
     
@@ -225,7 +225,7 @@ contains
 
     call get_leaf_list("Reaction Forces", mesh, num_leaves, leaf_list)
     If (out_amount /= "PRODUCTION" ) then
-       write(un_lf,FMT_MSG_AI0)"Number of leaves with desc = Reaction Forces   : ",&
+       write(un_lf,FMT_MSG_AxI0)"Number of leaves with desc = Reaction Forces   : ",&
             num_leaves
     End If
     
@@ -286,7 +286,7 @@ contains
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     If (out_amount == "DEBUG") THEN
        WRITE(un_lf,FMT_DBG_SEP)
-       Call Write_matrix(un_lf, "Effective Isotropic Compliance -- CC", 'std', '1/MPa', cc)
+       Call Write_matrix(un_lf, "Effective Isotropic Compliance -- CC", cc, fmti='std', unit='1/MPa')
        WRITE(un_lf,FMT_DBG_SEP)
     End if
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -324,7 +324,7 @@ contains
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     If (out_amount == "DEBUG") THEN
        WRITE(un_lf,FMT_DBG_SEP)
-       Call Write_matrix(un_lf, "Displacement matrix", 'std', 'mm', vv)
+       Call Write_matrix(un_lf, "Displacement matrix", vv, fmti='std', unit='mm')
        WRITE(un_lf,FMT_DBG_SEP)
     End if
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -335,7 +335,7 @@ contains
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     If (out_amount == "DEBUG") THEN
        WRITE(un_lf,FMT_DBG_SEP)
-       Call Write_matrix(un_lf, "Inverted displacement matrix", 'std', '1/mm', vv)
+       Call Write_matrix(un_lf, "Inverted displacement matrix", vv, fmti='std', unit='1/mm')
        WRITE(un_lf,FMT_DBG_SEP)
     End if
     !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -366,7 +366,7 @@ contains
     End Do
 
     If (out_amount /= "PRODUCTION" ) then
-       Call Write_matrix(un_lf, "ff by summation of single force formula", 'std', 'N', ff)
+       Call Write_matrix(un_lf, "ff by summation of single force formula", ff, fmti='std', unit='N')
     End If
     
     !call add_leaf_to_branch(res_tree, "Domain forces", no_lc*no_lc, reshape(ff,[no_lc*no_lc]))
@@ -388,10 +388,9 @@ contains
     !     status_mpi, ierr)
     
     If (out_amount /= "PRODUCTION" ) then
-       Call Write_matrix(un_lf, "Stiffness", 'std', 'MPa', stiffness)
+       Call Write_matrix(un_lf, "Stiffness", stiffness, fmti='std', unit='MPa')
     End If
     
-   CALL check_sym(un_lf, stiffness, "Stiffness", sym_out=tmp_real_fd1(1))
 
     !Call add_leaf_to_branch(res_tree, &
     !    "Symmetry deviation - effective numerical stiffness", 1_pd_ik, &
@@ -428,7 +427,7 @@ contains
             (ff(19,ii) + ff(20,ii) + ff(23,ii) + ff(24,ii)) / ( x_D_phy(1) * x_D_phy(3) ) )
     End Do
     If (out_amount /= "PRODUCTION" ) then
-       Call Write_matrix(un_lf, "Konsistent force matrix", 'std', 'N', fv)
+       Call Write_matrix(un_lf, "Konsistent force matrix", fv, fmti='std', unit='N')
     End If
     
     !****************************************************************************
@@ -511,11 +510,9 @@ contains
 
     If (out_amount /= "PRODUCTION" ) then
      !   Call Write_real_matrix(un_lf, cc_mean ,6_ik, 6_ik, "Effective stiffness")
-       Call Write_matrix(un_lf, "Effective stiffness", 'std', 'MPa', cc_mean)
+       Call Write_matrix(un_lf, "Effective stiffness", cc_mean, fmti='std', unit='MPa')
     End If
     
-    CALL check_sym(un_lf, cc_mean, "Effective Stiffness", sym_out=tmp_real_fd1(1))
-
     !call add_leaf_to_branch(res_tree, "Effective stiffness",  36_pd_ik, &
     !     reshape(cc_mean,[36_pd_ik]))
 !!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
@@ -551,10 +548,8 @@ contains
     EE = (cc_mean + transpose(cc_mean)) / 2._rk
 
     If (out_amount /= "PRODUCTION" ) then
-       Call Write_matrix(un_lf, "Averaged Effective stiffness", 'std', 'MPa', ee)
+       Call Write_matrix(un_lf, "Averaged Effective stiffness", ee, fmti='std', unit='MPa')
     End If
-   CALL check_sym(un_lf, ee, "Averaged Effective stiffness", sym_out=tmp_real_fd1(1))
-
     !call add_leaf_to_branch(res_tree, "Averaged Effective stiffness",  36_pd_ik, &
     !     reshape(ee,[36_pd_ik]))
 !!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
@@ -866,8 +861,8 @@ contains
     mlc         = minloc(crit_1)-1
 
     If (out_amount /= "PRODUCTION" ) then
-       write(un_lf,FMT_MSG_A3I0)'Initial Minloc  CR_1 : ',mlc
-       write(un_lf,FMT_MSG_AF0) 'Initial Minimum CR_1 : ',crit_min(0)
+       write(un_lf,FMT_MSG_AxI0)'Initial Minloc  CR_1 : ',mlc
+       write(un_lf,FMT_MSG_xAF0) 'Initial Minimum CR_1 : ',crit_min(0)
     End If
     
     jj = 1
@@ -886,9 +881,9 @@ contains
        kk = 0
 
        If (out_amount /= "PRODUCTION" ) then
-          write(un_lf,FMT_MSG_AI0) 'Iteration            : ',jj
-          write(un_lf,FMT_MSG_A3I0)'Loop start           : ',s_loop
-          write(un_lf,FMT_MSG_A3I0)'Loop end             : ',e_loop
+          write(un_lf,FMT_MSG_xAI0) 'Iteration            : ',jj
+          write(un_lf,FMT_MSG_AxI0)'Loop start           : ',s_loop
+          write(un_lf,FMT_MSG_AxI0)'Loop end             : ',e_loop
        End If
        
        div_10_exp_jj = div_10_exp_jj * 0.1_rk
@@ -1076,7 +1071,7 @@ contains
        crit_min(jj) = minval(crit_1(0:kk-1,0:kk_phi-1,0:kk_eta-1))
 
        If (out_amount /= "PRODUCTION" ) then
-          write(un_lf,FMT_MSG_AF0)'Minimum CR_1         : ',crit_min(jj)
+          write(un_lf, FMT_MSG_xAF0)'Minimum CR_1         : ',crit_min(jj)
        End If
        
        If ( (abs(crit_min(jj-1)-crit_min(jj)) < num_zero) .OR. (jj >= 16)) Exit
@@ -1097,12 +1092,12 @@ contains
 
     If (out_amount /= "PRODUCTION" ) then
        write(un_lf,*)
-       Write(un_lf,FMT_MSG_AI0A) "Solution converged after : ",jj," iterations"
-       Write(un_lf,FMT_MSG_A2F0) "With final citerion 1    : ",&
+       Write(un_lf,FMT_MSG_xAI0) "Solution converged after : ",jj," iterations"
+       Write(un_lf,FMT_MSG_AxF0) "With final citerion 1    : ",&
             minval(crit_1(0:kk-1,0:kk_phi-1,0:kk_eta-1)),crit_1(mlc(1),mlc(2),mlc(3))
-       Write(un_lf,FMT_MSG_AF0)  "With final epsilon       : ", crit_min(jj-1)-crit_min(jj)
-       Write(un_lf,FMT_MSG_AF0A) "Final rotation angle  is : ", alpha
-       Write(un_lf,FMT_MSG_A3F0) "Final rotation vector is : ", n
+       Write(un_lf,FMT_MSG_xAF0)  "With final epsilon       : ", crit_min(jj-1)-crit_min(jj)
+       Write(un_lf,FMT_MSG_xAF0) "Final rotation angle  is : ", alpha
+       Write(un_lf,FMT_MSG_AxF0) "Final rotation vector is : ", n
        Write(un_lf,*)
     End If
     
@@ -1128,19 +1123,19 @@ contains
     EE = matmul(matmul(transpose(BB),EE_Orig),BB)
 
     If (out_amount /= "PRODUCTION" ) then
-       Call Write_matrix(un_lf, "Backrotated anisotropic stiffness CR_1", 'std', 'MPa', EE)
+       Call Write_matrix(un_lf, "Backrotated anisotropic stiffness CR_1", EE, fmti='std', unit='MPa')
     End If
     
     !=========================================================
 
     If ( (EE(1,1) < EE(2,2)) .AND.  &
-         (EE(1,1) < EE(3,3)) .AND.  (EE(2,2) < EE(3,3))         ) then
+         (EE(1,1) < EE(3,3)) .AND.  (EE(2,2) < EE(3,3))) then
 
        If (out_amount /= "PRODUCTION" ) write(un_lf,*)"123"
        Continue
        
     Else If ( (EE(1,1) < EE(2,2)) .AND.  &
-         (EE(1,1) < EE(3,3)) .AND.  (EE(2,2) > EE(3,3)) ) then
+         (EE(1,1) < EE(3,3)) .AND.  (EE(2,2) > EE(3,3))) then
 
        If (out_amount /= "PRODUCTION" ) write(un_lf,*)"132"
 
@@ -1150,7 +1145,7 @@ contains
        aa = matmul(rot_alg(n,alpha),aa)   
 
     Else If ( (EE(1,1) < EE(2,2)) .AND.  &
-         (EE(1,1) > EE(3,3)) .AND.  (EE(2,2) > EE(3,3)) ) then
+         (EE(1,1) > EE(3,3)) .AND.  (EE(2,2) > EE(3,3))) then
 
        If (out_amount /= "PRODUCTION" ) write(un_lf,*)"231"
 
@@ -1205,12 +1200,10 @@ contains
     EE = matmul(matmul(transpose(BB),EE_Orig),BB)
 
     If (out_amount /= "PRODUCTION" ) then
-       Call Write_matrix(un_lf, "Final coordinate system CR_1", 'std', mat=aa)
-       Call Write_matrix(un_lf, "Inlined anisotropic stiffness CR_1", 'std', 'MPa', EE)
+       Call Write_matrix(un_lf, "Final coordinate system CR_1", aa, fmti='std')
+       Call Write_matrix(un_lf, "Inlined anisotropic stiffness CR_1", EE, fmti='std', unit='MPa')
     End If
     
-    CALL check_sym(un_lf, EE, "Inlined anisotropic stiffness CR_1")
-
     !call add_leaf_to_branch(res_tree,"Final coordinate system CR_1", 9_pd_ik, &
     !     reshape(aa,[9_pd_ik]))
 !!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
@@ -1254,8 +1247,8 @@ contains
     mlc = minloc(crit_2)-1
 
     If (out_amount /= "PRODUCTION" ) then
-       write(un_lf,FMT_MSG_A3I0)'Initial Minloc  CR_2 : ',mlc
-       write(un_lf,FMT_MSG_AF0) 'Initial Minimum CR_2 : ',crit_min(0)
+       write(un_lf,FMT_MSG_AxI0)'Initial Minloc  CR_2: ',mlc
+       write(un_lf,FMT_MSG_xAF0) 'Initial Minimum CR_2: ',crit_min(0)
     End If
     
     jj = 1
@@ -1274,9 +1267,9 @@ contains
        kk = 0
 
        If (out_amount /= "PRODUCTION" ) then
-          write(un_lf,FMT_MSG_AI0) 'Iteration            : ',jj
-          write(un_lf,FMT_MSG_A3I0)'Loop start           : ',s_loop
-          write(un_lf,FMT_MSG_A3I0)'Loop end             : ',e_loop
+          write(un_lf,FMT_MSG_AxI0)'Iteration : ',jj
+          write(un_lf,FMT_MSG_AxI0)'Loop start: ',s_loop
+          write(un_lf,FMT_MSG_AxI0)'Loop end  : ',e_loop
        End If
        
        div_10_exp_jj = div_10_exp_jj * 0.1_rk
@@ -1511,9 +1504,9 @@ contains
 
        !write(un_lf,FMT_MSG_AF0)'Minimum CR_2         : ',crit_min(jj)
        If (out_amount /= "PRODUCTION" ) then
-          write(un_lf,FMT_MSG_AF0) 'Minimum CR_2         : ', crit_min(jj)
-          write(un_lf,FMT_MSG_A3I0)'Minloc  CR_2         : ', minloc(crit_2(0:kk-1,0:kk_phi-1,0:kk_eta-1))
-          write(un_lf,FMT_MSG_A3I0)'kk, kk_phi, kk_eta   : ', kk,kk_phi,kk_eta
+          write(un_lf,FMT_MSG_AxF0)'Minimum CR_2         : ', crit_min(jj)
+          write(un_lf,FMT_MSG_AxI0)'Minloc  CR_2         : ', minloc(crit_2(0:kk-1,0:kk_phi-1,0:kk_eta-1))
+          write(un_lf,FMT_MSG_AxI0)'kk, kk_phi, kk_eta   : ', kk,kk_phi,kk_eta
        End If
        
        If ( (abs(crit_min(jj-1)-crit_min(jj)) < num_zero) .OR. (jj >= 16)) Exit
@@ -1533,11 +1526,11 @@ contains
 
     If (out_amount /= "PRODUCTION" ) then
        write(un_lf,*)
-       Write(un_lf,FMT_MSG_AI0A) "Solution converged after : ", jj," iterations"
-       Write(un_lf,FMT_MSG_A3F0) "With final citerion 2    : ", minval(crit_2(1:kk-2, 1:kk_phi-2, 1:kk_eta-2))
-       Write(un_lf,FMT_MSG_AF0)  "With final epsilon       : ", crit_min(jj-1)-crit_min(jj)
-       Write(un_lf,FMT_MSG_AF0A) "Final rotation angle  is : ", alpha
-       Write(un_lf,FMT_MSG_A3F0) "Final rotation vector is : ", n
+       Write(un_lf,FMT_MSG_xAI0) "Solution converged after : ", jj," iterations"
+       Write(un_lf,FMT_MSG_AxF0) "With final citerion 2    : ", minval(crit_2(1:kk-2, 1:kk_phi-2, 1:kk_eta-2))
+       Write(un_lf,FMT_MSG_AxF0) "With final epsilon       : ", crit_min(jj-1)-crit_min(jj)
+       Write(un_lf,FMT_MSG_AxF0) "Final rotation angle  is : ", alpha
+       Write(un_lf,FMT_MSG_AxF0) "Final rotation vector is : ", n
        Write(un_lf,*)
     End If
     
@@ -1564,7 +1557,7 @@ contains
     EE = matmul(matmul(transpose(BB),EE),BB)
 
     If (out_amount /= "PRODUCTION" ) &
-         Call Write_matrix(un_lf, "Backrotated anisotropic stiffness CR_2", 'std', 'MPa', EE)
+         Call Write_matrix(un_lf, "Backrotated anisotropic stiffness CR_2", EE, fmti='std', unit='MPa')
 
     !=========================================================
 
@@ -1640,12 +1633,10 @@ contains
     EE = matmul(matmul(transpose(BB),EE_Orig),BB)
 
     If (out_amount /= "PRODUCTION" ) then
-       Call Write_matrix(un_lf, "Final coordinate system CR_2", 'std', mat=aa)
-       Call Write_matrix(un_lf, "Inlined anisotropic stiffness CR_2", 'std', 'MPa', EE)
+       Call Write_matrix(un_lf, "Final coordinate system CR_2", aa, fmti='std')
+       Call Write_matrix(un_lf, "Inlined anisotropic stiffness CR_2", EE, fmti='std', unit='MPa')
     End If
     
-   CALL check_sym(un_lf, EE, "Inlined anisotropic stiffness CR_2")
-
     !Call add_leaf_to_branch(res_tree,"Final coordinate system CR_2", 9_pd_ik, &
     !    reshape(aa,[9_pd_ik]))
 !!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
