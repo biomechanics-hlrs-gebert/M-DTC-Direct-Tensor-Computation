@@ -900,7 +900,9 @@ Program main_struct_process
   USE petsc_opt
   
   Implicit None
- 
+   ! Parameter
+   INTEGER(KIND=ik), PARAMETER :: debug = 2   ! Choose an even integer!!
+
   ! Always provide in/out for meta driven environments
   TYPE(materialcard) :: bone
  
@@ -922,12 +924,12 @@ Program main_struct_process
   Type(tBranch)       :: root, phi_tree
   Type(tBranch), pointer :: ddc, meta_para, res
   
-  CHARACTER           , DIMENSION(4*mcl) :: c_char_array
-  CHARACTER           , DIMENSION(:), ALLOCATABLE :: char_arr
+  CHARACTER, DIMENSION(4*mcl) :: c_char_array
+  CHARACTER, DIMENSION(:), ALLOCATABLE :: char_arr
   CHARACTER(LEN=4*mcl), DIMENSION(:), ALLOCATABLE :: domain_path
   CHARACTER(LEN=mcl)  , DIMENSION(:), ALLOCATABLE :: m_rry      
   CHARACTER(LEN=4*mcl) :: job_dir
-  CHARACTER(LEN=1)   :: restart='N', restart_cmdarg='U' ! U = 'undefined'
+  CHARACTER(LEN=scl) :: restart='N', restart_cmdarg='U' ! U = 'undefined'
   CHARACTER(LEN=mcl) :: infile=''  , cmd_arg='notempty', cmd_arg_history=''
   CHARACTER(LEN=mcl) :: muCT_pd_path, muCT_pd_name, domain_desc, binary
   CHARACTER(LEN=8) :: elt_micro, output
@@ -967,19 +969,20 @@ Program main_struct_process
   !------------------------------------------------------------------------------
   If (rank_mpi==0) Then
 
-      std_out = determine_stout()
-
-      IF (std_out==6) CALL show_title()
-
-      Call Start_Timer("Init Process")
-    
       !------------------------------------------------------------------------------
       ! Parse the command arguments
       !------------------------------------------------------------------------------
-      CALL get_cmd_args(binary, infile, stp, restart_cmdarg, cmd_arg_history=cmd_arg_history)
+      CALL get_cmd_args(binary, in%full, stp, restart, restart_cmdarg)
       IF(stp) GOTO 1001
+      
+      IF (in%full=='') THEN
+         CALL usage(binary)    
 
-      in%full = TRIM(infile)
+         !------------------------------------------------------------------------------
+         ! On std_out since file of std_out is not spawned
+         !------------------------------------------------------------------------------
+         CALL print_err_stop(6, "No input file given", 1)
+      END IF
     
       !------------------------------------------------------------------------------
       ! Check and open the input file; Modify the Meta-Filename / Basename
@@ -988,7 +991,22 @@ Program main_struct_process
       global_meta_prgrm_mstr_app = 'ddtc' 
       global_meta_program_keyword = 'TENSOR_COMPUTATION'
       CALL meta_append(m_rry)
-      
+          
+      !------------------------------------------------------------------------------
+      ! Redirect std_out into a file in case std_out is not useful by environment.
+      ! Place these lines before handle_lock_file :-)
+      !------------------------------------------------------------------------------
+      std_out = determine_stout()
+
+      !------------------------------------------------------------------------------
+      ! Spawn standard out after(!) the basename is known
+      !------------------------------------------------------------------------------
+      IF(std_out/=6) CALL meta_start_ascii(std_out, '.std_out')
+
+      CALL show_title()
+   
+      IF(debug >=0) WRITE(std_out, FMT_MSG) "Post mortem info probably in ./datasets/.temporary.std_out"
+
       !------------------------------------------------------------------------------
       ! Set input paths
       !------------------------------------------------------------------------------
@@ -1968,7 +1986,7 @@ Program main_struct_process
 
 IF(rank_mpi == 0) THEN
    CALL meta_signing(binary)
-   CALL meta_close()
+   CALL meta_close(size_mpi)
 
    CALL meta_stop_ascii(fh=fhl  , suf=log_suf)
    CALL meta_stop_ascii(fh=fhmon, suf=mon_suf)
