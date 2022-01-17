@@ -1315,7 +1315,7 @@ Program main_struct_process
 
          IF (.NOT. fexist) THEN
             mssg='The file '//TRIM(outpath)//"/"//trim(project_name)//"does not exist."//'.'
-            CALL print_err_stop(std_out, TRIM(ADJUSTL(mssg)), err=1_ik)
+            CALL print_err_stop(std_out, TRIM(ADJUSTL(mssg)), 1_ik)
          END IF
 
          ! Open to read
