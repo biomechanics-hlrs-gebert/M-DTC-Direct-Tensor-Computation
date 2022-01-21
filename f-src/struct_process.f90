@@ -929,8 +929,8 @@ Program main_struct_process
   CHARACTER(LEN=4*mcl), DIMENSION(:), ALLOCATABLE :: domain_path
   CHARACTER(LEN=mcl)  , DIMENSION(:), ALLOCATABLE :: m_rry      
   CHARACTER(LEN=4*mcl) :: job_dir
-  CHARACTER(LEN=scl) :: restart='N', restart_cmdarg='U' ! U = 'undefined'
-  CHARACTER(LEN=mcl) :: infile=''  , cmd_arg='notempty', cmd_arg_history=''
+  CHARACTER(LEN=1) :: restart='N', restart_cmd_arg='U' ! U = 'undefined'
+  CHARACTER(LEN=mcl) :: cmd_arg_history=''
   CHARACTER(LEN=mcl) :: muCT_pd_path, muCT_pd_name, domain_desc, binary
   CHARACTER(LEN=8) :: elt_micro, output
   
@@ -1022,7 +1022,7 @@ Program main_struct_process
       ! Implicitly creates a subdirectory.
       !------------------------------------------------------------------------------    
       outpath = TRIM(out%path)//TRIM(out%bsnm)//"/"
-      project_name = "results" ! TRIM(out%bsnm)
+      project_name = "results" ! TRIM(out%bsnm)//
 
       pro_path = outpath
       pro_name = project_name
@@ -1046,7 +1046,7 @@ Program main_struct_process
       ! Restart handling
       ! Done after meta_io to decide based on keywords
       !------------------------------------------------------------------------------
-      CALL meta_handle_lock_file(restart, restart_cmdarg)
+      CALL meta_handle_lock_file(restart, restart_cmd_arg)
 
       !------------------------------------------------------------------------------
       ! Spawn a log file and a results file
@@ -1111,16 +1111,16 @@ Program main_struct_process
       CALL add_leaf_to_branch(meta_para, "Physical domain size"                 , 3_ik, bone%phdsize)
       CALL add_leaf_to_branch(meta_para, "Lower bounds of selected domain range", 3_ik, xa_d)
       CALL add_leaf_to_branch(meta_para, "Upper bounds of selected domain range", 3_ik, xe_d)     
-      CALL add_leaf_to_branch(meta_para, "Lower limit of iso value"             , 1_ik, [llimit])     
-      CALL add_leaf_to_branch(meta_para, "Element type  on micro scale"         , len(elt_micro) , str_to_char(elt_micro))     
-      CALL add_leaf_to_branch(meta_para, "No of mesh parts per subdomain"       , 1              , [parts])
-      CALL add_leaf_to_branch(meta_para, "Output Format"                        , len(output)    , str_to_char(output))
-      CALL add_leaf_to_branch(meta_para, "Average strain on RVE"                , 1              , [strain])   
-      CALL add_leaf_to_branch(meta_para, "Young_s modulus"                      , 1              , [bone%E])
-      CALL add_leaf_to_branch(meta_para, "Poisson_s ratio"                      , 1              , [bone%nu])
-      CALL add_leaf_to_branch(meta_para, "Element order on macro scale"         , 1              , [elo_macro])
-      CALL add_leaf_to_branch(meta_para, "Output amount"                        , len(out_amount), str_to_char(out_amount))
-      CALL add_leaf_to_branch(meta_para, "Restart"                              , 1              , str_to_char(restart))
+      CALL add_leaf_to_branch(meta_para, "Lower limit of iso value"      , 1_ik, [llimit])     
+      CALL add_leaf_to_branch(meta_para, "Element type  on micro scale"  , len(elt_micro) , str_to_char(elt_micro))     
+      CALL add_leaf_to_branch(meta_para, "No of mesh parts per subdomain", 1              , [parts])
+      CALL add_leaf_to_branch(meta_para, "Output Format"                 , len(output)    , str_to_char(output))
+      CALL add_leaf_to_branch(meta_para, "Average strain on RVE"         , 1              , [strain])   
+      CALL add_leaf_to_branch(meta_para, "Young_s modulus"               , 1              , [bone%E])
+      CALL add_leaf_to_branch(meta_para, "Poisson_s ratio"               , 1              , [bone%nu])
+      CALL add_leaf_to_branch(meta_para, "Element order on macro scale"  , 1              , [elo_macro])
+      CALL add_leaf_to_branch(meta_para, "Output amount"                 , len(out_amount), str_to_char(out_amount))
+      CALL add_leaf_to_branch(meta_para, "Restart"                       , 1              , str_to_char(restart))
 
 
       !------------------------------------------------------------------------------
