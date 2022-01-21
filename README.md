@@ -23,14 +23,27 @@ Two different approaches of dealing with I/O are used.
 Computed tomography datasets are fed into the DDTC process chain via a meta-file-format. Consisting of a basename-nomenclature and various suffixes, the data are given in their raw, binary format.
 ### Internal data
 Internally and for general program output, the PureDat format gets used. 
-## Prerequisites
-* Working mpi installation with 
-  * mpi-compilers
-  * mpirun
-* Working installation of METIS with 64Bit index length
-* Working installation of PETSc with 64Bit index length
+## Requirements
+* x86 64bit Hardware
+* Linux x86 64Bit Installation with Bash or Zsh
+* GNU Compiler Collection (GCC), especially with gfortran
+* An installation of Open-MPI
+
+The program must be compiled with:
+* Global integer kind=64Bit, signed
+* Meta-format integer kind=64Bit, signed
+* MPI integer kind=32Bit
+* PETSc index length=64Bit
+* METIS index length=64Bit
+
+The installation of Open MPI, METIS and PETSc is simplified with the install scripts of the repository "Overview" of the biomechanics-hlrs-gebert organization @GitHub.
 ### Optional: Gnu debugging
 * [gdb](https://www.gnu.org/software/gdb/)
 * [tmpi](https://github.com/Azrael3000/tmpi)
 * [tmux](https://github.com/tmux/tmux/wiki)
+
+## External Sources
+Plain text headers are parsed via a [strings module](https://gbenthien.net/strings/index.html) by George Benthien from San Diego.
+## Arbitrary
+Use this program at your own risk.
 
