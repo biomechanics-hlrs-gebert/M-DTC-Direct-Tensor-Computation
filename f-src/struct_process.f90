@@ -1005,8 +1005,8 @@ Program main_struct_process
 
       CALL show_title()
    
-      IF(debug >=0) WRITE(std_out, FMT_MSG) "Post mortem info probably in ./datasets/.temporary.std_out"
-      WRITE(std_out, FMT_TXT) "Program invocation: "//TRIM(cmd_arg_history)          
+      IF(debug >=0) WRITE(std_out, FMT_MSG) "Post mortem info probably in ./datasets/temporary.std_out"
+      WRITE(std_out, FMT_TXT) "Program invocation:"//TRIM(cmd_arg_history)          
 
       !------------------------------------------------------------------------------
       ! Set input paths
