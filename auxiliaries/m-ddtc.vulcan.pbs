@@ -1,0 +1,23 @@
+#!/bin/bash
+# ------------------------------------------------------------------------------
+# Batch scipt for HLRS Vulcan and the DDTC-Directly_Discretizing_Tensor_Computation
+#
+# Author:    Johannes Gebert - HLRS - NUM - gebert@hlrs.de
+# Date:      09.01.2022
+# Last edit: 23.01.2022
+#
+# For use of PBSPro visit:
+# https://kb.hlrs.de/platforms/index.php/Batch_System_PBSPro_(vulcan)
+# ------------------------------------------------------------------------------
+#PBS -N ddtc
+#PBS -l select=1:node_type=clx384gb40c:mpiprocs=40
+#PBS -l walltime=10:00:00
+#
+# Change to the direcotry that the job was submitted from
+cd $PBS_O_WORKDIR
+#
+# Load environment
+source ./environment.sh vulcan --no-output 
+#
+# Launch the parallel mpi application
+mpirun -np 40 ./bin/ddtc_v1.0.0_x86_64 $PBS_O_WORKDIR ./datasets/datasets/FH01-2_mu_Dev_CTBI_32766-65536.meta
