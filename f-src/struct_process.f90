@@ -138,7 +138,7 @@ Contains
     Type(tVec), Dimension(24)         :: FF
     TYPE(tPETScViewer)                :: PetscViewer
     Type(tKSP)                        :: KSP
-    Integer(Kind=ik)                  :: Istart,Iend, parts, IVstart, IVend
+    Integer(Kind=ik)                  :: Istart,Iend, parts_per_subdomain, IVstart, IVend
     Integer(Kind=ik), Dimension(:), Allocatable :: nodes_in_mesh
 
     Integer(kind=pd_ik), Dimension(:), Allocatable :: serial_pb
@@ -176,7 +176,7 @@ Contains
 
     !** Get basic infos ------------------------------------------
     CALL Search_branch("Input parameters", root, meta_para, success, DEBUG)
-    CALL pd_get(meta_para, "No of mesh parts per subdomain", parts)
+    CALL pd_get(meta_para, "No of mesh parts per subdomain", parts_per_subdomain)
     CALL pd_get(meta_para, "Physical domain size" , mc%phdsize, 3)
     CALL pd_get(meta_para, "Young_s modulus" , mc%E)
     CALL pd_get(meta_para, "Poisson_s ratio" , mc%nu)
@@ -287,7 +287,7 @@ Contains
        !** Set the global matrix size ****************************************
        m_size = nodes_in_mesh(1) * 3
 
-       Do ii = 1, parts-1
+       Do ii = 1, parts_per_subdomain-1
 
           ! Look for the Part branch *************************
           domain_desc=''
@@ -312,7 +312,7 @@ Contains
        End Do
 
        part_desc=''
-       Write(part_desc,'(A,I0)')'Part_',parts
+       Write(part_desc,'(A,I0)')'Part_',parts_per_subdomain
           
        Call search_branch(trim(part_desc), db, pb, success, DEBUG)
 
@@ -727,7 +727,7 @@ Contains
        !** gets invalidated by dealloc of the branches array in ******
        !** add_branch_to_branch                                 ******
        domain_desc=''
-       Write(part_desc,'(A,I0)')'Part_',parts
+       Write(part_desc,'(A,I0)')'Part_',parts_per_subdomain
        Call search_branch(trim(part_desc), mb, pb, success, DEBUG)
 
        ! Allocate global displacement result **********************
@@ -790,7 +790,7 @@ Contains
                   COMM_MPI, status_mpi, ierr)
           End Do
           
-          ! Recv local parts of global result ************************
+          ! Recv local parts_per_subdomain of global result ************************
           Do ii = 1, size_mpi-1
              Call mpi_recv(glob_displ(res_sizes(1,ii):res_sizes(2,ii)-1), &
                   Int(res_sizes(2,ii)-res_sizes(1,ii),mik), &
@@ -944,7 +944,7 @@ Program main_struct_process
   INTEGER(KIND=ik) :: nn, ii, jj, kk, dc
   INTEGER(KIND=ik) :: amount_domains, path_count
   INTEGER(KIND=ik) :: alloc_stat, aun, free_file_handle
-  INTEGER(KIND=ik) :: Domain, llimit, parts, elo_macro
+  INTEGER(KIND=ik) :: Domain, llimit, parts_per_subdomain, elo_macro
   
   INTEGER(KIND=pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
   INTEGER(KIND=pd_ik), DIMENSION(no_streams) :: dsize
@@ -1036,7 +1036,7 @@ Program main_struct_process
       CALL meta_read (std_out, 'LO_BNDS_DMN_RANGE', m_rry, xa_d)
       CALL meta_read (std_out, 'UP_BNDS_DMN_RANGE', m_rry, xe_d)
       CALL meta_read (std_out, 'BINARIZE_LO'      , m_rry, llimit)
-      CALL meta_read (std_out, 'MESH_PER_SUB_DMN' , m_rry, parts)
+      CALL meta_read (std_out, 'MESH_PER_SUB_DMN' , m_rry, parts_per_subdomain)
       CALL meta_read (std_out, 'RVE_STRAIN'       , m_rry, strain)
       CALL meta_read (std_out, 'YOUNG_MODULUS'    , m_rry, bone%E)
       CALL meta_read (std_out, 'POISSON_RATIO'    , m_rry, bone%nu)
@@ -1073,7 +1073,7 @@ Program main_struct_process
       CALL meta_write (fhmeo, 'LO_BNDS_DMN_RANGE', '(-)'  , xa_d)
       CALL meta_write (fhmeo, 'UP_BNDS_DMN_RANGE', '(-)'  , xe_d)
       CALL meta_write (fhmeo, 'BINARIZE_LO'      , '(-)'  , llimit)
-      CALL meta_write (fhmeo, 'MESH_PER_SUB_DMN' , '(-)'  , parts)
+      CALL meta_write (fhmeo, 'MESH_PER_SUB_DMN' , '(-)'  , parts_per_subdomain)
       CALL meta_write (fhmeo, 'RVE_STRAIN'       , '(mm)' , strain)
       CALL meta_write (fhmeo, 'YOUNG_MODULUS'    , '(MPa)', bone%E)
       CALL meta_write (fhmeo, 'POISSON_RATIO'    , '(-)'  , bone%nu)
@@ -1090,12 +1090,12 @@ Program main_struct_process
 
       !------------------------------------------------------------------------------
       ! Each subdomain gets computed by a user defined amount of processors. This 
-      ! amount of processors equals to a specific amount of mesh parts.
-      ! Ideally, all processors are used. Therefore, MOD(size_mpi-1, parts) shall 
+      ! amount of processors equals to a specific amount of mesh parts_per_subdomain.
+      ! Ideally, all processors are used. Therefore, MOD(size_mpi-1, parts_per_subdomain) shall 
       ! resolve without a remainder. "-1" to take the master process into account.
       !------------------------------------------------------------------------------
-      IF (MOD(size_mpi-1, parts) /= 0) THEN
-         CALL print_err_stop(std_out, 'More processors than subdomains. This case is not supported.', 1)
+      IF (MOD(size_mpi-1, parts_per_subdomain) /= 0) THEN
+         CALL print_err_stop(std_out, 'mod(size_mpi-1,parts_per_subdomain) /= 0 ! This case is not supported.', 1)
       END IF
 
       !------------------------------------------------------------------------------
@@ -1113,7 +1113,7 @@ Program main_struct_process
       CALL add_leaf_to_branch(meta_para, "Upper bounds of selected domain range", 3_ik, xe_d)     
       CALL add_leaf_to_branch(meta_para, "Lower limit of iso value"      , 1_ik, [llimit])     
       CALL add_leaf_to_branch(meta_para, "Element type  on micro scale"  , len(elt_micro) , str_to_char(elt_micro))     
-      CALL add_leaf_to_branch(meta_para, "No of mesh parts per subdomain", 1              , [parts])
+      CALL add_leaf_to_branch(meta_para, "No of mesh parts per subdomain", 1              , [parts_per_subdomain])
       CALL add_leaf_to_branch(meta_para, "Output Format"                 , len(output)    , str_to_char(output))
       CALL add_leaf_to_branch(meta_para, "Average strain on RVE"         , 1              , [strain])   
       CALL add_leaf_to_branch(meta_para, "Young_s modulus"               , 1              , [bone%E])
@@ -1422,17 +1422,20 @@ Program main_struct_process
 
      act_domains = 0
      
-     If ( (amount_domains*parts < size_mpi-1) .OR. &
+     If ( (amount_domains*parts_per_subdomain < size_mpi-1) .OR. &
           ( count( Domain_stats < 10 ) == 0 ) .OR. &
-          ((count( Domain_stats < 10 )*parts) < size_mpi-1) ) Then
+          ((count( Domain_stats < 10 )*parts_per_subdomain) < size_mpi-1) ) Then
 
-        If (amount_domains*parts < size_mpi-1) then
-           Write(un_mon,FMT_ERR)"amount_domains*parts < size_mpi-1"
+        If (amount_domains*parts_per_subdomain < size_mpi-1) then
+           Write(un_mon,FMT_ERR_AxI0)"amount_domains: ", amount_domains
+           Write(un_mon,FMT_ERR_AxI0)"parts_per_subdomain: ", parts_per_subdomain
+           Write(un_mon,FMT_ERR_AxI0)"size_mpi-1: ", size_mpi-1
+           Write(un_mon,FMT_ERR)"amount_domains*parts_per_subdomain < size_mpi-1"
 
-        Else If ((count( Domain_stats < 10 )*parts) < size_mpi-1) then
+        Else If ((count( Domain_stats < 10 )*parts_per_subdomain) < size_mpi-1) then
            Write(un_mon, FMT_ERR)   "Remaining amount_domains < Number of Solution Master"
            Write(un_mon, FMT_ERR_xAI0) "Remaining amount_domains:   ", count( Domain_stats < 10 )
-           Write(un_mon, FMT_ERR_xAI0) "Number of solution masters: ", (size_mpi-1)/parts
+           Write(un_mon, FMT_ERR_xAI0) "Number of solution masters: ", (size_mpi-1)/parts_per_subdomain
         Else
 
            Write(un_mon, FMT_ERR)"Restart on fully finished job."
@@ -1556,12 +1559,12 @@ Program main_struct_process
         End Do
      End Do
 
-     Call pd_get(root%branches(1),"No of mesh parts per subdomain",parts)
+     Call pd_get(root%branches(1),"No of mesh parts per subdomain",parts_per_subdomain)
 
      !*************************************************************************
      !** All Worker Ranks -- Init worker Communicators ************************
      !*************************************************************************
-     Call MPI_Comm_split(MPI_COMM_WORLD, Int((rank_mpi-1)/parts,mik), &
+     Call MPI_Comm_split(MPI_COMM_WORLD, Int((rank_mpi-1)/parts_per_subdomain,mik), &
                          rank_mpi, worker_comm, ierr)
      CALL print_err_stop(std_out, "MPI_COMM_SPLIT couldn't split MPI_COMM_WORLD", INT(ierr, KIND=ik))
      
@@ -1614,7 +1617,7 @@ Program main_struct_process
 
       !------------------------------------------------------------------------------
       ! Supply all worker masters  with their first work package
-      ! ii is incremented by ii = ii + parts
+      ! ii is incremented by ii = ii + parts_per_subdomain
       !------------------------------------------------------------------------------
       Do While (ii <= (size_mpi-1_mik))
 
@@ -1627,7 +1630,7 @@ Program main_struct_process
 
          act_domains(ii) = nn
 
-         Do jj = ii, ii + parts-1
+         Do jj = ii, ii + parts_per_subdomain-1
             
             !** Activity = 1 (Set above during init) ***
             CALL mpi_send(Activity(jj), 1_mik, mpi_integer, Int(jj,mik), Int(jj,mik), MPI_COMM_WORLD,ierr)
@@ -1653,7 +1656,7 @@ Program main_struct_process
                MPI_COMM_WORLD, REQ_LIST(ii), IERR)
          CALL print_err_stop(std_out, "MPI_IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
 
-         ii = ii + Int(parts,mik)
+         ii = ii + Int(parts_per_subdomain,mik)
 
       End Do
 
@@ -1689,7 +1692,7 @@ Program main_struct_process
             cycle
          End If
 
-         Do jj = ii, ii + parts-1
+         Do jj = ii, ii + parts_per_subdomain-1
 
             Activity(jj) = 1_mik
             
@@ -1746,8 +1749,8 @@ Program main_struct_process
 
 
       !** TODO refactor domain_cross reference from size size_mpi-1 to *********
-      !** (size_mpi-1)/parts ***************************************************
-      Do ii = 1, size_mpi-1, parts
+      !** (size_mpi-1)/parts_per_subdomain ***************************************************
+      Do ii = 1, size_mpi-1, parts_per_subdomain
          write(aun,pos=(act_domains(ii)-1)*ik+1) INT(Activity(ii), KIND=ik)
       End Do
 

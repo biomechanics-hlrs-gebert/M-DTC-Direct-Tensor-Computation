@@ -15,5 +15,3 @@ r RESTART               N                                              ! Restart
 r NEW_BSNM_FEATURE      Tensors                                        ! Last segment of basename - NO '_'
 r NEW_BSNM_PURPOSE      Pro                                            ! 3rd segment of basename - NO '_'
 
-----------------------------------------------------------------------------------------------------
-

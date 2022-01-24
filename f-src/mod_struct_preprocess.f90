@@ -169,8 +169,7 @@ Contains
                INT(phi_desc%leaves(6)%lbound,8)         - &
                1_8                                         ) * 4_8 + 1_8 ,8)
 
-          Read(phi_desc%streams%units(3),pos=pos_f) Phi(:,ii,jj)       
-
+          Read(phi_desc%streams%units(3),pos=pos_f) Phi(:,ii,jj)
        End Do
     End Do
 
