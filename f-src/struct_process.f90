@@ -475,14 +475,16 @@ Contains
     Call MatAssemblyEnd(AA, MAT_FINAL_ASSEMBLY ,petsc_ierr)
     Call MatAssemblyEnd(AA_org, MAT_FINAL_ASSEMBLY ,petsc_ierr)
 
-    ! DEBUG INFORMATION
-    If (out_amount == "DEBUG") THEN 
-       Call PetscViewerCreate(COMM_MPI, PetscViewer, petsc_ierr)
-       Call PetscViewerASCIIOpen(COMM_MPI,"AA.output.1",PetscViewer, petsc_ierr);
-       Call PetscViewerSetFormat(PetscViewer, PETSC_VIEWER_ASCII_DENSE, petsc_ierr)
-       Call MatView(AA, PetscViewer, petsc_ierr)
-       Call PetscViewerDestroy(PetscViewer, petsc_ierr)
-    End If
+   !------------------------------------------------------------------------------
+   ! Crashes on hawk. Out of memory?
+   !------------------------------------------------------------------------------
+   !  If (out_amount == "DEBUG") THEN 
+   !     Call PetscViewerCreate(COMM_MPI, PetscViewer, petsc_ierr)
+   !     Call PetscViewerASCIIOpen(COMM_MPI,"AA.output.1",PetscViewer, petsc_ierr);
+   !     Call PetscViewerSetFormat(PetscViewer, PETSC_VIEWER_ASCII_DENSE, petsc_ierr)
+   !     Call MatView(AA, PetscViewer, petsc_ierr)
+   !     Call PetscViewerDestroy(PetscViewer, petsc_ierr)
+   !  End If
     
 
     !***************************************************************************
@@ -970,6 +972,8 @@ Program main_struct_process
   ! Rank 0 -- Init (Master) Process and broadcast init parameters 
   !------------------------------------------------------------------------------
   If (rank_mpi==0) Then
+ 
+      Call Start_Timer("Init Process")
 
       !------------------------------------------------------------------------------
       ! Parse the command arguments
@@ -1065,21 +1069,7 @@ Program main_struct_process
          CALL show_title() 
       END IF
 
-      CALL meta_write (fhmeo, 'MICRO_ELMNT_TYPE' , elt_micro  )
       CALL meta_write (fhmeo, 'DBG_LVL'          , out_amount )
-      CALL meta_write (fhmeo, 'OUT_FMT'          , output     )
-      CALL meta_write (fhmeo, 'RESTART'          , restart    )
-      CALL meta_write (fhmeo, 'SIZE_DOMAIN'      , '(mm)' , bone%phdsize)
-      CALL meta_write (fhmeo, 'SPACING'          , '(mm)' , delta)
-      CALL meta_write (fhmeo, 'DIMENSIONS'       , '(-)'  , vdim)
-      CALL meta_write (fhmeo, 'LO_BNDS_DMN_RANGE', '(-)'  , xa_d)
-      CALL meta_write (fhmeo, 'UP_BNDS_DMN_RANGE', '(-)'  , xe_d)
-      CALL meta_write (fhmeo, 'BINARIZE_LO'      , '(-)'  , llimit)
-      CALL meta_write (fhmeo, 'MESH_PER_SUB_DMN' , '(-)'  , parts_per_subdomain)
-      CALL meta_write (fhmeo, 'RVE_STRAIN'       , '(mm)' , strain)
-      CALL meta_write (fhmeo, 'YOUNG_MODULUS'    , '(MPa)', bone%E)
-      CALL meta_write (fhmeo, 'POISSON_RATIO'    , '(-)'  , bone%nu)
-      CALL meta_write (fhmeo, 'MACRO_ELMNT_ORDER', '(-)'  , elo_macro)
 
       ! Warning / Error handling
       IF ( (bone%phdsize(1) /= bone%phdsize(2)) .OR. (bone%phdsize(1) /= bone%phdsize(3)) ) THEN
