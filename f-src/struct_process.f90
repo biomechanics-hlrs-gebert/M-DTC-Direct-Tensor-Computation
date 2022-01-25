@@ -113,32 +113,32 @@ Contains
     Integer(kind=mik), Dimension(MPI_STATUS_SIZE)   :: status_mpi
     Type(tBranch), pointer            :: bb, db, pb, mb, meta_para,resb
 
-    Character(Len=mcl)                :: desc, mesh_desc, filename
-    Character(Len=mcl)                :: elt_micro
+    Character(Len=mcl) :: desc, mesh_desc, filename
+    Character(Len=mcl) :: elt_micro
     
-    Character, Dimension(4*mcl)       :: c_char_array
+    Character, Dimension(4*mcl) :: c_char_array
 
-    Integer  (kind=c_int )            :: stat_c_int
-    Integer                           :: stat
-    Integer                           :: umon
+    Integer(kind=c_int) :: stat_c_int
+    Integer             :: stat
+    Integer             :: umon
+ 
+    Character(len=mcl)  :: env_var
+ 
+    Integer(kind=ik)    :: m_size
+ 
+    Character(len=9)    :: nn_char
+ 
+    logical             :: success
+ 
+    Character(len=mcl)  :: timer_name, domain_desc, part_desc
 
-    Character(len=mcl)                :: env_var
-
-    Integer(kind=ik)                  :: m_size
-
-    Character(len=9)                  :: nn_char
-
-    logical                           :: success
-
-    Character(len=mcl)                :: timer_name, domain_desc, part_desc
-
-    Integer(kind=pik)                 :: petsc_ierr
-    Type(tMat)                        :: AA, AA_org
-    Type(tVec)                        :: XX
-    Type(tVec), Dimension(24)         :: FF
-    TYPE(tPETScViewer)                :: PetscViewer
-    Type(tKSP)                        :: KSP
-    Integer(Kind=ik)                  :: Istart,Iend, parts_per_subdomain, IVstart, IVend
+    Integer(kind=pik)         :: petsc_ierr
+    Type(tMat)                :: AA, AA_org
+    Type(tVec)                :: XX
+    Type(tVec), Dimension(24) :: FF
+    TYPE(tPETScViewer)        :: PetscViewer
+    Type(tKSP)                :: KSP
+    Integer(Kind=ik)          :: Istart,Iend, parts_per_subdomain, IVstart, IVend
     Integer(Kind=ik), Dimension(:), Allocatable :: nodes_in_mesh
 
     Integer(kind=pd_ik), Dimension(:), Allocatable :: serial_pb
@@ -313,7 +313,7 @@ Contains
 
        part_desc=''
        Write(part_desc,'(A,I0)')'Part_',parts_per_subdomain
-          
+
        Call search_branch(trim(part_desc), db, pb, success, DEBUG)
 
        !** Broadcast matrix size. TODO could also be included into part branches.
@@ -356,7 +356,8 @@ Contains
        flush(un_lf)
     END If
     ! DEBUG INFORMATION       
-    
+
+
     !**************************************************************************
     !** Setup the linear System with a constant system matrix A. Once that  ***
     !** is done setup the multiple right hand sides and solve the linear    ***
@@ -403,7 +404,7 @@ Contains
     Call pd_get(root%branches(1),'Element type  on micro scale',char_arr)
     elt_micro = char_to_str(char_arr)
 
-    if (elt_micro == "HEX08") then
+    if (TRIM(elt_micro) == "HEX08") then
 
        K_loc_08 = Hexe08(mc)
 
@@ -430,6 +431,7 @@ Contains
           idxn_08 = idxm_08
 
           Call MatSetValues(AA, 24_8, idxm_08, 24_8 ,idxn_08, K_loc_08, ADD_VALUES, petsc_ierr)
+
           Call MatSetValues(AA_org, 24_8, idxm_08, 24_8 ,idxn_08, K_loc_08, ADD_VALUES, petsc_ierr)
           
        End Do
@@ -466,7 +468,7 @@ Contains
        End Do
     
     end if
-    
+
     Call MatAssemblyBegin(AA, MAT_FINAL_ASSEMBLY ,petsc_ierr)
     Call MatAssemblyBegin(AA_org, MAT_FINAL_ASSEMBLY ,petsc_ierr)
     ! Computations can be done while messages are in transition

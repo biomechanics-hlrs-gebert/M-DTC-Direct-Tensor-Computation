@@ -146,11 +146,11 @@ contains
 !> @return    C_FE Error code1
 !------------------------------------------------------------------------------  
   Function Hexe08(mc) Result(C_FE)
-    TYPE(materialcard)              :: mc
+    TYPE(materialcard) :: mc
 
-    REAL(KIND=rk)                   :: E
-    REAL(KIND=rk)                   :: nu
-    REAL(KIND=rk)                   :: a 
+    REAL(KIND=rk) :: E
+    REAL(KIND=rk) :: nu
+    REAL(KIND=rk) :: a 
     REAL(KIND=rk), DIMENSION(24,24) :: C_FE
 
     REAL(KIND=rk) :: factor

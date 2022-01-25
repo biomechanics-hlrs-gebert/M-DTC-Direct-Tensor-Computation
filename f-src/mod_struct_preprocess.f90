@@ -287,7 +287,7 @@ Contains
     End if
     
     Call Search_branch("Input parameters", root, meta_para, success)
-    call pd_get(meta_para,"No of mesh parts per subdomain",parts)
+    call pd_get(meta_para,"No of mesh parts per subdomain", parts)
     Call pd_get(meta_para,'Element order on macro scale', elo_macro)
     
     !=========================================================================
