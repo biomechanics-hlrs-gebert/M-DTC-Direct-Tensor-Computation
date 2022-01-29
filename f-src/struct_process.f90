@@ -1625,7 +1625,7 @@ Program main_struct_process
          Do jj = ii, ii + parts_per_subdomain-1
             
             !** Activity = 1 (Set above during init) ***
-            CALL mpi_send(Activity(jj), 1_mik, mpi_integer, Int(jj,mik), Int(jj,mik), MPI_COMM_WORLD,ierr)
+            CALL mpi_send(Activity(jj), 1_mik, mpi_integer4, Int(jj,mik), Int(jj,mik), MPI_COMM_WORLD,ierr)
             CALL print_err_stop(std_out, "MPI_SEND of activity didn't succeed", INT(ierr, KIND=ik))
 
             CALL mpi_send(nn, 1_mik, mpi_integer8, Int(jj,mik), Int(jj,mik), MPI_COMM_WORLD,ierr)
@@ -1644,7 +1644,7 @@ Program main_struct_process
 
          nn = nn + 1_mik
          
-         Call MPI_IRECV(Activity(ii), 1_mik, MPI_INTEGER, Int(ii,mik), Int(ii,mik), &
+         Call MPI_IRECV(Activity(ii), 1_mik, MPI_INTEGER4, Int(ii,mik), Int(ii,mik), &
                MPI_COMM_WORLD, REQ_LIST(ii), IERR)
          CALL print_err_stop(std_out, "MPI_IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
 
@@ -1684,11 +1684,11 @@ Program main_struct_process
             cycle
          End If
 
-         Do jj = ii, ii + parts_per_subdomain-1
+         Do jj = ii, ii + parts_per_subdomain- 1
 
             Activity(jj) = 1_mik
             
-            Call mpi_send(Activity(jj), 1_mik, mpi_integer , Int(jj,mik), Int(jj,mik), MPI_COMM_WORLD,ierr)
+            Call mpi_send(Activity(jj), 1_mik, mpi_integer4 , Int(jj,mik), Int(jj,mik), MPI_COMM_WORLD,ierr)
             CALL print_err_stop(std_out, "MPI_SEND of activity didn't succeed", INT(ierr, KIND=ik))
 
             Call mpi_send(nn          , 1_mik, mpi_integer8, Int(jj,mik), Int(jj,mik), MPI_COMM_WORLD,ierr)
@@ -1707,7 +1707,7 @@ Program main_struct_process
          
          nn = nn + 1_mik
          
-         Call MPI_IRECV(Activity(ii), 1_mik, MPI_INTEGER, Int(ii,mik), &
+         Call MPI_IRECV(Activity(ii), 1_mik, MPI_INTEGER4, Int(ii,mik), &
                         Int(ii,mik), MPI_COMM_WORLD, REQ_LIST(ii), IERR)
          CALL print_err_stop(std_out, "MPI_IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
 
@@ -1752,7 +1752,7 @@ Program main_struct_process
    Activity = -1
    
    Do ii = 1_mik, size_mpi-1_mik
-      Call mpi_send(Activity(ii), 1_mik, mpi_integer, Int(ii,mik), &
+      Call mpi_send(Activity(ii), 1_mik, mpi_integer4, Int(ii,mik), &
                      Int(ii,mik), MPI_COMM_WORLD,ierr)
       CALL print_err_stop(std_out, "MPI_SEND of activity didn't succeed", INT(ierr, KIND=ik))
    End Do
@@ -1796,7 +1796,7 @@ Program main_struct_process
      !** Worker Loop **********************************************************
      Do
 
-        Call mpi_recv(Active, 1_mik, mpi_integer, 0_mik, rank_mpi, &
+        Call mpi_recv(Active, 1_mik, mpi_integer4, 0_mik, rank_mpi, &
                       MPI_COMM_WORLD, status_mpi, ierr)
         CALL print_err_stop(std_out, "MPI_RECV on Active didn't succseed", INT(ierr, KIND=ik))
 
@@ -1952,7 +1952,7 @@ Program main_struct_process
 !!$        END If
         ! DEBUG INFORMATION
            
-        Call MPI_ISEND(Active, 1_mik, MPI_INTEGER, 0_mik, rank_mpi, MPI_COMM_WORLD, REQUEST, IERR)
+        Call MPI_ISEND(Active, 1_mik, MPI_INTEGER4, 0_mik, rank_mpi, MPI_COMM_WORLD, REQUEST, IERR)
         CALL print_err_stop(std_out, "MPI_ISEND on Active didn't succeed", INT(ierr, KIND=ik))
 
         Call MPI_WAIT(REQUEST, status_mpi, ierr)
