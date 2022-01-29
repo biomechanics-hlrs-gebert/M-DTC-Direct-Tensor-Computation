@@ -319,6 +319,7 @@ Contains
     !============================================================================
     if (out_amount == "DEBUG") then
        
+       ! Part 18 crashed (29.01.2022)
        Do ii = 1, parts
 
           Call Search_branch("Boundaries_"//trim(nn_char)//"_1",&
@@ -380,28 +381,28 @@ Contains
   Subroutine generate_boundaries(PMesh, ddc, loc_ddc, elo_macro)
 
     !-- Parameters ------------------------------------------------------------
-    Type(tBranch)   , Intent(InOut)    :: PMesh
-    Type(tBranch),    Intent(In)       :: ddc, loc_ddc
-    Integer         , Intent(In)       :: elo_macro
+    Type(tBranch), Intent(InOut) :: PMesh
+    Type(tBranch), Intent(In)    :: ddc, loc_ddc
+    Integer      , Intent(In)    :: elo_macro
 
     !--------------------------------------------------------------------------
     Type(tBranch), Pointer             :: part_b, bounds_b
     
-    Real(Kind=rk)     , Dimension(:), Allocatable         :: dim_c, delta
-    Integer(Kind=ik)  , Dimension(:), Allocatable         :: xa_n, xe_n
-    Real(Kind=rk)     , Dimension(3)                      :: min_c, max_c, coor
-    Integer(kind=ik)                                      :: parts, ddc_nn
-    Integer(kind=ik)                                      :: no_nodes_macro
-    Integer(kind=ik)                                      :: no_elem_nodes
+    Real(Kind=rk)     , Dimension(:), Allocatable :: dim_c, delta
+    Integer(Kind=ik)  , Dimension(:), Allocatable :: xa_n, xe_n
+    Real(Kind=rk)     , Dimension(3)              :: min_c, max_c, coor
+    Integer(kind=ik) :: parts, ddc_nn
+    Integer(kind=ik) :: no_nodes_macro
+    Integer(kind=ik) :: no_elem_nodes
     
-    integer(Kind=ik)                   :: ii, jj, no_bnodes, b_items, nnodes
+    integer(Kind=ik) :: ii, jj, no_bnodes, b_items, nnodes
 
-    Integer(Kind=ik), Dimension(:), Allocatable      :: no_nodes_all
-    Integer(Kind=ik), Dimension(:), Allocatable      :: no_elems_all
-    Integer(Kind=ik), Dimension(:), Allocatable      :: no_cdofs_all
+    Integer(Kind=ik), Dimension(:), Allocatable :: no_nodes_all
+    Integer(Kind=ik), Dimension(:), Allocatable :: no_elems_all
+    Integer(Kind=ik), Dimension(:), Allocatable :: no_cdofs_all
     
-    Integer(Kind=ik), Dimension(:)  , Allocatable      :: bnode_ids
-    Real(Kind=rk)   , Dimension(:,:), Allocatable      :: bnode_vals
+    Integer(Kind=ik), Dimension(:)  , Allocatable :: bnode_ids
+    Real(Kind=rk)   , Dimension(:,:), Allocatable :: bnode_vals
 
     !** Get Parameters of domain decomposition *******
     call pd_get(loc_ddc, "nn",      ddc_nn)
@@ -442,6 +443,11 @@ Contains
        !** Determine number of boundary nodes *************
        no_bnodes = 0
 
+       if ( out_amount /= "PRODUCTION" ) then
+          Write(un_lf,FMT_MSG_xAI0)'Number of nodes in Part ',jj," during preprocessing: ",nnodes
+          Write(un_lf,FMT_MSG_xAI0)'Size of p_real8 in Part ',jj,": ",size(part_b%leaves(2)%p_real8)
+       End if
+
        !** For all nodes in part **************************
        Do ii = 1, nnodes
 
@@ -477,6 +483,13 @@ Contains
 
        if ( out_amount /= "PRODUCTION" ) then
           Write(un_lf,FMT_MSG_xAI0)'Number of constrained nodes in Part ',jj," : ",no_bnodes
+
+          IF (no_bnodes == 0) THEN
+            WRITE(un_lf,FMT_MSG_AI0AxF0)'get_part_coords: min_c    of Part ',jj," : ",min_c
+            WRITE(un_lf,FMT_MSG_AI0AxF0)'get_part_coords: max_c    of Part ',jj," : ",max_c
+            WRITE(un_lf,FMT_MSG_AI0AxF0)'get_part_coords: min coor of Part ',jj," : ",minval(part_b%leaves(2)%p_real8)
+            WRITE(un_lf,FMT_MSG_AI0AxF0)'get_part_coords: max coor of Part ',jj," : ",maxval(part_b%leaves(2)%p_real8)
+          END IF 
        End if
        
        Allocate(bnode_ids(no_bnodes))
@@ -581,6 +594,7 @@ Contains
           
           Write(bounds_b%branches(ii)%desc,'(A,I0,A,I0)') "Boundaries"//'_',ddc_nn,'_',ii
 
+          ! no_bnodes == 0?! --> dat_no = 0 for some specific nodes
           call add_leaf_to_branch(bounds_b%branches(ii), &
                                   "Boundary_Ids", no_bnodes, bnode_ids)
           call add_leaf_to_branch(bounds_b%branches(ii), &

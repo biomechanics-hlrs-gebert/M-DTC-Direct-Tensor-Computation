@@ -6035,13 +6035,13 @@ CONTAINS
   !>
   !> The subroutine calls search_branch rec and warns to std out in case a
   !> branch withdescr was not found in the tBranch structure.
-  Subroutine Search_branch_wrn(descr, branch, out_branch, success, wrn)
+  Subroutine Search_branch_wrn(descr, branch, out_branch, success, warning)
 
     Character(len=*)       , Intent(In)         :: descr
     Type(tBranch)          , Intent(In), Target :: branch
     Type(tBranch), Pointer , Intent(out)   :: out_branch
     Logical, Intent(inout) :: success
-    Logical, Intent(in)    :: wrn
+    Logical, Intent(in)    :: warning
 
     Integer :: ii
 
@@ -6063,7 +6063,7 @@ CONTAINS
        
     End If
 
-    IF (wrn .AND. (.NOT.success)) then
+    IF (warning .AND. (.NOT.success)) then
       WRITE(pd_umon, FMT_WRN) 'The branch with description: '//TRIM(descr)
       WRITE(pd_umon, FMT_WRN) 'Was not found in branch '//TRIM(branch%desc)
       WRITE(pd_umon, FMT_WRN_SEP)
