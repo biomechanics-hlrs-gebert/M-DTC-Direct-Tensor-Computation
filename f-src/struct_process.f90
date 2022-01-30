@@ -549,14 +549,14 @@ Contains
    ! These are calculated in struct_preprocess subroutine generate_boundaries
    !------------------------------------------------------------------------------
    IF(bb%leaves(2)%dat_no /= 0_ik) THEN
-    !** Set prescribed displacements of LC1 to solution vector *******
-    Call VecSetValues(XX, bb%leaves(2)%dat_no, &
+      !** Set prescribed displacements of LC1 to solution vector *******
+      Call VecSetValues(XX, bb%leaves(2)%dat_no, &
          gnid_cref, -bb%leaves(2)%p_real8, INSERT_VALUES, petsc_ierr)
+   END IF 
 
     Call VecAssemblyBegin(XX, petsc_ierr)
     ! Computations can be done while messages are in transition
     Call VecAssemblyEnd(XX, petsc_ierr)
-   END IF 
 
     ! DEBUG INFORMATION
     If (out_amount == "DEBUG") THEN 
@@ -585,9 +585,12 @@ Contains
     !** hand side vector.                                      *******
     Call MatMult(AA,XX,FF(1), petsc_ierr);
 
-    !** Set zero values for dofs with prescribed displacements *******
-    Call VecSetValues(FF(1), bb%leaves(2)%dat_no, &
+   IF(bb%leaves(2)%dat_no /= 0_ik) THEN
+      !** Set zero values for dofs with prescribed displacements *******
+      Call VecSetValues(FF(1), bb%leaves(2)%dat_no, &
          gnid_cref, zeros_R8, INSERT_VALUES, petsc_ierr)
+   END IF 
+
     Call VecAssemblyBegin(FF(1), petsc_ierr)
     Call VecAssemblyEnd(FF(1), petsc_ierr)
 
@@ -603,10 +606,12 @@ Contains
        write(desc,'(A,I0)')"Boundaries_"//trim(nn_char)//"_",ii
        Call search_branch(trim(desc), pb, bb, success, DEBUG)
 
-       !** Set prescribed displacements of LCii to solution vector *****
-       Call VecSetValues(XX, bb%leaves(2)%dat_no, &
-            gnid_cref, -bb%leaves(2)%p_real8, INSERT_VALUES, petsc_ierr)
-    
+      IF(bb%leaves(2)%dat_no /= 0_ik) THEN
+         !** Set prescribed displacements of LCii to solution vector *****
+         Call VecSetValues(XX, bb%leaves(2)%dat_no, &
+               gnid_cref, -bb%leaves(2)%p_real8, INSERT_VALUES, petsc_ierr)
+      END IF 
+
        Call VecAssemblyBegin(XX, petsc_ierr)
        ! Computations can be done while messages are in transition
        Call VecAssemblyEnd(XX, petsc_ierr)
@@ -615,9 +620,12 @@ Contains
        !** hand side vector.                                     *******
        Call MatMult(AA,XX,FF(ii), petsc_ierr);
 
-       !** Set zero values for dofs with prescribed displacements ******
-       Call VecSetValues(FF(ii), bb%leaves(2)%dat_no, &
-            gnid_cref, zeros_R8, INSERT_VALUES, petsc_ierr)
+      IF(bb%leaves(2)%dat_no /= 0_ik) THEN
+         !** Set zero values for dofs with prescribed displacements ******
+         Call VecSetValues(FF(ii), bb%leaves(2)%dat_no, &
+               gnid_cref, zeros_R8, INSERT_VALUES, petsc_ierr)
+      END IF 
+      
        Call VecAssemblyBegin(FF(ii), petsc_ierr)
        
     End Do
@@ -628,21 +636,21 @@ Contains
     write(desc,'(A,I0)')"Boundaries_"//trim(nn_char)//"_",24
     Call search_branch(trim(desc), pb, bb, success, DEBUG)
     
-   !------------------------------------------------------------------------------
-   ! Only set prescribed displacements if there are boundary nodes available.
-   ! These are calculated in struct_preprocess subroutine generate_boundaries
-   !------------------------------------------------------------------------------
-   IF(bb%leaves(2)%dat_no /= 0_ik) THEN
-    !** Set prescribed displacements of LC24 to solution vector *****
-    Call VecSetValues(XX, bb%leaves(2)%dat_no, &
-         gnid_cref, -bb%leaves(2)%p_real8, INSERT_VALUES, petsc_ierr)
-
+    !------------------------------------------------------------------------------
+    ! Only set prescribed displacements if there are boundary nodes available.
+    ! These are calculated in struct_preprocess subroutine generate_boundaries
+    !------------------------------------------------------------------------------
+    IF(bb%leaves(2)%dat_no /= 0_ik) THEN
+       !** Set prescribed displacements of LC24 to solution vector *****
+       Call VecSetValues(XX, bb%leaves(2)%dat_no, &
+          gnid_cref, -bb%leaves(2)%p_real8, INSERT_VALUES, petsc_ierr)
+    END IF 
+ 
     Call VecAssemblyBegin(XX, petsc_ierr)
     ! Computations can be done while messages are in transition
+ 
+    Call VecAssemblyEnd(XX, petsc_ierr)
 
-      Call VecAssemblyEnd(XX, petsc_ierr)
-   END IF 
-   
    
     !** Finalize the open assembleys *************
     Do ii = 2, 23
@@ -772,15 +780,14 @@ Contains
       ! These are calculated in struct_preprocess subroutine generate_boundaries
       !------------------------------------------------------------------------------
       IF(bb%leaves(2)%dat_no /= 0_ik) THEN
-
-       !** Extend XX with Boundary displacements *********************
-       Call VecSetValues(XX, bb%leaves(2)%dat_no, &
+         !** Extend XX with Boundary displacements *********************
+         Call VecSetValues(XX, bb%leaves(2)%dat_no, &
             gnid_cref, bb%leaves(2)%p_real8, INSERT_VALUES, petsc_ierr)
+      END IF 
        
        Call VecAssemblyBegin(XX, petsc_ierr)
        ! Computations can be done while messages are in transition
        Call VecAssemblyEnd(XX, petsc_ierr)
-      END IF 
 
        !** Calc reaction forces **************************************
        Call MatMult(AA_org, XX, FF(jj), petsc_ierr);
