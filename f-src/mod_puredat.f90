@@ -6917,11 +6917,16 @@ CONTAINS
 
    Integer(kind=pd_ik), Intent(in) :: alloc_stat
    Character(Len=*)   , Intent(in) :: field, routine
-   Integer(kind=pd_ik), Intent(in) ,optional :: dim
+   Integer(kind=pd_ik), Intent(in), optional :: dim
 
    IF (alloc_stat /= 0) Then
-      WRITE(mssg, '(3A,I2,3A)') "Allocation of the field/ structure ", field, &
-      " of dimension ", dim," in routine ", TRIM(routine), " failed."
+      mssg = "Allocation of the field/ structure "//TRIM(field)
+      
+      IF(PRESENT(dim)) THEN
+         WRITE(mssg, '(2A, I0)') TRIM(mssg), " of dimension ", dim
+      END IF 
+      
+      mssg = TRIM(mssg)//" in routine "//TRIM(routine)//" failed."
       
       CALL print_err_stop(pd_umon, mssg, alloc_stat)
    End IF

@@ -315,6 +315,7 @@ $(obj_dir)mod_OS$(obj_ext): $(st_mod_dir)global_std$(mod_ext) \
 # Finite Element Routines
 $(obj_dir)mod_linfe$(obj_ext):$(st_mod_dir)global_std$(mod_ext) \
 								$(st_mod_dir)mechanical$(mod_ext) \
+								$(mod_dir)puredat$(mod_ext) \
 								$(f_src_dir)mod_linfe$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_linfe$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_linfe$(f90_ext) -o $@

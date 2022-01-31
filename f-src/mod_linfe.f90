@@ -2,6 +2,7 @@ module linFE
 
   USE global_std
   USE mechanical
+
   implicit none
 
 contains
@@ -154,10 +155,14 @@ contains
     REAL(KIND=rk), DIMENSION(24,24) :: C_FE
 
     REAL(KIND=rk) :: factor
-
+    
     E  = mc%E
     nu = mc%nu
-    a  = mc%phdsize(1) ! Ensure that only dim(1)=dim(2)=dim(3) is valid!
+
+    !------------------------------------------------------------------------------  
+    ! All 3 dimensions of phdsize and delta must be equal!
+    !------------------------------------------------------------------------------  
+    a  = mc%phdsize(1) * mc%delta(1) 
 
     factor = E*a / (144._rk*(2.0_rk * nu**2 + nu - 1.0_rk))
 

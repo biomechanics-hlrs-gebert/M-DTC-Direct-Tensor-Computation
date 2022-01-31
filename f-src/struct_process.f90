@@ -96,7 +96,7 @@ Contains
   Subroutine exec_single_domain(root, lin_nn, nn, job_dir, Active, fh_mpi, &
        rank_mpi, size_mpi, comm_mpi)
 
-    TYPE(materialcard) :: mc
+    TYPE(materialcard) :: bone
 
     LOGICAL, PARAMETER :: DEBUG=.TRUE.
     
@@ -109,10 +109,10 @@ Contains
     Integer(kind=mik), Intent(In), Dimension(no_streams) :: fh_mpi
     
     !----------------------------------------------------------------
-    Integer(kind=mik)                 :: ierr
     Integer(kind=mik), Dimension(MPI_STATUS_SIZE)   :: status_mpi
-    Type(tBranch), pointer            :: bb, db, pb, mb, meta_para,resb
-
+    Type(tBranch), pointer :: bb, db, pb, mb, meta_para,resb
+    Integer(kind=mik) :: ierr
+    
     Character(Len=mcl) :: desc, mesh_desc, filename
     Character(Len=mcl) :: elt_micro
     
@@ -148,9 +148,9 @@ Contains
     Integer(kind=ik)                              :: nn_elems, ii, jj, kk, id
     Integer(kind=ik), Dimension(:), Allocatable   :: gnid_cref
     Integer(kind=ik), Dimension(:,:), Allocatable :: res_sizes
-    Real   (kind=rk), Dimension(:), Pointer       :: displ, force
-    Real   (kind=rk), Dimension(:), Allocatable   :: glob_displ, glob_force
-    Real   (kind=rk), Dimension(:), Allocatable   :: zeros_R8
+    Real(KIND=rk), DIMENSION(:), Pointer       :: displ, force
+    Real(KIND=rk), DIMENSION(:), Allocatable   :: glob_displ, glob_force
+    Real(KIND=rk), DIMENSION(:), Allocatable   :: zeros_R8
 
     Character, Dimension(:), Allocatable :: char_arr
     
@@ -177,9 +177,10 @@ Contains
     !** Get basic infos ------------------------------------------
     CALL Search_branch("Input parameters", root, meta_para, success, DEBUG)
     CALL pd_get(meta_para, "No of mesh parts per subdomain", parts_per_subdomain)
-    CALL pd_get(meta_para, "Physical domain size" , mc%phdsize, 3)
-    CALL pd_get(meta_para, "Young_s modulus" , mc%E)
-    CALL pd_get(meta_para, "Poisson_s ratio" , mc%nu)
+    CALL pd_get(meta_para, "Physical domain size" , bone%phdsize, 3)
+    CALL pd_get(meta_para, "Grid spacings" , bone%delta, 3)
+    CALL pd_get(meta_para, "Young_s modulus" , bone%E)
+    CALL pd_get(meta_para, "Poisson_s ratio" , bone%nu)
      
     !****************************************************************************
     !** Rank = 0 -- Local master of comm_mpi ************************************
@@ -406,7 +407,7 @@ Contains
 
     if (TRIM(elt_micro) == "HEX08") then
 
-       K_loc_08 = Hexe08(mc)
+       K_loc_08 = Hexe08(bone)
 
        nn_elems = pb%leaves(5)%dat_no / 8
     
@@ -502,9 +503,10 @@ Contains
        call VecSetFromOptions(FF(ii), petsc_ierr)
        Call VecSet(FF(ii), 0._rk,petsc_ierr)
        
+       call VecGetOwnershipRange(FF(ii), IVstart, IVend, petsc_ierr)
+ 
        ! DEBUG INFORMATION
        If (out_amount == "DEBUG") THEN 
-          call VecGetOwnershipRange(FF(ii), IVstart, IVend, petsc_ierr)
           Write(un_lf,"('MM ', A,I4,A,A6,2(A,I9))")&
                "MPI rank : ",rank_mpi,"| vector ownership for ","F", ":",IVstart," -- " , IVend
        End If
@@ -558,19 +560,19 @@ Contains
     ! Computations can be done while messages are in transition
     Call VecAssemblyEnd(XX, petsc_ierr)
 
-    ! DEBUG INFORMATION
-    If (out_amount == "DEBUG") THEN 
-       call VecGetOwnershipRange(XX, IVstart, IVend, petsc_ierr)
-       Write(un_lf,"('MM ', A,I4,A,A6,2(A,I9))")&
-            "MPI rank : ",rank_mpi,"| vector ownership for ","X", ":",IVstart," -- " , IVend
-       Call PetscViewerCreate(COMM_MPI, PetscViewer, petsc_ierr)
-       Call PetscViewerASCIIOpen(COMM_MPI,"FX.output.1",PetscViewer, petsc_ierr);
-       Call PetscViewerSetFormat(PetscViewer, PETSC_VIEWER_ASCII_DENSE, petsc_ierr)
-       Call VecView(XX, PetscViewer, petsc_ierr)
-       Call PetscViewerDestroy(PetscViewer, petsc_ierr)
-    End If
-    ! DEBUG INFORMATION
 
+   call VecGetOwnershipRange(XX, IVstart, IVend, petsc_ierr)
+ 
+   If (out_amount == "DEBUG") THEN 
+      Write(un_lf,"('MM ', A,I4,A,A6,2(A,I9))")&
+         "MPI rank : ",rank_mpi,"| vector ownership for ","X", ":",IVstart," -- " , IVend
+      Call PetscViewerCreate(COMM_MPI, PetscViewer, petsc_ierr)
+      Call PetscViewerASCIIOpen(COMM_MPI,"FX.output.1",PetscViewer, petsc_ierr);
+      Call PetscViewerSetFormat(PetscViewer, PETSC_VIEWER_ASCII_DENSE, petsc_ierr)
+      Call VecView(XX, PetscViewer, petsc_ierr)
+      Call PetscViewerDestroy(PetscViewer, petsc_ierr)
+   End If
+ 
     !***************************************************************************
     !** At this point the right hand side vectors, filled with zeros and     ***
     !** the solution vector filled with the dirichlet boundary values of     ***
@@ -625,7 +627,7 @@ Contains
          Call VecSetValues(FF(ii), bb%leaves(2)%dat_no, &
                gnid_cref, zeros_R8, INSERT_VALUES, petsc_ierr)
       END IF 
-      
+
        Call VecAssemblyBegin(FF(ii), petsc_ierr)
        
     End Do
@@ -845,7 +847,6 @@ Contains
           call Add_Leaf_to_Branch(resb%branches(2), trim(desc), &
                                   m_size,           glob_force) 
 
-          ! DEBUG INFORMATION
           If (out_amount == "DEBUG") THEN 
           
              write(desc,'(A,I2.2)')"DispRes",jj
@@ -861,7 +862,6 @@ Contains
                   desc = trim(desc), head = .FALSE.,location="POINT_DATA")
              
           End if
-          ! DEBUG INFORMATION
                  
        End If
     End Do
@@ -1065,7 +1065,7 @@ Program main_struct_process
       CALL meta_read (std_out, 'OUT_FMT'          , m_rry, output)
       CALL meta_read (std_out, 'RESTART'          , m_rry, restart)
       CALL meta_read (std_out, 'SIZE_DOMAIN'      , m_rry, bone%phdsize)
-      CALL meta_read (std_out, 'SPACING'          , m_rry, delta)
+      CALL meta_read (std_out, 'SPACING'          , m_rry, bone%delta)
       CALL meta_read (std_out, 'DIMENSIONS'       , m_rry, vdim)
       CALL meta_read (std_out, 'LO_BNDS_DMN_RANGE', m_rry, xa_d)
       CALL meta_read (std_out, 'UP_BNDS_DMN_RANGE', m_rry, xe_d)
@@ -1099,11 +1099,17 @@ Program main_struct_process
 
       CALL meta_write (fhmeo, 'DBG_LVL'          , out_amount )
 
+      !------------------------------------------------------------------------------
       ! Warning / Error handling
+      !------------------------------------------------------------------------------
       IF ( (bone%phdsize(1) /= bone%phdsize(2)) .OR. (bone%phdsize(1) /= bone%phdsize(3)) ) THEN
          CALL print_err_stop(std_out, 'Currently, all 3 dimensions of the physical domain size must be equal!', 1)
       END IF
       
+      IF ( (delta(1) /= delta(2)) .OR. (delta(1) /= delta(3)) ) THEN
+         CALL print_err_stop(std_out, 'Currently, the spacings of all 3 dimensions must be equal!', 1)
+      END IF
+
       IF ( (xa_d(1) > xe_d(1)) .OR. (xa_d(2) > xe_d(2)) .or. (xa_d(3) > xe_d(3)) ) THEN
          CALL print_err_stop(std_out, 'Input parameter error: Start value of domain range larger than end value.', 1)
       END IF
@@ -1131,17 +1137,18 @@ Program main_struct_process
       CALL add_leaf_to_branch(meta_para, "Physical domain size"                 , 3_ik, bone%phdsize)
       CALL add_leaf_to_branch(meta_para, "Lower bounds of selected domain range", 3_ik, xa_d)
       CALL add_leaf_to_branch(meta_para, "Upper bounds of selected domain range", 3_ik, xe_d)     
+      CALL add_leaf_to_branch(meta_para, "Grid spacings"                        , 3_rk, bone%delta)
       CALL add_leaf_to_branch(meta_para, "Lower limit of iso value"      , 1_ik, [llimit])     
       CALL add_leaf_to_branch(meta_para, "Element type  on micro scale"  , len(elt_micro) , str_to_char(elt_micro))     
-      CALL add_leaf_to_branch(meta_para, "No of mesh parts per subdomain", 1              , [parts_per_subdomain])
+      CALL add_leaf_to_branch(meta_para, "No of mesh parts per subdomain", 1_ik           , [parts_per_subdomain])
       CALL add_leaf_to_branch(meta_para, "Output Format"                 , len(output)    , str_to_char(output))
-      CALL add_leaf_to_branch(meta_para, "Average strain on RVE"         , 1              , [strain])   
-      CALL add_leaf_to_branch(meta_para, "Young_s modulus"               , 1              , [bone%E])
-      CALL add_leaf_to_branch(meta_para, "Poisson_s ratio"               , 1              , [bone%nu])
-      CALL add_leaf_to_branch(meta_para, "Element order on macro scale"  , 1              , [elo_macro])
+      CALL add_leaf_to_branch(meta_para, "Average strain on RVE"         , 1_ik           , [strain])   
+      CALL add_leaf_to_branch(meta_para, "Young_s modulus"               , 1_ik           , [bone%E])
+      CALL add_leaf_to_branch(meta_para, "Poisson_s ratio"               , 1_ik           , [bone%nu])
+      CALL add_leaf_to_branch(meta_para, "Element order on macro scale"  , 1_ik           , [elo_macro])
       CALL add_leaf_to_branch(meta_para, "Output amount"                 , len(out_amount), str_to_char(out_amount))
-      CALL add_leaf_to_branch(meta_para, "Restart"                       , 1              , str_to_char(restart))
-
+      CALL add_leaf_to_branch(meta_para, "Restart"                       , 1_ik           , str_to_char(restart))
+      CALL add_leaf_to_branch(meta_para, "Number of voxels per direction", 3_ik           , vdim)
 
       !------------------------------------------------------------------------------
       ! Prepare output directory via calling the c function.
