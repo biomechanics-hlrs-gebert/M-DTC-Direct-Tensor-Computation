@@ -358,7 +358,6 @@ Contains
     END If
     ! DEBUG INFORMATION       
 
-
     !**************************************************************************
     !** Setup the linear System with a constant system matrix A. Once that  ***
     !** is done setup the multiple right hand sides and solve the linear    ***
@@ -1114,6 +1113,15 @@ Program main_struct_process
          CALL print_err_stop(std_out, 'Input parameter error: Start value of domain range larger than end value.', 1)
       END IF
 
+      ! Program breaks if the phdsize is not taking the boundary nodes into account (!).
+      ! Therefore, the boundaries are calculated with + 2 Voxels
+      IF((bone%phdsize(1) > (vdim(1) + 2_ik)*bone%delta(1)) .OR. & 
+         (bone%phdsize(2) > (vdim(2) + 2_ik)*bone%delta(2)) .OR. & 
+         (bone%phdsize(3) > (vdim(3) + 2_ik)*bone%delta(3))) THEN
+         CALL print_err_stop(std_out, &
+            'The domains are larger than the field of view.', 1)
+      END IF
+      
       !------------------------------------------------------------------------------
       ! Each subdomain gets computed by a user defined amount of processors. This 
       ! amount of processors equals to a specific amount of mesh parts_per_subdomain.

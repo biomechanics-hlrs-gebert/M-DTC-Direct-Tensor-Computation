@@ -194,7 +194,7 @@ Contains
          dat_no = [1_ik,3_ik,1_ik,3_ik,3_ik,3_ik,3_ik,3_ik] , &
          branch = dc)
 
-    call open_stream_files(dc,       "write", "replace")
+    call open_stream_files(dc, "write", "replace")
 
     !** Calc voxel number on each domain edge *********************************
     x_D = Nint(x_D_phy/delta)

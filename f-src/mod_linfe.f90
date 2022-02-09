@@ -156,6 +156,9 @@ contains
 
     REAL(KIND=rk) :: factor
     
+    !------------------------------------------------------------------------------  
+    ! Both variables can be read from mc. But tranparency is required here.
+    !------------------------------------------------------------------------------  
     E  = mc%E
     nu = mc%nu
 
@@ -164,7 +167,7 @@ contains
     !------------------------------------------------------------------------------  
     a  = mc%phdsize(1) * mc%delta(1) 
 
-    factor = E*a / (144._rk*(2.0_rk * nu**2 + nu - 1.0_rk))
+    factor = mc%E*a / (144._rk*(2.0_rk * nu**2 + nu - 1.0_rk))
 
     ! factor = E / (3*a*(nu+1)*(1-2*nu))
     ! C_FE(1,1) = -(6*nu-4)/3
@@ -754,9 +757,9 @@ contains
   Function Hexe20() Result(C_FE)
 
     Real(kind=rk), Dimension(60,60) :: C_FE
-    Real(kind=rk), Parameter        :: E      = 5600._rk
-    Real(kind=rk), Parameter        :: nu     = 0.3_rk
-    Real(kind=rk), Parameter        :: a      = 0.019362_rk
+    Real(kind=rk), Parameter :: E  = 5600._rk
+    Real(kind=rk), Parameter :: nu = 0.3_rk
+    Real(kind=rk), Parameter :: a  = 0.019362_rk
 
     Real(kind=rk) :: factor
 
