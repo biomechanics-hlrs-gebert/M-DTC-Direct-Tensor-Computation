@@ -358,12 +358,24 @@ Contains
     END If
     ! DEBUG INFORMATION       
 
+
     !**************************************************************************
     !** Setup the linear System with a constant system matrix A. Once that  ***
     !** is done setup the multiple right hand sides and solve the linear    ***
     !** system multiple times. Save the solutions to calculate effective    ***
     !** stiffness matirces.                                                 ***
     !**************************************************************************
+    IF (rank_mpi == 0) THEN   ! Sub Comm Master
+        SELECT CASE (timer_level)
+        CASE (1)
+            timer_name = "+-- create_Stiffness_matrix "//TRIM(nn_char)
+        CASE default
+            timer_name = "create_Stiffness_matrix"
+        End SELECT
+        
+        CALL start_timer(TRIM(timer_name), .FALSE.)
+    END IF 
+
 
     !** Create Stiffness matrix **************************************
     call MatCreate(COMM_MPI, AA    , petsc_ierr)
@@ -376,6 +388,11 @@ Contains
     call MatSetSizes(AA_org,PETSC_DECIDE,PETSC_DECIDE,m_size,m_size,petsc_ierr)
     call MatSetFromOptions(AA_org,petsc_ierr)
     call MatSetUp(AA_org,petsc_ierr)
+
+    !------------------------------------------------------------------------------
+    ! End timer
+    !------------------------------------------------------------------------------
+    IF (rank_mpi == 0) CALL end_timer(TRIM(timer_name))
 
     ! DEBUG INFORMATION
     If (out_amount == "DEBUG") THEN 
@@ -469,23 +486,40 @@ Contains
     
     end if
 
+
+    IF (rank_mpi == 0) THEN   ! Sub Comm Master
+        SELECT CASE (timer_level)
+        CASE (1)
+            timer_name = "+-- MatAssemblyBegin "//TRIM(nn_char)
+        CASE default
+            timer_name = "MatAssemblyBegin"
+        End SELECT
+        
+        CALL start_timer(TRIM(timer_name), .FALSE.)
+    END IF 
+
     Call MatAssemblyBegin(AA, MAT_FINAL_ASSEMBLY ,petsc_ierr)
     Call MatAssemblyBegin(AA_org, MAT_FINAL_ASSEMBLY ,petsc_ierr)
     ! Computations can be done while messages are in transition
     Call MatAssemblyEnd(AA, MAT_FINAL_ASSEMBLY ,petsc_ierr)
     Call MatAssemblyEnd(AA_org, MAT_FINAL_ASSEMBLY ,petsc_ierr)
 
-   !------------------------------------------------------------------------------
-   ! Crashes on hawk. Out of memory?
-   !------------------------------------------------------------------------------
-   !  If (out_amount == "DEBUG") THEN 
-   !     Call PetscViewerCreate(COMM_MPI, PetscViewer, petsc_ierr)
-   !     Call PetscViewerASCIIOpen(COMM_MPI,"AA.output.1",PetscViewer, petsc_ierr);
-   !     Call PetscViewerSetFormat(PetscViewer, PETSC_VIEWER_ASCII_DENSE, petsc_ierr)
-   !     Call MatView(AA, PetscViewer, petsc_ierr)
-   !     Call PetscViewerDestroy(PetscViewer, petsc_ierr)
-   !  End If
-    
+    !------------------------------------------------------------------------------
+    ! End timer
+    !------------------------------------------------------------------------------
+    IF (rank_mpi == 0) CALL end_timer(TRIM(timer_name))
+
+    !------------------------------------------------------------------------------
+    ! Crashes on hawk. Out of memory?
+    !------------------------------------------------------------------------------
+    !  If (out_amount == "DEBUG") THEN 
+    !     Call PetscViewerCreate(COMM_MPI, PetscViewer, petsc_ierr)
+    !     Call PetscViewerASCIIOpen(COMM_MPI,"AA.output.1",PetscViewer, petsc_ierr);
+    !     Call PetscViewerSetFormat(PetscViewer, PETSC_VIEWER_ASCII_DENSE, petsc_ierr)
+    !     Call MatView(AA, PetscViewer, petsc_ierr)
+    !     Call PetscViewerDestroy(PetscViewer, petsc_ierr)
+    !  End If
+        
 
     !***************************************************************************
     !** At this point the system matrix is assembled. To make it ready to be ***
@@ -493,6 +527,16 @@ Contains
     !** have to be eliminated. To do that with MatZeroRowsColumns we need    ***
     !** right hand side vectors and a solution vector.                       ***
     !***************************************************************************
+    IF (rank_mpi == 0) THEN   ! Sub Comm Master
+        SELECT CASE (timer_level)
+        CASE (1)
+            timer_name = "+-- create_rh_solution_vetors "//TRIM(nn_char)
+        CASE default
+            timer_name = "create_rh_solution_vetors"
+        End SELECT
+        
+        CALL start_timer(TRIM(timer_name), .FALSE.)
+    END IF 
 
     Do ii = 1, 24
     
@@ -545,52 +589,68 @@ Contains
     call VecSetFromOptions(XX, petsc_ierr)
     Call VecSet(XX, 0._rk,petsc_ierr)
 
-   !------------------------------------------------------------------------------
-   ! Only set prescribed displacements if there are boundary nodes available.
-   ! These are calculated in struct_preprocess subroutine generate_boundaries
-   !------------------------------------------------------------------------------
-   IF(bb%leaves(2)%dat_no /= 0_ik) THEN
-      !** Set prescribed displacements of LC1 to solution vector *******
-      Call VecSetValues(XX, bb%leaves(2)%dat_no, &
-         gnid_cref, -bb%leaves(2)%p_real8, INSERT_VALUES, petsc_ierr)
-   END IF 
+    !------------------------------------------------------------------------------
+    ! Only set prescribed displacements if there are boundary nodes available.
+    ! These are calculated in struct_preprocess subroutine generate_boundaries
+    !------------------------------------------------------------------------------
+    IF(bb%leaves(2)%dat_no /= 0_ik) THEN
+        !** Set prescribed displacements of LC1 to solution vector *******
+        Call VecSetValues(XX, bb%leaves(2)%dat_no, &
+            gnid_cref, -bb%leaves(2)%p_real8, INSERT_VALUES, petsc_ierr)
+    END IF 
 
     Call VecAssemblyBegin(XX, petsc_ierr)
     ! Computations can be done while messages are in transition
     Call VecAssemblyEnd(XX, petsc_ierr)
 
 
-   call VecGetOwnershipRange(XX, IVstart, IVend, petsc_ierr)
+    call VecGetOwnershipRange(XX, IVstart, IVend, petsc_ierr)
  
-   If (out_amount == "DEBUG") THEN 
-      Write(un_lf,"('MM ', A,I4,A,A6,2(A,I9))")&
-         "MPI rank : ",rank_mpi,"| vector ownership for ","X", ":",IVstart," -- " , IVend
-      Call PetscViewerCreate(COMM_MPI, PetscViewer, petsc_ierr)
-      Call PetscViewerASCIIOpen(COMM_MPI,"FX.output.1",PetscViewer, petsc_ierr);
-      Call PetscViewerSetFormat(PetscViewer, PETSC_VIEWER_ASCII_DENSE, petsc_ierr)
-      Call VecView(XX, PetscViewer, petsc_ierr)
-      Call PetscViewerDestroy(PetscViewer, petsc_ierr)
-   End If
+    !------------------------------------------------------------------------------
+    ! End timer
+    !------------------------------------------------------------------------------
+    IF (rank_mpi == 0) CALL end_timer(TRIM(timer_name))
+
+
+    If (out_amount == "DEBUG") THEN 
+        Write(un_lf,"('MM ', A,I4,A,A6,2(A,I9))")&
+            "MPI rank : ",rank_mpi,"| vector ownership for ","X", ":",IVstart," -- " , IVend
+        Call PetscViewerCreate(COMM_MPI, PetscViewer, petsc_ierr)
+        Call PetscViewerASCIIOpen(COMM_MPI,"FX.output.1",PetscViewer, petsc_ierr);
+        Call PetscViewerSetFormat(PetscViewer, PETSC_VIEWER_ASCII_DENSE, petsc_ierr)
+        Call VecView(XX, PetscViewer, petsc_ierr)
+        Call PetscViewerDestroy(PetscViewer, petsc_ierr)
+    End If
  
     !***************************************************************************
     !** At this point the right hand side vectors, filled with zeros and     ***
     !** the solution vector filled with the dirichlet boundary values of     ***
     !** load case 1 (LC1) are ready to be used.                              ***
-    !** Now the righ hand side vectors have to be modified with the          ***
+    !** Now the right hand side vectors have to be modified with the         ***
     !** prescribed displacements. This is currently done by multiplying A by ***
     !** X filled with the negative displacement values.                      ***
     !** (See above VecSetValues(XX, ... , -bb%leaves(2)%p_real8, ... )       ***
     !***************************************************************************
-    
+    IF (rank_mpi == 0) THEN   ! Sub Comm Master
+        SELECT CASE (timer_level)
+        CASE (1)
+            timer_name = "+-- compute_bndry_conditions "//TRIM(nn_char)
+        CASE default
+            timer_name = "compute_bndry_conditions"
+        End SELECT
+        
+        CALL start_timer(TRIM(timer_name), .FALSE.)
+    END IF 
+
     !** Compute dirichlet boundary corrections of first right  *******
     !** hand side vector.                                      *******
     Call MatMult(AA,XX,FF(1), petsc_ierr);
 
-   IF(bb%leaves(2)%dat_no /= 0_ik) THEN
-      !** Set zero values for dofs with prescribed displacements *******
-      Call VecSetValues(FF(1), bb%leaves(2)%dat_no, &
-         gnid_cref, zeros_R8, INSERT_VALUES, petsc_ierr)
-   END IF 
+    IF(bb%leaves(2)%dat_no /= 0_ik) THEN
+        !** Set zero values for dofs with prescribed displacements *******
+        Call VecSetValues(FF(1), bb%leaves(2)%dat_no, &
+            gnid_cref, zeros_R8, INSERT_VALUES, petsc_ierr)
+    END IF 
 
     Call VecAssemblyBegin(FF(1), petsc_ierr)
     Call VecAssemblyEnd(FF(1), petsc_ierr)
@@ -669,6 +729,12 @@ Contains
     call MatZeroRowsColumns(AA, bb%leaves(2)%dat_no, gnid_cref, &
          0.0_8, XX, FF(24), petsc_ierr)
     
+    !------------------------------------------------------------------------------
+    ! End timer
+    !------------------------------------------------------------------------------
+    IF (rank_mpi == 0) CALL end_timer(TRIM(timer_name))
+
+
     ! DEBUG INFORMATION
     If (out_amount == "DEBUG") THEN 
        Call PetscViewerCreate(COMM_MPI, PetscViewer, petsc_ierr)
@@ -685,7 +751,17 @@ Contains
     !** Now a linear solver context can be set up and the linear systems with **
     !** constant operator A and variable right hand side can be solved        **
     !***************************************************************************
-    
+    IF (rank_mpi == 0) THEN   ! Sub Comm Master
+        SELECT CASE (timer_level)
+        CASE (1)
+            timer_name = "+-- solve_system "//TRIM(nn_char)
+        CASE default
+            timer_name = "solve_system"
+        End SELECT
+        
+        CALL start_timer(TRIM(timer_name), .FALSE.)
+    END IF 
+
     !** Create linear solver context *********************************
     CALL KSPCreate(COMM_MPI, ksp, petsc_ierr)
     
@@ -865,19 +941,30 @@ Contains
        End If
     End Do
 
+    !------------------------------------------------------------------------------
+    ! End timer
+    !------------------------------------------------------------------------------
+    IF (rank_mpi == 0) CALL end_timer(TRIM(timer_name))
+
     !*****************************************************************
     !** All 24 linear system solutions are produced. Effective    ****
     !** stiffnesses can be calculated                             ****
     !*****************************************************************
-
     if ( rank_mpi == 0 ) then
 
-       Deallocate(glob_displ, res_sizes, glob_force)
-       
-       Call start_timer(trim(timer_name), .FALSE.)
-       call calc_effective_material_parameters(root, nn)
-       Call end_timer(trim(timer_name))
-       
+        Deallocate(glob_displ, res_sizes, glob_force)
+
+        SELECT CASE (timer_level)
+        CASE (1)
+            timer_name = "+-- calc_eff_stiffness "//TRIM(nn_char)
+        CASE default
+            timer_name = "calc_eff_stiffness"
+        End SELECT
+
+        Call start_timer(trim(timer_name), .FALSE.)
+        call calc_effective_material_parameters(root, nn)
+        Call end_timer(trim(timer_name))
+
     End if
     
 !!!!!!!!!!!!!<< Development <<<<<<<<<<<<<<<<<<<<
@@ -895,6 +982,7 @@ Contains
     End if
 
   End Subroutine exec_single_domain
+
   End Module sp_aux_routines
 
 !------------------------------------------------------------------------------
@@ -1087,7 +1175,7 @@ Program main_struct_process
       ! This log file may collide with the original log file (!)
       ! The regular struct_process log file contains still has the "old" basename!
       !------------------------------------------------------------------------------
-      CALL meta_start_ascii(fhl, log_suf)
+      ! CALL meta_start_ascii(fhl, log_suf)
       CALL meta_start_ascii(fhmon, mon_suf)
       
       IF (std_out/=6) THEN
@@ -2027,7 +2115,7 @@ IF(rank_mpi == 0) THEN
    CALL meta_signing(binary)
    CALL meta_close(size_mpi)
 
-   CALL meta_stop_ascii(fh=fhl  , suf=log_suf)
+   ! CALL meta_stop_ascii(fh=fhl  , suf=log_suf)
    CALL meta_stop_ascii(fh=fhmon, suf=mon_suf)
 
    IF (std_out/=6) CALL meta_stop_ascii(fh=std_out, suf='.std_out')
