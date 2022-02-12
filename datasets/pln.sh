@@ -2,7 +2,7 @@
 # ----------------------------------------------------------------------------------------
 # Print lines. I'm quite sure there are far more convenient ways to program that:-)
 #
-# Author:          Johannes Gebert »gebert@hlrs.de«
+# Author:          Johannes Gebert gebert@hlrs.de
 # Created: on :    13.04.2021
 # Last edit:       03.10.2021
 #
@@ -13,10 +13,10 @@ function echo_help {
     echo "Print a specific amount of lines."
     echo ""
     echo "Usage:"
-    echo "pln      »file«  »first line«  »amount of lines«"
-    echo "pln  -a  »file«  »first line«  »last line«"
-    echo "pln      »file«  »start«       »last line«"
-    echo "pln      »file«  »first line«  »end«"
+    echo "pln      file  first-line  amount of lines"
+    echo "pln  -a  file  first-line  last-line"
+    echo "pln      file  start       last-line"
+    echo "pln      file  first-line  end"
     echo ""
 }
 #

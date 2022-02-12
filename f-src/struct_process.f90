@@ -132,7 +132,7 @@ Contains
  
     Character(len=mcl)  :: timer_name, domain_desc, part_desc
 
-    Integer(kind=pik)         :: petsc_ierr
+    Integer(kind=mik)         :: petsc_ierr
     Type(tMat)                :: AA, AA_org
     Type(tVec)                :: XX
     Type(tVec), Dimension(24) :: FF
@@ -939,7 +939,7 @@ Program main_struct_process
  
   !-- MPI Variables -------------------------------------------------------------------------------
   INTEGER(KIND=mik) :: ierr, rank_mpi, size_mpi
-  INTEGER(KIND=pik) :: petsc_ierr
+  INTEGER(KIND=mik) :: petsc_ierr
   INTEGER(KIND=mik) :: worker_rank_mpi, worker_size_mpi
   INTEGER(KIND=mik) :: Active, request, finished, worker_comm
   INTEGER(KIND=mik), Dimension(no_streams) :: fh_mpi

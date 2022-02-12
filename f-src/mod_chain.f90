@@ -21,7 +21,7 @@ Module chain_variables
   ! New units are given several times to orchestrate the files (!)
   ! ---------------------------------------------------------------------------
   !> Logfile unit
-  Integer :: un_lf ! Reassigned, therefore not coupled to meta file formats.
+  Integer :: un_lf = fh_log
   !> Monitor file unit (default = stdout)
   Integer :: un_mon = fhmon
   

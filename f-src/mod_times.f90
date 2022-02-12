@@ -287,8 +287,8 @@ contains
     Integer, Dimension(8), intent(in) :: a, b
     Integer, Dimension(8)             :: c
 
-    Integer(Kind=8)       :: msec_s, msec_e, rt_msec_diff
-
+    Integer(Kind=8) :: msec_s, msec_e, rt_msec_diff
+ 
     msec_s = 0
     msec_s = msec_s + a(8) + a(7) * 1000 + &
              a(6) * 60 * 1000 + a(5) * 60 * 60 * 1000
