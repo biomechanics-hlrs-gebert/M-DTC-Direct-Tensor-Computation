@@ -1148,20 +1148,20 @@ Program main_struct_process
       pro_path = outpath
       pro_name = project_name
 
-      CALL meta_read (std_out, 'MICRO_ELMNT_TYPE' , m_rry, elt_micro)
-      CALL meta_read (std_out, 'OUT_FMT'          , m_rry, output)
-      CALL meta_read (std_out, 'RESTART'          , m_rry, restart)
-      CALL meta_read (std_out, 'SIZE_DOMAIN'      , m_rry, bone%phdsize)
-      CALL meta_read (std_out, 'SPACING'          , m_rry, bone%delta)
-      CALL meta_read (std_out, 'DIMENSIONS'       , m_rry, vdim)
-      CALL meta_read (std_out, 'LO_BNDS_DMN_RANGE', m_rry, xa_d)
-      CALL meta_read (std_out, 'UP_BNDS_DMN_RANGE', m_rry, xe_d)
-      CALL meta_read (std_out, 'BINARIZE_LO'      , m_rry, llimit)
-      CALL meta_read (std_out, 'MESH_PER_SUB_DMN' , m_rry, parts_per_subdomain)
-      CALL meta_read (std_out, 'RVE_STRAIN'       , m_rry, strain)
-      CALL meta_read (std_out, 'YOUNG_MODULUS'    , m_rry, bone%E)
-      CALL meta_read (std_out, 'POISSON_RATIO'    , m_rry, bone%nu)
-      CALL meta_read (std_out, 'MACRO_ELMNT_ORDER', m_rry, elo_macro)
+      CALL meta_read('MICRO_ELMNT_TYPE' , m_rry, elt_micro)
+      CALL meta_read('OUT_FMT'          , m_rry, output)
+      CALL meta_read('RESTART'          , m_rry, restart)
+      CALL meta_read('SIZE_DOMAIN'      , m_rry, bone%phdsize)
+      CALL meta_read('SPACING'          , m_rry, bone%delta)
+      CALL meta_read('DIMENSIONS'       , m_rry, vdim)
+      CALL meta_read('LO_BNDS_DMN_RANGE', m_rry, xa_d)
+      CALL meta_read('UP_BNDS_DMN_RANGE', m_rry, xe_d)
+      CALL meta_read('BINARIZE_LO'      , m_rry, llimit)
+      CALL meta_read('MESH_PER_SUB_DMN' , m_rry, parts_per_subdomain)
+      CALL meta_read('RVE_STRAIN'       , m_rry, strain)
+      CALL meta_read('YOUNG_MODULUS'    , m_rry, bone%E)
+      CALL meta_read('POISSON_RATIO'    , m_rry, bone%nu)
+      CALL meta_read('MACRO_ELMNT_ORDER', m_rry, elo_macro)
 
       !------------------------------------------------------------------------------
       ! Restart handling
@@ -1184,7 +1184,7 @@ Program main_struct_process
          CALL show_title() 
       END IF
 
-      CALL meta_write (fhmeo, 'DBG_LVL'          , out_amount )
+      CALL meta_write('DBG_LVL', out_amount )
 
       !------------------------------------------------------------------------------
       ! Warning / Error handling

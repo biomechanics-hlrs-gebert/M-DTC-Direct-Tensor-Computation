@@ -17,8 +17,8 @@ else
         do 
             {
             # Grep for memory or swap (!)
-            #   free -h | grep "Mem" | tr -d '\n'
-              free -h | grep "Speicher" | tr -d '\n'
+              free -h | grep "Mem" | tr -d '\n'
+            #   free -h | grep "Speicher" | tr -d '\n'
               echo "     " | tr -d '\n'
               date
             } >> "$1"
