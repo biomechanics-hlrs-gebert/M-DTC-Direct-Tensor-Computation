@@ -1,12 +1,12 @@
 #!/bin/bash
 #------------------------------------------------------------------------------
-# Johannes Gebert - HLRS - NUM - gebert@hlrs.de - ddtc dataset reset
+# Johannes Gebert - HLRS - NUM - gebert@hlrs.de - dtc dataset reset
 #------------------------------------------------------------------------------
 # Reset a dataset for a subsequent computation
 # Command arg 1 --> input dataset
 # Command arg 2 --> new app name
 #
-# Only for use with scalar data @ .int4.st as ddtc does not process other.
+# Only for use with scalar data @ .int4.st as dtc does not process other.
 #
 # This simple procedure DOES NOT reset data contained in the stream file! 
 # If you need 100% reliable data with validity up to the outermost voxels, 

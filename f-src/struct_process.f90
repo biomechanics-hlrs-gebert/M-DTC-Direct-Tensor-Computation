@@ -1109,7 +1109,7 @@ Program main_struct_process
       ! Check and open the input file; Modify the Meta-Filename / Basename
       ! Define the new application name first
       !------------------------------------------------------------------------------
-      global_meta_prgrm_mstr_app = 'ddtc' 
+      global_meta_prgrm_mstr_app = 'dtc' 
       global_meta_program_keyword = 'TENSOR_COMPUTATION'
       CALL meta_append(m_rry)
           

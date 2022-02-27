@@ -7,10 +7,10 @@ authors:
   - family-names: "Gebert"
     given-names: "Johannes"
     orcid: "https://orcid.org/0000-0002-5245-2418"
-title: "Directly Discretizing Tensor Computation (DDTC)"
+title: "Direct Tensor Computation (DTC)"
 version: 1.0.0
 date-released: 2022-01-05
-url: "https://github.com/JoGebert/Directly_Discretizing_Tensor_Computation-DDTC"
+url: "https://github.com/JoGebert/Directly_Discretizing_Tensor_Computation-DTC"
 preferred-citation:
   type: software-code
   authors:
@@ -21,7 +21,7 @@ preferred-citation:
     given-names: "Johannes"
     orcid: "https://orcid.org/0000-0002-5245-2418"
   doi: "10.0000/00000"
-  title: "Directly Discretizing Tensor Computation (DDTC)"
+  title: "Direct Tensor Computation (DTC)"
   version: 1.0.0
   date-released: 2022-01-05
-  url: "https://github.com/JoGebert/Directly_Discretizing_Tensor_Computation-DDTC"
+  url: "https://github.com/JoGebert/Directly_Discretizing_Tensor_Computation-DTC"

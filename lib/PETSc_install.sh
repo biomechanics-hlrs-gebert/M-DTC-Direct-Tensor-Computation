@@ -30,7 +30,7 @@
 VERSION="3.15"
 #
 # Target install directory
-PREF=/home/geb/09_trinity_site/ddtc-testfeld/lib/petsc/petsc-$VERSION
+PREF=/home/geb/09_trinity_site/dtc-testfeld/lib/petsc/petsc-$VERSION
 # ----------------------------------------------------------------------------------------
 #
 # Check whether all programs and compilers are accesible

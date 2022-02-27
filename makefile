@@ -8,8 +8,8 @@
 # For use of make visit: https://www.gnu.org/software/make/
 # ------------------------------------------------------------------------------
 trgt_vrsn="v1.0.0"
-bin_name="ddtc"
-long_name="Directly Discretizing Tensor Computation"
+bin_name="dtc"
+long_name="Direct Tensor Computation"
 # -----------------------------------------------------------------------------
 ifeq ($(PROVIDES_GIT),YES)
 # Get git hash https://jblevins.org/log/vc
@@ -66,7 +66,7 @@ export build_path
 #
 # All directories are given as relative paths. Preprend "$buildpath" instead 
 # of "." to change that situation.
-st_path= $(build_path)/central_src
+st_path= $(build_path)/geb-lib
 #
 st_obj_dir = $(st_path)/obj/
 st_mod_dir = $(st_path)/mod/
@@ -528,7 +528,7 @@ help:
 	@echo "----------------------------------------------------------------------------------"
 	@echo "-- $(long_name) make targets"
 	@echo "-- Regular:  »make (all)«    - Build the $(long_name)"
-	@echo "-- Cleaning: »make clean«    - Remove build files, keep the central_src"
+	@echo "-- Cleaning: »make clean«    - Remove build files, keep the geb-lib"
 	@echo "-- Cleaning: »make cleanall« - Remove all build files."
 	@echo "-- Docs:     »make docs      - Build the html and the tex documentation."
 	@echo "----------------------------------------------------------------------------------"
@@ -572,7 +572,7 @@ clean:
 	
 cleanall: clean
 	@echo "----------------------------------------------------------------------------------"
-	@echo "-- Cleaning central_src st"
+	@echo "-- Cleaning geb-lib st"
 	@echo "----------------------------------------------------------------------------------"
 	$(MAKE) clean -C $(st_path)
 
