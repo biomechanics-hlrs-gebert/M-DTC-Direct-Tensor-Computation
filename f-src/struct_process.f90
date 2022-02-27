@@ -1124,7 +1124,7 @@ Program main_struct_process
       !------------------------------------------------------------------------------
       IF(std_out/=6) CALL meta_start_ascii(std_out, '.std_out')
 
-      CALL show_title()
+      CALL show_title(["Dr.-Ing. Ralf Schneider (HLRS, NUM)", "Johannes Gebert, M.Sc. (HLRS, NUM) "])
    
       IF(debug >=0) WRITE(std_out, FMT_MSG) "Post mortem info probably in ./datasets/temporary.std_out"
       WRITE(std_out, FMT_TXT) "Program invocation:"//TRIM(cmd_arg_history)          
@@ -1170,19 +1170,14 @@ Program main_struct_process
       CALL meta_handle_lock_file(restart, restart_cmd_arg)
 
       !------------------------------------------------------------------------------
-      ! Spawn a log file and a results file
+      ! Spawn a results file
       !------------------------------------------------------------------------------
       ! This log file may collide with the original log file (!)
       ! The regular struct_process log file contains still has the "old" basename!
       !------------------------------------------------------------------------------
-      ! CALL meta_start_ascii(fhl, log_suf)
       CALL meta_start_ascii(fhmon, mon_suf)
       
-      IF (std_out/=6) THEN
-         CALL meta_start_ascii(std_out, '.std_out')
-
-         CALL show_title() 
-      END IF
+      IF (std_out/=6) CALL meta_start_ascii(std_out, '.std_out')
 
       CALL meta_write('DBG_LVL', out_amount )
 
