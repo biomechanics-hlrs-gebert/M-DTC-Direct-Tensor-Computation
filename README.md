@@ -3,7 +3,7 @@
 ![OS](https://img.shields.io/badge/Linux-64Bit-green)
 ![version](https://img.shields.io/badge/version-1.0.0-green)
 
-An HPC software for the numerical evaluation of cubic control volumes that are defined as macroscopic finite elements. Resulting in stiffness matrices with the anisotropy of the object, which computed tomography scan was fed in.
+An HPC software for the numerical evaluation of cubic control volumes that are defined as macroscopic finite elements. Resulting in (anisotropic) stiffness matrices.
 
 Programed to compute the mechanical properties of human cancellous bone, a heterogenous, anisotropic structure.
 
