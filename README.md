@@ -3,33 +3,36 @@
 ![OS](https://img.shields.io/badge/Linux-64Bit-green)
 ![version](https://img.shields.io/badge/version-1.0.0-green)
 
+An HPC software for the numerical evaluation of cubic control volumes that are defined as macroscopic finite elements. Resulting in stiffness matrices with the anisotropy of the heterogenous structure.
 
-The computation of structural tensors based on the results of an FEA analysis with 24 (or 60) appropriate load cases, depending of the order of the macro element.
-
-This program formerly was known as »struct process«
+This program formerly was known as *struct process*.
 
 Build the program:    ```make```
-Create documentation: ```make docs```
+Build the documentation: ```make docs```
 
 Many thanks to Dr.-Ing. Ralf Schneider who developed the program at its core.
 ## Usage
-For example for testing on julius:
+The program is invoked like other mpi-parallel applications too. The following is an example that needs embedding in a batch-script. Examples of \*.pbs files for Altair PBS Professional are provided in ```./auxiliaries```
+
 ```
-mpirun ./bin/dtc_v1.0.0_x86_64 -np 4 <basename>.meta```
+mpirun ./bin/dtc_v1.0.0_x86_64 -np 32768 <basename>.meta
 ```
+Testing on a local machine with short turnaround times is recommended with up to 6 cores, depending on your system. 
+
+In general, the tool is capable of running on more than 100.000 x86_64 cores with no limit in wall time. Please be aware that computations on large datasets will need computational power of this magnitude.
 
 ## Datasets
 ... are transfered via file exchange and are not pushed into the repository. 
 
 ## Dataformats
-Two different approaches of dealing with I/O are used. 
+Two different approaches of dealing with I/O are in use.
 ### External data
 Computed tomography datasets are fed into the DTC process chain via a meta-file-format. Consisting of a basename-nomenclature and various suffixes, the data are given in their raw, binary format.
 ### Internal data
-Internally and for general program output, the PureDat format gets used. 
+Internally and for general program output, the PureDat format is used. 
 
 ## Usage:
-The program currently only accepts *.vtk files with a proper meta basename.
+The program currently only accepts \*.raw files, given with a proper meta-file and basename.
 ```./dtc_v1.0.0_x86_64 <basename>.meta```
 
 ## Requirements
@@ -46,18 +49,29 @@ The program must be compiled with:
 * PETSc index length=32Bit
 * METIS index length=64Bit
 
-The installation of Open MPI, METIS and PETSc is simplified with the install scripts of the repository "Overview" of the biomechanics-hlrs-gebert organization @GitHub.
+The installation of Open MPI, METIS and PETSc is simplified with the install scripts in ```./lib```.
 
 ### Optional: Gnu debugging
+I highly recommend the MPI-parallel debugging with forge. Nevertheless, local debugging with gdb works out as well.
+
+* [Arm DDT Forge](https://www.arm.com/products/development-tools/server-and-hpc/forge/ddt)
+
 * [gdb](https://www.gnu.org/software/gdb/)
 * [tmpi](https://github.com/Azrael3000/tmpi)
 * [tmux](https://github.com/tmux/tmux/wiki)
-## Build
-It's tested and therefore recommended to build and run the program as follows.
-### Set up the Environment
+
+## Set up the Environment
+
+To execute the program, the paths of the libraries must be given as environment variables.
+Modify your program according to the requirements of your HPC cluster:
 ```vim ./auxiliaries/system_environments/<system>.sh```
+
+Then source the script.
 ```source ./environment.source <system>``` 
 
+Both, compilation and execution of the program need this setup. 
+
+## Build
 * Set an architecture/a system
   * Give the absolute base path of your mpi-installation
   * Alternatively give the proper module names of your compute cluster
