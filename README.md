@@ -11,9 +11,9 @@ An HPC software for the numerical evaluation of cubic control volumes that are d
 
 Intended to compute the mechanical properties of human cancellous bone, a heterogenous, anisotropic structure.
 
-This program formerly was known as *struct process*.
+![Human cancellous bone, filtered for use with M-DTC](https://github.com/biomechanics-hlrs-gebert/M-DTC-Direct-Tensor-Computation/doc/20220228_CIF-2.png?raw=true)
 
-Many thanks to Dr.-Ing. Ralf Schneider who developed the program at its core.
+This program formerly was known as *struct process*.  Many thanks to Dr.-Ing. Ralf Schneider who developed the program at its core.
 ## Usage
 The program is invoked like other mpi-parallel applications too. The following is an example that needs embedding in a batch-script. Examples of \*.pbs files for Altair PBS Professional are provided in ```./auxiliaries```
 
