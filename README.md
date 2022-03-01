@@ -24,14 +24,9 @@ Testing on a local machine with short turnaround times is recommended with up to
 In general, the tool is capable of running on more than 100.000 x86_64 cores with no limit in wall time. Please be aware that computations on large datasets will need computational power of this magnitude.
 
 ## Datasets
-... are transfered via file exchange and are not pushed into the repository. 
+... are transferred via file exchange and are not pushed into the repository. 
 
-## Dataformats
-Two different approaches of dealing with I/O are in use.
-### External data
 Computed tomography datasets are fed into the DTC process chain via a meta-file-format. Consisting of a basename-nomenclature and various suffixes, the data are given in their raw, binary format.
-### Internal data
-Internally and for general program output, the PureDat format is used. 
 
 ## Usage:
 The program currently only accepts \*.raw files, given with a proper meta-file and basename.
