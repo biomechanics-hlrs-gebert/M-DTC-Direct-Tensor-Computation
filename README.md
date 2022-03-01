@@ -15,7 +15,8 @@ Intended to compute the mechanical properties of human cancellous bone, a hetero
   <img src="https://github.com/biomechanics-hlrs-gebert/M-DTC-Direct-Tensor-Computation/blob/main/doc/20220228_CIF-2.png" />
 </p>
 
-This program formerly was known as *struct process*.  Many thanks to Dr.-Ing. Ralf Schneider who developed the program at its core.
+This program formerly was known as *struct process*.  Many thanks to [Dr.-Ing. Ralf Schneider](https://www.hlrs.de/about-us/organization/people/person/schneider/)
+ who developed the program at its core.
 ## Usage
 The program is invoked like other mpi-parallel applications too. The following is an example that needs embedding in a batch-script. Examples of \*.pbs files for Altair PBS Professional are provided in ```./auxiliaries```
 
