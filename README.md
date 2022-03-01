@@ -12,7 +12,7 @@ An HPC software for the numerical evaluation of cubic control volumes that are d
 Intended to compute the mechanical properties of human cancellous bone, a heterogenous, anisotropic structure.
 
 <p align="center">
-  <img src="https://github.com/biomechanics-hlrs-gebert/M-DTC-Direct-Tensor-Computation/blob/main/doc/20220228_CIF-2.png" />
+  <img src="https://github.com/biomechanics-hlrs-gebert/M-DTC-Direct-Tensor-Computation/blob/main/doc/20220228_CIF-3.png" />
 </p>
 
 This program formerly was known as *struct process*.  Many thanks to [Dr.-Ing. Ralf Schneider](https://www.hlrs.de/about-us/organization/people/person/schneider/)
