@@ -53,9 +53,9 @@ The program must be compiled with:
 The installation of Open MPI, METIS and PETSc is simplified with the install scripts in ```./lib```.
 
 ### Optional: Gnu debugging
-I highly recommend the MPI-parallel debugging with forge. Nevertheless, local debugging with gdb works out as well.
+I highly recommend the MPI-parallel debugging with [Arm DDT Forge](https://www.arm.com/products/development-tools/server-and-hpc/forge/ddt). Nevertheless, local debugging with gdb works out as well.
 
-[Arm DDT Forge](https://www.arm.com/products/development-tools/server-and-hpc/forge/ddt), [gdb](https://www.gnu.org/software/gdb/), [tmpi](https://github.com/Azrael3000/tmpi), [tmux](https://github.com/tmux/tmux/wiki)
+[gdb](https://www.gnu.org/software/gdb/), [tmpi](https://github.com/Azrael3000/tmpi), [tmux](https://github.com/tmux/tmux/wiki)
 
 ## Set up the Environment
 
