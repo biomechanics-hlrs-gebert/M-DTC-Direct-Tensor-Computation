@@ -12,12 +12,13 @@
 #PBS -N dtc
 #PBS -l select=1:node_type=clx384gb40c:mpiprocs=40
 #PBS -l walltime=10:00:00
+##PBS -q test
 #
 # Change to the direcotry that the job was submitted from
 cd "$PBS_O_WORKDIR" || exit
 #
-# Load environment
-source ./environment.source vulcan --no-output 
+# shellcheck source=/dev/null
+source "./environment.soure" vulcan --no-output 
 #
 # Launch the parallel mpi application
-mpirun -np 40 ./bin/dtc_v1.0.0_x86_64 "$PBS_O_WORKDIR" ./datasets/datasets/FH01-2_mu_Dev_CTBI_32766-65536.meta
+mpirun -np 40 ./bin/dtc_v1.0.0_x86_64 "$PBS_O_WORKDIR" ./datasets/datasets/FH01-2_mu_dev_cbi_32766-65536.meta
