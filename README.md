@@ -9,9 +9,6 @@ Programed to compute the mechanical properties of human cancellous bone, a heter
 
 This program formerly was known as *struct process*.
 
-Build the program:    ```make```
-Build the documentation: ```make docs```
-
 Many thanks to Dr.-Ing. Ralf Schneider who developed the program at its core.
 ## Usage
 The program is invoked like other mpi-parallel applications too. The following is an example that needs embedding in a batch-script. Examples of \*.pbs files for Altair PBS Professional are provided in ```./auxiliaries```
