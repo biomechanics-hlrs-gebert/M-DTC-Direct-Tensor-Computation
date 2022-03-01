@@ -1,8 +1,0 @@
-/opt/metis/metis-5.1.0/include/metis.h
-/opt/metis/metis-5.1.0/lib/libmetis.a
-/opt/metis/metis-5.1.0/bin/gpmetis
-/opt/metis/metis-5.1.0/bin/ndmetis
-/opt/metis/metis-5.1.0/bin/mpmetis
-/opt/metis/metis-5.1.0/bin/m2gmetis
-/opt/metis/metis-5.1.0/bin/graphchk
-/opt/metis/metis-5.1.0/bin/cmpfillin

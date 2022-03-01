@@ -2,9 +2,9 @@
 # ----------------------------------------------------------------------------------------
 # PETSc download, build and install script.
 #
-# Author:     Johannes Gebert »gebert@hlrs.de«
+# Author:     Johannes Gebert - HLRS - NUM - gebert@hlrs.de
 # Created on: 14.09.2021
-# Last edit:  03.01.2022
+# Last edit:  27.02.2022
 # ----------------------------------------------------------------------------------------
 #
 # Requirements:
@@ -30,7 +30,7 @@
 VERSION="3.15"
 #
 # Target install directory
-PREF=/home/geb/09_trinity_site/dtc-testfeld/lib/petsc/petsc-$VERSION
+PREF=/opt/petsc/petsc-$VERSION
 # ----------------------------------------------------------------------------------------
 #
 # Check whether all programs and compilers are accesible
@@ -48,33 +48,28 @@ echo "--------------------------------------------------------------------------
 echo "Press any key to continue"; echo
 #
 # Based on https://linuxhint.com/bash_wait_keypress/
-while [ true ] ; do
-	read -t 2 -n 1
-	if [ $? = 0 ] ; then
-		break ;
-	else
-		echo "Waiting for the keypress"
+while true ; do
+	if read -r -t 2 -n 1 ; then
+		break;
 	fi
 done
 #
 echo "----------------------------------------------------------------------------------------"
 
-# sleep 3
 
 for i in "${BIN[@]}"
 do
-   which "$i" > /dev/null 2> /dev/null
-   if [ $? -eq 1 ]; then
-	echo "Please make »"$i"« available."
-	exit=1
+   if ! which "$i" > /dev/null 2> /dev/null; then
+	echo "Please make »$i« available."
+	exit 1
    fi
 done
 
-builddir=$PWD/build_petsc
+builddir="$PWD"/build_petsc
 
-git clone -b release https://gitlab.com/petsc/petsc.git $builddir
+git clone -b release https://gitlab.com/petsc/petsc.git "$builddir"
 
-cd $builddir
+cd "$builddir" || exit
 
 ./configure -prefix=$PREF                                       \
 --with-fortran-datatypes --with-fortran-interfaces=1            \
