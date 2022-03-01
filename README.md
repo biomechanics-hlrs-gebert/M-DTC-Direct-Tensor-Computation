@@ -5,7 +5,7 @@
 
 An HPC software for the numerical evaluation of cubic control volumes that are defined as macroscopic finite elements. Resulting in (anisotropic) stiffness matrices.
 
-Programed to compute the mechanical properties of human cancellous bone, a heterogenous, anisotropic structure.
+Intended to compute the mechanical properties of human cancellous bone, a heterogenous, anisotropic structure.
 
 This program formerly was known as *struct process*.
 
