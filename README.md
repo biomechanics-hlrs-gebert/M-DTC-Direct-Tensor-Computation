@@ -1,7 +1,11 @@
 # Direct Tensor Computation (DTC)
-![Architecture](https://img.shields.io/badge/Architecture-x86-green)
-![OS](https://img.shields.io/badge/Linux-64Bit-green)
-![version](https://img.shields.io/badge/version-1.0.0-green)
+[![DOI](https://zenodo.org/badge/420253804.svg)](https://zenodo.org/badge/latestdoi/420253804)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+![Architecture](https://img.shields.io/badge/Architecture-x86_64-blue)
+![OS](https://img.shields.io/badge/OS-Linux-blue)
+![version](https://img.shields.io/badge/version-1.0.0-blue)
+
+
 
 An HPC software for the numerical evaluation of cubic control volumes that are defined as macroscopic finite elements. Resulting in (anisotropic) stiffness matrices.
 
