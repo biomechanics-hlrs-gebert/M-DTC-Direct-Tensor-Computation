@@ -1156,7 +1156,7 @@ Program main_struct_process
       CALL meta_read('DIMENSIONS'       , m_rry, vdim)
       CALL meta_read('LO_BNDS_DMN_RANGE', m_rry, xa_d)
       CALL meta_read('UP_BNDS_DMN_RANGE', m_rry, xe_d)
-      CALL meta_read('BINARIZE_LO'      , m_rry, llimit)
+      CALL meta_read('BINARIZE_HI'      , m_rry, llimit)
       CALL meta_read('MESH_PER_SUB_DMN' , m_rry, parts_per_subdomain)
       CALL meta_read('RVE_STRAIN'       , m_rry, strain)
       CALL meta_read('YOUNG_MODULUS'    , m_rry, bone%E)

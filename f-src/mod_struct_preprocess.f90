@@ -163,11 +163,11 @@ Contains
     Do jj = xa_n(3), xe_n(3)
        Do ii = xa_n(2), xe_n(2)
 
-          pos_f=INT((INT(vdim(1)*vdim(2)*(jj         -1_8),8) + &
-               INT(vdim(1)*        (ii         -1_8),8) + &
-               INT(                (xa_n(1)    -1_8),8) + &
+          pos_f=INT((INT(vdim(1)*vdim(2)*(jj - 1_8), 8) + &
+               INT(vdim(1)*        (ii       - 1_8), 8) + &
+               INT(                (xa_n(1)  - 1_8), 8) + &
                INT(phi_desc%leaves(6)%lbound,8)         - &
-               1_8                                         ) * 4_8 + 1_8 ,8)
+               1_8) * 4_8 + 1_8, 8)
 
           Read(phi_desc%streams%units(3),pos=pos_f) Phi(:,ii,jj)
        End Do
@@ -189,8 +189,8 @@ Contains
     !============================================================================
     ! Generate Quadmesh from Phi
     !============================================================================
-    Call pd_get(root%branches(1),'Lower limit of iso value',llimit)
-    Call pd_get(root%branches(1),'Element type  on micro scale',char_arr)
+    Call pd_get(root%branches(1),'Lower limit of iso value', llimit)
+    Call pd_get(root%branches(1),'Element type  on micro scale', char_arr)
     elt_micro = char_to_str(char_arr)
     deallocate(char_arr)
 
