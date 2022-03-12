@@ -6,12 +6,13 @@
 !>  Ralf Schneider
 !>
 !>  \section modified Last modified:
-!>  by: Ralf Schneider \n
-!>  on : 15.02.2012
+!>  by: Johannes Gebert \n
+!>  on : 12.03.2022
 !** ------------------------------------------------------------------------ **
 Program pd_dump_leaf
 
-  Use puredat         
+  Use puredat     
+  USE user_interaction
   
   Implicit None
 
@@ -19,22 +20,22 @@ Program pd_dump_leaf
   !** Declarations ************************************************************
 
   !-- Chain Variables ---------------------------------------------------------
-  Real(Kind=pd_rk)            :: gstart_time, gend_time
+  Real(Kind=pd_rk) :: gstart_time, gend_time
 
-  Integer                     :: num_args, leaf_no, alloc_stat
+  Integer          :: num_args, leaf_no, alloc_stat
 
-  Character(len=pd_mcl)       :: arg
+  Character(len=pd_mcl) :: arg
 
-  Type(tBranch)               :: tree
-  Type(tLeaf),   Pointer      :: leaf
-  Logical                     :: success
+  Type(tBranch)       :: tree
+  Type(tLeaf),Pointer :: leaf
+  Logical             :: success
   
-  Integer(Kind=1)      , Dimension(:), Allocatable   :: dat_int1
-  Integer(Kind=2)      , Dimension(:), Allocatable   :: dat_int2
-  Integer(Kind=4)      , Dimension(:), Allocatable   :: dat_int4
-  Integer(Kind=8)      , Dimension(:), Allocatable   :: dat_int8
-  Real(Kind=8)         , Dimension(:), Allocatable   :: dat_real8
-  Character            , Dimension(:), Allocatable   :: dat_char
+  Integer(Kind=1), Dimension(:), Allocatable :: dat_int1
+  Integer(Kind=2), Dimension(:), Allocatable :: dat_int2
+  Integer(Kind=4), Dimension(:), Allocatable :: dat_int4
+  Integer(Kind=8), Dimension(:), Allocatable :: dat_int8
+  Real(Kind=8)   , Dimension(:), Allocatable :: dat_real8
+  Character      , Dimension(:), Allocatable :: dat_char
   
   !== Code ====================================================================
 
@@ -44,25 +45,26 @@ Program pd_dump_leaf
 
   num_args = command_argument_count()
 
-  If (num_args < 3) then
-     Write(*,'(80("="))')
-     Write(*,'(A)')"== Usage:"
-     Write(*,'(A)')"== arg 1   : Puredat project path"
-     Write(*,'(A)')"== arg 2   : Puredat project name"
-     Write(*,'(A)')"== arg 3   : Number of leaf to be dumped"
-     Write(*,'(80("="))')
+  If (num_args /= 2) then
+     Write(*,FMT_TXT_SEP)
+     Write(*,FMT_TXT) "Usage:"
+     Write(*,FMT_TXT) "arg 1: Output Meta path and basename."
+     Write(*,FMT_TXT) "arg 2: Number of leaf to be dumped"
+     Write(*,FMT_TXT_SEP)
      Stop
   End If
 
   call get_command_argument(1, pro_path)
-  call get_command_argument(2, pro_name)
-  call get_command_argument(3, arg)
+  call get_command_argument(2, arg)
+
+   pro_name="/results"
+
   Read(arg,*)leaf_no
 
   write(*,PDF_SEP  )
-  write(*,PDF_M_A  ) "Pro path    : "//trim(pro_path)
-  write(*,PDF_M_A  ) "Pro name    : "//trim(pro_name)
-  write(*,PDF_M_AI0) "Leaf no.    : ",leaf_no
+  write(*,PDF_M_A  ) "Pro path: "//trim(pro_path)
+  write(*,PDF_M_A  ) "Pro name: "//trim(pro_name)
+  write(*,PDF_M_AI0) "Leaf no.: ",leaf_no
   write(*,PDF_M_A  )"=="
 
   tree = read_tree()
@@ -73,11 +75,11 @@ Program pd_dump_leaf
      Write(*,PDF_E_AI0)"There is no leaf with number ",leaf_no
   ELSE
 
-     write(*,PDF_M_A  ) "Description           :"//trim(leaf%desc)
-     write(*,PDF_M_AI0) "Number of data        :",leaf%dat_no
-     write(*,PDF_M_AI0) "Type of data          :",leaf%dat_ty
-     write(*,PDF_M_AI0) "Lower bound in stream :",leaf%lbound
-     write(*,PDF_M_AI0) "Upper bound in stream :",leaf%ubound
+     write(*,PDF_M_A  ) "Description          : "//trim(leaf%desc)
+     write(*,PDF_M_AI0) "Number of data       :", leaf%dat_no
+     write(*,PDF_M_AI0) "Type of data         :", leaf%dat_ty
+     write(*,PDF_M_AI0) "Lower bound in stream:", leaf%lbound
+     write(*,PDF_M_AI0) "Upper bound in stream:", leaf%ubound
      write(*,PDF_M_A  )"=="
 
      Select case (leaf%dat_ty)
@@ -88,7 +90,7 @@ Program pd_dump_leaf
            If (alloc_stat /= 0) Then
               WRITE(*,*)
               WRITE(*,PDF_SEP)
-              WRITE(*,PDF_E_A)   'Allocation of the dat_int1 faild !!'
+              WRITE(*,PDF_E_A)   'Allocation of the dat_int1 failed !!'
               WRITE(*,PDF_E_AI0) 'The requested dimension was : ',leaf%dat_no
               WRITE(*,PDF_E_STOP)
               STOP
@@ -105,7 +107,7 @@ Program pd_dump_leaf
            If (alloc_stat /= 0) Then
               WRITE(*,*)
               WRITE(*,PDF_SEP)
-              WRITE(*,PDF_E_A)   'Allocation of the dat_int2 faild !!'
+              WRITE(*,PDF_E_A)   'Allocation of the dat_int2 failed !!'
               WRITE(*,PDF_E_AI0) 'The requested dimension was : ',leaf%dat_no
               WRITE(*,PDF_E_STOP)
               STOP
@@ -122,7 +124,7 @@ Program pd_dump_leaf
            If (alloc_stat /= 0) Then
               WRITE(*,*)
               WRITE(*,PDF_SEP)
-              WRITE(*,PDF_E_A)   'Allocation of the dat_int4 faild !!'
+              WRITE(*,PDF_E_A)   'Allocation of the dat_int4 failed !!'
               WRITE(*,PDF_E_AI0) 'The requested dimension was : ',leaf%dat_no
               WRITE(*,PDF_E_STOP)
               STOP
@@ -139,7 +141,7 @@ Program pd_dump_leaf
            If (alloc_stat /= 0) Then
               WRITE(*,*)
               WRITE(*,PDF_SEP)
-              WRITE(*,PDF_E_A)   'Allocation of the dat_int8 faild !!'
+              WRITE(*,PDF_E_A)   'Allocation of the dat_int8 failed !!'
               WRITE(*,PDF_E_AI0) 'The requested dimension was : ',leaf%dat_no
               WRITE(*,PDF_E_STOP)
               STOP
@@ -156,7 +158,7 @@ Program pd_dump_leaf
            If (alloc_stat /= 0) Then
               WRITE(*,*)
               WRITE(*,PDF_SEP)
-              WRITE(*,PDF_E_A)   'Allocation of the dat_real8 faild !!'
+              WRITE(*,PDF_E_A)   'Allocation of the dat_real8 failed !!'
               WRITE(*,PDF_E_AI0) 'The requested dimension was : ',leaf%dat_no
               WRITE(*,PDF_E_STOP)
               STOP
@@ -173,7 +175,7 @@ Program pd_dump_leaf
            If (alloc_stat /= 0) Then
               WRITE(*,*)
               WRITE(*,PDF_SEP)
-              WRITE(*,PDF_E_A)   'Allocation of the dat_cahr faild !!'
+              WRITE(*,PDF_E_A)   'Allocation of the dat_cahr failed !!'
               WRITE(*,PDF_E_AI0) 'The requested dimension was : ',leaf%dat_no
               WRITE(*,PDF_E_STOP)
               STOP

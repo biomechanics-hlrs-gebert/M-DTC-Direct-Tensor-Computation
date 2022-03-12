@@ -86,7 +86,7 @@ contains
 
     If (out_amount /= "PRODUCTION" ) then
        Write(un_lf, FMT_MSG_SEP)
-       Write(un_lf, FMT_MSG )   'Generating Quadmesh'
+       Write(un_lf, FMT_MSG ) 'Generating Quadmesh'
        Write(un_lf,*)
     End If
     
@@ -140,8 +140,8 @@ contains
 
        x_D_nodes = x_D + 1
 
-       Allocate(elems( 8, x_D(1)*x_D(2)*x_D(3)),stat=alloc_stat)
-       call alloc_err("elems",alloc_stat)
+       Allocate(elems( 8, x_D(1)*x_D(2)*x_D(3)), stat=alloc_stat)
+       call alloc_err("elems", alloc_stat)
 
     !** For hexaedral elements with quadratic trial functions *****************
     else if (elt_micro == "HEX20") then

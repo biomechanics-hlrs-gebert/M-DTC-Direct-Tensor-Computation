@@ -19,10 +19,10 @@ Program pd_leaf_diff
   !** Declarations ************************************************************
 
   !-- Chain Variables ---------------------------------------------------------
-  Real(Kind=pd_rk)            :: gstart_time, gend_time
-  Integer                     :: num_args
-  Character(len=pd_mcl)       :: pro_path_A,pro_path_B,pro_name_A,pro_name_B
-  Type(tBranch)               :: tree_A, tree_B
+  Real(Kind=pd_rk)      :: gstart_time, gend_time
+  Integer               :: num_args
+  Character(len=pd_mcl) :: pro_path_A,pro_path_B,pro_name_A,pro_name_B
+  Type(tBranch)         :: tree_A, tree_B
 
   !== Code ====================================================================
   Call Cpu_time(gstart_time)
@@ -33,10 +33,10 @@ Program pd_leaf_diff
   If (num_args < 4) then
      Write(*,'(80("="))')
      Write(*,'(A)')"== Usage:"
-     Write(*,'(A)')"== arg 1   : Puredat project path of tree A"
-     Write(*,'(A)')"== arg 2   : Puredat project name of tree A"
-     Write(*,'(A)')"== arg 3   : Puredat project path of tree B"
-     Write(*,'(A)')"== arg 4   : Puredat project name of tree B"
+     Write(*,'(A)')"== arg 1: Puredat project path of tree A"
+     Write(*,'(A)')"== arg 2: Puredat project name of tree A"
+     Write(*,'(A)')"== arg 3: Puredat project path of tree B"
+     Write(*,'(A)')"== arg 4: Puredat project name of tree B"
      Write(*,'(80("="))')
      Stop
   End If
@@ -47,10 +47,10 @@ Program pd_leaf_diff
   call get_command_argument(4, pro_name_B)
 
   write(*,*)"=="
-  write(*,*)"Pro path A  : ",trim(pro_path_A)
-  write(*,*)"Pro name A  : ",trim(pro_name_A)
-  write(*,*)"Pro path B  : ",trim(pro_path_B)
-  write(*,*)"Pro name B  : ",trim(pro_name_B)
+  write(*,*)"Pro path A: ",trim(pro_path_A)
+  write(*,*)"Pro name A: ",trim(pro_name_A)
+  write(*,*)"Pro path B: ",trim(pro_path_B)
+  write(*,*)"Pro name B: ",trim(pro_name_B)
   write(*,*)"=="
 
   pro_name = pro_name_A
