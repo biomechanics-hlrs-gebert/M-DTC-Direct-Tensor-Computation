@@ -166,6 +166,8 @@ Contains
 
     Integer(Kind=ik), Dimension(24)    :: idxm_08, idxn_08
     Real(kind=rk),    Dimension(24,24) :: K_loc_08
+
+    integer(Kind=ik) :: preallo
            
     !--------------------------------------------------------------------------
 
@@ -376,18 +378,32 @@ Contains
         CALL start_timer(TRIM(timer_name), .FALSE.)
     END IF 
 
+    !------------------------------------------------------------------------------
+    ! Calculate amount of memory to allocate.
+    !------------------------------------------------------------------------------
+    preallo = (pb%leaves(5)%dat_no * 3) / parts_per_subdomain + 1
 
-    !** Create Stiffness matrix **************************************
+    !------------------------------------------------------------------------------
+    ! Create Stiffness matrix
+    ! Preallocation avoids dynamic allocations during matassembly.
+    !------------------------------------------------------------------------------
     call MatCreate(COMM_MPI, AA    , petsc_ierr)
     call MatCreate(COMM_MPI, AA_org, petsc_ierr)
 
-    call MatSetSizes(AA,PETSC_DECIDE,PETSC_DECIDE,m_size,m_size,petsc_ierr)
-    call MatSetFromOptions(AA,petsc_ierr)
-    call MatSetUp(AA,petsc_ierr)
+    call MatSetFromOptions(AA,     petsc_ierr)
+    call MatSetFromOptions(AA_org, petsc_ierr)
 
+    call MatSetSizes(AA,PETSC_DECIDE,PETSC_DECIDE,m_size,m_size,petsc_ierr)
     call MatSetSizes(AA_org,PETSC_DECIDE,PETSC_DECIDE,m_size,m_size,petsc_ierr)
-    call MatSetFromOptions(AA_org,petsc_ierr)
-    call MatSetUp(AA_org,petsc_ierr)
+    
+    CALL MatSeqAIJSetPreallocation(AA, preallo, PETSC_NULL_INTEGER, petsc_ierr)
+    CALL MatMPIAIJSetPreallocation(AA, preallo, PETSC_NULL_INTEGER, preallo, PETSC_NULL_INTEGER, petsc_ierr)
+
+    CALL MatSeqAIJSetPreallocation(AA_org, preallo, PETSC_NULL_INTEGER, petsc_ierr)
+    CALL MatMPIAIJSetPreallocation(AA_org, preallo, PETSC_NULL_INTEGER, preallo, PETSC_NULL_INTEGER, petsc_ierr)
+
+    call MatSetOption(AA    ,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
+    call MatSetOption(AA_org,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
 
     !------------------------------------------------------------------------------
     ! End timer
@@ -968,9 +984,14 @@ Contains
     End if
     
 !!!!!!!!!!!!!<< Development <<<<<<<<<<<<<<<<<<<<
-    
-    call MatDestroy(AA, petsc_ierr)
+     
+    !------------------------------------------------------------------------------
+    ! Remove matrices
+    !------------------------------------------------------------------------------
+    CALL MatDestroy(AA, petsc_ierr)
+    CALL MatDestroy(AA_org, petsc_ierr)
     Call VecDestroy(XX, petsc_ierr)
+    
     Do ii = 1, 24
        Call VecDestroy(FF(ii) , petsc_ierr)
     End Do
