@@ -1,0 +1,24 @@
+#!/bin/bash
+# ------------------------------------------------------------------------------
+# Batch scipt for HLRS Vulcan
+#
+# Author:    Johannes Gebert - HLRS - NUM - gebert@hlrs.de
+# Date:      09.01.2022
+# Last edit: 01.03.2022
+#
+# For use of PBSPro visit:
+# https://kb.hlrs.de/platforms/index.php/Batch_System_PBSPro_(vulcan)
+# ------------------------------------------------------------------------------
+#PBS -N dtc
+#PBS -l select=1:node_type=clx384gb40c:mpiprocs=3
+#PBS -l walltime=00:25:00
+#PBS -q test
+#
+# Change to the direcotry that the job was submitted from
+cd "$PBS_O_WORKDIR" || exit
+#
+# shellcheck source=/dev/null
+source "./environment.soure" vulcan --no-output 
+#
+# Launch the parallel mpi application
+mpirun -np 3 ./bin/dtc_v1.0.0_x86_64 "$PBS_O_WORKDIR" ./datasets/testcase_solid_cube/SC00-0_tc_Dev_BinDecomp_isotropic-HEX08.meta
