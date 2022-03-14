@@ -22,37 +22,37 @@ Program pd_leaf_to_file
   !** Declarations ************************************************************
 
   !-- Chain Variables ---------------------------------------------------------
-  Real(Kind=pd_rk)            :: gstart_time, gend_time
+  Real(Kind=pd_rk)   :: gstart_time, gend_time
 
-  Integer                     :: num_args, un_st, un_out, un_log
-  Character(len=256)          :: pchars
+  Integer            :: num_args, un_st, un_out, un_log
+  Character(len=256) :: pchars
 
   Character(len=pd_mcl), Allocatable,Dimension(:) :: leaf_desc
-  Character(len=4*pd_mcl)     :: long_arg  
-  Character(len=pd_mcl)       :: branch_desc, arg
-  Character(len=pd_mcl)       :: log_file_name, tmp_char
-  Character(len=pd_mcl)       :: outfile, fmt_str="", data_format
-  Character(len=pd_mcl)       :: vtk_location = "POINT_DATA"
-  Character(len=12)           :: vtk_desc
-  Character                   :: lls
+  Character(len=4*pd_mcl) :: long_arg  
+  Character(len=pd_mcl)   :: branch_desc, arg
+  Character(len=pd_mcl)   :: log_file_name, tmp_char
+  Character(len=pd_mcl)   :: outfile, fmt_str="", data_format
+  Character(len=pd_mcl)   :: vtk_location = "POINT_DATA"
+  Character(len=12)       :: vtk_desc
+  Character               :: lls
   
-  Integer(Kind=pd_ik)         :: tmp_leaf_num, leaf_num, leaf_desc_num
-  Integer(Kind=pd_ik)         :: ii, jj, kk
-  Integer(Kind=pd_ik)         :: char_pos, cl_pos, cl_tok, stride, char_len
+  Integer(Kind=pd_ik) :: tmp_leaf_num, leaf_num, leaf_desc_num
+  Integer(Kind=pd_ik) :: ii, jj, kk
+  Integer(Kind=pd_ik) :: char_pos, cl_pos, cl_tok, stride, char_len
 
   Type(tLeaf), Dimension(:), Allocatable :: leaf_list
   Type(tBranch), Pointer                 :: branch
   Type(tBranch)                          :: tree
 
-  Logical                     :: log_data=.False., log_file=.False.
-  Logical                     :: logtree =.False.
-  Logical                     :: success, log_leaf_names=.FALSE.
-  Logical                     :: silent=.False., vtk_data_head=.True.
+  Logical :: log_data=.False., log_file=.False.
+  Logical :: logtree =.False.
+  Logical :: success, log_leaf_names=.FALSE.
+  Logical :: silent=.False., vtk_data_head=.True.
 
   Integer(Kind=pd_ik), Dimension(3) :: extend
   Real(kind=pd_rk)   , Dimension(3) :: origin, spacing
 
-  Type(tStreams)              :: dat
+  Type(tStreams) :: dat
 
   !** Init problematic chars in filenames ***
   Call init_pchars()

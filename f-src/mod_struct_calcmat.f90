@@ -18,15 +18,10 @@ Module calcmat
   implicit none
 
 contains
- 
 
-  subroutine calc_effective_material_parameters(root, ddc_nn) 
+subroutine calc_effective_material_parameters(root, domain_tree, ddc_nn) 
 
-    !> \todo Make scaling and backrotation process correct!
-    
-    !==========================================================================
-    !** Declarations **********************************************************
-    Type(tBranch), Intent(InOut) :: root
+    Type(tBranch), Intent(InOut) :: root, domain_tree
     integer(Kind=ik), Intent(in) :: ddc_nn
       
     Character(len=*), Parameter :: link_name="struct_calcmat_fmps"
@@ -41,7 +36,7 @@ contains
 
     Real(kind=8)   , Dimension(:,:,:), allocatable :: uu, rforces
 
-    Real(kind=8)   , Dimension(:,:,:)    , allocatable :: calc_rforces
+    Real(kind=8)   , Dimension(:,:,:), allocatable :: calc_rforces
     Real(kind=8)   , Dimension(6)   :: ro_stress
     Real(kind=8)   , Dimension(6,6) :: CC
     Real(kind=8)   , Dimension(6,6) :: cc_mean, EE, fv,meps
@@ -54,12 +49,12 @@ contains
     integer(Kind=ik)               :: no_elem_nodes,micro_elem_nodes
     integer(Kind=ik)               :: no_lc
     Real(Kind=rk),    Dimension(3) :: min_c, max_c
-    Type(tBranch), Pointer         :: ddc, loc_ddc, meta_para, db
+    Type(tBranch), Pointer         :: ddc, loc_ddc, meta_para, domain_branch
     Character(Len=mcl)             :: desc
 
     Real(kind=rk), Dimension(1) :: tmp_real_fd1
 
-    Type(tBranch),pointer :: mesh
+    Type(tBranch),pointer :: mesh_branch, domain_results
     Type(tLeaf),  pointer :: node_leaf_pointer
 
     Real(kind=rk) :: alpha, phi, eta
@@ -81,16 +76,15 @@ contains
 
     Real(kind=rk), Dimension(:), Allocatable :: delta, x_D_phy
     Type(tLeaf), Allocatable, Dimension(:)   :: leaf_list
-    Integer :: num_leaves, alloc_stat
+    Integer :: num_leaves, alloc_stat, amount_domains
     
     Real(kind=8)   , Dimension(:,:,:), allocatable :: edat
     Integer(Kind=ik), Dimension(:), Allocatable    :: xa_n, xe_n
     Logical :: success
 
     Character(len=9) :: nn_char
-    !  Type(tPs_ortho) :: oc
-    !==========================================================================
-    write(nn_char,'(I0)')ddc_nn
+
+    write(nn_char,'(I0)') ddc_nn
 
     Allocate(ang(3,0:180,0:180,0:90))
     Allocate(crit_1(0:180,0:180,0:90), crit_2(0:180,0:180,0:90))
@@ -104,166 +98,170 @@ contains
        continue
     End Select
 
-    !** Load input meta_para *****************************************************
+    ! Load input meta_para
     Call Search_branch("Input parameters", root, meta_para, success)
+
     Call pd_get(meta_para, "Young_s modulus", E_Modul)
     Call pd_get(meta_para, "Poisson_s ratio", nu)
     Call pd_get(meta_para, "Average strain on RVE", rve_strain)
     Call pd_get(meta_para, "Element order on macro scale", macro_order)
 
-    !**************************************************************************
-    !** Load domain decomposition parameters **********************************
+    !------------------------------------------------------------------------------
+    ! Load domain decomposition parameters
+    !------------------------------------------------------------------------------
 
-    !** Get global DDC parameters from root *********
+    ! Get global DDC parameters from root 
     Call Search_branch("Global domain decomposition", root, ddc, success)
 
-    call pd_get(ddc,"delta",delta)
-    call pd_get(ddc,"x_D_phy",x_D_phy)
+    call pd_get(ddc, "delta", delta)
+    call pd_get(ddc, "x_D_phy", x_D_phy)
 
-    !** Get local DDC parameters from root **********
-    Write(desc,'(A,I0)')"Local domain Decomposition of domain no ",ddc_nn
+    ! Get local DDC parameters from root
+    Write(desc,'(A,I0)') "Local domain Decomposition of domain no ", ddc_nn
 
     Call Search_branch(trim(desc), root, loc_ddc, success)
-    call pd_get(loc_ddc,"xa_n",xa_n)
-    call pd_get(loc_ddc,"xe_n",xe_n)
+    call pd_get(loc_ddc, "xa_n", xa_n)
+    call pd_get(loc_ddc, "xe_n", xe_n)
 
     min_c = Real(xa_n - 1,rk) * delta
     max_c = Real(xe_n    ,rk) * delta
 
-    !** Set node number of macro element **************************************
+    !------------------------------------------------------------------------------
+    ! Set node number of macro element
+    !------------------------------------------------------------------------------
     If (macro_order == 1) then
        no_elem_nodes = 8
        no_lc         = 24
     Else
-       Write(*,*)"Element order other than 1 not supported"
-       Goto 1000
+        CALL print_err_stop(std_out, "Element order other than 1 not supported", 1)
     End If
 
-    !**************************************************************************
-    !** Get global mesh parameters ********************************************
-    Call Search_branch("Domain "//trim(nn_char), root, db  , success)
+    !------------------------------------------------------------------------------
+    ! Get global mesh_branch parameters
+    !------------------------------------------------------------------------------
+    Call Search_branch("Domain "//trim(nn_char), root, domain_branch, success)
 
     desc = ''
-    Write(desc,'(A,I0)')'Mesh info of '//trim(project_name)//'_',ddc_nn
-    Call search_branch(trim(desc), db, mesh, success)
+    Write(desc,'(A,I0)') 'Mesh info of '//trim(project_name)//'_', ddc_nn
+    Call search_branch(trim(desc), domain_branch, mesh_branch, success)
 
-    !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-    call log_tree(mesh,un_lf,.FALSE.)
-    !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+    ! DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+    call log_tree(mesh_branch, un_lf, .FALSE.)
+    ! DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-    call pd_get(mesh, 'No of nodes in mesh',  no_nodes)
-    call pd_get(mesh, 'No of elements in mesh',  no_dat)
+    call pd_get(mesh_branch, 'No of nodes in mesh',  no_nodes)
+    call pd_get(mesh_branch, 'No of elements in mesh',  no_dat)
    
     micro_elem_nodes = 20
 
-    If (out_amount /= "PRODUCTION" ) then
-       write(un_lf, FMT_MSG_xAI0)"Set number of nodes per micro element to : " , &
-            micro_elem_nodes
+    If (out_amount /= "PRODUCTION") then
+       write(un_lf, FMT_MSG_xAI0) "Set number of nodes per micro element to: ", micro_elem_nodes
     End If
     
-    call pd_get(mesh, 'No of cdofs in parts',  no_cnodes_pp)
+    call pd_get(mesh_branch, 'No of cdofs in parts', no_cnodes_pp)
     no_cnodes=sum(no_cnodes_pp)/3
 
-    If (out_amount /= "PRODUCTION" ) then
+    If (out_amount /= "PRODUCTION") then
        write(un_lf,*)
-       write(un_lf,FMT_MSG_xAI0)"Read no_nodes  from domain branch : " , no_nodes
-       write(un_lf,FMT_MSG_xAI0)"Read no_cnodes from domain branch : " , no_cnodes
+       write(un_lf,FMT_MSG_xAI0)"Read no_nodes  from domain branch: ", no_nodes
+       write(un_lf,FMT_MSG_xAI0)"Read no_cnodes from domain branch: ", no_cnodes
     End If
     
-    !**************************************************************************
-    !** Allocate fields and read data *****************************************
-    !**************************************************************************
+    !------------------------------------------------------------------------------
+    ! Allocate fields and read data
+    !------------------------------------------------------------------------------
 
-    !** Copy Coordinate list nodes(3,no_nodes) ********************************
+    ! Copy Coordinate list nodes(3,no_nodes)
     Allocate (nodes(3,no_nodes),stat=alloc_stat)
-    call pd_get(mesh, "Coordinates", node_leaf_pointer)
+    call pd_get(mesh_branch, "Coordinates", node_leaf_pointer)
     nodes = reshape( node_leaf_pointer%p_real8 ,[3,no_nodes])
 
-    !** Build Cross reference for constrained nodes from "Boundary_Ids" *******
+    !------------------------------------------------------------------------------
+    ! Build Cross reference for constrained nodes from "Boundary_Ids"
+    !------------------------------------------------------------------------------
     Allocate(cref_cnodes(no_cnodes),stat=alloc_stat)
     call alloc_err( "cref_cnodes",alloc_stat)
 
-    Do ii = 1, mesh%branches(2)%branches(1)%leaves(1)%dat_no, 9
-       cref_cnodes((ii+8)/9) = mesh%branches(2)%branches(1)%leaves(1)%p_int8(ii)
+    Do ii = 1, mesh_branch%branches(2)%branches(1)%leaves(1)%dat_no, 9
+       cref_cnodes((ii+8)/9) = mesh_branch%branches(2)%branches(1)%leaves(1)%p_int8(ii)
     end Do
 
-    !** Read displacement results ***********************************************
-    Allocate(uu(3,no_nodes,no_lc),stat=alloc_stat)
-    call alloc_err( "uu",alloc_stat)
+    !------------------------------------------------------------------------------
+    ! Read displacement results
+    !------------------------------------------------------------------------------
+    Allocate(uu(3, no_nodes, no_lc), stat=alloc_stat)
+    call alloc_err("uu", alloc_stat)
 
-    call get_leaf_list("Displacements", mesh, num_leaves, leaf_list)
+    call get_leaf_list ("Displacements", mesh_branch, num_leaves, leaf_list)
     If (out_amount /= "PRODUCTION" ) then
-       write(un_lf,FMT_MSG_AxI0)"Number of leaves with desc = Displacements     : ",&
-            num_leaves
+       write(un_lf,FMT_MSG_AxI0) "Number of leaves with desc = Displacements: ", num_leaves
     End If
-    
-    Do ii = 1,num_leaves
-       uu(:,:,ii) = reshape(leaf_list(ii)%p_real8,[3,no_nodes])
+   
+    Do ii = 1, num_leaves
+       uu(:,:,ii) = reshape(leaf_list(ii)%p_real8, [3, no_nodes])
     End Do
 
     Deallocate(leaf_list)
 
-    !** Read stress and strain results ******************************************
-    Allocate(edat(15,no_lc,no_dat),stat=alloc_stat)
+    !------------------------------------------------------------------------------
+    ! Read stress and strain results
+    !------------------------------------------------------------------------------
+    Allocate(edat(15, no_lc, no_dat), stat=alloc_stat)
     call alloc_err( "edat",alloc_stat)
 
-    call get_leaf_list("Avg. Element Data", mesh, num_leaves, leaf_list)
+    call get_leaf_list("Avg. Element Data", mesh_branch, num_leaves, leaf_list)
     If (out_amount /= "PRODUCTION" ) then
-       write(un_lf,FMT_MSG_xAI0)"Number of leaves with desc = Avg. Element Data : ",&
-            num_leaves
+       write(un_lf,FMT_MSG_xAI0)"Number of leaves with desc = Avg. Element Data: ", num_leaves
     End If
     
-    Do ii = 1,num_leaves
-       edat(:,ii,:) = reshape(leaf_list(ii)%p_real8,[15,no_dat])
+    Do ii = 1, num_leaves
+       edat(:,ii,:) = reshape(leaf_list(ii)%p_real8, [15, no_dat])
     End Do
 
     Deallocate(leaf_list)
 
-    !** Read Reaction Forces ****************************************************
+    !------------------------------------------------------------------------------
+    ! Read Reaction Forces
+    !------------------------------------------------------------------------------
     Allocate(rforces(3,no_nodes,no_lc),stat=alloc_stat)
-    call alloc_err( "rforces",alloc_stat)
+    call alloc_err("rforces", alloc_stat)
 
-    call get_leaf_list("Reaction Forces", mesh, num_leaves, leaf_list)
+    call get_leaf_list("Reaction Forces", mesh_branch, num_leaves, leaf_list)
     If (out_amount /= "PRODUCTION" ) then
-       write(un_lf,FMT_MSG_AxI0)"Number of leaves with desc = Reaction Forces   : ",&
-            num_leaves
+       write(un_lf,FMT_MSG_AxI0) "Number of leaves with desc = Reaction Forces: ", num_leaves
     End If
     
-    Do ii = 1,num_leaves
+    Do ii = 1, num_leaves
        rforces(:,:,ii) = reshape(leaf_list(ii)%p_real8, [3,no_nodes])
     End Do
 
     Deallocate(leaf_list)
 
-    !****************************************************************************
-
-    Allocate(calc_rforces(3,no_nodes,no_lc),stat=alloc_stat)
-    call alloc_err( "calc_rforces",alloc_stat)
+    Allocate(calc_rforces(3, no_nodes, no_lc), stat=alloc_stat)
+    call alloc_err("calc_rforces", alloc_stat)
     calc_rforces = 0._rk
 
-    allocate(vv(no_lc,no_lc),stat=alloc_stat)
-    call alloc_err( "vv",alloc_stat)
-    allocate(ff(no_lc,no_lc),stat=alloc_stat)
-    call alloc_err( "ff",alloc_stat)
+    allocate(vv(no_lc, no_lc), stat=alloc_stat)
+    call alloc_err("vv", alloc_stat)
+    allocate(ff(no_lc, no_lc), stat=alloc_stat)
+    call alloc_err("ff", alloc_stat)
 
     ff = 0._rk
 
-    allocate(stiffness(no_lc,no_lc),stat=alloc_stat)
-    call alloc_err( "stiffness",alloc_stat)
+    allocate(stiffness(no_lc, no_lc), stat=alloc_stat)
+    call alloc_err("stiffness", alloc_stat)
 
-    allocate(tmp_nn(no_elem_nodes),stat=alloc_stat)
-    call alloc_err( "tmp_nn",alloc_stat)
+    allocate(tmp_nn(no_elem_nodes), stat=alloc_stat)
+    call alloc_err("tmp_nn", alloc_stat)
 
-    !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     If (out_amount == "DEBUG") THEN
        WRITE(un_lf,FMT_DBG_SEP)
        write(un_lf,*)
-       write(un_lf,*)'min uu      = ',minval(uu),'max uu      = ',maxval(uu)
-       write(un_lf,*)'min rforces = ',minval(rforces),'max rforces = ',maxval(rforces)
+       write(un_lf,*)'min uu      = ', minval(uu), 'max uu      = ', maxval(uu)
+       write(un_lf,*)'min rforces = ', minval(rforces), 'max rforces = ', maxval(rforces)
        write(un_lf,*)
        WRITE(un_lf,FMT_DBG_SEP)
     end if
-    !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     Select Case (timer_level)
     Case (3)
@@ -276,25 +274,28 @@ contains
        continue
     End Select
 
-    !****************************************************************************
-    !** Calc material data ******************************************************
-    !****************************************************************************
+    !------------------------------------------------------------------------------
+    ! Create effective results branch
+    !------------------------------------------------------------------------------
+    CALL add_branch_to_branch(domain_tree, domain_results)
+    CALL raise_branch(trim(desc), 0_pd_ik, 0_pd_ik, domain_results)
 
-    !** Init C ******************************************************************
+    !------------------------------------------------------------------------------
+    ! Init C
+    !------------------------------------------------------------------------------
     CC = iso_compliance_voigt(E_Modul, nu)
 
-    !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     If (out_amount == "DEBUG") THEN
        WRITE(un_lf,FMT_DBG_SEP)
        Call Write_matrix(un_lf, "Effective Isotropic Compliance -- CC", cc, fmti='std', unit='1/MPa')
        WRITE(un_lf,FMT_DBG_SEP)
     End if
-    !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-    !** Reorder stresses and strains ********************************************
+    !------------------------------------------------------------------------------
+    ! Reorder stresses and strains
+    !------------------------------------------------------------------------------
     Do jj = 1, no_dat
        Do ii = 1, no_lc
-
           ro_stress(1:4)  = edat(1:4,ii,jj)
           ro_stress(5)    = edat(6  ,ii,jj)
           ro_stress(6)    = edat(5  ,ii,jj)
@@ -304,60 +305,62 @@ contains
           ro_stress(5)     = edat(12  ,ii,jj)
           ro_stress(6)     = edat(11  ,ii,jj)
           edat(7:12,ii,jj) = ro_stress 
-
        End Do
     End Do
 
-    !** Init element and RVE volume *********************************************
+    !------------------------------------------------------------------------------
+    ! Init element and RVE volume 
+    !------------------------------------------------------------------------------
     v_elem = delta(1)*delta(2)*delta(3)
     v_cube = x_D_phy(1)*x_D_phy(2)*x_D_phy(3)
     
     If (out_amount /= "PRODUCTION" ) then
-       Write(un_lf,"(A,E15.6)") 'Volume per element: ', v_elem
-       Write(un_lf,"(A,E15.6)") 'MVE Volume:         ', v_cube
-       Write(un_lf,*)
+       Write(un_lf, "(A,E15.6)") 'Volume per element: ', v_elem
+       Write(un_lf, "(A,E15.6)") 'MVE Volume:         ', v_cube
+       Write(un_lf, *)
     End If
 
-    !** Loadcase init ***********************************************************
-    call init_loadcase(rve_strain,vv)
+    !------------------------------------------------------------------------------
+    ! Loadcase init
+    !------------------------------------------------------------------------------
+    call init_loadcase(rve_strain, vv)
 
-    !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     If (out_amount == "DEBUG") THEN
-       WRITE(un_lf,FMT_DBG_SEP)
+       WRITE(un_lf, FMT_DBG_SEP)
        Call Write_matrix(un_lf, "Displacement matrix", vv, fmti='std', unit='mm')
-       WRITE(un_lf,FMT_DBG_SEP)
+       WRITE(un_lf, FMT_DBG_SEP)
     End if
-    !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-    !** Calculate inverse of displacement matrix with LinPack *****************
+    !------------------------------------------------------------------------------
+    ! Calculate inverse of displacement matrix with LinPack
+    !------------------------------------------------------------------------------
     Call inverse(vv, no_lc, un_lf)
 
-    !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     If (out_amount == "DEBUG") THEN
-       WRITE(un_lf,FMT_DBG_SEP)
+       WRITE(un_lf, FMT_DBG_SEP)
        Call Write_matrix(un_lf, "Inverted displacement matrix", vv, fmti='std', unit='1/mm')
-       WRITE(un_lf,FMT_DBG_SEP)
+       WRITE(un_lf, FMT_DBG_SEP)
     End if
-    !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-    !****************************************************************************
-    !** calc load matrix ********************************************************
+    !------------------------------------------------------------------------------
+    ! calc load matrix
+    !------------------------------------------------------------------------------
     ff = 0._rk
 
-    Do ii = 1, no_lc   !** Cycle through all load cases
-       Do jj = 1, no_nodes      !** Cycle through all boundary nodes
+    Do ii = 1, no_lc            ! Cycle through all load cases
+       Do jj = 1, no_nodes      ! Cycle through all boundary nodes
 
-          !** t_geom_xi transforms coordinates from geometry to xi space 
-          !** Result(phi_nn) :  Real(kind=rk), dimension(8)
+          ! t_geom_xi transforms coordinates from geometry to xi space 
+          ! Result(phi_nn) :  Real(kind=rk), dimension(8)
           tmp_nn = phi_nn(t_geom_xi(nodes(:,jj),min_c,max_c))
 
           Do kk = 1,3
              Do ll = 1,no_elem_nodes
-                !** Setup of load matrix ****************************************
-                !** 1st index - rows : Acumulate the reaction forces of the 
-                !**                    micro model via the trail functions to 
-                !**                    the macro element
-                !** 2nd index - cols : Do first index step for all load cases
+                ! Setup of load matrix
+                ! 1st index - rows : Acumulate the reaction forces of the 
+                !                    micro model via the trail functions to 
+                !                    the macro element
+                ! 2nd index - cols : Do first index step for all load cases
                 ff((kk-1)*8+ll,ii) = ff((kk-1)*8+ll,ii) + rforces(kk,jj,ii)*tmp_nn(ll)
              End Do
           End Do
@@ -368,49 +371,53 @@ contains
     If (out_amount /= "PRODUCTION" ) then
        Call Write_matrix(un_lf, "ff by summation of single force formula", ff, fmti='std', unit='N')
     End If
+
+    call add_leaf_to_branch(domain_results, "Domain forces", no_lc*no_lc, reshape(ff,[no_lc*no_lc]))
+    ! call pd_store(domain_results%streams, domain_results,"Domain forces", reshape(ff,[no_lc*no_lc]))
+   !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+   !   Int(root%branches(4)%leaves(1)%lbound-1+(nn-1)*no_lc*no_lc, MPI_OFFSET_KIND), &
+   !   reshape(ff,[no_lc*no_lc]), &
+   !   Int(no_lc*no_lc,pd_mik), MPI_Real8, &
+   !   status_mpi, ierr)
     
-    !call add_leaf_to_branch(res_tree, "Domain forces", no_lc*no_lc, reshape(ff,[no_lc*no_lc]))
-    !    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-    !     Int(root%branches(4)%leaves(1)%lbound-1+(nn-1)*no_lc*no_lc, MPI_OFFSET_KIND), &
-    !     reshape(ff,[no_lc*no_lc]), &
-    !     Int(no_lc*no_lc,pd_mik), MPI_Real8, &
-    !     status_mpi, ierr)
-    
-    !****************************************************************************
-    !** Calc effective nummerical stiffness *************************************
+    !**
+    ! Calc effective nummerical stiffness *
     stiffness = matmul(ff,vv)
-    !call add_leaf_to_branch(res_tree, "Effective numerical stiffness", no_lc*no_lc, &
-    !     reshape(stiffness,[no_lc*no_lc]))
-    !Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-    !     Int(root%branches(4)%leaves(2)%lbound-1+(nn-1)*no_lc*no_lc, MPI_OFFSET_KIND), &
-    !     reshape(stiffness,[no_lc*no_lc]), &
-    !     Int(no_lc*no_lc,pd_mik), MPI_Real8, &
-    !     status_mpi, ierr)
+    call add_leaf_to_branch(domain_results, "Effective numerical stiffness", no_lc*no_lc, &
+        reshape(stiffness,[no_lc*no_lc]))
+    ! call pd_store(domain_results%streams, domain_results,"Domain forces", reshape(ff,[no_lc*no_lc]))
+   !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+   !       Int(root%branches(4)%leaves(2)%lbound-1+(nn-1)*no_lc*no_lc, MPI_OFFSET_KIND), &
+   !       reshape(stiffness,[no_lc*no_lc]), &
+   !       Int(no_lc*no_lc,pd_mik), MPI_Real8, &
+   !       status_mpi, ierr)
     
     If (out_amount /= "PRODUCTION" ) then
        Call Write_matrix(un_lf, "Stiffness", stiffness, fmti='std', unit='MPa')
     End If
     
 
-    !Call add_leaf_to_branch(res_tree, &
-    !    "Symmetry deviation - effective numerical stiffness", 1_pd_ik, &
-    !    tmp_real_fd1)
-    !Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-    !     Int(root%branches(4)%leaves(3)%lbound-1+(nn-1), MPI_OFFSET_KIND), &
-    !     tmp_real_fd1, &
-    !     Int(1,pd_mik), MPI_Real8, &
-    !     status_mpi, ierr)
+    Call add_leaf_to_branch(domain_results, &
+       "Symmetry deviation - effective numerical stiffness", 1_pd_ik, &
+       tmp_real_fd1)
+    ! call pd_store(domain_results%streams, domain_results, &
+    !   "Symmetry deviation - effective numerical stiffness", tmp_real_fd1)
+   !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+   !       Int(root%branches(4)%leaves(3)%lbound-1+(nn-1), MPI_OFFSET_KIND), &
+   !       tmp_real_fd1, &
+   !       Int(1,pd_mik), MPI_Real8, &
+   !       status_mpi, ierr)
     
-    !****************************************************************************
-    !** Calc inverse of effective nummerical stiffness for cross check against **
-    !** dislacement matrix                                                     **
+    !**
+    ! Calc inverse of effective nummerical stiffness for cross check against **
+    ! dislacement matrix                                                     **
     !Call inverse(stiffness, no_lc, un_lf)
     !Call Write_real_matrix(un_lf,stiffness,no_lc,no_lc,"Inverse Stiffness")
     !Call Write_real_matrix(un_lf,matmul(stiffness,ff(:,1)), no_lc, 1_ik, &
     !     "Inverse Stiffness o f(:,1)")
 
-    !****************************************************************************
-    !** Calc consistent force matrix
+    !**
+    ! Calc consistent force matrix
     Do ii = 1, 6
        fv(1,ii) = (ff( 2,ii) + ff( 3,ii) + ff( 6,ii) + ff( 7,ii)) / ( x_D_phy(2) * x_D_phy(3) )
        fv(2,ii) = (ff(11,ii) + ff(12,ii) + ff(15,ii) + ff(16,ii)) / ( x_D_phy(1) * x_D_phy(3) )
@@ -430,8 +437,8 @@ contains
        Call Write_matrix(un_lf, "Konsistent force matrix", fv, fmti='std', unit='N')
     End If
     
-    !****************************************************************************
-    !** Calc integrated force matrix
+    !**
+    ! Calc integrated force matrix
     !Do jj = 1, 6
     !   Do ii = 1, 6
     !      fv(ii,jj) = sum(edat(ii,jj,:))
@@ -443,8 +450,8 @@ contains
     !   Call Write_real_matrix(un_lf, fv ,6_ik, 6_ik, "Integrated force matrix")
     !End If
     
-    !****************************************************************************
-    !** Calc averaged strains and stresses 
+    !**
+    ! Calc averaged strains and stresses 
     !Do jj = 1, 24
     !   Do ii = 1,6
     !      int_stress(ii,jj) = sum(edat(ii,jj,:))
@@ -475,30 +482,30 @@ contains
     !   End Do
     !End If
     
-    !call add_leaf_to_branch(res_tree, "Averaged stresses", 6*no_lc, reshape(int_stress,[6*no_lc]))
+    !call add_leaf_to_branch(domain_results, "Averaged stresses", 6*no_lc, reshape(int_stress,[6*no_lc]))
 !!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
 !!$         Int(root%branches(4)%leaves(4)%lbound-1+(nn-1)*6*no_lc, MPI_OFFSET_KIND), &
 !!$         reshape(int_stress,[6*no_lc]), &
 !!$         Int(6*no_lc,pd_mik), MPI_Real8, &
 !!$         status_mpi, ierr)
-!!$    !call add_leaf_to_branch(res_tree, "Averaged strains",  6*no_lc, reshape(int_strain,[6*no_lc]))
+!!$    !call add_leaf_to_branch(domain_results, "Averaged strains",  6*no_lc, reshape(int_strain,[6*no_lc]))
 !!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
 !!$         Int(root%branches(4)%leaves(5)%lbound-1+(nn-1)*6*no_lc, MPI_OFFSET_KIND), &
 !!$         reshape(int_strain,[6*no_lc]), &
 !!$         Int(6*no_lc,pd_mik), MPI_Real8, &
 !!$         status_mpi, ierr)
     
-    !****************************************************************************
-    !** Calc integrated strain matrix for first 6 loadcases
+    !**
+    ! Calc integrated strain matrix for first 6 loadcases
     !meps = int_strain(1:6,1:6)
     !If (out_amount /= "PRODUCTION" ) then
     !   Call Write_real_matrix(un_lf, meps ,6_ik, 6_ik, &
     !        "Integrated strain matrix of first 6 loadcases")
     !End If
     
-    !****************************************************************************
-    !** Calc theoretical effective stiffness
-    !** Linear loadcases with constant strain fields ****************************
+    !**
+    ! Calc theoretical effective stiffness
+    ! Linear loadcases with constant strain fields *
     meps(1,:) = [ 1.00E+06 , 0.00E+00 ,  0.00E+06 , 0.00E+06 , 0.00E+00, 0.00E+06]
     meps(2,:) = [ 0.00E+06 , 1.00E+06 ,  0.00E+06 , 0.00E+06 , 0.00E+00 ,0.00E+06]
     meps(3,:) = [ 0.00E+06 , 0.00E+00 ,  1.00E+06 , 0.00E+06 , 0.00E+06 ,0.00E+06]
@@ -512,37 +519,45 @@ contains
      !   Call Write_real_matrix(un_lf, cc_mean ,6_ik, 6_ik, "Effective stiffness")
        Call Write_matrix(un_lf, "Effective stiffness", cc_mean, fmti='std', unit='MPa')
     End If
+
+!!!!!!!!!!!!!!!!! TEST 220312 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!11
+   ! CALL add_leaf_to_branch(domain_results, "Effective stiffness", 36_ik, [cc_mean])   
+!!!!!!!!!!!!!!!!! TEST 220312 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!11
+
     
-    !call add_leaf_to_branch(res_tree, "Effective stiffness",  36_pd_ik, &
-    !     reshape(cc_mean,[36_pd_ik]))
-!!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-!!$         Int(root%branches(4)%leaves(6)%lbound-1+(nn-1)*36, MPI_OFFSET_KIND), &
-!!$         reshape(cc_mean,[36]), &
-!!$         Int(36,pd_mik), MPI_Real8, &
-!!$         status_mpi, ierr)
-       
-    !Call add_leaf_to_branch(res_tree, &
-    !    "Symmetry deviation - effective stiffness",  1_pd_ik, tmp_real_fd1)
-!!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-!!$         Int(root%branches(4)%leaves(7)%lbound-1+(nn-1), MPI_OFFSET_KIND), &
-!!$         tmp_real_fd1, &
-!!$         Int(1,pd_mik), MPI_Real8, &
-!!$         status_mpi, ierr)
-    
+    call add_leaf_to_branch(domain_results, "Effective stiffness",  36_pd_ik, &
+        reshape(cc_mean,[36_pd_ik]))
+    ! call pd_store(domain_results%streams,domain_results,"Effective stiffness",reshape(cc_mean,[36_pd_ik]))
+    !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+    !       Int(root%branches(4)%leaves(6)%lbound-1+(nn-1)*36, MPI_OFFSET_KIND), &
+    !       reshape(cc_mean,[36]), &
+    !       Int(36,pd_mik), MPI_Real8, &
+    !       status_mpi, ierr)
+
+    Call add_leaf_to_branch(domain_results, &
+        "Symmetry deviation - effective stiffness",  1_pd_ik, tmp_real_fd1)
+    ! call pd_store(domain_results%streams,domain_results, &
+    !     "Symmetry deviation - effective stiffness", tmp_real_fd1)
+    !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+    !       Int(root%branches(4)%leaves(7)%lbound-1+(nn-1), MPI_OFFSET_KIND), &
+    !       tmp_real_fd1, &
+    !       Int(1,pd_mik), MPI_Real8, &
+    !       status_mpi, ierr)
+
     Select Case (timer_level)
-    Case (3)
-       call end_timer  ("  +-- Calc material data "//trim(nn_char))
-       call start_timer("  +-- Back rotation of material matrix "//trim(nn_char))
-    Case (2)
-       call end_timer  ("  +-- Calc material data "//trim(nn_char))
-       call start_timer("  +-- Back rotation of material matrix "//trim(nn_char))
-    Case default
-       continue
+        Case (3)
+            call end_timer  ("  +-- Calc material data "//trim(nn_char))
+            call start_timer("  +-- Back rotation of material matrix "//trim(nn_char))
+        Case (2)
+            call end_timer  ("  +-- Calc material data "//trim(nn_char))
+            call start_timer("  +-- Back rotation of material matrix "//trim(nn_char))
+        Case default
+            continue
     End Select
 
-    !****************************************************************************
-    !** Back rotation of material matrix according to different criterias *******
-    !****************************************************************************
+    !**
+    ! Back rotation of material matrix according to different criterias *******
+    !**
 
     !EE = matmul(fv,transpose(meps))
     EE = (cc_mean + transpose(cc_mean)) / 2._rk
@@ -550,21 +565,26 @@ contains
     If (out_amount /= "PRODUCTION" ) then
        Call Write_matrix(un_lf, "Averaged Effective stiffness", ee, fmti='std', unit='MPa')
     End If
-    !call add_leaf_to_branch(res_tree, "Averaged Effective stiffness",  36_pd_ik, &
-    !     reshape(ee,[36_pd_ik]))
-!!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-!!$         Int(root%branches(4)%leaves(8)%lbound-1+(nn-1)*36, MPI_OFFSET_KIND), &
-!!$         reshape(ee,[36]), &
-!!$         Int(36,pd_mik), MPI_Real8, &
-!!$         status_mpi, ierr)
     
-    !call add_leaf_to_branch(res_tree, &
-    !     "Symmetry deviation - Averaged effective stiffness",  1_pd_ik, tmp_real_fd1)
-!!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-!!$         Int(root%branches(4)%leaves(9)%lbound-1+(nn-1), MPI_OFFSET_KIND), &
-!!$         tmp_real_fd1, &
-!!$         Int(1,pd_mik), MPI_Real8, &
-!!$         status_mpi, ierr)
+    call add_leaf_to_branch(domain_results, "Averaged Effective stiffness",  36_pd_ik, &
+        reshape(ee,[36_pd_ik]))
+    ! call pd_store(domain_results%streams,domain_results,"Averaged Effective stiffness",reshape(ee,[36_pd_ik]))
+
+   !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+   !       Int(root%branches(4)%leaves(8)%lbound-1+(nn-1)*36, MPI_OFFSET_KIND), &
+   !       reshape(ee,[36]), &
+   !       Int(36,pd_mik), MPI_Real8, &
+   !       status_mpi, ierr)
+    
+    call add_leaf_to_branch(domain_results, &
+        "Symmetry deviation - Averaged effective stiffness",  1_pd_ik, tmp_real_fd1)
+    ! call pd_store(domain_results%streams, domain_results, &
+    !     "Symmetry deviation - Averaged effective stiffness", tmp_real_fd1)
+   !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+   !       Int(root%branches(4)%leaves(9)%lbound-1+(nn-1), MPI_OFFSET_KIND), &
+   !       tmp_real_fd1, &
+   !       Int(1,pd_mik), MPI_Real8, &
+   !       status_mpi, ierr)
     
     EE_Orig = EE
 
@@ -1080,7 +1100,7 @@ contains
 
     End Do
 
-    !** Be aware that minloc starts off at field index 1 !!!
+    ! Be aware that minloc starts off at field index 1 !!!
     mlc = minloc(crit_1(0:kk-1,0:kk_phi-1,0:kk_eta-1))-1
 
     alpha = Real( ang(1,mlc(1),mlc(2),mlc(3)),rk ) * pi / (180._rk*(10._rk**jj-1))
@@ -1102,19 +1122,19 @@ contains
     End If
     
     tmp_real_fd1 = alpha 
-    !Call add_leaf_to_branch(res_tree,"Rotation Angle CR_1" , 1_pd_ik, tmp_real_fd1)
-!!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-!!$         Int(root%branches(4)%leaves(10)%lbound-1+(nn-1), MPI_OFFSET_KIND), &
-!!$         tmp_real_fd1, &
-!!$         Int(1,pd_mik), MPI_Real8, &
-!!$         status_mpi, ierr)
+    Call add_leaf_to_branch(domain_results,"Rotation Angle CR_1" , 1_pd_ik, tmp_real_fd1)
+   !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+   !       Int(root%branches(4)%leaves(10)%lbound-1+(nn-1), MPI_OFFSET_KIND), &
+   !       tmp_real_fd1, &
+   !       Int(1,pd_mik), MPI_Real8, &
+   !       status_mpi, ierr)
     
-    !call add_leaf_to_branch(res_tree,"Rotation Vector CR_1", 3_pd_ik, n)
-!!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-!!$         Int(root%branches(4)%leaves(11)%lbound-1+(nn-1)*3, MPI_OFFSET_KIND), &
-!!$         n, &
-!!$         Int(3,pd_mik), MPI_Real8, &
-!!$         status_mpi, ierr)
+    call add_leaf_to_branch(domain_results,"Rotation Vector CR_1", 3_pd_ik, n)
+   !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+   !       Int(root%branches(4)%leaves(11)%lbound-1+(nn-1)*3, MPI_OFFSET_KIND), &
+   !       n, &
+   !       Int(3,pd_mik), MPI_Real8, &
+   !       status_mpi, ierr)
        
     !=========================================================================
     !== Inlining of EE =======================================================
@@ -1139,7 +1159,7 @@ contains
 
        If (out_amount /= "PRODUCTION" ) write(un_lf,*)"132"
 
-       !** 132 => 123 *****************
+       ! 132 => 123 ********
        n = aa(:,1)
        alpha = pi/2
        aa = matmul(rot_alg(n,alpha),aa)   
@@ -1149,12 +1169,12 @@ contains
 
        If (out_amount /= "PRODUCTION" ) write(un_lf,*)"231"
 
-       !** 231 => 132 *****************
+       ! 231 => 132 ********
        n = aa(:,2)
        alpha = pi/2
        aa = matmul(rot_alg(n,alpha),aa)
 
-       !** 132 => 123 *****************
+       ! 132 => 123 ********
        n = aa(:,1)
        alpha = pi/2
        aa = matmul(rot_alg(n,alpha),aa)   
@@ -1164,7 +1184,7 @@ contains
 
        If (out_amount /= "PRODUCTION" ) write(un_lf,*)"213"
 
-       !** 213 => 123 *****************
+       ! 213 => 123 ********
        n = aa(:,3)
        alpha = pi/2
        aa = matmul(rot_alg(n,alpha),aa)   
@@ -1174,12 +1194,12 @@ contains
 
        If (out_amount /= "PRODUCTION" ) write(un_lf,*)"312"
 
-       !** 312 => 132 *****************
+       ! 312 => 132 ********
        n = aa(:,3)
        alpha = pi/2
        aa = matmul(rot_alg(n,alpha),aa)   
 
-       !** 132 => 123 *****************
+       ! 132 => 123 ********
        n = aa(:,1)
        alpha = pi/2
        aa = matmul(rot_alg(n,alpha),aa)  
@@ -1189,7 +1209,7 @@ contains
 
        If (out_amount /= "PRODUCTION" ) write(un_lf,*)"321"
 
-       !** 321 => 123 *****************
+       ! 321 => 123 ********
        n = aa(:,2)
        alpha = pi/2
        aa = matmul(rot_alg(n,alpha),aa)  
@@ -1204,21 +1224,25 @@ contains
        Call Write_matrix(un_lf, "Inlined anisotropic stiffness CR_1", EE, fmti='std', unit='MPa')
     End If
     
-    !call add_leaf_to_branch(res_tree,"Final coordinate system CR_1", 9_pd_ik, &
-    !     reshape(aa,[9_pd_ik]))
-!!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-!!$         Int(root%branches(4)%leaves(12)%lbound-1+(nn-1)*9, MPI_OFFSET_KIND), &
-!!$         reshape(aa,[9_pd_ik]), &
-!!$         Int(9,pd_mik), MPI_Real8, &
-!!$         status_mpi, ierr)
+    call add_leaf_to_branch(domain_results,"Final coordinate system CR_1", 9_pd_ik, &
+        reshape(aa,[9_pd_ik]))
+    ! call pd_store(domain_results%streams, domain_results, &
+    !     "Final coordinate system CR_1", reshape(aa,[9_pd_ik]))
+   !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+   !       Int(root%branches(4)%leaves(12)%lbound-1+(nn-1)*9, MPI_OFFSET_KIND), &
+   !       reshape(aa,[9_pd_ik]), &
+   !       Int(9,pd_mik), MPI_Real8, &
+   !       status_mpi, ierr)
 
-    !call add_leaf_to_branch(res_tree,"Optimized Effective stiffness CR_1", 36_pd_ik, &
-    !     reshape(EE,[36_pd_ik]))
-!!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-!!$         Int(root%branches(4)%leaves(13)%lbound-1+(nn-1)*36, MPI_OFFSET_KIND), &
-!!$         reshape(EE,[36_pd_ik]), &
-!!$         Int(36,pd_mik), MPI_Real8, &
-!!$         status_mpi, ierr)
+    call add_leaf_to_branch(domain_results,"Optimized Effective stiffness CR_1", 36_pd_ik, &
+        reshape(EE,[36_pd_ik]))
+    ! call pd_store(domain_results%streams, domain_results, &
+    !     "Optimized Effective stiffness CR_1", reshape(EE,[36_pd_ik]))
+   !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+   !       Int(root%branches(4)%leaves(13)%lbound-1+(nn-1)*36, MPI_OFFSET_KIND), &
+   !       reshape(EE,[36_pd_ik]), &
+   !       Int(36,pd_mik), MPI_Real8, &
+   !       status_mpi, ierr)
  
     !=========================================================================
     !== Iteration of Crit_2 ==================================================
@@ -1535,19 +1559,23 @@ contains
     End If
     
     tmp_real_fd1 = alpha 
-    !call add_leaf_to_branch(res_tree,"Rotation Angle CR_2" , 1_pd_ik, tmp_real_fd1)
-!!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-!!$         Int(root%branches(4)%leaves(14)%lbound-1+(nn-1), MPI_OFFSET_KIND), &
-!!$         tmp_real_fd1, &
-!!$         Int(1,pd_mik), MPI_Real8, &
-!!$         status_mpi, ierr)
+    call add_leaf_to_branch(domain_results,"Rotation Angle CR_2" , 1_pd_ik, tmp_real_fd1)
+    ! call pd_store(domain_results%streams, domain_results, &
+    !     "Rotation Angle CR_2", tmp_real_fd1)
+   !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+   !       Int(root%branches(4)%leaves(14)%lbound-1+(nn-1), MPI_OFFSET_KIND), &
+   !       tmp_real_fd1, &
+   !       Int(1,pd_mik), MPI_Real8, &
+   !       status_mpi, ierr)
     
-    !call add_leaf_to_branch(res_tree,"Rotation Vector CR_2", 3_pd_ik, n)
-!!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-!!$         Int(root%branches(4)%leaves(15)%lbound-1+(nn-1)*3, MPI_OFFSET_KIND), &
-!!$         n, &
-!!$         Int(3,pd_mik), MPI_Real8, &
-!!$         status_mpi, ierr)
+    call add_leaf_to_branch(domain_results,"Rotation Vector CR_2", 3_pd_ik, n)
+    ! call pd_store(domain_results%streams, domain_results, &
+    !     "Rotation Vector CR_2", n)
+   !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+   !       Int(root%branches(4)%leaves(15)%lbound-1+(nn-1)*3, MPI_OFFSET_KIND), &
+   !       n, &
+   !       Int(3,pd_mik), MPI_Real8, &
+   !       status_mpi, ierr)
     
     !=========================================================================
     !== Inlining of EE =======================================================
@@ -1572,7 +1600,7 @@ contains
 
        If (out_amount /= "PRODUCTION" ) write(un_lf,*)"132"
 
-       !** 132 => 123 *****************
+       ! 132 => 123 ********
        n = aa(:,1)
        alpha = pi/2
        aa = matmul(rot_alg(n,alpha),aa)   
@@ -1582,12 +1610,12 @@ contains
 
        If (out_amount /= "PRODUCTION" ) write(un_lf,*)"231"
 
-       !** 231 => 132 *****************
+       ! 231 => 132 ********
        n = aa(:,2)
        alpha = pi/2
        aa = matmul(rot_alg(n,alpha),aa)
 
-       !** 132 => 123 *****************
+       ! 132 => 123 ********
        n = aa(:,1)
        alpha = pi/2
        aa = matmul(rot_alg(n,alpha),aa)   
@@ -1597,7 +1625,7 @@ contains
 
        If (out_amount /= "PRODUCTION" ) write(un_lf,*)"213"
 
-       !** 213 => 123 *****************
+       ! 213 => 123 ********
        n = aa(:,3)
        alpha = pi/2
        aa = matmul(rot_alg(n,alpha),aa)   
@@ -1607,12 +1635,12 @@ contains
 
        If (out_amount /= "PRODUCTION" ) write(un_lf,*)"312"
 
-       !** 312 => 132 *****************
+       ! 312 => 132 ********
        n = aa(:,3)
        alpha = pi/2
        aa = matmul(rot_alg(n,alpha),aa)   
 
-       !** 132 => 123 *****************
+       ! 132 => 123 ********
        n = aa(:,1)
        alpha = pi/2
        aa = matmul(rot_alg(n,alpha),aa)  
@@ -1622,7 +1650,7 @@ contains
 
        If (out_amount /= "PRODUCTION" ) write(un_lf,*)"321"
 
-       !** 321 => 123 *****************
+       ! 321 => 123 ********
        n = aa(:,2)
        alpha = pi/2
        aa = matmul(rot_alg(n,alpha),aa)  
@@ -1637,21 +1665,25 @@ contains
        Call Write_matrix(un_lf, "Inlined anisotropic stiffness CR_2", EE, fmti='std', unit='MPa')
     End If
     
-    !Call add_leaf_to_branch(res_tree,"Final coordinate system CR_2", 9_pd_ik, &
-    !    reshape(aa,[9_pd_ik]))
-!!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-!!$         Int(root%branches(4)%leaves(16)%lbound-1+(nn-1)*9, MPI_OFFSET_KIND), &
-!!$         reshape(aa,[9_pd_ik]), &
-!!$         Int(9,pd_mik), MPI_Real8, &
-!!$         status_mpi, ierr)
+    Call add_leaf_to_branch(domain_results,"Final coordinate system CR_2", 9_pd_ik, &
+       reshape(aa,[9_pd_ik]))
+    ! call pd_store(domain_results%streams, domain_results, &
+    !     "Final coordinate system CR_2", reshape(aa,[9_pd_ik]))
+   !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+   !       Int(root%branches(4)%leaves(16)%lbound-1+(nn-1)*9, MPI_OFFSET_KIND), &
+   !       reshape(aa,[9_pd_ik]), &
+   !       Int(9,pd_mik), MPI_Real8, &
+   !       status_mpi, ierr)
     
-    !call add_leaf_to_branch(res_tree,"Optimized Effective stiffness CR_2", 36_pd_ik, &
-    !     reshape(EE,[36_pd_ik]))
-!!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-!!$         Int(root%branches(4)%leaves(17)%lbound-1+(nn-1)*36, MPI_OFFSET_KIND), &
-!!$         reshape(EE,[36_pd_ik]), &
-!!$         Int(36,pd_mik), MPI_Real8, &
-!!$         status_mpi, ierr)
+    call add_leaf_to_branch(domain_results,"Optimized Effective stiffness CR_2", 36_pd_ik, &
+        reshape(EE,[36_pd_ik]))
+    ! call pd_store(domain_results%streams, domain_results, &
+    !     "Optimized Effective stiffness CR_2", reshape(EE,[36_pd_ik]))
+   !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+   !       Int(root%branches(4)%leaves(17)%lbound-1+(nn-1)*36, MPI_OFFSET_KIND), &
+   !       reshape(EE,[36_pd_ik]), &
+   !       Int(36,pd_mik), MPI_Real8, &
+   !       status_mpi, ierr)
         
     Select Case (timer_level)
     Case (3)
@@ -1662,13 +1694,18 @@ contains
        continue
     End Select
 
+!------------------------------------------------------------------------------
+! Create new stream files
+!------------------------------------------------------------------------------
+! call close_stream_files(domain_results)
+
 1000 Continue
 
     deallocate(nodes,uu,edat,cref_cnodes,rforces)
 
   End subroutine calc_effective_material_parameters
 
-  !****************************************************************************
+  !**
   subroutine init_loadcase(eps,vv)
 
     Real(Kind=rk), intent(in)     :: eps
@@ -1758,5 +1795,3 @@ contains
   end subroutine init_loadcase
 
 End Module calcmat
-
-  

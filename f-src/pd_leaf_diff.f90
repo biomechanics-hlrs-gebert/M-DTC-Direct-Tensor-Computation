@@ -79,6 +79,6 @@ Program pd_leaf_diff
 
   Call Cpu_time(gend_time)
   Write(*,*)'=='
-  Write(*,'(A,F9.3)')" Used CPU time : ",gend_time-gstart_time
+  Write(*,'(A,F9.3)')" Used CPU time: ",gend_time-gstart_time
  
 End Program pd_leaf_diff

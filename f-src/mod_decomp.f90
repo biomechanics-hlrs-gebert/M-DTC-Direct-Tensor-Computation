@@ -103,16 +103,16 @@ Contains
     dc%x_D = x_D
     dc%nn  = nn
 
-    !** Calc physical doman size **********************************************
+    ! Calc physical doman size 
     dc%x_D_phy = (x_D)*phi_desc%delta
     dc%delta   = phi_desc%delta
 
-    !** Calc number of domains on each axis ***********************************
+    ! Calc number of domains on each axis *
     dc%nn_D = INT((phi_desc%vdim - 2*dc%bpoints) / dc%x_D)
 
     dc%nn_D_max = dc%nn_D(1)*dc%nn_D(2)*dc%nn_D(3)
 
-    !** Calc number of points on each axis in decomposed volume **************
+    ! Calc number of points on each axis in decomposed volume 
     dc%x_VD     = dc%nn_D*x_D
 
     dc%nn_3 = INT( dc%nn / ( dc%nn_D(1)*dc%nn_D(2) ))
@@ -172,8 +172,8 @@ Contains
     Integer(kind=ik), Dimension(3), parameter     :: bpoints=[1_ik,1_ik,1_ik]
 
     !--------------------------------------------------------------------------
-
-    !** Get phi description ***************************************************
+    ! Get phi description
+    !--------------------------------------------------------------------------
     call open_stream_files(phi_desc, "read" , "old")
 
     call pd_load_leaf(phi_desc%streams,phi_desc,"Grid spacings",                  delta)  
@@ -181,11 +181,12 @@ Contains
 
     call close_stream_files(phi_desc)
 
-    !** Generate global domain decomposition **********************************
+    !--------------------------------------------------------------------------
+    ! Generate global domain decomposition 
+    !--------------------------------------------------------------------------
+    call raise_tree("", dc)
 
-    call raise_tree("",dc)
-
-    call raise_branch("Global domain decomposition",0,8,dc)
+    call raise_branch("Global domain decomposition", 0, 8, dc)
 
     call raise_leaves(no_leaves=8, &
          desc   = ["nn_D_max", "x_VD    ", "no_dat_D", "x_D     "  , &
@@ -196,32 +197,42 @@ Contains
 
     call open_stream_files(dc, "write", "replace")
 
-    !** Calc voxel number on each domain edge *********************************
+    !--------------------------------------------------------------------------
+    ! Calc voxel number on each domain edge
+    !--------------------------------------------------------------------------
     x_D = Nint(x_D_phy/delta)
-    call pd_store(dc%streams,dc,"x_D",x_D)
+    call pd_store(dc%streams, dc, "x_D", x_D)
 
-    !** Calc physical doman size **********************************************
-    call pd_store(dc%streams,dc,"x_D_phy",Real(x_D,rk)*delta)
-    call pd_store(dc%streams,dc,"delta", delta)
+    !--------------------------------------------------------------------------
+    ! Calc physical doman size 
+    !--------------------------------------------------------------------------
+    call pd_store(dc%streams, dc, "x_D_phy", Real(x_D,rk)*delta)
+    call pd_store(dc%streams, dc, "delta",  delta)
 
-    !** Calc number of domains on each axis ***********************************
+    !--------------------------------------------------------------------------
+    ! Calc number of domains on each axis
+    !--------------------------------------------------------------------------
     nn_D = INT((vdim - 2*bpoints) / x_D)
-    call pd_store(dc%streams,dc,"nn_D",nn_D)
+    call pd_store(dc%streams, dc, "nn_D", nn_D)
     
     nn_D_max = nn_D(1)*nn_D(2)*nn_D(3) - 1
-    call pd_store(dc%streams,dc,"nn_D_max",nn_D_max)
+    call pd_store(dc%streams, dc, "nn_D_max", nn_D_max)
 
-    !** Calc number of points on each axis in decomposed volume **************
-    call pd_store(dc%streams,dc,"x_VD",nn_D*x_D)
+    !--------------------------------------------------------------------------
+    ! Calc number of points on each axis in decomposed volume 
+    !--------------------------------------------------------------------------
+    call pd_store(dc%streams, dc, "x_VD", nn_D*x_D)
     
     no_dat_D = (x_D(1) + 2*bpoints(1)) * (x_D(2) + 2*bpoints(2)) * &
                (x_D(3) + 2*bpoints(3))
-    call pd_store(dc%streams,dc,"no_dat_D",no_dat_D)
+    call pd_store(dc%streams, dc, "no_dat_D", no_dat_D)
 
-    !** Boundary points on each axis in decomposed volume *********************
-    call pd_store(dc%streams,dc,"bpoints",bpoints)
+    !--------------------------------------------------------------------------
+    ! Boundary points on each axis in decomposed volume
+    !--------------------------------------------------------------------------
+    call pd_store(dc%streams, dc, "bpoints", bpoints)
 
-    call close_stream_files(dc,.TRUE.)
+    call close_stream_files(dc, .TRUE.)
 
     call write_tree(dc)
 
@@ -251,7 +262,7 @@ Contains
 
     !--------------------------------------------------------------------------
 
-    !** Get phi description ***************************************************
+    ! Get phi description *
     call open_stream_files(phi_desc, "read" , "old")
 
     call pd_load_leaf(phi_desc%streams,phi_desc,"Grid spacings", delta)  
@@ -259,7 +270,7 @@ Contains
 
     call close_stream_files(phi_desc)
 
-    !** Generate global domain decomposition **********************************
+    ! Generate global domain decomposition 
     call raise_tree("",dc)
 
     call raise_branch("Global domain decomposition",0,0,dc)
@@ -274,19 +285,19 @@ Contains
     
 !!$    call open_stream_files(dc,       "write", "replace")
 
-    !** Calc voxel number on each domain edge *********************************
+    ! Calc voxel number on each domain edge *
     x_D = Nint(x_D_phy_in/delta)
     Call add_leaf_to_branch(dc,"x_D",3_ik,x_D)
     !Call pd_store(dc%streams,dc,"x_D",x_D)
 
-    !** Calc physical doman size **********************************************
+    ! Calc physical doman size 
     !call pd_store(dc%streams,dc,"x_D_phy",Real(x_D,rk)*delta)
     x_D_phy = Real(x_D,rk)*delta
     Call add_leaf_to_branch(dc, "x_D_phy", 3_ik, x_D_phy)
     !call pd_store(dc%streams,dc,"delta", delta)
     Call add_leaf_to_branch(dc,"delta",3_ik,delta)
     
-    !** Calc number of domains on each axis ***********************************
+    ! Calc number of domains on each axis *
     nn_D = INT((vdim - 2*bpoints) / x_D)
     !call pd_store(dc%streams,dc,"nn_D",nn_D)
     Call add_leaf_to_branch(dc,"nn_D",3_ik,nn_D)
@@ -295,7 +306,7 @@ Contains
     !call pd_store(dc%streams,dc,"nn_D_max",nn_D_max)
     Call add_leaf_to_branch(dc,"nn_D_max",1_ik,nn_D_max)
     
-    !** Calc number of points on each axis in decomposed volume **************
+    ! Calc number of points on each axis in decomposed volume 
     !call pd_store(dc%streams,dc,"x_VD",nn_D*x_D)
     Call add_leaf_to_branch(dc,"x_VD",3_ik,nn_D*x_D)
     
@@ -304,7 +315,7 @@ Contains
     !call pd_store(dc%streams,dc,"no_dat_D",no_dat_D)
     Call add_leaf_to_branch(dc,"no_dat_D",1_ik,no_dat_D)
 
-    !** Boundary points on each axis in decomposed volume *********************
+    ! Boundary points on each axis in decomposed volume *
     !call pd_store(dc%streams,dc,"bpoints",bpoints)
     Call add_leaf_to_branch(dc,"bpoints",3_ik,bpoints)
     
@@ -432,9 +443,9 @@ Contains
 
     inquire(unit=unit,name=fname)
     close(unit)
-    !** intel
+    ! intel
     !open(unit=unit,file=trim(fname),access="direct",action="read",status="old",recl=1)    
-    !** gfortran
+    ! gfortran
     open(unit=unit,file=trim(fname),access="direct",action="read",status="old",recl=4)
 !!$
 !!$    write(*,*)field%vdim
@@ -474,25 +485,25 @@ Contains
   !> The Function ocnverts a puredat branch to tScalar_field
   Function branch_to_type(phi_branch, tree) Result(field)
 
-    !** Prototype of branch "Scalar data structure"
-    !** +-- Branch : Scalar data structure
-    !**      +-- Leaf : Field content description
-    !**      |    +-- Type of data         : 6
-    !**      |
-    !**      +-- Leaf : Number of voxels per direction
-    !**      |    +-- Type of data         : 3
-    !**      |
-    !**      +-- Leaf : Grid spacings
-    !**      |    +-- Type of data         : 5
-    !**      |
-    !**      +-- Leaf : Origin
-    !**      |    +-- Type of data         : 3
-    !**      |
-    !**      +-- Leaf : Origin shift against global coordinate system
-    !**      |    +-- Type of data         : 5
-    !**      |
-    !**      +-- Leaf : Scalar data
-    !**           +-- Type of data         : 2
+    ! Prototype of branch "Scalar data structure"
+    ! +-- Branch : Scalar data structure
+    !      +-- Leaf : Field content description
+    !      |    +-- Type of data         : 6
+    !      |
+    !      +-- Leaf : Number of voxels per direction
+    !      |    +-- Type of data         : 3
+    !      |
+    !      +-- Leaf : Grid spacings
+    !      |    +-- Type of data         : 5
+    !      |
+    !      +-- Leaf : Origin
+    !      |    +-- Type of data         : 3
+    !      |
+    !      +-- Leaf : Origin shift against global coordinate system
+    !      |    +-- Type of data         : 5
+    !      |
+    !      +-- Leaf : Scalar data
+    !           +-- Type of data         : 2
 
     Type(tBranch), Intent(InOut)   :: tree
     Type(tBranch), Intent(In)      :: phi_branch

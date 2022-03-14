@@ -1,14 +1,14 @@
-!******************************************************************************
+!****************************************************************************
 !>  Program for generating a Hexaedra mesh from a 3D scalar field            **
-!**                                                                          **
-!** ------------------------------------------------------------------------ **
+!                                                                          **
+! ------------ **
 !>  \section written Written by:
 !>  Ralf Schneider
 !>
 !>  \section modified Last modified:
 !>  by: Johannes Gebert \n
 !>  on : 22.11.2021
-!** ------------------------------------------------------------------------ *
+! ------------ *
 Module gen_geometry
 
   Use vtkio             
@@ -19,44 +19,41 @@ Module gen_geometry
 
 Contains
 
-  Subroutine generate_geometry(root, lin_nn, ddc_nn, job_dir, fh_mpi, glob_success)
+  Subroutine generate_geometry(root, domain_tree, lin_nn, ddc_nn, job_dir, fh_mpi, glob_success)
 
-    !****************************************************************************
-    !** Declarations ************************************************************
-
-    Type(tBranch), Intent(InOut) :: root
+    Type(tBranch), Intent(InOut) :: root, domain_tree
     Character(LEN=*), Intent(in) :: job_dir
     integer(Kind=ik), Intent(in) :: ddc_nn, lin_nn
     Integer(kind=mik), Dimension(no_streams), Intent(in) :: fh_mpi
     Logical, Intent(Out) :: glob_success
 
-    !-- MPI Variables ---------------------------------------------------------
+    ! MPI Variables
     Integer(kind=mik) :: ierr
     Integer(kind=mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
         
-    !-- Chain Variables -------------------------------------------------------
+    ! Chain Variables
     Character(Len=*), Parameter :: link_name = 'gen_quadmesh'
 
-    !-- Puredat Variables -----------------------------------------------------
+    ! Puredat Variables
     Type(tBranch) :: phi_desc
 
-    !-- Decomp Variables ------------------------------------------------------
+    ! Decomp Variables 
     Type(tBranch), Pointer :: loc_ddc, ddc, bounds_b
 
-    !-- Branch pointers -------------------------------------------------------
-    Type(tBranch), Pointer :: db, meta_para, res_b
+    ! Branch pointers
+    Type(tBranch), Pointer :: meta_para, res_b
 
-    !-- Mesh Variables --------------------------------------------------------
+    ! Mesh Variables 
     Real(Kind=rk)    , Dimension(:,:) , Allocatable :: nodes, displ
     Integer(Kind=ik) , Dimension(:)   , Allocatable :: elem_col,node_col, cref
     Integer(Kind=ik) , Dimension(:,:) , Allocatable :: elems
     Character(Len=mcl) :: elt_micro, desc, filename
     Integer(Kind=ik)   :: elo_macro,alloc_stat
-    !-- Parted Mesh -----------------------------------------------------------
+    ! Parted Mesh -
     Type(tBranch), Pointer :: PMesh
     INTEGER(kind=ik)       :: parts
 
-    !--------------------------------------------------------------------------
+    !------------------------------------------------------------------------
     Integer(Kind=4)  , Dimension(:,:,:), Allocatable :: Phi
 
     Integer(Kind=ik) :: llimit, no_nodes=0, no_elems=0
@@ -78,41 +75,40 @@ Contains
     write(nn_char,'(I0)')ddc_nn
     glob_success = .TRUE.
 
-    !** Get global DDC parameters from root *********
+    !----------------------------------------------------------------------------
+    ! Get global DDC parameters from root
+    !----------------------------------------------------------------------------
     Call Search_branch("Global domain decomposition", root, ddc, success)
 
     call pd_get(ddc,"nn_D",nn_D)
     call pd_get(ddc,"bpoints", bpoints)
     call pd_get(ddc,"x_D",x_D)
 
-    !** Calculate special parameters of domain decomposition ********************
+    !----------------------------------------------------------------------------
+    ! Calculate special parameters of domain decomposition
+    !----------------------------------------------------------------------------
     nn_3 = INT( ddc_nn / ( nn_D(1)*nn_D(2) ))
     nn_2 = INT(( ddc_nn - nn_D(1)*nn_D(2)*nn_3 ) / ( nn_D(1) ))
     nn_1 = ( ddc_nn - nn_D(1)*nn_D(2)*nn_3 - nn_D(1)*nn_2 )
 
     xa_n = [x_D(1) * nn_1 + bpoints(1) + 1, &
             x_D(2) * nn_2 + bpoints(2) + 1, &
-            x_D(3) * nn_3 + bpoints(3) + 1   ]
+            x_D(3) * nn_3 + bpoints(3) + 1  ]
 
     xe_n = [x_D(1) * (nn_1 + 1) + bpoints(1), &
             x_D(2) * (nn_2 + 1) + bpoints(2), & 
-            x_D(3) * (nn_3 + 1) + bpoints(3)   ] 
+            x_D(3) * (nn_3 + 1) + bpoints(3)  ] 
 
     xa_n_ext = xa_n - bpoints
     xe_n_ext = xe_n + bpoints
 
-    !** Add domain branch to root *******
+    !----------------------------------------------------------------------------
+    ! Add branch for local ddc params to domain branch
+    !----------------------------------------------------------------------------
     desc=''
-    Write(desc,'(A,I0)')"Domain ",ddc_nn
-    call add_branch_to_branch(root,db)
-    
-    call raise_branch(trim(desc), 0_pd_ik, 0_pd_ik, db)
+    Write(desc,'(A,I0)') "Local domain Decomposition of domain no ", ddc_nn
 
-    !** Add branch for local ddc params to domain branch *****************
-    desc=''
-    Write(desc,'(A,I0)')"Local domain Decomposition of domain no ",ddc_nn
-
-    call add_branch_to_branch(db,loc_ddc)
+    call add_branch_to_branch(domain_tree, loc_ddc)
     call raise_branch(trim(desc), 0_pd_ik, 0_pd_ik, loc_ddc)
 
     call add_leaf_to_branch(loc_ddc, "nn"      , 1_pd_ik, [ddc_nn])
@@ -122,17 +118,17 @@ Contains
     call add_leaf_to_branch(loc_ddc, "xa_n_ext", 3_pd_ik, xa_n_ext)
     call add_leaf_to_branch(loc_ddc, "xe_n_ext", 3_pd_ik, xe_n_ext)
     
-    !============================================================================
+    !----------------------------------------------------------------------------
     Select Case (timer_level)
-    Case (3)
-       call start_timer("  +-- Initialisation of Phi "//trim(nn_char))
-    Case (2)
-       call start_timer("  +-- Initialisation of Phi "//trim(nn_char))
-    Case default
-       continue
+      Case (3)
+         call start_timer("  +-- Initialisation of Phi "//trim(nn_char))
+      Case (2)
+         call start_timer("  +-- Initialisation of Phi "//trim(nn_char))
+      Case default
+         continue
     End Select
 
-    !-------------------------------------------------------------
+    !----------------------------------------------------------------------------
     Call pd_get(root%branches(1),"muCT puredat pro_path",char_arr)
 
     pro_path = char_to_str(char_arr)
@@ -147,8 +143,8 @@ Contains
 
     call open_stream_files(phi_desc, "read" , "old")
 
-    call pd_load_leaf(phi_desc%streams,phi_desc, "Grid spacings", delta)  
-    call pd_load_leaf(phi_desc%streams,phi_desc, "Number of voxels per direction", vdim)
+    call pd_load_leaf(phi_desc%streams, phi_desc, "Grid spacings", delta)  
+    call pd_load_leaf(phi_desc%streams, phi_desc, "Number of voxels per direction", vdim)
 
     if ( out_amount /= "PRODUCTION" ) then
        write(un_lf,FMT_MSG_AxF0) "Grid spacings", delta
@@ -159,7 +155,9 @@ Contains
 
     call alloc_err("phi", alloc_stat)
 
-    !** Read PHI (scalar binary values) from file *************************
+    !----------------------------------------------------------------------------
+    !* Read PHI (scalar binary values) from file
+    !----------------------------------------------------------------------------
     Do jj = xa_n(3), xe_n(3)
        Do ii = xa_n(2), xe_n(2)
 
@@ -189,48 +187,50 @@ Contains
     !============================================================================
     ! Generate Quadmesh from Phi
     !============================================================================
-    Call pd_get(root%branches(1),'Lower limit of iso value', llimit)
-    Call pd_get(root%branches(1),'Element type  on micro scale', char_arr)
+    Call pd_get(root%branches(1), 'Lower limit of iso value', llimit)
+    Call pd_get(root%branches(1), 'Element type  on micro scale', char_arr)
     elt_micro = char_to_str(char_arr)
     deallocate(char_arr)
 
-    !** Get global DDC parameters from root *****************************
+    ! Get global DDC parameters from root
     Call Search_branch("Global domain decomposition", root, ddc, success)
 
     call gen_quadmesh_from_phi(phi, delta, ddc, loc_ddc, llimit, elt_micro, &
          nodes, elems, node_col, elem_col, no_nodes, no_elems)
 
-    !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     If (out_amount == "DEBUG") THEN
-       Write(un_lf,fmt_dbg_sep)
-       Write(un_lf,fmt_MSG_xAI0)"Root pointer after exec_single_domain"
+       Write(un_lf, fmt_dbg_sep)
+       Write(un_lf, fmt_MSG_xAI0)"Root pointer after exec_single_domain"
        Call log_tree(root,un_lf,.True.)
-       Write(un_lf,fmt_dbg_sep)
+       Write(un_lf, fmt_dbg_sep)
     END If
-    !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     
     !================================================================
     !== Write number of elements to result file
-    Call Search_branch("Averaged Material Properties", root, res_b, success)
+   !  Call Search_branch("Averaged Material Properties", root, res_b, success)
     
-    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-         Int(res_b%leaves(18)%lbound-1+(lin_nn-1), MPI_OFFSET_KIND), &
-         Real(no_elems,pd_rk), &
-         Int(1,pd_mik), MPI_Real8, &
-         status_mpi, ierr)
-    
-    !============================================================================
+    ! Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+    !      Int(res_b%leaves(18)%lbound-1+(lin_nn-1), MPI_OFFSET_KIND), &
+    !      Real(no_elems,pd_rk), &
+    !      Int(1,pd_mik), MPI_Real8, &
+    !      status_mpi, ierr)
+
+   !  call add_leaf_to_branch(res_b, "Number of elements in domain", 1_ik, [no_elems])
+
+
+    !------------------------------------------------------------------------------
     ! Store PHI as vtk structured points
-    !============================================================================
+    !------------------------------------------------------------------------------
     if (out_amount == "DEBUG") then
 
        filename=''
        write(filename,'(A,I0,A)')trim(job_dir)//trim(project_name)//"_",ddc_nn,"_phi.vtk"
-       !** Write structured points ***********************************
-       call write_vtk_structured_points(filename = trim(filename),  &
+       ! Write structured points 
+        call write_vtk_structured_points(filename = trim(filename),  &
             extend = x_D, spacing = delta, &
             origin = (Real(xa_n,rk)-[0.5_rk,0.5_rk,0.5_rk])*delta)
-       !** Write data to vtk file ************************************
+       ! Write data to vtk file 
+
        call write_vtk_data_int4_scalar_1D(&
             matrix = reshape(phi,[x_D(1)*x_D(2)*x_D(3)]), &
             filename = trim(filename),  &
@@ -240,16 +240,17 @@ Contains
     Deallocate(Phi,stat=alloc_stat)
     call alloc_err("phi",alloc_stat)
 
-    !======================================================
-    !== Break if no structure is generated ================
+    !------------------------------------------------------------------------------
+    ! Break if no structure is generated
+    !------------------------------------------------------------------------------
     If ((no_nodes == 0) .or. (no_elems == 0)) then
        glob_success = .FALSE.
        Goto 1000
     End If
 
-    !============================================================================
+    !------------------------------------------------------------------------------
     ! Store Quadmesh as vtk unstructured grid and ABAQUS input deck
-    !============================================================================
+    !------------------------------------------------------------------------------
     if (out_amount == "DEBUG") then
 
        filename=''
@@ -290,15 +291,17 @@ Contains
     call pd_get(meta_para,"No of mesh parts per subdomain", parts)
     Call pd_get(meta_para,'Element order on macro scale', elo_macro)
     
-    !=========================================================================
+    !------------------------------------------------------------------------------
     ! Perform domain decomposition by metis
-    !=========================================================================
+    !------------------------------------------------------------------------------
     
-    !** Add branch for mesh to domain branch **********************************
+    !------------------------------------------------------------------------------
+    ! Add branch for mesh to domain branch
+    !------------------------------------------------------------------------------
     desc=''
     Write(desc,'(A,I0)')'Mesh info of '//trim(project_name)//'_',ddc_nn
    
-    call add_branch_to_branch(db,PMesh)
+    call add_branch_to_branch(domain_tree, PMesh)
     call raise_branch(trim(desc), parts, 0_pd_ik, PMesh)
 
     Call part_mesh(nodes, elems, no_nodes, no_elems, parts, PMesh, job_dir, ddc_nn)
@@ -306,20 +309,22 @@ Contains
     call add_leaf_to_branch(PMesh, "No of nodes in mesh",  1_pd_ik, [no_nodes])
     call add_leaf_to_branch(PMesh, "No of elements in mesh",  1_pd_ik, [no_elems])
     
-    !** Retrive valid branch pointers to local and global ddc *****************
+    !------------------------------------------------------------------------------
+    ! Retrive valid branch pointers to local and global ddc
+    !------------------------------------------------------------------------------
     Call Search_branch("Global domain decomposition", root, ddc, success)
+    
     desc=''
     Write(desc,'(A,I0)')"Local domain Decomposition of domain no ",ddc_nn
-    Call Search_branch(trim(desc), root, loc_ddc, success)
+    Call Search_branch(trim(desc), domain_tree, loc_ddc, success)
     
     Call generate_boundaries(PMesh, ddc, loc_ddc, elo_macro)
 
-    !============================================================================
+    !------------------------------------------------------------------------------
     ! Store boundary displacements of LC1 as point data in parted vtk meshes
-    !============================================================================
+    !------------------------------------------------------------------------------
     if (out_amount == "DEBUG") then
        
-       ! Part 18 crashed (29.01.2022)
        Do ii = 1, parts
 
           Call Search_branch("Boundaries_"//trim(nn_char)//"_1",&
@@ -367,25 +372,24 @@ Contains
 
   End Subroutine generate_geometry
 
-  !****************************************************************************
+  !**************************************************************************
   !>  Program for boundary application                                       **
-  !**                                                                        **
-  !** ---------------------------------------------------------------------- **
+  !                                                                        **
+  ! ---------- **
   !>  \section written Written by:
   !>  Ralf Schneider
   !>
   !>  \section modified Last modified:
   !>  by: Ralf Schneider \n
   !>  on : 16.09.2015
-  !** ------------------------------------------------------------------------ *
+  ! ------------ *
   Subroutine generate_boundaries(PMesh, ddc, loc_ddc, elo_macro)
 
-    !-- Parameters ------------------------------------------------------------
+    ! Parameters 
     Type(tBranch), Intent(InOut) :: PMesh
     Type(tBranch), Intent(In)    :: ddc, loc_ddc
     Integer      , Intent(In)    :: elo_macro
 
-    !--------------------------------------------------------------------------
     Type(tBranch), Pointer             :: part_b, bounds_b
     
     Real(Kind=rk)     , Dimension(:), Allocatable :: dim_c, delta
@@ -404,7 +408,9 @@ Contains
     Integer(Kind=ik), Dimension(:)  , Allocatable :: bnode_ids
     Real(Kind=rk)   , Dimension(:,:), Allocatable :: bnode_vals
 
-    !** Get Parameters of domain decomposition *******
+    !------------------------------------------------------------------------------
+    ! Get Parameters of domain decomposition
+    !------------------------------------------------------------------------------
     call pd_get(loc_ddc, "nn",      ddc_nn)
     call pd_get(ddc,     "x_D_phy", dim_c )
     call pd_get(loc_ddc, "xa_n",    xa_n  )
@@ -431,7 +437,7 @@ Contains
     Allocate(no_elems_all(parts))
     Allocate(no_cdofs_all(parts))
     
-    !** For all Parts *********************************************************
+    ! For all Parts *********************************************************
     Do jj = 1, parts
 
        part_b => PMesh%branches(jj)
@@ -440,7 +446,7 @@ Contains
        no_nodes_all(jj) = nnodes
        no_elems_all(jj) = part_b%leaves(4)%dat_no
        
-       !** Determine number of boundary nodes *************
+       ! Determine number of boundary nodes *************
        no_bnodes = 0
 
        if ( out_amount /= "PRODUCTION" ) then
@@ -448,32 +454,32 @@ Contains
           Write(un_lf,FMT_MSG_xAI0)'Size of p_real8 in Part ',jj,": ",size(part_b%leaves(2)%p_real8)
        End if
 
-       !** For all nodes in part **************************
+       ! For all nodes in part **************************
        Do ii = 1, nnodes
 
           coor = part_b%leaves(2)%p_real8((ii-1_ik)*3_ik+1_ik:ii*3_ik)
           
-          !** Nodes in facet 1 ************************************************
+          ! Nodes in facet 1 ************************************************
           if ( (coor(3) - min_c(3)) <= (dim_c(3) * delta_b) ) then
              no_bnodes = no_bnodes + 1
              
-          !** Nodes in facet 6 ***************************************************
+          ! Nodes in facet 6 ***************************************************
           Else if ( (max_c(3) - coor(3)) <= (dim_c(3) * delta_b) ) then
              no_bnodes = no_bnodes + 1
              
-          !** Nodes in facet 2 ***************************************************
+          ! Nodes in facet 2 ***************************************************
           Else if ( (coor(2) - min_c(2)) <= (dim_c(2) * delta_b) ) then
              no_bnodes = no_bnodes + 1
              
-          !** Nodes in facet 4 ***************************************************
+          ! Nodes in facet 4 ***************************************************
           Else if ( (max_c(2) - coor(2)) <= (dim_c(2) * delta_b) ) then
              no_bnodes = no_bnodes + 1
              
-          !** Nodes in facet 5 ***************************************************
+          ! Nodes in facet 5 ***************************************************
           Else if ( (coor(1) - min_c(1)) <= (dim_c(1) * delta_b) ) then
              no_bnodes = no_bnodes + 1
              
-          !** Nodes in facet 3 ***************************************************
+          ! Nodes in facet 3 ***************************************************
           Else if ( (max_c(1) - coor(1)) <= (dim_c(1) * delta_b) ) then
              no_bnodes = no_bnodes + 1
              
@@ -495,40 +501,40 @@ Contains
        Allocate(bnode_ids(no_bnodes))
        Allocate(bnode_vals(no_nodes_macro*3,no_bnodes*3))
 
-       !***********************************************************************
-       !** Boundary application     
+       !*********************************************************************
+       ! Boundary application     
        b_items = 0
 
        Do ii = 1, nnodes
 
           coor = part_b%leaves(2)%p_real8((ii-1_ik)*3_ik+1_ik:ii*3_ik)
           
-          !** Nodes in facet 1 ************************************************
+          ! Nodes in facet 1 ************************************************
           if ( (coor(3) - min_c(3)) <= (dim_c(3) * delta_b) ) then
              b_items = b_items + 1
              bnode_ids(b_items) = part_b%leaves(3)%p_int8(ii)
 
-          !** Nodes in facet 6 ************************************************
+          ! Nodes in facet 6 ************************************************
           Else if ( (max_c(3) - coor(3)) <= (dim_c(3) * delta_b) ) then
              b_items = b_items + 1
              bnode_ids(b_items) = part_b%leaves(3)%p_int8(ii)
 
-          !** Nodes in facet 2 ************************************************
+          ! Nodes in facet 2 ************************************************
           Else if ( (coor(2) - min_c(2)) <= (dim_c(2) * delta_b) ) then
              b_items = b_items + 1
              bnode_ids(b_items) = part_b%leaves(3)%p_int8(ii)
 
-          !** Nodes in facet 4 ************************************************
+          ! Nodes in facet 4 ************************************************
           Else if ( (max_c(2) - coor(2)) <= (dim_c(2) * delta_b) ) then
              b_items = b_items + 1
              bnode_ids(b_items) = part_b%leaves(3)%p_int8(ii)
        
-          !** Nodes in facet 5 ************************************************
+          ! Nodes in facet 5 ************************************************
           Else if ( (coor(1) - min_c(1)) <= (dim_c(1) * delta_b) ) then
              b_items = b_items + 1
              bnode_ids(b_items) = part_b%leaves(3)%p_int8(ii)
        
-          !** Nodes in facet 3 ************************************************
+          ! Nodes in facet 3 ************************************************
           Else if ( (max_c(1) - coor(1)) <= (dim_c(1) * delta_b) ) then
              b_items = b_items + 1
              bnode_ids(b_items) = part_b%leaves(3)%p_int8(ii)
@@ -543,37 +549,37 @@ Contains
 
           coor = part_b%leaves(2)%p_real8((ii-1_ik)*3_ik+1_ik:ii*3_ik)
           
-          !** Nodes in facet 1 ************************************************
+          ! Nodes in facet 1 ************************************************
           if ( (coor(3) - min_c(3)) <= (dim_c(3) * delta_b) ) then
              Call Determine_prescribed_displ(coor(:), min_c, max_c, &
                   no_nodes_macro, bnode_vals(:,b_items+1:b_items+3))
              b_items = b_items+3
 
-          !** Nodes in facet 6 ************************************************
+          ! Nodes in facet 6 ************************************************
           Else if ( (max_c(3) - coor(3)) <= (dim_c(3) * delta_b) ) then
              Call Determine_prescribed_displ(coor(:), min_c, max_c, &
                   no_nodes_macro, bnode_vals(:,b_items+1:b_items+3))
              b_items = b_items+3
              
-          !** Nodes in facet 2 ************************************************
+          ! Nodes in facet 2 ************************************************
           Else if ( (coor(2) - min_c(2)) <= (dim_c(2) * delta_b) ) then
              Call Determine_prescribed_displ(coor(:), min_c, max_c, &
                   no_nodes_macro, bnode_vals(:,b_items+1:b_items+3))
              b_items = b_items+3
              
-          !** Nodes in facet 4 ************************************************
+          ! Nodes in facet 4 ************************************************
           Else if ( (max_c(2) - coor(2)) <= (dim_c(2) * delta_b) ) then
              Call Determine_prescribed_displ(coor(:), min_c, max_c, &
                   no_nodes_macro, bnode_vals(:,b_items+1:b_items+3))
              b_items = b_items+3
              
-          !** Nodes in facet 5 ************************************************
+          ! Nodes in facet 5 ************************************************
           Else if ( (coor(1) - min_c(1)) <= (dim_c(1) * delta_b) ) then
              Call Determine_prescribed_displ(coor(:), min_c, max_c, &
                   no_nodes_macro, bnode_vals(:,b_items+1:b_items+3))
              b_items = b_items+3
              
-          !** Nodes in facet 3 ************************************************
+          ! Nodes in facet 3 ************************************************
           Else if ( (max_c(1) - coor(1)) <= (dim_c(1) * delta_b) ) then
              Call Determine_prescribed_displ(coor(:), min_c, max_c, &
                   no_nodes_macro, bnode_vals(:,b_items+1:b_items+3))
@@ -594,7 +600,7 @@ Contains
           
           Write(bounds_b%branches(ii)%desc,'(A,I0,A,I0)') "Boundaries"//'_',ddc_nn,'_',ii
 
-          ! no_bnodes == 0?! --> dat_no = 0 for some specific nodes
+          ! no_bnodes == 0?! > dat_no = 0 for some specific nodes
           call add_leaf_to_branch(bounds_b%branches(ii), &
                                   "Boundary_Ids", no_bnodes, bnode_ids)
           call add_leaf_to_branch(bounds_b%branches(ii), &
@@ -610,14 +616,14 @@ Contains
     call add_leaf_to_branch(PMesh, "No of elems in parts", parts, no_elems_all)
     call add_leaf_to_branch(PMesh, "No of cdofs in parts", parts, no_cdofs_all)
     
-    !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+    ! DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     if (out_amount == "DEBUG") then
        Write(un_lf,fmt_dbg_sep)
        Write(un_lf,'(A)')"PMesh after Boundary application"
        call log_tree(PMesh,un_lf)
        Write(un_lf,fmt_dbg_sep)
     End if
-    !** DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+    ! DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     
   End Subroutine generate_boundaries
   

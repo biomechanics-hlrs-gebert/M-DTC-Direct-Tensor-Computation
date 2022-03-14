@@ -27,10 +27,10 @@ contains
     Character(len=*) , intent(in)            :: desc
     Logical          , intent(in), optional  :: reset
 
-    Real(kind=8)                   :: cput
-    Integer, Dimension(8)          :: realt
+    Real(kind=8)          :: cput
+    Integer, Dimension(8) :: realt
 
-    Logical                        :: exist, loc_reset
+    Logical :: exist, loc_reset
 
     !--------------------------------------------------------------------------
 

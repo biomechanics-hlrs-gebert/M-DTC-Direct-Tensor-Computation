@@ -258,8 +258,8 @@ contains
        Write(pd_umon,*)"!-!-!-!-!-!-!-!-!_!-!-!-!-!-!-!-!-!-!-!-!-!-!_!-!-!-!-!-!-!-!-!-!-!-!"
        
        !Write(pd_umon,*)"This routine can only be used once !"
-       !Write(pd_umon,*)"Please check your implementation !!!"
-       !Write(pd_umon,*)"Program halted !!!!!!!!!!!!!!!!!!!!!"
+       !Write(pd_umon,*)"Please check your implementation !"
+       !Write(pd_umon,*)"Program halted !!!!!!!!!!!!!!!!!!!"
 
     End if
 
@@ -279,9 +279,9 @@ contains
     else
 
        Write(pd_umon,*)"!-!-!-!-!-!-!-!-!_!-!-!-!-!-!-!-!-!-!"
-       Write(pd_umon,*)"The root pointer is not assigned !!!!"
-       Write(pd_umon,*)"Please check your implementation !!!!"
-       Write(pd_umon,*)"Program halted                   !!!!"
+       Write(pd_umon,*)"The root pointer is not assigned !!"
+       Write(pd_umon,*)"Please check your implementation !!"
+       Write(pd_umon,*)"Program halted                   !!"
        Write(pd_umon,*)"!-!-!-!-!-!-!-!-!_!-!-!-!-!-!-!-!-!-!"
        Stop
 
@@ -1818,6 +1818,7 @@ CONTAINS
     Integer(kind=pd_ik) :: ii
     
     Do ii = 1, branch%no_branches 
+write(*,*) "TESTBRANCH", ii
 
        Call reset_bounds_in_branch(branch%branches(ii), t_streams)
 
@@ -2012,8 +2013,8 @@ CONTAINS
                 deallocate(branch%leaves(ii)%p_int1)
              Else if (associated(branch%leaves(ii)%p_int1) .AND.  &
                   (branch%leaves(ii)%pstat == 0) ) then
-                Write(pd_umon,PDF_W_A)"In 'copy_leaves_to_streams' possible memory leak detected !!!"
-                Write(pd_umon,PDF_W_A)"p_int1 is associated with pstat == 0 !!!!!!!!!!!!!!!!!!!!!!!!"
+                Write(pd_umon,PDF_W_A)"In 'copy_leaves_to_streams' possible memory leak detected !"
+                Write(pd_umon,PDF_W_A)"p_int1 is associated with pstat == 0 !"
              End If
 
              branch%leaves(ii)%p_int1 => &
@@ -2029,8 +2030,8 @@ CONTAINS
                 deallocate(branch%leaves(ii)%p_int2)
              Else if (associated(branch%leaves(ii)%p_int2) .AND.  &
                   (branch%leaves(ii)%pstat == 0) ) then
-                Write(pd_umon,PDF_W_A)"In 'copy_leaves_to_streams' possible memory leak detected !!!"
-                Write(pd_umon,PDF_W_A)"p_int2 is associated with pstat == 0 !!!!!!!!!!!!!!!!!!!!!!!!"
+                Write(pd_umon,PDF_W_A)"In 'copy_leaves_to_streams' possible memory leak detected !"
+                Write(pd_umon,PDF_W_A)"p_int2 is associated with pstat == 0 !"
              End If
 
              branch%leaves(ii)%p_int2 => &
@@ -2046,8 +2047,8 @@ CONTAINS
                 deallocate(branch%leaves(ii)%p_int4)
              Else if (associated(branch%leaves(ii)%p_int4) .AND.  &
                   (branch%leaves(ii)%pstat == 0) ) then
-                Write(pd_umon,PDF_W_A)"In 'copy_leaves_to_streams' possible memory leak detected !!!"
-                Write(pd_umon,PDF_W_A)"p_int4 is associated with pstat == 0 !!!!!!!!!!!!!!!!!!!!!!!!"
+                Write(pd_umon,PDF_W_A)"In 'copy_leaves_to_streams' possible memory leak detected !"
+                Write(pd_umon,PDF_W_A)"p_int4 is associated with pstat == 0 !"
              End If
 
              branch%leaves(ii)%p_int4 => &
@@ -2063,8 +2064,8 @@ CONTAINS
                 deallocate(branch%leaves(ii)%p_int8)
              Else if (associated(branch%leaves(ii)%p_int8) .AND.  &
                   (branch%leaves(ii)%pstat == 0) ) then
-                Write(pd_umon,PDF_W_A)"In 'copy_leaves_to_streams' possible memory leak detected !!!"
-                Write(pd_umon,PDF_W_A)"p_int8 is associated with pstat == 0 !!!!!!!!!!!!!!!!!!!!!!!!"
+                Write(pd_umon,PDF_W_A)"In 'copy_leaves_to_streams' possible memory leak detected !"
+                Write(pd_umon,PDF_W_A)"p_int8 is associated with pstat == 0 !"
              End If
 
              branch%leaves(ii)%p_int8 => &
@@ -2080,8 +2081,8 @@ CONTAINS
                 deallocate(branch%leaves(ii)%p_real8)
              Else if (associated(branch%leaves(ii)%p_real8) .AND.  &
                   (branch%leaves(ii)%pstat == 0) ) then
-                Write(pd_umon,PDF_W_A)"In 'copy_leaves_to_streams' possible memory leak detected !!!"
-                Write(pd_umon,PDF_W_A)"p_real8 is associated with pstat == 0 !!!!!!!!!!!!!!!!!!!!!!!!"
+                Write(pd_umon,PDF_W_A)"In 'copy_leaves_to_streams' possible memory leak detected !"
+                Write(pd_umon,PDF_W_A)"p_real8 is associated with pstat == 0 !"
              End If
 
              branch%leaves(ii)%p_real8 => &
@@ -2097,8 +2098,8 @@ CONTAINS
                 deallocate(branch%leaves(ii)%p_char)
              Else if (associated(branch%leaves(ii)%p_char) .AND.  &
                   (branch%leaves(ii)%pstat == 0) ) then
-                Write(pd_umon,PDF_W_A)"In 'copy_leaves_to_streams' possible memory leak detected !!!"
-                Write(pd_umon,PDF_W_A)"p_char is associated with pstat == 0 !!!!!!!!!!!!!!!!!!!!!!!!"
+                Write(pd_umon,PDF_W_A)"In 'copy_leaves_to_streams' possible memory leak detected !"
+                Write(pd_umon,PDF_W_A)"p_char is associated with pstat == 0 !"
              End If
 
              branch%leaves(ii)%p_char => &
@@ -2114,8 +2115,8 @@ CONTAINS
                 deallocate(branch%leaves(ii)%p_log)
              Else if (associated(branch%leaves(ii)%p_log) .AND.  &
                   (branch%leaves(ii)%pstat == 0) ) then
-                Write(pd_umon,PDF_W_A)"In 'copy_leaves_to_streams' possible memory leak detected !!!"
-                Write(pd_umon,PDF_W_A)"p_log is associated with pstat == 0 !!!!!!!!!!!!!!!!!!!!!!!!"
+                Write(pd_umon,PDF_W_A)"In 'copy_leaves_to_streams' possible memory leak detected !"
+                Write(pd_umon,PDF_W_A)"p_log is associated with pstat == 0 !"
              End If
 
              branch%leaves(ii)%p_log => &
@@ -2171,8 +2172,8 @@ CONTAINS
                 deallocate(branch%leaves(ii)%p_int1)
              Else if (associated(branch%leaves(ii)%p_int1) .AND.  &
                   (branch%leaves(ii)%pstat == 0) ) then
-                Write(pd_umon,PDF_W_A)"In 'copy_leaves_to_streams' possible memory leak detected !!!"
-                Write(pd_umon,PDF_W_A)"p_int1 is associated with pstat == 0 !!!!!!!!!!!!!!!!!!!!!!!!"
+                Write(pd_umon,PDF_W_A)"In 'copy_leaves_to_streams' possible memory leak detected !"
+                Write(pd_umon,PDF_W_A)"p_int1 is associated with pstat == 0 !"
              End If
 
              branch%leaves(ii)%p_int1 => &
@@ -2188,8 +2189,8 @@ CONTAINS
                 deallocate(branch%leaves(ii)%p_int2)
              Else if (associated(branch%leaves(ii)%p_int2) .AND.  &
                   (branch%leaves(ii)%pstat == 0) ) then
-                Write(pd_umon,PDF_W_A)"In 'copy_leaves_to_streams' possible memory leak detected !!!"
-                Write(pd_umon,PDF_W_A)"p_int2 is associated with pstat == 0 !!!!!!!!!!!!!!!!!!!!!!!!"
+                Write(pd_umon,PDF_W_A)"In 'copy_leaves_to_streams' possible memory leak detected !"
+                Write(pd_umon,PDF_W_A)"p_int2 is associated with pstat == 0 !"
              End If
 
              branch%leaves(ii)%p_int2 => &
@@ -2205,8 +2206,8 @@ CONTAINS
                 deallocate(branch%leaves(ii)%p_int4)
              Else if (associated(branch%leaves(ii)%p_int4) .AND.  &
                   (branch%leaves(ii)%pstat == 0) ) then
-                Write(pd_umon,PDF_W_A)"In 'copy_leaves_to_streams' possible memory leak detected !!!"
-                Write(pd_umon,PDF_W_A)"p_int4 is associated with pstat == 0 !!!!!!!!!!!!!!!!!!!!!!!!"
+                Write(pd_umon,PDF_W_A)"In 'copy_leaves_to_streams' possible memory leak detected !"
+                Write(pd_umon,PDF_W_A)"p_int4 is associated with pstat == 0 !"
              End If
 
              branch%leaves(ii)%p_int4 => &
@@ -2222,8 +2223,8 @@ CONTAINS
                 deallocate(branch%leaves(ii)%p_int8)
              Else if (associated(branch%leaves(ii)%p_int8) .AND.  &
                   (branch%leaves(ii)%pstat == 0) ) then
-                Write(pd_umon,PDF_W_A)"In 'copy_leaves_to_streams' possible memory leak detected !!!"
-                Write(pd_umon,PDF_W_A)"p_int8 is associated with pstat == 0 !!!!!!!!!!!!!!!!!!!!!!!!"
+                Write(pd_umon,PDF_W_A)"In 'copy_leaves_to_streams' possible memory leak detected !"
+                Write(pd_umon,PDF_W_A)"p_int8 is associated with pstat == 0 !"
              End If
 
              branch%leaves(ii)%p_int8 => &
@@ -2239,8 +2240,8 @@ CONTAINS
                 deallocate(branch%leaves(ii)%p_real8)
              Else if (associated(branch%leaves(ii)%p_real8) .AND.  &
                   (branch%leaves(ii)%pstat == 0) ) then
-                Write(pd_umon,PDF_W_A)"In 'copy_leaves_to_streams' possible memory leak detected !!!"
-                Write(pd_umon,PDF_W_A)"p_real8 is associated with pstat == 0 !!!!!!!!!!!!!!!!!!!!!!!!"
+                Write(pd_umon,PDF_W_A)"In 'copy_leaves_to_streams' possible memory leak detected !"
+                Write(pd_umon,PDF_W_A)"p_real8 is associated with pstat == 0 !"
              End If
 
              branch%leaves(ii)%p_real8 => &
@@ -2256,8 +2257,8 @@ CONTAINS
                 deallocate(branch%leaves(ii)%p_char)
              Else if (associated(branch%leaves(ii)%p_char) .AND.  &
                   (branch%leaves(ii)%pstat == 0) ) then
-                Write(pd_umon,PDF_W_A)"In 'copy_leaves_to_streams' possible memory leak detected !!!"
-                Write(pd_umon,PDF_W_A)"p_char is associated with pstat == 0 !!!!!!!!!!!!!!!!!!!!!!!!"
+                Write(pd_umon,PDF_W_A)"In 'copy_leaves_to_streams' possible memory leak detected !"
+                Write(pd_umon,PDF_W_A)"p_char is associated with pstat == 0 !"
              End If
 
              branch%leaves(ii)%p_char => &
@@ -2273,8 +2274,8 @@ CONTAINS
                 deallocate(branch%leaves(ii)%p_log)
              Else if (associated(branch%leaves(ii)%p_log) .AND.  &
                   (branch%leaves(ii)%pstat == 0) ) then
-                Write(pd_umon,PDF_W_A)"In 'copy_leaves_to_streams' possible memory leak detected !!!"
-                Write(pd_umon,PDF_W_A)"p_log is associated with pstat == 0 !!!!!!!!!!!!!!!!!!!!!!!!"
+                Write(pd_umon,PDF_W_A)"In 'copy_leaves_to_streams' possible memory leak detected !"
+                Write(pd_umon,PDF_W_A)"p_log is associated with pstat == 0 !"
              End If
 
              branch%leaves(ii)%p_log => &
@@ -2303,7 +2304,7 @@ CONTAINS
 
   !============================================================================
   !> Subroutine to reset stream file names
-  Subroutine set_stream_fienames(streams)
+  Subroutine set_stream_filenames(streams)
 
     Type(tstreams) :: streams
     
@@ -2316,7 +2317,7 @@ CONTAINS
     streams%stream_files(6) = Trim(pro_path)//Trim(pro_name)//'.char.st'
     streams%stream_files(7) = Trim(pro_path)//Trim(pro_name)//'.log.st'
 
-  End Subroutine set_stream_fienames
+  End Subroutine set_stream_filenames
   
   !============================================================================
   !> Subroutine which connects stream files
@@ -2931,12 +2932,12 @@ CONTAINS
        Write(pd_umon,'( A)')trim(desc)
        Write(pd_umon,'(3A)')"In puredat function pd_get_4_scalar(",TRIM(branch%desc),")"
        Write(pd_umon,'( A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'( A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+       Write(pd_umon,'( A)')"PROGRAM STOPED !!!!!!!!!!!!!"
        stop
     End If
 
     If (branch%leaves(no)%dat_no > 1) then
-       Write(pd_umon,'( A)')"WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+       Write(pd_umon,'( A)')"WARNING !!!!!!!!!!!!!!!!!!!"
        Write(pd_umon,'(3A)')"In puredat function pd_get_4_scalar(",TRIM(branch%desc),")"
        Write(pd_umon,'( A)')"leaf%dat_no > 1 for scalar retrival of leaf data"
        Write(pd_umon,'( A)')"You will only get the first data element as a scalar"
@@ -2979,12 +2980,12 @@ CONTAINS
        Write(pd_umon,'( A)')trim(desc)
        Write(pd_umon,'(3A)')"In puredat function pd_get_5_scalar(",TRIM(branch%desc),")"
        Write(pd_umon,'( A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'( A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+       Write(pd_umon,'( A)')"PROGRAM STOPED !!!!!!!!!!!!!"
        stop
     End If
 
     If (branch%leaves(no)%dat_no > 1) then
-       Write(pd_umon,'( A)')"WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+       Write(pd_umon,'( A)')"WARNING !!!!!!!!!!!!!!!!!!!"
        Write(pd_umon,'(5A)')"In puredat function pd_get_5_scalar(",TRIM(desc)," from ",TRIM(branch%desc),")"
        Write(pd_umon,'( A)')"leaf%dat_no > 1 for scalar retrival of leaf data"
        Write(pd_umon,'( A)')"You will only get the first data element as a scalar"
@@ -3021,9 +3022,9 @@ CONTAINS
                      & of leaf data pointer"
                Write(pd_umon,'( A)')trim(desc)
                Write(pd_umon,'(3A)')"In puredat function pd_get_3_vector (",TRIM(branch%desc),")"
-               Write(pd_umon,'( A)')"The specified leaf size is not equal to the size        !!!"
-               Write(pd_umon,'( A)')"of the passed actual argument                           !!!"
-               Write(pd_umon,'( A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+               Write(pd_umon,'( A)')"The specified leaf size is not equal to the size        !"
+               Write(pd_umon,'( A)')"of the passed actual argument                           !"
+               Write(pd_umon,'( A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!"
                stop
             End If
             
@@ -3040,7 +3041,7 @@ CONTAINS
          Write(pd_umon,'(A)')trim(desc)
          Write(pd_umon,'(A)')"In puredat function pd_get_4(branch,desc)"
          Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-         Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+         Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!"
          stop
       End If
 
@@ -3084,7 +3085,7 @@ CONTAINS
        Write(pd_umon,'(A)')trim(desc)
        Write(pd_umon,'(A)')"In puredat function pd_get_4(branch,desc)"
        Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!"
        stop
     End If
 
@@ -3119,9 +3120,9 @@ CONTAINS
                   & of leaf data pointer"
              Write(pd_umon,'( A)')trim(desc)
              Write(pd_umon,'(3A)')"In puredat function pd_get_4(",TRIM(branch%desc),")"
-             Write(pd_umon,'( A)')"The specified leaf size is not equal to the size  !!!"
-             Write(pd_umon,'( A)')"of the passed actual argument                     !!!"
-             Write(pd_umon,'( A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+             Write(pd_umon,'( A)')"The specified leaf size is not equal to the size  !"
+             Write(pd_umon,'( A)')"of the passed actual argument                     !"
+             Write(pd_umon,'( A)')"PROGRAM STOPED !!!!!!!!!!!!!"
              stop
           End If
           
@@ -3138,7 +3139,7 @@ CONTAINS
        Write(pd_umon,'(A)')trim(desc)
        Write(pd_umon,'(A)')"In puredat function pd_get_4(branch,desc)"
        Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!"
        stop
     End If
 
@@ -3182,7 +3183,7 @@ CONTAINS
        Write(pd_umon,'(A)')trim(desc)
        Write(pd_umon,'(A)')"In puredat function pd_get_5(branch,desc)"
        Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!"
        stop
     End If
 
@@ -3219,9 +3220,9 @@ CONTAINS
                   & of leaf data pointer"
              Write(pd_umon,'( A)')trim(desc)
              Write(pd_umon,'(3A)')"In puredat function pd_get_5_vector (",TRIM(branch%desc),")"
-             Write(pd_umon,'( A)')"The specified leaf size is not equal to the size        !!!"
-             Write(pd_umon,'( A)')"of the passed actual argument                           !!!"
-             Write(pd_umon,'( A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+             Write(pd_umon,'( A)')"The specified leaf size is not equal to the size        !"
+             Write(pd_umon,'( A)')"of the passed actual argument                           !"
+             Write(pd_umon,'( A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!"
              stop
           End If
           
@@ -3238,7 +3239,7 @@ CONTAINS
        Write(pd_umon,'(A)')trim(desc)
        Write(pd_umon,'(A)')"In puredat function pd_get_4(branch,desc)"
        Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!"
        stop
     End If
 
@@ -3285,7 +3286,7 @@ CONTAINS
        Write(pd_umon,'( A)')trim(desc)
        Write(pd_umon,'(3A)')"In puredat function pd_get_6(",TRIM(branch%desc),")"
        Write(pd_umon,'( A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'( A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+       Write(pd_umon,'( A)')"PROGRAM STOPED !!!!!!!!!!!!!"
        stop
     End If
 
@@ -3371,7 +3372,7 @@ CONTAINS
        Write(pd_umon,'( A)')trim(desc)
        Write(pd_umon,'(3A)')"In puredat function pd_get_4_scalar(",TRIM(branch%desc),")"
        Write(pd_umon,'( A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'( A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+       Write(pd_umon,'( A)')"PROGRAM STOPED !!!!!!!!!!!!!"
        stop
     End If
 
@@ -4771,7 +4772,7 @@ CONTAINS
 
   !============================================================================
   !> Function which stores real 8 leaf data
-  Subroutine  pd_store_5(streams,branch,desc,values,blind)
+  Subroutine  pd_store_5(streams, branch, desc, values, blind)
 
     Type(tStreams)  , Intent(inout) :: streams
     Type(tBranch)   , Intent(inout) :: branch
@@ -4833,7 +4834,7 @@ CONTAINS
     Integer :: ii
     Logical :: desc_found, loc_blind
 
-    if(present(blind))then
+    if(present(blind)) then
        loc_blind=blind
     else
        loc_blind=.FALSE.
@@ -5597,7 +5598,7 @@ CONTAINS
   !> Subroutine which serializes a tBranch structure recursively<br>
   !> The routine only accounts for leafs with pstat >= 0 . This means only leafs
   !> with directly allocated data or data residing in serial streams are
-  !> serialized. Leaves with parallel ata marked with pstat = -1 are not
+  !> serialized. Leaves with parallel data marked with pstat = -1 are not
   !> regarded !
   Recursive Subroutine serialize_branch_with_data_rec(branch,head,pos)
 

@@ -67,10 +67,10 @@ contains
     nn = ne * nn_el
 
     If (out_amount /= "PRODUCTION" ) then
-       Write(un_lf,fmt_msg_xAI0)"Number of Nodes          :",nnodes
-       Write(un_lf,fmt_msg_xAI0)"Number of Elements       :",ne
-       Write(un_lf,fmt_msg_xAI0)"Length of Element descr. :",nn
-       Write(un_lf,fmt_msg_xAI0)"Number of Nodes per Elem.:",nn_el
+       Write(un_lf, fmt_msg_xAI0) "Number of Nodes          :",nnodes
+       Write(un_lf, fmt_msg_xAI0) "Number of Elements       :",ne
+       Write(un_lf, fmt_msg_xAI0) "Length of Element descr. :",nn
+       Write(un_lf, fmt_msg_xAI0) "Number of Nodes per Elem.:",nn_el
     End If
     
     Do ii = 1, Parts

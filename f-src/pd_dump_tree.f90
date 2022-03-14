@@ -6,12 +6,13 @@
 !>  Ralf Schneider
 !>
 !>  \section modified Last modified:
-!>  by: Ralf Schneider \n
-!>  on : 15.02.2012
+!>  by: Johannes Gebert \n
+!>  on : 12.03.2022
 !** ------------------------------------------------------------------------ **
 Program pd_dump_tree
 
   Use puredat         ! From libpuredat
+  USE user_interaction
 
   Implicit None
 
@@ -36,35 +37,35 @@ Program pd_dump_tree
 
   num_args = command_argument_count()
 
-  If (num_args < 4) then
-     Write(*,'(80("="))')
-     Write(*,'(A)')"== Usage:"
-     Write(*,'(A)')"== arg 1             : Puredat project path of tree to be logged"
-     Write(*,'(A)')"== arg 2             : Puredat project name of tree to be logged"
-     Write(*,'(A)')"== arg 3             : Path to output file"
-     Write(*,'(A)')"== arg 4             : Name of output file"
-     Write(*,'(A)')"== arg 5 [optional]  : Dump data default=.FALSE."
-     Write(*,'(80("="))')
-     Stop
+  If ((num_args < 3) .or. (num_args > 4)) then
+     WRITE(*, FMT_TXT_SEP)
+     WRITE(*, FMT_TXT) "Usage:"
+     WRITE(*, FMT_TXT) "arg 1: Output Meta path and basename of tree to be logged"
+     WRITE(*, FMT_TXT) "arg 2: Path to output file"
+     WRITE(*, FMT_TXT) "arg 3: Name of output file to dump the tree to. 'arg 3' gets appended to out_file."
+     WRITE(*, FMT_TXT) "arg 4 [optional]: Dump data default=.FALSE."
+     WRITE(*, FMT_TXT_SEP)
+     STOP
   End If
 
   call get_command_argument(1, pro_path)
-  call get_command_argument(2, pro_name)
-  call get_command_argument(3, outpath)
-  call get_command_argument(4, outfile)
+  call get_command_argument(2, outpath)
+  call get_command_argument(3, outfile)
 
-  if (num_args > 4) then
-     call get_command_argument(5, arg)
+  pro_name="/results"
+
+  if (num_args > 3) then
+     call get_command_argument(4, arg)
      Read(arg,*)dump_data
   end if
 
-  write(*,*)"=="
-  write(*,*)"Pro path    : ",trim(pro_path)
-  write(*,*)"Pro name    : ",trim(pro_name)
-  write(*,*)"Out path    : ",trim(outpath)
-  write(*,*)"Out file    : ",trim(outfile)
+  write(*, FMT_TXT_SEP)
+  write(*, FMT_TXT) "Pro path: ",trim(pro_path)
+  write(*, FMT_TXT) "Pro name: ",trim(pro_name)
+  write(*, FMT_TXT) "Out path: ",trim(outpath)
+  write(*, FMT_TXT) "Out file: ",trim(outfile)
   If (num_args > 4)   write(*,*)"dump data   : ",dump_data
-  write(*,*)"=="
+  write(*, FMT_TXT_SEP)
 
   write(*,'(A,$)')"Reading tree ... "
   tree = read_tree()
@@ -80,8 +81,7 @@ Program pd_dump_tree
   End if
 
   un = pd_give_new_unit()
-  Open(unit=un,file=trim(outpath)//trim(outfile),action="write",&
-       status="replace")
+  Open(unit=un,file=trim(outpath)//trim(outfile),action="write", status="replace")
 
   write(*,'(A,$)')"Logging tree ... "
   call log_tree(tree=tree, unit_lf=un, data=dump_data)

@@ -57,7 +57,7 @@ Program pd_dump_leaf
   call get_command_argument(1, pro_path)
   call get_command_argument(2, arg)
 
-   pro_name="/results"
+  pro_name="/results"
 
   Read(arg,*)leaf_no
 
