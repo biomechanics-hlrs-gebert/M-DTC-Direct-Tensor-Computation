@@ -5028,79 +5028,84 @@ End Subroutine pd_get_4
 
   End Subroutine pd_store_6_str
 
-  !============================================================================
-  !> Function which stores the data of a tBranch structure
-  !>
-  !> Function which stores the data of a tBranch structure with one direct
-  !> mpi write per leaf.
-  !> Remark: The routine is to be used carfully if the branch is deeply
-  !> structured with only small data chunks in the leaves.
-  Recursive Subroutine store_parallel_branch(br, FH_MPI)
+!============================================================================
+!> Function which stores the data of a tBranch structure
+!>
+!> Function which stores the data of a tBranch structure with one direct
+!> mpi write per leaf.
+!> Remark: The routine is to be used carfully if the branch is deeply
+!> structured with only small data chunks in the leaves.
+Subroutine store_parallel_branch(br, FH_MPI)
 
-    type(tBranch), Intent(in) :: br
-    Integer(kind=pd_mik), Intent(in), Dimension(no_streams) :: fh_mpi
+type(tBranch), Intent(in) :: br
+Integer(kind=pd_mik), Intent(in), Dimension(no_streams) :: fh_mpi
 
-    Integer(kind=pd_mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
-    Integer(kind=pd_mik) :: ierr
-    Integer(kind=pd_ik) :: ii
+Integer(kind=pd_mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
+Integer(kind=pd_mik) :: ierr
+Integer(kind=pd_ik) :: ii
+
+Do ii = 1, br%no_leaves
+
+    if (br%leaves(ii)%pstat >= 0) then
+
+        Select Case (br%leaves(ii)%dat_ty)
     
-    Do ii = 1, br%no_leaves
+        Case (1)
+            Call MPI_FILE_WRITE_AT(FH_MPI(1), &
+                Int(br%leaves(ii)%lbound-1, MPI_OFFSET_KIND), &
+                br%leaves(ii)%p_int1, &
+                Int(br%leaves(ii)%dat_no,pd_mik), MPI_INTEGER1, &
+                status_mpi, ierr)
+        Case (2)
+            Call MPI_FILE_WRITE_AT(FH_MPI(2), &
+                Int((br%leaves(ii)%lbound-1), MPI_OFFSET_KIND), &
+                br%leaves(ii)%p_int2, &
+                Int(br%leaves(ii)%dat_no,pd_mik), MPI_INTEGER2, &
+                status_mpi, ierr)
+        Case (3)
+            Call MPI_FILE_WRITE_AT(FH_MPI(3), &
+                Int((br%leaves(ii)%lbound-1), MPI_OFFSET_KIND), &
+                br%leaves(ii)%p_int4, &
+                Int(br%leaves(ii)%dat_no,pd_mik), MPI_INTEGER4, &
+                status_mpi, ierr)
+        Case (4)
+            Call MPI_FILE_WRITE_AT(FH_MPI(4), &
+                Int((br%leaves(ii)%lbound-1), MPI_OFFSET_KIND), &
+                br%leaves(ii)%p_int8, &
+                Int(br%leaves(ii)%dat_no,pd_mik), MPI_INTEGER8, &
+                status_mpi, ierr)
+        Case (5)
+            Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+                Int((br%leaves(ii)%lbound-1), MPI_OFFSET_KIND), &
+                br%leaves(ii)%p_real8, &
+                Int(br%leaves(ii)%dat_no,pd_mik), MPI_REAL8, &
+                status_mpi, ierr)
+        Case (6)
+            Call MPI_FILE_WRITE_AT(FH_MPI(6), &
+                Int(br%leaves(ii)%lbound-1, MPI_OFFSET_KIND), &
+                br%leaves(ii)%p_char, &
+                Int(br%leaves(ii)%dat_no,pd_mik), MPI_character, &
+                status_mpi, ierr)
 
-       if (br%leaves(ii)%pstat >= 0) then
+        Case default
+            Write(*,*)"Data type ",br%leaves(ii)%dat_ty," is not yet implemented"
 
-          Select Case (br%leaves(ii)%dat_ty)
-             
-          Case (1)
-             Call MPI_FILE_WRITE_AT(FH_MPI(1), &
-                  Int(br%leaves(ii)%lbound-1, MPI_OFFSET_KIND), &
-                  br%leaves(ii)%p_int1, &
-                  Int(br%leaves(ii)%dat_no,pd_mik), MPI_INTEGER1, &
-                  status_mpi, ierr)
-          Case (2)
-             Call MPI_FILE_WRITE_AT(FH_MPI(2), &
-                  Int((br%leaves(ii)%lbound-1), MPI_OFFSET_KIND), &
-                  br%leaves(ii)%p_int2, &
-                  Int(br%leaves(ii)%dat_no,pd_mik), MPI_INTEGER2, &
-                  status_mpi, ierr)
-          Case (3)
-             Call MPI_FILE_WRITE_AT(FH_MPI(3), &
-                  Int((br%leaves(ii)%lbound-1), MPI_OFFSET_KIND), &
-                  br%leaves(ii)%p_int4, &
-                  Int(br%leaves(ii)%dat_no,pd_mik), MPI_INTEGER4, &
-                  status_mpi, ierr)
-          Case (4)
-             Call MPI_FILE_WRITE_AT(FH_MPI(4), &
-                  Int((br%leaves(ii)%lbound-1), MPI_OFFSET_KIND), &
-                  br%leaves(ii)%p_int8, &
-                  Int(br%leaves(ii)%dat_no,pd_mik), MPI_INTEGER8, &
-                  status_mpi, ierr)
-          Case (5)
-             Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-                  Int((br%leaves(ii)%lbound-1), MPI_OFFSET_KIND), &
-                  br%leaves(ii)%p_real8, &
-                  Int(br%leaves(ii)%dat_no,pd_mik), MPI_REAL8, &
-                  status_mpi, ierr)
-          Case (6)
-             Call MPI_FILE_WRITE_AT(FH_MPI(6), &
-                  Int(br%leaves(ii)%lbound-1, MPI_OFFSET_KIND), &
-                  br%leaves(ii)%p_char, &
-                  Int(br%leaves(ii)%dat_no,pd_mik), MPI_character, &
-                  status_mpi, ierr)
+        End Select
 
-          Case default
-             Write(*,*)"Data type ",br%leaves(ii)%dat_ty," is not yet implemented"
+    End if
 
-          End Select
+End Do
 
-       End if
+!------------------------------------------------------------------------------
+! Recursive Subroutine store_parallel_branch(br, FH_MPI)
+! Crashes under specific but not entirely clear circumstances...
+!------------------------------------------------------------------------------
+! Do ii = 1, br%no_branches
+!     Call store_parallel_branch(br%branches(ii), FH_MPI, worker_rank_mpi)
+! End Do
+!------------------------------------------------------------------------------
 
-    End Do
-    
-    Do ii = 1, br%no_branches
-       Call store_parallel_branch(br%branches(ii), FH_MPI)
-    End Do
-    
-  End Subroutine store_parallel_branch
+End Subroutine store_parallel_branch
 
   !============================================================================
   !> Function which dumps a tbranch structure recursively to disk

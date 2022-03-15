@@ -1125,7 +1125,7 @@ CHARACTER(Len=mcl)  :: link_name = 'struct process'
 
 INTEGER(kind=c_int) :: stat_c_int
 
-Type(tBranch)       :: root, phi_tree
+Type(tBranch)       :: groot, root, phi_tree
 Type(tBranch), pointer :: ddc, meta_para, result_branch, mesh_branch
 
 CHARACTER           , DIMENSION(4*mcl)          :: c_char_array
@@ -1820,9 +1820,15 @@ If (rank_mpi==0) Then
     !------------------------------------------------------------------------------
     ! Only global rank 0 -- Init MPI IO-System
     !------------------------------------------------------------------------------
-    Call Open_Stream_Files(root%streams, "write", "replace")
+    ! Previous approach (serial, not parallel)
+    ! Call Open_Stream_Files(root%streams, "write", "replace")
     ! Call Open_Stream_Files(root%streams, "write", "replace", fh_mpi, MPI_COMM_WORLD)
-
+    !------------------------------------------------------------------------------
+    ! Another possibility: Write the branches with information that is valid for 
+    ! all ranks/domains to this root directory. The domain-specific results into
+    ! the corresponding rank directories.
+    ! Call Open_Stream_Files(root%branches(1:2)streams, "write", "replace")
+    !------------------------------------------------------------------------------
     call get_stream_size(root, dsize)
 
     If (out_amount == "DEBUG") THEN
@@ -1892,11 +1898,11 @@ If (rank_mpi==0) Then
     !------------------------------------------------------------------------------
     ! Write Root header and input parameters
     !------------------------------------------------------------------------------
-    Call Start_Timer("Write Root Branch")
+    ! Call Start_Timer("Write Root Branch")
     ! call store_parallel_branch(root, FH_MPI)
-    call store_branch(root, root%streams, .TRUE.)
-    Call Write_Tree(root)
-    Call End_Timer("Write Root Branch")
+    ! call store_branch(root, root%streams, .TRUE.)
+    ! Call Write_Tree(root)
+    ! Call End_Timer("Write Root Branch")
         
     Call MPI_WAITANY(size_mpi-1_mik, req_list, finished, status_mpi, ierr)
     CALL print_err_stop(std_out, &
@@ -1963,13 +1969,6 @@ If (rank_mpi==0) Then
          act_domains(ii) = nn
 
     End Do
-
-    !------------------------------------------------------------------------------
-    ! Write last data element to ensure correct file size
-    ! Looks like a workaround, because eff density in struct calcmat was missing
-    !------------------------------------------------------------------------------
-    ! Call MPI_FILE_WRITE_AT(fh_mpi_worker(5), Int(result_branch%leaves(18)%lbound-1+Domain_number, &
-    !     MPI_OFFSET_KIND), 0_pd_rk, Int(1,pd_mik), MPI_Real8, status_mpi, ierr)
 
     Call MPI_WAITALL(size_mpi-1_mik, req_list, statuses_mpi, ierr)
     CALL print_err_stop(std_out, &
@@ -2122,112 +2121,24 @@ Else
             pro_path = outpath
             pro_name = project_name     
 
-            Call Write_Tree(root%branches(3))
+            !------------------------------------------------------------------------------
+            ! Store header file
+            !------------------------------------------------------------------------------
+            Call Write_Tree(root)
+            ! Call Write_Tree(root%branches(3)) ! Branch with 'Averaged Material Properties'
+            ! ../../../bin/pd_dump_leaf_x86_64 $PWD/ results_0000001 7
     
             Call End_Timer("Write Root Branch")
         END IF
 
-        CALL store_parallel_branch(root%branches(3), fh_mpi_worker)
-        ! CALL store_parallel_branch(root, fh_mpi_worker)
+        !------------------------------------------------------------------------------
+        ! Store stream files
+        !------------------------------------------------------------------------------
+        CALL store_parallel_branch(root, fh_mpi_worker)
+        ! ../../../bin/pd_dump_Eleaf_x86_64 $PWD/ results_0000001 35
+        ! CALL store_parallel_branch(root%branches(3), fh_mpi_worker) ! Branch with 'Averaged Material Properties'
         CALL close_stream_files(root%streams, fh_mpi_worker)
 
-      !   ! Look for the Domain branch
-      !   domain_desc=''
-      !   Write(domain_desc, '(A, I0)')'Domain ',Domain
-        
-      !   Call search_branch(trim(domain_desc), root, domain_branch, success)
-
-      !   !------------------------------------------------------------------------------
-      !   ! Dump the Local domain decomposition
-      !   !------------------------------------------------------------------------------
-      !   IF (success) THEN
-      !       mesh_desc=''
-      !       Write(mesh_desc,'(A,I0)')'Local domain Decomposition of domain no ', Domain
-            
-      !       removed_data = 0
-      !       Call delete_branch_from_branch(trim(mesh_desc), domain_branch, removed_data)
-      !   END IF
-        
-      !   ! If we want to keep all results
-      !   If (out_amount == "DEBUG") then
-
-      !      Write(un_lf, fmt_dbg_sep)
-
-      !      ! Write input files
-           
-      !      ! Search input files branch
-      !   !    Call search_branch("Input files", domain_branch, mesh_branch, success)
-
-      !      If (success) then
-
-      !         Do ii = 1, mesh_branch%no_branches
-
-      !            tmp_un = give_new_unit()
-                 
-      !            !write(tmp_fn,fmt_filename) trim(job_dir)//trim(project_name)//'_',&
-      !            !      domain,'_',ii,'.dat'
-             
-      !            Open(unit=tmp_un, file=trim(tmp_fn), action="write", status="replace")
-                 
-      !            Write(tmp_un,*) mesh_branch%branches(ii)%leaves(3)%p_char
-
-      !            Close(tmp_un)
-
-      !         End Do
-              
-      !      End If
-
-      !      Write(un_lf,fmt_dbg_sep)           
-
-      !   End If
-
-
-      !   ! Dump the mesh and results branch
-      !   mesh_desc=''
-      !   Write(mesh_desc,'(A,I0)')'Mesh info of '//trim(project_name)//'_',Domain
-        
-      !   Call search_branch(trim(mesh_desc), root, mesh_branch, success)
-           
-      !   If (success) then
-
-      !      ! Move No of nodes, elements and constrained dofs
-      !      Call add_leaf_to_branch(domain_branch, 3)
-      !      Call Assign_leaves(domain_branch%leaves, mesh_branch%leaves)
-           
-      !      removed_data = 0
-      !      Call delete_branch_from_branch(trim(mesh_desc), domain_branch, removed_data)
-           
-      !   End If
-           
-
-     ! DEBUG INFORMATION
-        ! If (out_amount == "DEBUG") THEN
-           
-        !    Write(un_mon,'(2(A,I10))') "MPI rank : ",rank_mpi, &
-        !         " ; Domain number : ",Domain
-           
-        !    Call get_data_size(root,data_size)
-           
-        !    Write(un_mon,'(A,3(I10,A))') "Data size root : ", &
-        !         data_size(1), " Elements ; ",&
-        !         data_size(2) / 1024_ik," kB ; ",&
-        !         data_size(2), " Byte"
-           
-        !    Call get_data_size(domain_branch,data_size)
-           
-        !    Write(un_mon,'(A,3(I10,A))') "Data size domain_branch   : ", &
-        !         data_size(1), " Elements ; ",&
-        !         data_size(2) / 1024_ik," kB ; ",&
-        !         data_size(2), " Byte"
-                   
-        !    Write(un_lf,fmt_dbg_sep)
-        !    Write(un_lf,FMT_MSG_AxI0)"Root pointer after compress on proc",rank_mpi
-        !    Call log_tree(root,un_lf,.True.)
-        !    Write(un_lf,fmt_dbg_sep)
-           
-        ! END If
-        ! DEBUG INFORMATION
-        !========================================================================================================================
         Active = 0_mik
 
         Call MPI_ISEND(Active, 1_mik, MPI_INTEGER4, 0_mik, rank_mpi, MPI_COMM_WORLD, REQUEST, IERR)
@@ -2254,25 +2165,29 @@ IF ((worker_rank_mpi==0) .OR. (rank_mpi==0)) THEN
         Call log_tree(root, un_lf, .True.)
         Write(un_lf, fmt_dbg_sep)
     END If
-
-    Call link_end(link_name,.True.)
 END IF 
 
 1001 Continue
 
 IF(rank_mpi == 0) THEN
-   CALL meta_signing(binary)
-   CALL meta_close(size_mpi)
 
-    ! DO ii = 1, SIZE(root%branches)
-    !     write(*,'(2(A, I0))') "SIZE LEAVES(", ii, "): ", size(root%branches(ii)%leaves)
-    !     write(*,'(A, I0, 2A)') "SIZE DESCRIPTION(", ii, "): ", TRIM(root%branches(ii)%desc)
-    ! END DO
+    !------------------------------------------------------------------------------
+    ! Give information about the tree structure
+    !------------------------------------------------------------------------------
+    DO ii = 1, SIZE(root%branches)
+        write(un_lf, '(A, I0, 2A, T80, I0, T84, A)') &
+            "Branch(", ii, ") of the tree: ", TRIM(root%branches(ii)%desc), size(root%branches(ii)%leaves), " leaves."
+    END DO
 
-   ! CALL meta_stop_ascii(fh=fhl  , suf=log_suf)
-   CALL meta_stop_ascii(fh=fhmon, suf=mon_suf)
+    Call link_end(link_name,.True.)
 
-   IF (std_out/=6) CALL meta_stop_ascii(fh=std_out, suf='.std_out')
+    CALL meta_signing(binary)
+    CALL meta_close(size_mpi)
+
+    ! CALL meta_stop_ascii(fh=fhl  , suf=log_suf)
+    CALL meta_stop_ascii(fh=fhmon, suf=mon_suf)
+
+    IF (std_out/=6) CALL meta_stop_ascii(fh=std_out, suf='.std_out')
 END IF ! (rank_mpi == 0)
 
 Call MPI_FINALIZE(ierr)
