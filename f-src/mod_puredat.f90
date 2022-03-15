@@ -75,9 +75,9 @@ Module puredat_precision
 
   Implicit none
   
-  Integer, Parameter :: pd_ik = 8  !** Puredat Integer kind parameter
-  Integer, Parameter :: pd_rk = 8  !** Puredat Real    kind parameter
-  Integer, Parameter :: pd_mik = 4 !** Puredat Integer MPI kind parameter
+  Integer, Parameter :: pd_ik = 8  !* Puredat Integer kind parameter
+  Integer, Parameter :: pd_rk = 8  !* Puredat Real    kind parameter
+  Integer, Parameter :: pd_mik = 4 !* Puredat Integer MPI kind parameter
   
 End Module puredat_precision
 
@@ -470,7 +470,7 @@ CONTAINS
     
     Call get_environment_Variable("PRD_STDOUT", env_var)
 
-    !** If PRD_STDOUT is set to a value ***************************************
+    !* If PRD_STDOUT is set to a value ***************************************
     If (Len_Trim(env_var) > 0) then
 
        Inquire(file=trim(env_var), opened = opened)
@@ -1169,37 +1169,49 @@ CONTAINS
   !> tBranch::streams::stream_files(7) = Trim(pro_path)//Trim(pro_name)//'.log.st'   \n
   !> tBranch::streams::ifopen          = .FALSE.                                     \n
   !> tBranch::streams::units           = -1
-  Subroutine raise_tree(desc,tree)
+  Subroutine raise_tree(desc, tree)
 
     Character(len=*), Intent(in)  :: desc
     Type(tBranch)   , intent(out) :: tree
 
     Integer :: alloc_stat
 
-    !* Set description ********************************************************
+    !------------------------------------------------------------------------------
+    ! Set description
+    !------------------------------------------------------------------------------
     tree%desc = desc
 
-    !* Init tBranch components ************************************************
+    !------------------------------------------------------------------------------
+    ! Init tBranch components
+    !------------------------------------------------------------------------------
     tree%no_branches = 0
     tree%no_leaves   = 0
     tree%branches    => NULL()
     tree%leaves      => NULL()
 
-    !* Streams component ******************************************************
+    !------------------------------------------------------------------------------
+    ! Streams component
+    !------------------------------------------------------------------------------
     IF (.not. allocated(tree%streams)) then
        allocate(tree%streams,stat=alloc_stat)
-       Call alloc_error(alloc_stat,'tree%streams' , 'raise_tree')
+       Call alloc_error(alloc_stat,'tree%streams', 'raise_tree')
     Else
        Call cons_error("raise_tree", "Streams component is already allocated")
     End IF
 
-    !* stream counters ********************************************************
+    !------------------------------------------------------------------------------
+    ! stream counters
+    !------------------------------------------------------------------------------
     tree%streams%ii_st = 1
 
-    !* Init stream dimensions *************************************************
+    !------------------------------------------------------------------------------
+    ! Init stream dimensions
+    !------------------------------------------------------------------------------
     tree%streams%dim_st = 0_pd_ik
 
-    !* Init stream files logic ************************************************
+    !------------------------------------------------------------------------------
+    ! Init stream files logic
+    !------------------------------------------------------------------------------
     tree%streams%stream_files(1) = Trim(pro_path)//Trim(pro_name)//'.int1.st'
     tree%streams%stream_files(2) = Trim(pro_path)//Trim(pro_name)//'.int2.st'
     tree%streams%stream_files(3) = Trim(pro_path)//Trim(pro_name)//'.int4.st'
@@ -1621,7 +1633,7 @@ CONTAINS
 
     Integer(kind=pd_ik) :: ii
 
-    !** Handle optional parameters ********************************************
+    !* Handle optional parameters ********************************************
 
     if (present(t_streams)) then
 
@@ -1680,7 +1692,7 @@ CONTAINS
        loc_blind=.FALSE.
     End if
 
-    !** Include branch structure **********************************************
+    !* Include branch structure **********************************************
 
     branches     => t_b%branches
     t_b%branches => Null()
@@ -1711,14 +1723,14 @@ CONTAINS
        nullify(t_b%branches(t_b%no_branches)%leaves)
     End If
 
-    !** Include data **********************************************************
+    !* Include data **********************************************************
     If (.not.loc_blind) then
        call read_streams(src_streams)
        Call open_stream_files(trg_streams,"write","old","append")
     End If
 
-    !** Usecase 1 : ***********************************************************
-    !** s_b is a root branch. This means we can copy its streams to trg_streams
+    !* Usecase 1 : ***********************************************************
+    !* s_b is a root branch. This means we can copy its streams to trg_streams
     if (s_root) then
 
        If (.not.loc_blind) then
@@ -1732,9 +1744,9 @@ CONTAINS
 
        call shift_bounds_in_branch(t_b%branches(t_b%no_branches), trg_streams, src_streams)
 
-       !** Usecase 2 : ***********************************************************
-       !** s_b is not a root branch. This means we have to cycle it recursively 
-       !** and copy its data leaf by leaf
+       !* Usecase 2 : ***********************************************************
+       !* s_b is not a root branch. This means we have to cycle it recursively 
+       !* and copy its data leaf by leaf
     Else
 
        call connect_pointers(src_streams,s_b)
@@ -1753,7 +1765,7 @@ CONTAINS
 
   End Subroutine include_branch_into_branch
 
-  !****************************************************************************
+  !***************************************************************************
   !> Subroutine for storing all the data of a branch in memory to stream files
   Recursive Subroutine store_branch(branch,streams,blind)
 
@@ -1805,7 +1817,7 @@ CONTAINS
 
   End Subroutine store_branch
 
-  !****************************************************************************
+  !***************************************************************************
   !> Subroutine for setting data chunk bounds
   !>
   !> This subroutine sets the lbound and ubound members of all tLeaf members 
@@ -1836,7 +1848,7 @@ write(*,*) "TESTBRANCH", ii
     
   End subroutine reset_bounds_in_branch
   
-  !****************************************************************************
+  !***************************************************************************
   !> Subroutine for setting data chunk bounds
   !>
   !> This subroutine sets the lbound and ubound members of tLeaf members in a
@@ -1874,7 +1886,7 @@ write(*,*) "TESTBRANCH", ii
     
   End subroutine set_bounds_in_branch
 
-  !****************************************************************************
+  !***************************************************************************
   !> Subroutine for shifting data chunk bounds
   !>
   !> This subroutine shifts the lbound and ubound members of all tLeaf
@@ -1895,7 +1907,7 @@ write(*,*) "TESTBRANCH", ii
 
   End subroutine shift_bounds_in_branch
 
-  !****************************************************************************
+  !***************************************************************************
   !> Subroutine for setting data chunk bounds
   !>
   !> This subroutine sets the lbound and ubound members of all tLeaf
@@ -1927,7 +1939,7 @@ write(*,*) "TESTBRANCH", ii
 
   End subroutine shift_bounds_rec
 
-  !****************************************************************************
+  !***************************************************************************
   !> Subroutine for counting the branches and leaves in a tBranch structure
   Recursive Subroutine count_elems(branch, no_branches, no_leaves)
     
@@ -1945,7 +1957,7 @@ write(*,*) "TESTBRANCH", ii
 
   End Subroutine count_elems
 
-  !****************************************************************************
+  !***************************************************************************
   !> Subroutine for homogenization of a tBranch structure to streams in memory
   !>
   !> This subroutine copys the leaf local data of a tBranch structure to
@@ -2136,7 +2148,7 @@ write(*,*) "TESTBRANCH", ii
     
   End Subroutine homogenize_branch
   
-  !****************************************************************************
+  !***************************************************************************
   !> Subroutine for homogenization of a tBranch structure to streams in memory
   !>
   !> This subroutine copys the leaf local data of a tBranch structure to
@@ -2308,7 +2320,7 @@ write(*,*) "TESTBRANCH", ii
 
     Type(tstreams) :: streams
     
-    !* Init stream files logic ************************************************
+    ! Init stream files logic ************************************************
     streams%stream_files(1) = Trim(pro_path)//Trim(pro_name)//'.int1.st'
     streams%stream_files(2) = Trim(pro_path)//Trim(pro_name)//'.int2.st'
     streams%stream_files(3) = Trim(pro_path)//Trim(pro_name)//'.int4.st'
@@ -2357,13 +2369,13 @@ write(*,*) "TESTBRANCH", ii
        Inquire(file=trim(tree%streams%stream_files(ii)), exist=fexist, &
             number=funit, action=faction) 
 
-       !** File exists ********************************************************
+       !* File exists ********************************************************
        If (fexist) Then
 
-          !** File is connected to a unit *************************************
+          !* File is connected to a unit *************************************
           If (funit > -1) then
 
-             !** Check tree%units integrity ***********************************
+             !* Check tree%units integrity ***********************************
              if (tree%streams%units(ii) /= funit) then
 
                 Write(pd_umon,*)"In Subroutine open_stream_files_from_tree'"
@@ -2375,7 +2387,7 @@ write(*,*) "TESTBRANCH", ii
 
              End if
 
-             !** Check whether the file is opened for the desired action ******
+             !* Check whether the file is opened for the desired action ******
              if (action /= trim(faction)) then
 
                 close(tree%streams%units(ii))
@@ -2386,7 +2398,7 @@ write(*,*) "TESTBRANCH", ii
 
              End if
 
-             !** File is not connected to a unit *********************************
+             !* File is not connected to a unit *********************************
           Else
 
              tree%streams%units(ii) = pd_give_new_unit()
@@ -2398,7 +2410,7 @@ write(*,*) "TESTBRANCH", ii
 
           End If
 
-          !** File does not exist ************************************************
+          !* File does not exist ************************************************
        Else 
 
           If ((status == 'new') .or. (status == 'replace')) then
@@ -2490,13 +2502,13 @@ write(*,*) "TESTBRANCH", ii
        Inquire(file=trim(streams%stream_files(ii)), exist=fexist, &
             number=funit, action=faction) 
 
-       !** File exists ********************************************************
+       !* File exists ********************************************************
        If (fexist) Then
 
-          !** File is connected to a unit *************************************
+          !* File is connected to a unit *************************************
           If (funit > -1) then
 
-             !** Check units integrity ***********************************
+             !* Check units integrity ***********************************
              if (streams%units(ii) /= funit) then
 
                 Write(pd_umon,*)"In Subroutine open_stream_files_from_streams'"
@@ -2508,7 +2520,7 @@ write(*,*) "TESTBRANCH", ii
 
              End if
 
-             !** Check whether the file is opened for the desired action ******
+             !* Check whether the file is opened for the desired action ******
              if (action /= trim(faction)) then
 
                 close(streams%units(ii))
@@ -2519,7 +2531,7 @@ write(*,*) "TESTBRANCH", ii
 
              End if
 
-             !** File is not connected to a unit *********************************
+             !* File is not connected to a unit *********************************
           Else
 
              streams%units(ii) = pd_give_new_unit()
@@ -2531,7 +2543,7 @@ write(*,*) "TESTBRANCH", ii
 
           End If
 
-          !** File does not exist ************************************************
+          !* File does not exist ************************************************
        Else 
 
           If ((status == 'new') .or. (status == 'replace')) then
@@ -2629,13 +2641,13 @@ write(*,*) "TESTBRANCH", ii
 !!$            number=funit, action=faction) 
        fexist = .FALSE.
        
-       !** File exists ********************************************************
+       !* File exists ********************************************************
        If (fexist) Then
 
-          !** File is connected to a unit *************************************
+          !* File is connected to a unit *************************************
           If (funit > -1) then
 
-             !** Check units integrity ***********************************
+             !* Check units integrity ***********************************
              if (streams%units(ii) /= funit) then
 
                 Write(pd_umon,*)"In Subroutine open_stream_files_from_streams'"
@@ -2647,7 +2659,7 @@ write(*,*) "TESTBRANCH", ii
 
              End if
 
-             !** Check whether the file is opened for the desired action ******
+             !* Check whether the file is opened for the desired action ******
              if (action /= trim(faction)) then
 
                 close(streams%units(ii))
@@ -2658,7 +2670,7 @@ write(*,*) "TESTBRANCH", ii
 
              End if
 
-             !** File is not connected to a unit *********************************
+             !* File is not connected to a unit *********************************
           Else
 
              streams%units(ii) = pd_give_new_unit()
@@ -2670,7 +2682,7 @@ write(*,*) "TESTBRANCH", ii
 
           End If
 
-          !** File does not exist ************************************************
+          !* File does not exist ************************************************
        Else 
 
           If ((status == 'new') .or. (status == 'replace')) then
@@ -3035,26 +3047,26 @@ write(*,*) "TESTBRANCH", ii
 
       end Do
 
-      If (.NOT. desc_found) then
-         Write(pd_umon,'(A)')"Something bad and unexpected happend during retrival&
-               & of leaf data pointer"
-         Write(pd_umon,'(A)')trim(desc)
-         Write(pd_umon,'(A)')"In puredat function pd_get_4(branch,desc)"
-         Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-         Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!"
-         stop
-      End If
+    If (.NOT. desc_found) then
+        Write(pd_umon,'(A)')"Something bad and unexpected happend during retrival&
+            & of leaf data pointer"
+        Write(pd_umon,'(A)')trim(desc)
+        Write(pd_umon,'(A)')"In puredat function pd_get_4(branch,desc)"
+        Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
+        Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!"
+        stop
+    End If
 
-   End Subroutine pd_get_3_vector
+End Subroutine pd_get_3_vector
 
-  !============================================================================
-  !> Function which retrieves integer 8 leaf data to an allocatable array
-  !>
-  !> Function which retrieves integer 8 leaf data from the corresponding leaf
-  !> pointer to an allocatable array of rank 1 and type Integer(kind=8). The 
-  !> leaf is searched !!non recursively!! in the given branch by full 
-  !> comparison of trim(branch%leaves(ii)%desc) == trim(desc).
-  Subroutine pd_get_4(branch, desc, values)
+!============================================================================
+!> Function which retrieves integer 8 leaf data to an allocatable array
+!>
+!> Function which retrieves integer 8 leaf data from the corresponding leaf
+!> pointer to an allocatable array of rank 1 and type Integer(kind=8). The 
+!> leaf is searched !!non recursively!! in the given branch by full 
+!> comparison of trim(branch%leaves(ii)%desc) == trim(desc).
+Subroutine pd_get_4(branch, desc, values)
 
     Type(tBranch)   , Intent(in) :: branch
     Character(Len=*), Intent(in) :: desc
@@ -3080,16 +3092,16 @@ write(*,*) "TESTBRANCH", ii
     end Do
 
     If (.NOT. desc_found) then
-       Write(pd_umon,'(A)')"Something bad and unexpected happend during retrival&
-            & of leaf data pointer"
-       Write(pd_umon,'(A)')trim(desc)
-       Write(pd_umon,'(A)')"In puredat function pd_get_4(branch,desc)"
-       Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!"
-       stop
+        Write(pd_umon, '(A)') "Something bad and unexpected happend during retrival&
+                & of leaf data pointer"
+        Write(pd_umon, '(A)')trim(desc)
+        Write(pd_umon, '(A)') "In puredat function pd_get_4(branch,desc)"
+        Write(pd_umon, '(A)') "The specified leaf was not found in the passed branch" 
+        Write(pd_umon, '(A)') "PROGRAM STOPED !!!!!!!!!!!!!"
+        stop
     End If
 
-  End Subroutine pd_get_4
+End Subroutine pd_get_4
 
   !============================================================================
   !> Function which retrieves integer 8 leaf data to a constant array
@@ -3478,8 +3490,8 @@ write(*,*) "TESTBRANCH", ii
 
   End Function read_tree
 
-  !*********************************************************
-  !** Subroutine for reading a branch from header file *****
+  !********************************************************
+  !* Subroutine for reading a branch from header file *****
   Recursive Subroutine read_branch(head,branch,size,pos,streams)
 
     character, dimension(:), intent(in) :: head
@@ -3555,8 +3567,8 @@ write(*,*) "TESTBRANCH", ii
 
   End Subroutine read_branch
 
-  !*********************************************************
-  !** Subroutine for reading a branch form header file *****
+  !********************************************************
+  !* Subroutine for reading a branch form header file *****
   Recursive Subroutine read_branch_ws(un_head,branch,success)
 
     Integer      , Intent(in)    :: un_head
@@ -3635,8 +3647,8 @@ write(*,*) "TESTBRANCH", ii
 
   End Subroutine read_branch_ws
 
-  !*********************************************************
-  !** Subroutine for reading a leaf form header file *******
+  !********************************************************
+  !* Subroutine for reading a leaf form header file *******
   Function read_leaf_ws(un_head,success) Result(leaf)
 
     Integer, Intent(in)  :: un_head
@@ -3691,8 +3703,8 @@ write(*,*) "TESTBRANCH", ii
 
   End Function read_leaf_ws
 
-  !*********************************************************
-  !** Subroutine for reading a leaf form header file *******
+  !********************************************************
+  !* Subroutine for reading a leaf form header file *******
   Function read_leaf(head,size,pos) Result(leaf)
 
     Character, Dimension(:), Intent(in) :: head
@@ -3750,7 +3762,7 @@ write(*,*) "TESTBRANCH", ii
 
     CALL OPEN_STREAM_FILES(branch, "read", "old")
 
-    !**************************************************************************
+    !*************************************************************************
     If (branch%streams%dim_st(1) > 0) then
 
        If (associated(branch%streams%int1_st)) then
@@ -3765,7 +3777,7 @@ write(*,*) "TESTBRANCH", ii
        Read(branch%streams%units(1))branch%streams%int1_st
 
     End If
-    !**************************************************************************
+    !*************************************************************************
     If (branch%streams%dim_st(2) > 0) then
 
        If (associated(branch%streams%int2_st)) then
@@ -3780,7 +3792,7 @@ write(*,*) "TESTBRANCH", ii
        Read(branch%streams%units(2))branch%streams%int2_st
 
     End If
-    !**************************************************************************
+    !*************************************************************************
     If (branch%streams%dim_st(3) > 0) then
 
        If (associated(branch%streams%int4_st)) then
@@ -3795,7 +3807,7 @@ write(*,*) "TESTBRANCH", ii
        Read(branch%streams%units(3))branch%streams%int4_st
 
     End If
-    !**************************************************************************
+    !*************************************************************************
     If (branch%streams%dim_st(4) > 0) then
 
        If (associated(branch%streams%int8_st)) then
@@ -3810,7 +3822,7 @@ write(*,*) "TESTBRANCH", ii
        Read(branch%streams%units(4))branch%streams%int8_st
 
     End If
-    !**************************************************************************
+    !*************************************************************************
     If (branch%streams%dim_st(5) > 0) then
 
        If (associated(branch%streams%real8_st)) then
@@ -3825,7 +3837,7 @@ write(*,*) "TESTBRANCH", ii
        Read(branch%streams%units(5))branch%streams%real8_st
 
     End If
-    !**************************************************************************
+    !*************************************************************************
     If (branch%streams%dim_st(6) > 0) then
 
        If (associated(branch%streams%char_st)) then
@@ -3840,7 +3852,7 @@ write(*,*) "TESTBRANCH", ii
        Read(branch%streams%units(6))branch%streams%char_st
 
     End If
-    !**************************************************************************
+    !*************************************************************************
     If (branch%streams%dim_st(7) > 0) then
 
        If (associated(branch%streams%log_st)) then
@@ -3869,7 +3881,7 @@ write(*,*) "TESTBRANCH", ii
 
     CALL OPEN_STREAM_FILES(streams, "read", "old")
 
-    !**************************************************************************
+    !*************************************************************************
     If (streams%dim_st(1) > 0) then
 
        If (.not.associated(streams%int1_st)) then
@@ -3881,7 +3893,7 @@ write(*,*) "TESTBRANCH", ii
        Read(streams%units(1))streams%int1_st
 
     End If
-    !**************************************************************************
+    !*************************************************************************
     If (streams%dim_st(2) > 0) then
 
        If (.not.associated(streams%int2_st)) then
@@ -3893,7 +3905,7 @@ write(*,*) "TESTBRANCH", ii
        Read(streams%units(2))streams%int2_st
 
     End If
-    !**************************************************************************
+    !*************************************************************************
     If (streams%dim_st(3) > 0) then
 
        If (.not.associated(streams%int4_st)) then
@@ -3905,7 +3917,7 @@ write(*,*) "TESTBRANCH", ii
        Read(streams%units(3))streams%int4_st
 
     End If
-    !**************************************************************************
+    !*************************************************************************
     If (streams%dim_st(4) > 0) then
 
        If (.not.associated(streams%int8_st)) then
@@ -3917,7 +3929,7 @@ write(*,*) "TESTBRANCH", ii
        Read(streams%units(4))streams%int8_st
 
     End If
-    !**************************************************************************
+    !*************************************************************************
     If (streams%dim_st(5) > 0) then
 
        If (.not.associated(streams%real8_st)) then
@@ -3929,7 +3941,7 @@ write(*,*) "TESTBRANCH", ii
        Read(streams%units(5))streams%real8_st
 
     End If
-    !**************************************************************************
+    !*************************************************************************
     If (streams%dim_st(6) > 0) then
 
        If (.not.associated(streams%char_st)) then
@@ -3941,7 +3953,7 @@ write(*,*) "TESTBRANCH", ii
        Read(streams%units(6))streams%char_st
 
     End If
-    !**************************************************************************
+    !*************************************************************************
     If (streams%dim_st(7) > 0) then
 
        If (.not.associated(streams%log_st)) then
@@ -4444,7 +4456,7 @@ write(*,*) "TESTBRANCH", ii
 
     Type(tBranch), Intent(In):: tree 
     Integer:: un_head
-    !**********************************************************
+    !*********************************************************
 
     un_head = pd_give_new_unit()
 
@@ -5074,9 +5086,9 @@ write(*,*) "TESTBRANCH", ii
     Type(tBranch)         :: tmp_tree
     Integer(kind=pd_ik)   :: ii, wskip
     Character(len=pd_mcl) :: tmp_line
-    !**********************************************************
+    !*********************************************************
 
-    !** Raise temporary tree structure ***
+    !* Raise temporary tree structure ***
     call raise_tree('',tmp_tree)
     call open_stream_files(tmp_tree%streams, "write", "new")
     
@@ -5091,7 +5103,7 @@ write(*,*) "TESTBRANCH", ii
     Write(un_head, '(A,I15)')'<no_of_branches> ',branch%no_branches
     Write(un_head, '(A,I15)')'<no_of_leaves> ',branch%no_leaves
     
-    !** Initially dump the tstream component of tmp_tree ***
+    !* Initially dump the tstream component of tmp_tree ***
     !------------------------12345678901234567890123456789012345678901234567890
     Write(un_head, '(A,L1)')'<streams_allocated> ',.TRUE.
     Write(un_head, '(A,I15)')'<size_int1_stream> ',tmp_tree%streams%dim_st(1)
@@ -5115,15 +5127,15 @@ write(*,*) "TESTBRANCH", ii
     Open(unit=un_head, file=Trim(pro_path)//Trim(pro_name)//'.head', status='old', &
          action='write',access="stream")
 
-    !** Calc skip from begin of file :
-    !** fmt_bsep               = 12 + 1
-    !** branch desc. line      = 16 + len_trim(branch%desc) + 1
-    !** no of branches line    = 17 + 15 + 1
-    !** no of leaves line      = 15 + 15 + 1
-    !** streams allocated line = 20 + 1 + 1
+    !* Calc skip from begin of file :
+    !* fmt_bsep               = 12 + 1
+    !* branch desc. line      = 16 + len_trim(branch%desc) + 1
+    !* no of branches line    = 17 + 15 + 1
+    !* no of leaves line      = 15 + 15 + 1
+    !* streams allocated line = 20 + 1 + 1
     wskip = 13 + 16+len_trim(branch%desc)+1 + 17+15+1 + 15+15+1 + 20+1+1 + 1
     
-    !** Update the sizes of the tstream components of tmp_tree ***
+    !* Update the sizes of the tstream components of tmp_tree ***
     Write(tmp_line,'(A,I15,A)')'<size_int1_stream> ',tmp_tree%streams%dim_st(1), char(10)
     Write(un_head, pos=wskip)trim(tmp_line)
     wskip = wskip + 35
@@ -5164,7 +5176,7 @@ write(*,*) "TESTBRANCH", ii
     Write(un_head, '(A,I0)')'<no_of_branches> ',branch%no_branches
     Write(un_head, '(A,I0)')'<no_of_leaves> ',branch%no_leaves
 
-    !** We do not dump any contained tstream comonents ***
+    !* We do not dump any contained tstream comonents ***
     Write(un_head, '(A,L1)')'<streams_allocated> ',.FALSE.
     
     Do ii = 1, branch%no_leaves
@@ -5371,7 +5383,7 @@ write(*,*) "TESTBRANCH", ii
     Integer(kind=pd_ik) :: alloc_stat
     Logical :: loc_sdat
     
-    !**********************************************************
+    !*********************************************************
 
     If ( present(sdat) ) then
        loc_sdat = sdat
@@ -5421,20 +5433,20 @@ write(*,*) "TESTBRANCH", ii
 
     Integer(kind=pd_ik) :: ii
 
-    !** Account for fixed components ***
+    !* Account for fixed components ***
     size = size + pd_ce + 2 
 
-    !** Account for streams component if allocated ***
+    !* Account for streams component if allocated ***
     If (allocated(branch%streams)) then
        size = size + 1 + 4*no_streams + no_streams*pd_ce
     Else
        size = size + 1
     End If
 
-    !** Account for leaves if any *************
+    !* Account for leaves if any *************
     size = size + branch%no_leaves * (no_streams + 4 + pd_ce)
 
-    !** Account for branches if any ***
+    !* Account for branches if any ***
     Do ii = 1, branch%no_branches
        Call get_serial_branch_size(branch%branches(ii), size)
     End Do
@@ -5458,22 +5470,22 @@ write(*,*) "TESTBRANCH", ii
 
     Integer(kind=pd_ik) :: ii
 
-    !** Account for fixed components ***
+    !* Account for fixed components ***
     size = size + pd_ce + 2 
 
-    !** Account for streams component if allocated ***
+    !* Account for streams component if allocated ***
     If (allocated(branch%streams)) then
        size = size + 1 + 4*no_streams + no_streams*pd_ce
     Else
        size = size + 1
     End If
 
-    !** Account for leaves if any ****************
+    !* Account for leaves if any ****************
     Do ii = 1, branch%no_leaves
 
        size = size + (no_streams + 4 + pd_ce)
 
-       !** Account for leaf data *****************
+       !* Account for leaf data *****************
        if ( (branch%leaves(ii)%dat_no > 0) .AND. &
             (branch%leaves(ii)%pstat >= 0)        ) then
           
@@ -5502,7 +5514,7 @@ write(*,*) "TESTBRANCH", ii
        
     End Do
     
-    !** Account for branches if any ***
+    !* Account for branches if any ***
     Do ii = 1, branch%no_branches
        Call get_serial_branch_size_with_data(branch%branches(ii), size)
     End Do
@@ -5522,7 +5534,7 @@ write(*,*) "TESTBRANCH", ii
 
     Integer(kind=pd_ik) :: ii
 
-    !** Fixed Components ******************************************************
+    !* Fixed Components ******************************************************
     head(pos:pos+pd_ce-1) = Transfer(branch%desc,char_mold)
     pos = pos+pd_ce
 
@@ -5531,7 +5543,7 @@ write(*,*) "TESTBRANCH", ii
     head(pos) = branch%no_leaves
     pos = pos+1
 
-    !** Streams ***************************************************************
+    !* Streams ***************************************************************
     If (allocated(branch%streams)) then
        
        head(pos) = 1
@@ -5565,7 +5577,7 @@ write(*,*) "TESTBRANCH", ii
 
     End If
 
-    !** Leaves ****************************************************************
+    !* Leaves ****************************************************************
     Do ii = 1, branch%no_leaves
        
        head(pos:pos+pd_ce-1) = Transfer(branch%leaves(ii)%desc,char_mold)
@@ -5585,7 +5597,7 @@ write(*,*) "TESTBRANCH", ii
 
     End Do
 
-    !** Branches **************************************************************
+    !* Branches **************************************************************
     Do ii = 1, branch%no_branches
        Call serialize_branch_rec(branch%branches(ii),head,pos)
     End Do
@@ -5611,7 +5623,7 @@ write(*,*) "TESTBRANCH", ii
 
     Integer(kind=pd_ik) :: ii, no_int8_elems
 
-    !** Fixed Components ******************************************************
+    !* Fixed Components ******************************************************
     head(pos:pos+pd_ce-1) = Transfer(branch%desc,char_mold)
     pos = pos+pd_ce
 
@@ -5620,7 +5632,7 @@ write(*,*) "TESTBRANCH", ii
     head(pos) = branch%no_leaves
     pos = pos+1
 
-    !** Streams ***************************************************************
+    !* Streams ***************************************************************
     If (allocated(branch%streams)) then
        
        head(pos) = 1
@@ -5654,7 +5666,7 @@ write(*,*) "TESTBRANCH", ii
 
     End If
 
-    !** Leaves ****************************************************************
+    !* Leaves ****************************************************************
     Do ii = 1, branch%no_leaves
        
        head(pos:pos+pd_ce-1) = Transfer(branch%leaves(ii)%desc,char_mold)
@@ -5672,7 +5684,7 @@ write(*,*) "TESTBRANCH", ii
        head(pos) = branch%leaves(ii)%pstat
        pos = pos + 1
 
-       !** Serialize leaf data *****************
+       !* Serialize leaf data *****************
        if ( (branch%leaves(ii)%dat_no > 0) .AND. &
             (branch%leaves(ii)%pstat >= 0)        ) then
           
@@ -5728,7 +5740,7 @@ write(*,*) "TESTBRANCH", ii
        
     End Do
 
-    !** Branches **************************************************************
+    !* Branches **************************************************************
     Do ii = 1, branch%no_branches
        Call serialize_branch_with_data_rec(branch%branches(ii),head,pos)
     End Do
@@ -5778,7 +5790,7 @@ write(*,*) "TESTBRANCH", ii
     CHARACTER(len=pd_mcl) :: char_mold
     Integer(kind=pd_ik)   :: ii
 
-    !** Fixed Components ******************************************************
+    !* Fixed Components ******************************************************
     branch%desc = Transfer(head(pos:pos+pd_ce-1),branch%desc)
     pos = pos+pd_ce
 
@@ -5787,7 +5799,7 @@ write(*,*) "TESTBRANCH", ii
     branch%no_leaves = head(pos)
     pos = pos+1
 
-    !** Streams ***************************************************************
+    !* Streams ***************************************************************
     If (head(pos) == 1) then
 
        pos = pos+1       
@@ -5822,7 +5834,7 @@ write(*,*) "TESTBRANCH", ii
 
     End If
 
-    !** Leaves ****************************************************************
+    !* Leaves ****************************************************************
     If (branch%no_leaves > 0) then
 
        Allocate(branch%leaves(branch%no_leaves))
@@ -5849,7 +5861,7 @@ write(*,*) "TESTBRANCH", ii
 
     End If
 
-    !** Branches **************************************************************
+    !* Branches **************************************************************
     If ( branch%no_branches > 0 ) then
        
        Allocate(branch%branches(branch%no_branches))
@@ -5877,7 +5889,7 @@ write(*,*) "TESTBRANCH", ii
     CHARACTER(len=pd_mcl) :: char_mold
     Integer(kind=pd_ik)   :: ii, no_int8_elems
 
-    !** Fixed Components ******************************************************
+    !* Fixed Components ******************************************************
     branch%desc = Transfer(head(pos:pos+pd_ce-1),branch%desc)
     pos = pos+pd_ce
 
@@ -5886,7 +5898,7 @@ write(*,*) "TESTBRANCH", ii
     branch%no_leaves = head(pos)
     pos = pos+1
 
-    !** Streams ***************************************************************
+    !* Streams ***************************************************************
     If (head(pos) == 1) then
 
        pos = pos+1       
@@ -5921,7 +5933,7 @@ write(*,*) "TESTBRANCH", ii
 
     End If
 
-    !** Leaves ****************************************************************
+    !* Leaves ****************************************************************
     If (branch%no_leaves > 0) then
 
        Allocate(branch%leaves(branch%no_leaves))
@@ -5944,7 +5956,7 @@ write(*,*) "TESTBRANCH", ii
           branch%leaves(ii)%pstat = head(pos)
           pos = pos + 1
 
-          !** DeSerialize leaf data *****************
+          !* DeSerialize leaf data *****************
           if ( (branch%leaves(ii)%dat_no > 0) .AND. &
                (branch%leaves(ii)%pstat >= 0) ) then
                     
@@ -6009,7 +6021,7 @@ write(*,*) "TESTBRANCH", ii
 
     End If
 
-    !** Branches **************************************************************
+    !* Branches **************************************************************
     If ( branch%no_branches > 0 ) then
        
        Allocate(branch%branches(branch%no_branches))
@@ -6636,7 +6648,7 @@ write(*,*) "TESTBRANCH", ii
 
   contains
 
-    !**************************************************************************
+    !*************************************************************************
     !> This subroutine prints out data contained in a tLeaf structure.
     !> It is meant to be called only by log_leaf
     Subroutine Log_Leaf_data(un_lf, leaf, fmt_str)
@@ -6647,18 +6659,18 @@ write(*,*) "TESTBRANCH", ii
 
       Integer :: ii, pos, cpos
 
-      !** We have to have data residing in the leaf and we have to have a
-      !** leaf pointer status > 0 which marks process owned data residing
-      !** either directly below the leaf pointer or in a tStreams structure
-      !** pointed to by the leaf pointer
+      !* We have to have data residing in the leaf and we have to have a
+      !* leaf pointer status > 0 which marks process owned data residing
+      !* either directly below the leaf pointer or in a tStreams structure
+      !* pointed to by the leaf pointer
       If ( (leaf%dat_no > 0) .AND. leaf%pstat >= 0) then
          
          Write(un_lf, "('"//fmt_str//"   |')")
          Write(un_lf, "('"//fmt_str//"   +',170('-'),('+'))")
          Write(un_lf, "('"//fmt_str//"   |',' Leaf Data ',159(' '),('|'))")
 
-         !***********************************************************
-         !** dat_no in [0,30] ***************************************
+         !**********************************************************
+         !* dat_no in [0,30] ***************************************
          If (leaf%dat_no <= 30) then
             
             Write(un_lf, "('"//fmt_str//"   |')",ADVANCE='NO')
@@ -6695,8 +6707,8 @@ write(*,*) "TESTBRANCH", ii
             End Do
             Write(un_lf, "('|')")
 
-         !***********************************************************
-         !** dat_no in (30,1000] ************************************
+         !**********************************************************
+         !* dat_no in (30,1000] ************************************
          Else if ((leaf%dat_no > 30) .AND. (leaf%dat_no <= 1000)) then
 
             Write(un_lf, "('"//fmt_str//"   |')",ADVANCE='NO')
@@ -6772,8 +6784,8 @@ write(*,*) "TESTBRANCH", ii
                
             End If
 
-         !***********************************************************
-         !** dat_no > 1000 ******************************************
+         !**********************************************************
+         !* dat_no > 1000 ******************************************
          Else
 
             Write(un_lf, "('"//fmt_str//"   |')",ADVANCE='NO')

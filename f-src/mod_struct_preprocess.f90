@@ -19,9 +19,9 @@ Module gen_geometry
 
 Contains
 
-  Subroutine generate_geometry(root, domain_tree, lin_nn, ddc_nn, job_dir, fh_mpi, glob_success)
+  Subroutine generate_geometry(root, lin_nn, ddc_nn, job_dir, fh_mpi, glob_success)
 
-    Type(tBranch), Intent(InOut) :: root, domain_tree
+    Type(tBranch), Intent(InOut) :: root
     Character(LEN=*), Intent(in) :: job_dir
     integer(Kind=ik), Intent(in) :: ddc_nn, lin_nn
     Integer(kind=mik), Dimension(no_streams), Intent(in) :: fh_mpi
@@ -41,7 +41,7 @@ Contains
     Type(tBranch), Pointer :: loc_ddc, ddc, bounds_b
 
     ! Branch pointers
-    Type(tBranch), Pointer :: meta_para, res_b
+    Type(tBranch), Pointer :: meta_para, res_b, domain_branch
 
     ! Mesh Variables 
     Real(Kind=rk)    , Dimension(:,:) , Allocatable :: nodes, displ
@@ -103,12 +103,21 @@ Contains
     xe_n_ext = xe_n + bpoints
 
     !----------------------------------------------------------------------------
+    ! Add domain branch to root
+    !----------------------------------------------------------------------------
+    desc=''
+    Write(desc,'(A,I0)')"Domain ", ddc_nn
+    call add_branch_to_branch(root, domain_branch)
+    
+    call raise_branch(trim(desc), 0_pd_ik, 0_pd_ik, domain_branch)
+
+    !----------------------------------------------------------------------------
     ! Add branch for local ddc params to domain branch
     !----------------------------------------------------------------------------
     desc=''
     Write(desc,'(A,I0)') "Local domain Decomposition of domain no ", ddc_nn
 
-    call add_branch_to_branch(domain_tree, loc_ddc)
+    call add_branch_to_branch(domain_branch, loc_ddc)
     call raise_branch(trim(desc), 0_pd_ik, 0_pd_ik, loc_ddc)
 
     call add_leaf_to_branch(loc_ddc, "nn"      , 1_pd_ik, [ddc_nn])
@@ -204,19 +213,19 @@ Contains
        Call log_tree(root,un_lf,.True.)
        Write(un_lf, fmt_dbg_sep)
     END If
-    
-    !================================================================
-    !== Write number of elements to result file
-   !  Call Search_branch("Averaged Material Properties", root, res_b, success)
-    
-    ! Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-    !      Int(res_b%leaves(18)%lbound-1+(lin_nn-1), MPI_OFFSET_KIND), &
-    !      Real(no_elems,pd_rk), &
-    !      Int(1,pd_mik), MPI_Real8, &
-    !      status_mpi, ierr)
 
-   !  call add_leaf_to_branch(res_b, "Number of elements in domain", 1_ik, [no_elems])
+    !------------------------------------------------------------------------------
+    ! Write number of elements to result file
+    !------------------------------------------------------------------------------
+    Call Search_branch("Averaged Material Properties", root, res_b, success)
+    
+    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+         Int(res_b%leaves(18)%lbound-1+(lin_nn-1), MPI_OFFSET_KIND), &
+         Real(no_elems, pd_rk), &
+         Int(1,pd_mik), MPI_Real8, &
+         status_mpi, ierr)
 
+    ! call add_leaf_to_branch(res_b, "Number of elements in domain", 1_ik, [no_elems])
 
     !------------------------------------------------------------------------------
     ! Store PHI as vtk structured points
@@ -301,7 +310,7 @@ Contains
     desc=''
     Write(desc,'(A,I0)')'Mesh info of '//trim(project_name)//'_',ddc_nn
    
-    call add_branch_to_branch(domain_tree, PMesh)
+    call add_branch_to_branch(domain_branch, PMesh)
     call raise_branch(trim(desc), parts, 0_pd_ik, PMesh)
 
     Call part_mesh(nodes, elems, no_nodes, no_elems, parts, PMesh, job_dir, ddc_nn)
@@ -313,10 +322,9 @@ Contains
     ! Retrive valid branch pointers to local and global ddc
     !------------------------------------------------------------------------------
     Call Search_branch("Global domain decomposition", root, ddc, success)
-    
     desc=''
     Write(desc,'(A,I0)')"Local domain Decomposition of domain no ",ddc_nn
-    Call Search_branch(trim(desc), domain_tree, loc_ddc, success)
+    Call Search_branch(trim(desc), root, loc_ddc, success)
     
     Call generate_boundaries(PMesh, ddc, loc_ddc, elo_macro)
 

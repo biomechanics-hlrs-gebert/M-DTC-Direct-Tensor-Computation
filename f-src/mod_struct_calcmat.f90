@@ -4,592 +4,597 @@
 !>
 Module calcmat
 
-  USE tensors
-  USE decomp
-  USE mat_matrices
-  USE mechanical
-  USE chain_routines
-  USE auxiliaries
-  USE user_interaction
-  USE formatted_plain
-  USE linFE
-  USE mpi
-  
-  implicit none
+USE tensors
+USE decomp
+USE mat_matrices
+USE mechanical
+USE chain_routines
+USE auxiliaries
+USE user_interaction
+USE formatted_plain
+USE linFE
+USE mpi
+
+implicit none
 
 contains
 
-subroutine calc_effective_material_parameters(root, domain_tree, ddc_nn) 
+subroutine calc_effective_material_parameters(root, lin_nn, ddc_nn, fh_mpi) 
 
-    Type(tBranch), Intent(InOut) :: root, domain_tree
-    integer(Kind=ik), Intent(in) :: ddc_nn
-      
-    Character(len=*), Parameter :: link_name="struct_calcmat_fmps"
+Type(tBranch), Intent(InOut) :: root
+integer(Kind=ik), Intent(in) :: ddc_nn, lin_nn
 
-    Integer(Kind=8)                            :: no_dat, no_nodes,no_cnodes
-    Integer(Kind=8), Dimension(:), Allocatable :: no_cnodes_pp
-    Integer(Kind=8)                            :: macro_order
+Integer(kind=mik), Dimension(no_streams), Intent(in) :: fh_mpi
 
-    integer(Kind=8), Dimension(:), allocatable   :: cref_cnodes
-    Real(kind=8)   , Dimension(:)  , allocatable :: tmp_nn
-    Real(kind=8)   , Dimension(:,:), allocatable :: nodes, vv, ff, stiffness
+Integer(kind=mik) :: ierr
+Integer(kind=mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
 
-    Real(kind=8)   , Dimension(:,:,:), allocatable :: uu, rforces
+Character(len=*), Parameter :: link_name="struct_calcmat_fmps"
 
-    Real(kind=8)   , Dimension(:,:,:), allocatable :: calc_rforces
-    Real(kind=8)   , Dimension(6)   :: ro_stress
-    Real(kind=8)   , Dimension(6,6) :: CC
-    Real(kind=8)   , Dimension(6,6) :: cc_mean, EE, fv,meps
-    Real(kind=8)   , Dimension( 8)  :: tmp_r8 
-    Real(kind=8)   , Dimension(12)  :: tmp_r12
+Integer(Kind=8)                              :: no_dat, no_nodes,no_cnodes
+Integer(Kind=8), Dimension(:), Allocatable   :: no_cnodes_pp
+Integer(Kind=8)                              :: macro_order
 
-    Real(kind=8)                   :: E_Modul, nu, rve_strain
-    Real(kind=8)                   :: v_elem, v_cube
-    integer(Kind=ik)               :: ii, jj, kk, ll
-    integer(Kind=ik)               :: no_elem_nodes,micro_elem_nodes
-    integer(Kind=ik)               :: no_lc
-    Real(Kind=rk),    Dimension(3) :: min_c, max_c
-    Type(tBranch), Pointer         :: ddc, loc_ddc, meta_para, domain_branch
-    Character(Len=mcl)             :: desc
+integer(Kind=8), Dimension(:)  , allocatable :: cref_cnodes
+Real(kind=8)   , Dimension(:)  , allocatable :: tmp_nn
+Real(kind=8)   , Dimension(:,:), allocatable :: nodes, vv, ff, stiffness
 
-    Real(kind=rk), Dimension(1) :: tmp_real_fd1
+Real(kind=8)   , Dimension(:,:,:), allocatable :: uu, rforces
 
-    Type(tBranch),pointer :: mesh_branch, domain_results
-    Type(tLeaf),  pointer :: node_leaf_pointer
+Real(kind=8)   , Dimension(:,:,:), allocatable :: calc_rforces
+Real(kind=8)   , Dimension(6)   :: ro_stress
+Real(kind=8)   , Dimension(6,6) :: CC
+Real(kind=8)   , Dimension(6,6) :: cc_mean, EE, fv,meps
+Real(kind=8)   , Dimension( 8)  :: tmp_r8 
+Real(kind=8)   , Dimension(12)  :: tmp_r12
 
-    Real(kind=rk) :: alpha, phi, eta
-    Integer       :: ii_phi,ii_eta,kk_phi,kk_eta
+Real(kind=8)                   :: E_Modul, nu, rve_strain
+Real(kind=8)                   :: v_elem, v_cube
+integer(Kind=ik)               :: ii, jj, kk, ll
+integer(Kind=ik)               :: no_elem_nodes,micro_elem_nodes
+integer(Kind=ik)               :: no_lc
+Real(Kind=rk),    Dimension(3) :: min_c, max_c
+Type(tBranch), Pointer         :: ddc, loc_ddc, meta_para, domain_branch
+Character(Len=mcl)             :: desc
 
-    Real(kind=rk), Dimension (3)   :: n
-    Real(kind=rk), Dimension (3,3) :: aa
-    Real(kind=rk), Dimension (6,6) :: ee_orig, BB
+Real(kind=rk), Dimension(1) :: tmp_real_fd1
 
-    Integer      , Dimension (:,:,:,:), Allocatable :: ang
-    Real(kind=rk), Dimension (:,:,:)  , Allocatable :: crit_1,crit_2
-    Real(kind=rk), Dimension (0 :16) :: crit_min
-    Integer      , Dimension (3)     :: s_loop,e_loop, mlc
+Type(tBranch),pointer :: mesh_branch, res_tree
+Type(tLeaf),  pointer :: node_leaf_pointer
 
-    Real(kind=rk) :: div_10_exp_jj
-    Real(kind=rk) :: cos_alpha, sin_alpha           
-    Real(kind=rk) :: One_Minus_cos_alpha 
-    Real(kind=rk) :: n12, n13, n23
+Real(kind=rk) :: alpha, phi, eta
+Integer       :: ii_phi,ii_eta,kk_phi,kk_eta
 
-    Real(kind=rk), Dimension(:), Allocatable :: delta, x_D_phy
-    Type(tLeaf), Allocatable, Dimension(:)   :: leaf_list
-    Integer :: num_leaves, alloc_stat, amount_domains
-    
-    Real(kind=8)   , Dimension(:,:,:), allocatable :: edat
-    Integer(Kind=ik), Dimension(:), Allocatable    :: xa_n, xe_n
-    Logical :: success
+Real(kind=rk), Dimension (3)   :: n
+Real(kind=rk), Dimension (3,3) :: aa
+Real(kind=rk), Dimension (6,6) :: ee_orig, BB
 
-    Character(len=9) :: nn_char
+Integer      , Dimension (:,:,:,:), Allocatable :: ang
+Real(kind=rk), Dimension (:,:,:)  , Allocatable :: crit_1,crit_2
+Real(kind=rk), Dimension (0 :16) :: crit_min
+Integer      , Dimension (3)     :: s_loop,e_loop, mlc
 
-    write(nn_char,'(I0)') ddc_nn
+Real(kind=rk) :: div_10_exp_jj
+Real(kind=rk) :: cos_alpha, sin_alpha           
+Real(kind=rk) :: One_Minus_cos_alpha 
+Real(kind=rk) :: n12, n13, n23
 
-    Allocate(ang(3,0:180,0:180,0:90))
-    Allocate(crit_1(0:180,0:180,0:90), crit_2(0:180,0:180,0:90))
+Real(kind=rk), Dimension(:), Allocatable :: delta, x_D_phy
+Type(tLeaf), Allocatable, Dimension(:)   :: leaf_list
+Integer :: num_leaves, alloc_stat, amount_domains
 
-    Select Case (timer_level)
-    Case (3)
-       call start_timer("  +-- Loading input data "//trim(nn_char))
-    Case (2)
-       call start_timer("  +-- Loading input data "//trim(nn_char))
-    Case default
-       continue
-    End Select
+Real(kind=8)   , Dimension(:,:,:), allocatable :: edat
+Integer(Kind=ik), Dimension(:), Allocatable    :: xa_n, xe_n
+Logical :: success
 
-    ! Load input meta_para
-    Call Search_branch("Input parameters", root, meta_para, success)
+Character(len=9) :: nn_char
 
-    Call pd_get(meta_para, "Young_s modulus", E_Modul)
-    Call pd_get(meta_para, "Poisson_s ratio", nu)
-    Call pd_get(meta_para, "Average strain on RVE", rve_strain)
-    Call pd_get(meta_para, "Element order on macro scale", macro_order)
+write(nn_char,'(I0)') ddc_nn
 
-    !------------------------------------------------------------------------------
-    ! Load domain decomposition parameters
-    !------------------------------------------------------------------------------
+Allocate(ang(3,0:180,0:180,0:90))
+Allocate(crit_1(0:180,0:180,0:90), crit_2(0:180,0:180,0:90))
 
-    ! Get global DDC parameters from root 
-    Call Search_branch("Global domain decomposition", root, ddc, success)
+Select Case (timer_level)
+Case (3)
+    call start_timer("  +-- Loading input data "//trim(nn_char))
+Case (2)
+    call start_timer("  +-- Loading input data "//trim(nn_char))
+Case default
+    continue
+End Select
 
-    call pd_get(ddc, "delta", delta)
-    call pd_get(ddc, "x_D_phy", x_D_phy)
+! Load input meta_para
+Call Search_branch("Input parameters", root, meta_para, success)
 
-    ! Get local DDC parameters from root
-    Write(desc,'(A,I0)') "Local domain Decomposition of domain no ", ddc_nn
+Call pd_get(meta_para, "Young_s modulus", E_Modul)
+Call pd_get(meta_para, "Poisson_s ratio", nu)
+Call pd_get(meta_para, "Average strain on RVE", rve_strain)
+Call pd_get(meta_para, "Element order on macro scale", macro_order)
 
-    Call Search_branch(trim(desc), root, loc_ddc, success)
-    call pd_get(loc_ddc, "xa_n", xa_n)
-    call pd_get(loc_ddc, "xe_n", xe_n)
+!------------------------------------------------------------------------------
+! Load domain decomposition parameters
+!------------------------------------------------------------------------------
 
-    min_c = Real(xa_n - 1,rk) * delta
-    max_c = Real(xe_n    ,rk) * delta
+! Get global DDC parameters from root 
+Call Search_branch("Global domain decomposition", root, ddc, success)
 
-    !------------------------------------------------------------------------------
-    ! Set node number of macro element
-    !------------------------------------------------------------------------------
-    If (macro_order == 1) then
-       no_elem_nodes = 8
-       no_lc         = 24
-    Else
-        CALL print_err_stop(std_out, "Element order other than 1 not supported", 1)
-    End If
+call pd_get(ddc, "delta", delta)
+call pd_get(ddc, "x_D_phy", x_D_phy)
 
-    !------------------------------------------------------------------------------
-    ! Get global mesh_branch parameters
-    !------------------------------------------------------------------------------
-    Call Search_branch("Domain "//trim(nn_char), root, domain_branch, success)
+! Get local DDC parameters from root
+Write(desc,'(A,I0)') "Local domain Decomposition of domain no ", ddc_nn
 
-    desc = ''
-    Write(desc,'(A,I0)') 'Mesh info of '//trim(project_name)//'_', ddc_nn
-    Call search_branch(trim(desc), domain_branch, mesh_branch, success)
+Call Search_branch(trim(desc), root, loc_ddc, success)
+call pd_get(loc_ddc, "xa_n", xa_n)
+call pd_get(loc_ddc, "xe_n", xe_n)
 
-    ! DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-    call log_tree(mesh_branch, un_lf, .FALSE.)
-    ! DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+min_c = Real(xa_n - 1,rk) * delta
+max_c = Real(xe_n    ,rk) * delta
 
-    call pd_get(mesh_branch, 'No of nodes in mesh',  no_nodes)
-    call pd_get(mesh_branch, 'No of elements in mesh',  no_dat)
-   
-    micro_elem_nodes = 20
+!------------------------------------------------------------------------------
+! Set node number of macro element
+!------------------------------------------------------------------------------
+If (macro_order == 1) then
+    no_elem_nodes = 8
+    no_lc         = 24
+Else
+    CALL print_err_stop(std_out, "Element order other than 1 not supported", 1)
+End If
 
-    If (out_amount /= "PRODUCTION") then
-       write(un_lf, FMT_MSG_xAI0) "Set number of nodes per micro element to: ", micro_elem_nodes
-    End If
-    
-    call pd_get(mesh_branch, 'No of cdofs in parts', no_cnodes_pp)
-    no_cnodes=sum(no_cnodes_pp)/3
+!------------------------------------------------------------------------------
+! Get global mesh_branch parameters
+! project_name already is Rank_xxxxy
+!------------------------------------------------------------------------------
+Call Search_branch("Domain "//trim(nn_char), root, domain_branch, success)
 
-    If (out_amount /= "PRODUCTION") then
-       write(un_lf,*)
-       write(un_lf,FMT_MSG_xAI0)"Read no_nodes  from domain branch: ", no_nodes
-       write(un_lf,FMT_MSG_xAI0)"Read no_cnodes from domain branch: ", no_cnodes
-    End If
-    
-    !------------------------------------------------------------------------------
-    ! Allocate fields and read data
-    !------------------------------------------------------------------------------
+desc = ''
+Write(desc,'(A,I0)') 'Mesh info of '//trim(project_name)//'_', ddc_nn
+Call search_branch(trim(desc), domain_branch, mesh_branch, success)
 
-    ! Copy Coordinate list nodes(3,no_nodes)
-    Allocate (nodes(3,no_nodes),stat=alloc_stat)
-    call pd_get(mesh_branch, "Coordinates", node_leaf_pointer)
-    nodes = reshape( node_leaf_pointer%p_real8 ,[3,no_nodes])
+! DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+call log_tree(mesh_branch, un_lf, .FALSE.)
+! DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-    !------------------------------------------------------------------------------
-    ! Build Cross reference for constrained nodes from "Boundary_Ids"
-    !------------------------------------------------------------------------------
-    Allocate(cref_cnodes(no_cnodes),stat=alloc_stat)
-    call alloc_err( "cref_cnodes",alloc_stat)
+call pd_get(mesh_branch, 'No of nodes in mesh',  no_nodes)
+call pd_get(mesh_branch, 'No of elements in mesh',  no_dat)
 
-    Do ii = 1, mesh_branch%branches(2)%branches(1)%leaves(1)%dat_no, 9
-       cref_cnodes((ii+8)/9) = mesh_branch%branches(2)%branches(1)%leaves(1)%p_int8(ii)
-    end Do
+micro_elem_nodes = 20
 
-    !------------------------------------------------------------------------------
-    ! Read displacement results
-    !------------------------------------------------------------------------------
-    Allocate(uu(3, no_nodes, no_lc), stat=alloc_stat)
-    call alloc_err("uu", alloc_stat)
+If (out_amount /= "PRODUCTION") then
+    write(un_lf, FMT_MSG_xAI0) "Set number of nodes per micro element to: ", micro_elem_nodes
+End If
 
-    call get_leaf_list ("Displacements", mesh_branch, num_leaves, leaf_list)
-    If (out_amount /= "PRODUCTION" ) then
-       write(un_lf,FMT_MSG_AxI0) "Number of leaves with desc = Displacements: ", num_leaves
-    End If
-   
-    Do ii = 1, num_leaves
-       uu(:,:,ii) = reshape(leaf_list(ii)%p_real8, [3, no_nodes])
+call pd_get(mesh_branch, 'No of cdofs in parts', no_cnodes_pp)
+no_cnodes=sum(no_cnodes_pp)/3
+
+If (out_amount /= "PRODUCTION") then
+    write(un_lf,*)
+    write(un_lf,FMT_MSG_xAI0)"Read no_nodes  from domain branch: ", no_nodes
+    write(un_lf,FMT_MSG_xAI0)"Read no_cnodes from domain branch: ", no_cnodes
+End If
+
+!------------------------------------------------------------------------------
+! Allocate fields and read data
+!------------------------------------------------------------------------------
+
+! Copy Coordinate list nodes(3,no_nodes)
+Allocate (nodes(3,no_nodes),stat=alloc_stat)
+call pd_get(mesh_branch, "Coordinates", node_leaf_pointer)
+nodes = reshape( node_leaf_pointer%p_real8 ,[3,no_nodes])
+
+!------------------------------------------------------------------------------
+! Build Cross reference for constrained nodes from "Boundary_Ids"
+!------------------------------------------------------------------------------
+Allocate(cref_cnodes(no_cnodes),stat=alloc_stat)
+call alloc_err( "cref_cnodes",alloc_stat)
+
+Do ii = 1, mesh_branch%branches(2)%branches(1)%leaves(1)%dat_no, 9
+    cref_cnodes((ii+8)/9) = mesh_branch%branches(2)%branches(1)%leaves(1)%p_int8(ii)
+end Do
+
+!------------------------------------------------------------------------------
+! Read displacement results
+!------------------------------------------------------------------------------
+Allocate(uu(3, no_nodes, no_lc), stat=alloc_stat)
+call alloc_err("uu", alloc_stat)
+
+call get_leaf_list ("Displacements", mesh_branch, num_leaves, leaf_list)
+If (out_amount /= "PRODUCTION" ) then
+    write(un_lf,FMT_MSG_AxI0) "Number of leaves with desc = Displacements: ", num_leaves
+End If
+
+Do ii = 1, num_leaves
+    uu(:,:,ii) = reshape(leaf_list(ii)%p_real8, [3, no_nodes])
+End Do
+
+Deallocate(leaf_list)
+
+!------------------------------------------------------------------------------
+! Read stress and strain results
+!------------------------------------------------------------------------------
+Allocate(edat(15, no_lc, no_dat), stat=alloc_stat)
+call alloc_err( "edat",alloc_stat)
+
+call get_leaf_list("Avg. Element Data", mesh_branch, num_leaves, leaf_list)
+If (out_amount /= "PRODUCTION" ) then
+    write(un_lf,FMT_MSG_xAI0)"Number of leaves with desc = Avg. Element Data: ", num_leaves
+End If
+
+Do ii = 1, num_leaves
+    edat(:,ii,:) = reshape(leaf_list(ii)%p_real8, [15, no_dat])
+End Do
+
+Deallocate(leaf_list)
+
+!------------------------------------------------------------------------------
+! Read Reaction Forces
+!------------------------------------------------------------------------------
+Allocate(rforces(3,no_nodes,no_lc),stat=alloc_stat)
+call alloc_err("rforces", alloc_stat)
+
+call get_leaf_list("Reaction Forces", mesh_branch, num_leaves, leaf_list)
+If (out_amount /= "PRODUCTION" ) then
+    write(un_lf,FMT_MSG_AxI0) "Number of leaves with desc = Reaction Forces: ", num_leaves
+End If
+
+Do ii = 1, num_leaves
+    rforces(:,:,ii) = reshape(leaf_list(ii)%p_real8, [3,no_nodes])
+End Do
+
+Deallocate(leaf_list)
+
+Allocate(calc_rforces(3, no_nodes, no_lc), stat=alloc_stat)
+call alloc_err("calc_rforces", alloc_stat)
+calc_rforces = 0._rk
+
+allocate(vv(no_lc, no_lc), stat=alloc_stat)
+call alloc_err("vv", alloc_stat)
+allocate(ff(no_lc, no_lc), stat=alloc_stat)
+call alloc_err("ff", alloc_stat)
+
+ff = 0._rk
+
+allocate(stiffness(no_lc, no_lc), stat=alloc_stat)
+call alloc_err("stiffness", alloc_stat)
+
+allocate(tmp_nn(no_elem_nodes), stat=alloc_stat)
+call alloc_err("tmp_nn", alloc_stat)
+
+If (out_amount == "DEBUG") THEN
+    WRITE(un_lf, FMT_DBG_SEP)
+    write(un_lf, *)
+    write(un_lf, *)'min uu      = ', minval(uu), 'max uu      = ', maxval(uu)
+    write(un_lf, *)'min rforces = ', minval(rforces), 'max rforces = ', maxval(rforces)
+    write(un_lf, *)
+    WRITE(un_lf, FMT_DBG_SEP)
+end if
+
+Select Case (timer_level)
+Case (3)
+    call end_timer  ("  +-- Loading input data "//trim(nn_char))
+    call start_timer("  +-- Calc material data "//trim(nn_char))
+Case (2)
+    call end_timer  ("  +-- Loading input data "//trim(nn_char))
+    call start_timer("  +-- Calc material data "//trim(nn_char))
+Case default
+    continue
+End Select
+
+!------------------------------------------------------------------------------
+! Create effective results branch
+!------------------------------------------------------------------------------
+desc = ''
+Write(desc,'(A,I0)') 'Effetive properties of '//trim(project_name)//'_', ddc_nn
+
+CALL add_branch_to_branch(root, res_tree)
+CALL raise_branch(trim(desc), 0_pd_ik, 0_pd_ik, res_tree)
+
+!------------------------------------------------------------------------------
+! Init C
+!------------------------------------------------------------------------------
+CC = iso_compliance_voigt(E_Modul, nu)
+
+If (out_amount == "DEBUG") THEN
+    WRITE(un_lf,FMT_DBG_SEP)
+    Call Write_matrix(un_lf, "Effective Isotropic Compliance -- CC", cc, fmti='std', unit='1/MPa')
+    WRITE(un_lf,FMT_DBG_SEP)
+End if
+
+!------------------------------------------------------------------------------
+! Reorder stresses and strains
+!------------------------------------------------------------------------------
+Do jj = 1, no_dat
+    Do ii = 1, no_lc
+        ro_stress(1:4)  = edat(1:4,ii,jj)
+        ro_stress(5)    = edat(6  ,ii,jj)
+        ro_stress(6)    = edat(5  ,ii,jj)
+        edat(1:6,ii,jj) = ro_stress
+
+        ro_stress(1:4)   = edat(7:10,ii,jj)
+        ro_stress(5)     = edat(12  ,ii,jj)
+        ro_stress(6)     = edat(11  ,ii,jj)
+        edat(7:12,ii,jj) = ro_stress 
     End Do
+End Do
 
-    Deallocate(leaf_list)
+!------------------------------------------------------------------------------
+! Init element and RVE volume 
+!------------------------------------------------------------------------------
+v_elem = delta(1)*delta(2)*delta(3)
+v_cube = x_D_phy(1)*x_D_phy(2)*x_D_phy(3)
 
-    !------------------------------------------------------------------------------
-    ! Read stress and strain results
-    !------------------------------------------------------------------------------
-    Allocate(edat(15, no_lc, no_dat), stat=alloc_stat)
-    call alloc_err( "edat",alloc_stat)
+If (out_amount /= "PRODUCTION" ) then
+    Write(un_lf, "(A,E15.6)") 'Volume per element: ', v_elem
+    Write(un_lf, "(A,E15.6)") 'MVE Volume:         ', v_cube
+    Write(un_lf, *)
+End If
 
-    call get_leaf_list("Avg. Element Data", mesh_branch, num_leaves, leaf_list)
-    If (out_amount /= "PRODUCTION" ) then
-       write(un_lf,FMT_MSG_xAI0)"Number of leaves with desc = Avg. Element Data: ", num_leaves
-    End If
-    
-    Do ii = 1, num_leaves
-       edat(:,ii,:) = reshape(leaf_list(ii)%p_real8, [15, no_dat])
+!------------------------------------------------------------------------------
+! Loadcase init
+!------------------------------------------------------------------------------
+call init_loadcase(rve_strain, vv)
+
+If (out_amount == "DEBUG") THEN
+    WRITE(un_lf, FMT_DBG_SEP)
+    Call Write_matrix(un_lf, "Displacement matrix", vv, fmti='std', unit='mm')
+    WRITE(un_lf, FMT_DBG_SEP)
+End if
+
+!------------------------------------------------------------------------------
+! Calculate inverse of displacement matrix with LinPack
+!------------------------------------------------------------------------------
+Call inverse(vv, no_lc, un_lf)
+
+If (out_amount == "DEBUG") THEN
+    WRITE(un_lf, FMT_DBG_SEP)
+    Call Write_matrix(un_lf, "Inverted displacement matrix", vv, fmti='std', unit='1/mm')
+    WRITE(un_lf, FMT_DBG_SEP)
+End if
+
+!------------------------------------------------------------------------------
+! calc load matrix
+!------------------------------------------------------------------------------
+ff = 0._rk
+
+Do ii = 1, no_lc            ! Cycle through all load cases
+    Do jj = 1, no_nodes      ! Cycle through all boundary nodes
+
+        ! t_geom_xi transforms coordinates from geometry to xi space 
+        ! Result(phi_nn) :  Real(kind=rk), dimension(8)
+        tmp_nn = phi_nn(t_geom_xi(nodes(:,jj),min_c,max_c))
+
+        Do kk = 1,3
+            Do ll = 1,no_elem_nodes
+            ! Setup of load matrix
+            ! 1st index - rows : Acumulate the reaction forces of the 
+            !                    micro model via the trail functions to 
+            !                    the macro element
+            ! 2nd index - cols : Do first index step for all load cases
+            ff((kk-1)*8+ll,ii) = ff((kk-1)*8+ll,ii) + rforces(kk,jj,ii)*tmp_nn(ll)
+            End Do
+        End Do
+
     End Do
+End Do
 
-    Deallocate(leaf_list)
+If (out_amount /= "PRODUCTION" ) then
+    Call Write_matrix(un_lf, "ff by summation of single force formula", ff, fmti='std', unit='N')
+End If
 
-    !------------------------------------------------------------------------------
-    ! Read Reaction Forces
-    !------------------------------------------------------------------------------
-    Allocate(rforces(3,no_nodes,no_lc),stat=alloc_stat)
-    call alloc_err("rforces", alloc_stat)
+! call add_leaf_to_branch(res_tree, "Domain forces", no_lc*no_lc, reshape(ff,[no_lc*no_lc]))
+! call pd_store(res_tree%streams, res_tree,"Domain forces", reshape(ff,[no_lc*no_lc]))
+! Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+!  Int(root%branches(4)%leaves(1)%lbound-1+(lin_nn-1)*no_lc*no_lc, MPI_OFFSET_KIND), &
+!  reshape(ff,[no_lc*no_lc]), &
+!  Int(no_lc*no_lc,pd_mik), MPI_Real8, &
+!  status_mpi, ierr)
 
-    call get_leaf_list("Reaction Forces", mesh_branch, num_leaves, leaf_list)
-    If (out_amount /= "PRODUCTION" ) then
-       write(un_lf,FMT_MSG_AxI0) "Number of leaves with desc = Reaction Forces: ", num_leaves
-    End If
-    
-    Do ii = 1, num_leaves
-       rforces(:,:,ii) = reshape(leaf_list(ii)%p_real8, [3,no_nodes])
-    End Do
+!**
+! Calc effective nummerical stiffness *
+stiffness = matmul(ff,vv)
+! call add_leaf_to_branch(res_tree, "Effective numerical stiffness", no_lc*no_lc, &
+!     reshape(stiffness,[no_lc*no_lc]))
+! call pd_store(res_tree%streams, res_tree,"Domain forces", reshape(ff,[no_lc*no_lc]))
+! Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+!      Int(root%branches(4)%leaves(2)%lbound-1+(lin_nn-1)*no_lc*no_lc, MPI_OFFSET_KIND), &
+!      reshape(stiffness,[no_lc*no_lc]), &
+!      Int(no_lc*no_lc,pd_mik), MPI_Real8, &
+!      status_mpi, ierr)
 
-    Deallocate(leaf_list)
+If (out_amount /= "PRODUCTION" ) then
+    Call Write_matrix(un_lf, "Stiffness", stiffness, fmti='std', unit='MPa')
+End If
 
-    Allocate(calc_rforces(3, no_nodes, no_lc), stat=alloc_stat)
-    call alloc_err("calc_rforces", alloc_stat)
-    calc_rforces = 0._rk
 
-    allocate(vv(no_lc, no_lc), stat=alloc_stat)
-    call alloc_err("vv", alloc_stat)
-    allocate(ff(no_lc, no_lc), stat=alloc_stat)
-    call alloc_err("ff", alloc_stat)
+! Call add_leaf_to_branch(res_tree, &
+!    "Symmetry deviation - effective numerical stiffness", 1_pd_ik, &
+!    tmp_real_fd1)
+! call pd_store(res_tree%streams, res_tree, &
+!   "Symmetry deviation - effective numerical stiffness", tmp_real_fd1)
+! Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+!      Int(root%branches(4)%leaves(3)%lbound-1+(lin_nn-1), MPI_OFFSET_KIND), &
+!      tmp_real_fd1, &
+!      Int(1,pd_mik), MPI_Real8, &
+!      status_mpi, ierr)
 
-    ff = 0._rk
+!------------------------------------------------------------------------------
+! Calc inverse of effective nummerical stiffness for cross check against
+! dislacement matrix
+! Call inverse(stiffness, no_lc, un_lf)
+! Call Write_real_matrix(un_lf,stiffness,no_lc,no_lc,"Inverse Stiffness")
+! Call Write_real_matrix(un_lf,matmul(stiffness,ff(:,1)), no_lc, 1_ik, &
+!     "Inverse Stiffness o f(:,1)")
+!------------------------------------------------------------------------------
 
-    allocate(stiffness(no_lc, no_lc), stat=alloc_stat)
-    call alloc_err("stiffness", alloc_stat)
+!------------------------------------------------------------------------------
+! Calc consistent force matrix
+!------------------------------------------------------------------------------
+Do ii = 1, 6
+    fv(1,ii) = (ff( 2,ii) + ff( 3,ii) + ff( 6,ii) + ff( 7,ii)) / ( x_D_phy(2) * x_D_phy(3) )
+    fv(2,ii) = (ff(11,ii) + ff(12,ii) + ff(15,ii) + ff(16,ii)) / ( x_D_phy(1) * x_D_phy(3) )
+    fv(3,ii) = (ff(21,ii) + ff(22,ii) + ff(23,ii) + ff(24,ii)) / ( x_D_phy(1) * x_D_phy(2) )
 
-    allocate(tmp_nn(no_elem_nodes), stat=alloc_stat)
-    call alloc_err("tmp_nn", alloc_stat)
+    fv(4,ii) = 0.5_rk * &
+        ( (ff( 3,ii) + ff( 4,ii) + ff( 7,ii) + ff( 8,ii)) / ( x_D_phy(1) * x_D_phy(3) ) + &
+        (ff(10,ii) + ff(11,ii) + ff(14,ii) + ff(15,ii)) / ( x_D_phy(2) * x_D_phy(3) ) )
+    fv(5,ii) = 0.5_rk * &
+        ( (ff( 5,ii) + ff( 6,ii) + ff( 7,ii) + ff( 8,ii)) / ( x_D_phy(1) * x_D_phy(2) ) + &
+        (ff(18,ii) + ff(19,ii) + ff(22,ii) + ff(23,ii)) / ( x_D_phy(2) * x_D_phy(3) ) )
+    fv(6,ii) = 0.5_rk * &
+        ( (ff(13,ii) + ff(14,ii) + ff(15,ii) + ff(16,ii)) / ( x_D_phy(1) * x_D_phy(2) ) + &
+        (ff(19,ii) + ff(20,ii) + ff(23,ii) + ff(24,ii)) / ( x_D_phy(1) * x_D_phy(3) ) )
+End Do
+If (out_amount /= "PRODUCTION" ) then
+    Call Write_matrix(un_lf, "Konsistent force matrix", fv, fmti='std', unit='N')
+End If
 
-    If (out_amount == "DEBUG") THEN
-       WRITE(un_lf,FMT_DBG_SEP)
-       write(un_lf,*)
-       write(un_lf,*)'min uu      = ', minval(uu), 'max uu      = ', maxval(uu)
-       write(un_lf,*)'min rforces = ', minval(rforces), 'max rforces = ', maxval(rforces)
-       write(un_lf,*)
-       WRITE(un_lf,FMT_DBG_SEP)
-    end if
+!------------------------------------------------------------------------------
+! Calc integrated force matrix
+!------------------------------------------------------------------------------
+!Do jj = 1, 6
+!   Do ii = 1, 6
+!      fv(ii,jj) = sum(edat(ii,jj,:))
+!   End do
+!End Do
 
-    Select Case (timer_level)
-    Case (3)
-       call end_timer  ("  +-- Loading input data "//trim(nn_char))
-       call start_timer("  +-- Calc material data "//trim(nn_char))
-    Case (2)
-       call end_timer  ("  +-- Loading input data "//trim(nn_char))
-       call start_timer("  +-- Calc material data "//trim(nn_char))
-    Case default
-       continue
-    End Select
+!fv = fv * v_elem / v_cube
+!If (out_amount /= "PRODUCTION" ) then
+!   Call Write_real_matrix(un_lf, fv ,6_ik, 6_ik, "Integrated force matrix")
+!End If
 
-    !------------------------------------------------------------------------------
-    ! Create effective results branch
-    !------------------------------------------------------------------------------
-    CALL add_branch_to_branch(domain_tree, domain_results)
-    CALL raise_branch(trim(desc), 0_pd_ik, 0_pd_ik, domain_results)
+!------------------------------------------------------------------------------
+! Calc averaged strains and stresses 
+!------------------------------------------------------------------------------
+!Do jj = 1, 24
+!   Do ii = 1,6
+!      int_stress(ii,jj) = sum(edat(ii,jj,:))
+!   End do
+!   Do ii = 7, 12
+!     int_strain(ii-6,jj) = sum(edat(ii,jj,:))
+!   End Do
+!End Do
 
-    !------------------------------------------------------------------------------
-    ! Init C
-    !------------------------------------------------------------------------------
-    CC = iso_compliance_voigt(E_Modul, nu)
+!int_strain = int_strain * v_elem / v_cube
+!int_stress = int_stress * v_elem / v_cube
 
-    If (out_amount == "DEBUG") THEN
-       WRITE(un_lf,FMT_DBG_SEP)
-       Call Write_matrix(un_lf, "Effective Isotropic Compliance -- CC", cc, fmti='std', unit='1/MPa')
-       WRITE(un_lf,FMT_DBG_SEP)
-    End if
+!If (out_amount /= "PRODUCTION" ) then
+!   write(un_lf,*)
+!   write(un_lf,"(150('='))")
+!   Write(un_lf,"(A)")"--------- Averaged strains of loadcases ---------"
+!   Write(un_lf,"(7(A20))")'-- ii --','-- E11 --','-- E22 --','-- E33 --','-- E12 --','-- E13 --','-- E23 --'
+!   Do ii = 1, 24
+!      write(un_lf,"(I20,6(E20.9))")ii,int_strain(:,ii)
+!   End Do
 
-    !------------------------------------------------------------------------------
-    ! Reorder stresses and strains
-    !------------------------------------------------------------------------------
-    Do jj = 1, no_dat
-       Do ii = 1, no_lc
-          ro_stress(1:4)  = edat(1:4,ii,jj)
-          ro_stress(5)    = edat(6  ,ii,jj)
-          ro_stress(6)    = edat(5  ,ii,jj)
-          edat(1:6,ii,jj) = ro_stress
+!   write(un_lf,*)
+!   write(un_lf,"(150('='))")
+!   Write(un_lf,"(A)")"--------- Averaged stresses of loadcases ---------"
+!   Write(un_lf,"(7(A20))")'-- ii --','-- S11 --','-- S22 --','-- S33 --','-- S12 --','-- S13 --','-- S23 --'
+!   Do ii = 1, 24
+!      write(un_lf,"(I20,6(E20.9))")ii,int_stress(:,ii)
+!   End Do
+!End If
 
-          ro_stress(1:4)   = edat(7:10,ii,jj)
-          ro_stress(5)     = edat(12  ,ii,jj)
-          ro_stress(6)     = edat(11  ,ii,jj)
-          edat(7:12,ii,jj) = ro_stress 
-       End Do
-    End Do
-
-    !------------------------------------------------------------------------------
-    ! Init element and RVE volume 
-    !------------------------------------------------------------------------------
-    v_elem = delta(1)*delta(2)*delta(3)
-    v_cube = x_D_phy(1)*x_D_phy(2)*x_D_phy(3)
-    
-    If (out_amount /= "PRODUCTION" ) then
-       Write(un_lf, "(A,E15.6)") 'Volume per element: ', v_elem
-       Write(un_lf, "(A,E15.6)") 'MVE Volume:         ', v_cube
-       Write(un_lf, *)
-    End If
-
-    !------------------------------------------------------------------------------
-    ! Loadcase init
-    !------------------------------------------------------------------------------
-    call init_loadcase(rve_strain, vv)
-
-    If (out_amount == "DEBUG") THEN
-       WRITE(un_lf, FMT_DBG_SEP)
-       Call Write_matrix(un_lf, "Displacement matrix", vv, fmti='std', unit='mm')
-       WRITE(un_lf, FMT_DBG_SEP)
-    End if
-
-    !------------------------------------------------------------------------------
-    ! Calculate inverse of displacement matrix with LinPack
-    !------------------------------------------------------------------------------
-    Call inverse(vv, no_lc, un_lf)
-
-    If (out_amount == "DEBUG") THEN
-       WRITE(un_lf, FMT_DBG_SEP)
-       Call Write_matrix(un_lf, "Inverted displacement matrix", vv, fmti='std', unit='1/mm')
-       WRITE(un_lf, FMT_DBG_SEP)
-    End if
-
-    !------------------------------------------------------------------------------
-    ! calc load matrix
-    !------------------------------------------------------------------------------
-    ff = 0._rk
-
-    Do ii = 1, no_lc            ! Cycle through all load cases
-       Do jj = 1, no_nodes      ! Cycle through all boundary nodes
-
-          ! t_geom_xi transforms coordinates from geometry to xi space 
-          ! Result(phi_nn) :  Real(kind=rk), dimension(8)
-          tmp_nn = phi_nn(t_geom_xi(nodes(:,jj),min_c,max_c))
-
-          Do kk = 1,3
-             Do ll = 1,no_elem_nodes
-                ! Setup of load matrix
-                ! 1st index - rows : Acumulate the reaction forces of the 
-                !                    micro model via the trail functions to 
-                !                    the macro element
-                ! 2nd index - cols : Do first index step for all load cases
-                ff((kk-1)*8+ll,ii) = ff((kk-1)*8+ll,ii) + rforces(kk,jj,ii)*tmp_nn(ll)
-             End Do
-          End Do
-
-       End Do
-    End Do
-
-    If (out_amount /= "PRODUCTION" ) then
-       Call Write_matrix(un_lf, "ff by summation of single force formula", ff, fmti='std', unit='N')
-    End If
-
-    call add_leaf_to_branch(domain_results, "Domain forces", no_lc*no_lc, reshape(ff,[no_lc*no_lc]))
-    ! call pd_store(domain_results%streams, domain_results,"Domain forces", reshape(ff,[no_lc*no_lc]))
-   !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-   !   Int(root%branches(4)%leaves(1)%lbound-1+(nn-1)*no_lc*no_lc, MPI_OFFSET_KIND), &
-   !   reshape(ff,[no_lc*no_lc]), &
-   !   Int(no_lc*no_lc,pd_mik), MPI_Real8, &
-   !   status_mpi, ierr)
-    
-    !**
-    ! Calc effective nummerical stiffness *
-    stiffness = matmul(ff,vv)
-    call add_leaf_to_branch(domain_results, "Effective numerical stiffness", no_lc*no_lc, &
-        reshape(stiffness,[no_lc*no_lc]))
-    ! call pd_store(domain_results%streams, domain_results,"Domain forces", reshape(ff,[no_lc*no_lc]))
-   !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-   !       Int(root%branches(4)%leaves(2)%lbound-1+(nn-1)*no_lc*no_lc, MPI_OFFSET_KIND), &
-   !       reshape(stiffness,[no_lc*no_lc]), &
-   !       Int(no_lc*no_lc,pd_mik), MPI_Real8, &
-   !       status_mpi, ierr)
-    
-    If (out_amount /= "PRODUCTION" ) then
-       Call Write_matrix(un_lf, "Stiffness", stiffness, fmti='std', unit='MPa')
-    End If
-    
-
-    Call add_leaf_to_branch(domain_results, &
-       "Symmetry deviation - effective numerical stiffness", 1_pd_ik, &
-       tmp_real_fd1)
-    ! call pd_store(domain_results%streams, domain_results, &
-    !   "Symmetry deviation - effective numerical stiffness", tmp_real_fd1)
-   !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-   !       Int(root%branches(4)%leaves(3)%lbound-1+(nn-1), MPI_OFFSET_KIND), &
-   !       tmp_real_fd1, &
-   !       Int(1,pd_mik), MPI_Real8, &
-   !       status_mpi, ierr)
-    
-    !**
-    ! Calc inverse of effective nummerical stiffness for cross check against **
-    ! dislacement matrix                                                     **
-    !Call inverse(stiffness, no_lc, un_lf)
-    !Call Write_real_matrix(un_lf,stiffness,no_lc,no_lc,"Inverse Stiffness")
-    !Call Write_real_matrix(un_lf,matmul(stiffness,ff(:,1)), no_lc, 1_ik, &
-    !     "Inverse Stiffness o f(:,1)")
-
-    !**
-    ! Calc consistent force matrix
-    Do ii = 1, 6
-       fv(1,ii) = (ff( 2,ii) + ff( 3,ii) + ff( 6,ii) + ff( 7,ii)) / ( x_D_phy(2) * x_D_phy(3) )
-       fv(2,ii) = (ff(11,ii) + ff(12,ii) + ff(15,ii) + ff(16,ii)) / ( x_D_phy(1) * x_D_phy(3) )
-       fv(3,ii) = (ff(21,ii) + ff(22,ii) + ff(23,ii) + ff(24,ii)) / ( x_D_phy(1) * x_D_phy(2) )
-
-       fv(4,ii) = 0.5_rk * &
-            ( (ff( 3,ii) + ff( 4,ii) + ff( 7,ii) + ff( 8,ii)) / ( x_D_phy(1) * x_D_phy(3) ) + &
-            (ff(10,ii) + ff(11,ii) + ff(14,ii) + ff(15,ii)) / ( x_D_phy(2) * x_D_phy(3) ) )
-       fv(5,ii) = 0.5_rk * &
-            ( (ff( 5,ii) + ff( 6,ii) + ff( 7,ii) + ff( 8,ii)) / ( x_D_phy(1) * x_D_phy(2) ) + &
-            (ff(18,ii) + ff(19,ii) + ff(22,ii) + ff(23,ii)) / ( x_D_phy(2) * x_D_phy(3) ) )
-       fv(6,ii) = 0.5_rk * &
-            ( (ff(13,ii) + ff(14,ii) + ff(15,ii) + ff(16,ii)) / ( x_D_phy(1) * x_D_phy(2) ) + &
-            (ff(19,ii) + ff(20,ii) + ff(23,ii) + ff(24,ii)) / ( x_D_phy(1) * x_D_phy(3) ) )
-    End Do
-    If (out_amount /= "PRODUCTION" ) then
-       Call Write_matrix(un_lf, "Konsistent force matrix", fv, fmti='std', unit='N')
-    End If
-    
-    !**
-    ! Calc integrated force matrix
-    !Do jj = 1, 6
-    !   Do ii = 1, 6
-    !      fv(ii,jj) = sum(edat(ii,jj,:))
-    !   End do
-    !End Do
-
-    !fv = fv * v_elem / v_cube
-    !If (out_amount /= "PRODUCTION" ) then
-    !   Call Write_real_matrix(un_lf, fv ,6_ik, 6_ik, "Integrated force matrix")
-    !End If
-    
-    !**
-    ! Calc averaged strains and stresses 
-    !Do jj = 1, 24
-    !   Do ii = 1,6
-    !      int_stress(ii,jj) = sum(edat(ii,jj,:))
-    !   End do
-    !   Do ii = 7, 12
-    !     int_strain(ii-6,jj) = sum(edat(ii,jj,:))
-    !   End Do
-    !End Do
-
-    !int_strain = int_strain * v_elem / v_cube
-    !int_stress = int_stress * v_elem / v_cube
-
-    !If (out_amount /= "PRODUCTION" ) then
-    !   write(un_lf,*)
-    !   write(un_lf,"(150('='))")
-    !   Write(un_lf,"(A)")"--------- Averaged strains of loadcases ---------"
-    !   Write(un_lf,"(7(A20))")'-- ii --','-- E11 --','-- E22 --','-- E33 --','-- E12 --','-- E13 --','-- E23 --'
-    !   Do ii = 1, 24
-    !      write(un_lf,"(I20,6(E20.9))")ii,int_strain(:,ii)
-    !   End Do
-
-    !   write(un_lf,*)
-    !   write(un_lf,"(150('='))")
-    !   Write(un_lf,"(A)")"--------- Averaged stresses of loadcases ---------"
-    !   Write(un_lf,"(7(A20))")'-- ii --','-- S11 --','-- S22 --','-- S33 --','-- S12 --','-- S13 --','-- S23 --'
-    !   Do ii = 1, 24
-    !      write(un_lf,"(I20,6(E20.9))")ii,int_stress(:,ii)
-    !   End Do
-    !End If
-    
-    !call add_leaf_to_branch(domain_results, "Averaged stresses", 6*no_lc, reshape(int_stress,[6*no_lc]))
+!call add_leaf_to_branch(res_tree, "Averaged stresses", 6*no_lc, reshape(int_stress,[6*no_lc]))
 !!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-!!$         Int(root%branches(4)%leaves(4)%lbound-1+(nn-1)*6*no_lc, MPI_OFFSET_KIND), &
+!!$         Int(root%branches(4)%leaves(4)%lbound-1+(lin_nn-1)*6*no_lc, MPI_OFFSET_KIND), &
 !!$         reshape(int_stress,[6*no_lc]), &
 !!$         Int(6*no_lc,pd_mik), MPI_Real8, &
 !!$         status_mpi, ierr)
-!!$    !call add_leaf_to_branch(domain_results, "Averaged strains",  6*no_lc, reshape(int_strain,[6*no_lc]))
+!!$    !call add_leaf_to_branch(res_tree, "Averaged strains",  6*no_lc, reshape(int_strain,[6*no_lc]))
 !!$    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-!!$         Int(root%branches(4)%leaves(5)%lbound-1+(nn-1)*6*no_lc, MPI_OFFSET_KIND), &
+!!$         Int(root%branches(4)%leaves(5)%lbound-1+(lin_nn-1)*6*no_lc, MPI_OFFSET_KIND), &
 !!$         reshape(int_strain,[6*no_lc]), &
 !!$         Int(6*no_lc,pd_mik), MPI_Real8, &
 !!$         status_mpi, ierr)
-    
-    !**
-    ! Calc integrated strain matrix for first 6 loadcases
-    !meps = int_strain(1:6,1:6)
-    !If (out_amount /= "PRODUCTION" ) then
-    !   Call Write_real_matrix(un_lf, meps ,6_ik, 6_ik, &
-    !        "Integrated strain matrix of first 6 loadcases")
-    !End If
-    
-    !**
-    ! Calc theoretical effective stiffness
-    ! Linear loadcases with constant strain fields *
-    meps(1,:) = [ 1.00E+06 , 0.00E+00 ,  0.00E+06 , 0.00E+06 , 0.00E+00, 0.00E+06]
-    meps(2,:) = [ 0.00E+06 , 1.00E+06 ,  0.00E+06 , 0.00E+06 , 0.00E+00 ,0.00E+06]
-    meps(3,:) = [ 0.00E+06 , 0.00E+00 ,  1.00E+06 , 0.00E+06 , 0.00E+06 ,0.00E+06]
-    meps(4,:) = [ 0.00E+06 , 0.00E+00 ,  0.00E+06 ,-1.00E+06 , 0.00E+00 ,0.00E+06]
-    meps(5,:) = [ 0.00E+06 , 0.00E+06 ,  0.00E+06 , 0.00E+06 ,-1.00E+06 ,0.00E+06]
-    meps(6,:) = [ 0.00E+06 , 0.00E+00 ,  0.00E+06 , 0.00E+00 , 0.00E+06 ,1.00E+06]
 
-    cc_mean = matmul(fv,meps)
+!**
+! Calc integrated strain matrix for first 6 loadcases
+!meps = int_strain(1:6,1:6)
+!If (out_amount /= "PRODUCTION" ) then
+!   Call Write_real_matrix(un_lf, meps ,6_ik, 6_ik, &
+!        "Integrated strain matrix of first 6 loadcases")
+!End If
 
-    If (out_amount /= "PRODUCTION" ) then
-     !   Call Write_real_matrix(un_lf, cc_mean ,6_ik, 6_ik, "Effective stiffness")
-       Call Write_matrix(un_lf, "Effective stiffness", cc_mean, fmti='std', unit='MPa')
-    End If
+!**
+! Calc theoretical effective stiffness
+! Linear loadcases with constant strain fields *
+meps(1,:) = [ 1.00E+06 , 0.00E+00 ,  0.00E+06 , 0.00E+06 , 0.00E+00, 0.00E+06]
+meps(2,:) = [ 0.00E+06 , 1.00E+06 ,  0.00E+06 , 0.00E+06 , 0.00E+00 ,0.00E+06]
+meps(3,:) = [ 0.00E+06 , 0.00E+00 ,  1.00E+06 , 0.00E+06 , 0.00E+06 ,0.00E+06]
+meps(4,:) = [ 0.00E+06 , 0.00E+00 ,  0.00E+06 ,-1.00E+06 , 0.00E+00 ,0.00E+06]
+meps(5,:) = [ 0.00E+06 , 0.00E+06 ,  0.00E+06 , 0.00E+06 ,-1.00E+06 ,0.00E+06]
+meps(6,:) = [ 0.00E+06 , 0.00E+00 ,  0.00E+06 , 0.00E+00 , 0.00E+06 ,1.00E+06]
 
-!!!!!!!!!!!!!!!!! TEST 220312 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!11
-   ! CALL add_leaf_to_branch(domain_results, "Effective stiffness", 36_ik, [cc_mean])   
-!!!!!!!!!!!!!!!!! TEST 220312 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!11
+cc_mean = matmul(fv,meps)
 
-    
-    call add_leaf_to_branch(domain_results, "Effective stiffness",  36_pd_ik, &
-        reshape(cc_mean,[36_pd_ik]))
-    ! call pd_store(domain_results%streams,domain_results,"Effective stiffness",reshape(cc_mean,[36_pd_ik]))
-    !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-    !       Int(root%branches(4)%leaves(6)%lbound-1+(nn-1)*36, MPI_OFFSET_KIND), &
-    !       reshape(cc_mean,[36]), &
-    !       Int(36,pd_mik), MPI_Real8, &
-    !       status_mpi, ierr)
+If (out_amount /= "PRODUCTION" ) then
+    Call Write_matrix(un_lf, "Effective stiffness", cc_mean, fmti='std', unit='MPa')
+End If
 
-    Call add_leaf_to_branch(domain_results, &
-        "Symmetry deviation - effective stiffness",  1_pd_ik, tmp_real_fd1)
-    ! call pd_store(domain_results%streams,domain_results, &
-    !     "Symmetry deviation - effective stiffness", tmp_real_fd1)
-    !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-    !       Int(root%branches(4)%leaves(7)%lbound-1+(nn-1), MPI_OFFSET_KIND), &
-    !       tmp_real_fd1, &
-    !       Int(1,pd_mik), MPI_Real8, &
-    !       status_mpi, ierr)
+call add_leaf_to_branch(res_tree, "Effective stiffness",  36_pd_ik, &
+    reshape(cc_mean,[36_pd_ik]))
+! call pd_store(res_tree%streams,res_tree,"Effective stiffness",reshape(cc_mean,[36_pd_ik]))
+    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+        Int(root%branches(4)%leaves(6)%lbound-1+(lin_nn-1)*36, MPI_OFFSET_KIND), &
+        reshape(cc_mean,[36]), &
+        Int(36,pd_mik), MPI_Real8, &
+        status_mpi, ierr)
 
-    Select Case (timer_level)
-        Case (3)
-            call end_timer  ("  +-- Calc material data "//trim(nn_char))
-            call start_timer("  +-- Back rotation of material matrix "//trim(nn_char))
-        Case (2)
-            call end_timer  ("  +-- Calc material data "//trim(nn_char))
-            call start_timer("  +-- Back rotation of material matrix "//trim(nn_char))
-        Case default
-            continue
-    End Select
+Call add_leaf_to_branch(res_tree, &
+    "Symmetry deviation - effective stiffness",  1_pd_ik, tmp_real_fd1)
+! call pd_store(res_tree%streams,res_tree, &
+!     "Symmetry deviation - effective stiffness", tmp_real_fd1)
+    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+        Int(root%branches(4)%leaves(7)%lbound-1+(lin_nn-1), MPI_OFFSET_KIND), &
+        tmp_real_fd1, &
+        Int(1,pd_mik), MPI_Real8, &
+        status_mpi, ierr)
 
-    !**
-    ! Back rotation of material matrix according to different criterias *******
-    !**
+Select Case (timer_level)
+    Case (3)
+        call end_timer  ("  +-- Calc material data "//trim(nn_char))
+        call start_timer("  +-- Back rotation of material matrix "//trim(nn_char))
+    Case (2)
+        call end_timer  ("  +-- Calc material data "//trim(nn_char))
+        call start_timer("  +-- Back rotation of material matrix "//trim(nn_char))
+    Case default
+        continue
+End Select
 
-    !EE = matmul(fv,transpose(meps))
-    EE = (cc_mean + transpose(cc_mean)) / 2._rk
+!------------------------------------------------------------------------------
+! Back rotation of material matrix according to different criterias
+!------------------------------------------------------------------------------
 
-    If (out_amount /= "PRODUCTION" ) then
-       Call Write_matrix(un_lf, "Averaged Effective stiffness", ee, fmti='std', unit='MPa')
-    End If
-    
-    call add_leaf_to_branch(domain_results, "Averaged Effective stiffness",  36_pd_ik, &
-        reshape(ee,[36_pd_ik]))
-    ! call pd_store(domain_results%streams,domain_results,"Averaged Effective stiffness",reshape(ee,[36_pd_ik]))
+!EE = matmul(fv,transpose(meps))
+EE = (cc_mean + transpose(cc_mean)) / 2._rk
 
-   !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-   !       Int(root%branches(4)%leaves(8)%lbound-1+(nn-1)*36, MPI_OFFSET_KIND), &
-   !       reshape(ee,[36]), &
-   !       Int(36,pd_mik), MPI_Real8, &
-   !       status_mpi, ierr)
-    
-    call add_leaf_to_branch(domain_results, &
-        "Symmetry deviation - Averaged effective stiffness",  1_pd_ik, tmp_real_fd1)
-    ! call pd_store(domain_results%streams, domain_results, &
-    !     "Symmetry deviation - Averaged effective stiffness", tmp_real_fd1)
-   !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-   !       Int(root%branches(4)%leaves(9)%lbound-1+(nn-1), MPI_OFFSET_KIND), &
-   !       tmp_real_fd1, &
-   !       Int(1,pd_mik), MPI_Real8, &
-   !       status_mpi, ierr)
-    
-    EE_Orig = EE
+If (out_amount /= "PRODUCTION" ) then
+    Call Write_matrix(un_lf, "Averaged Effective stiffness", ee, fmti='std', unit='MPa')
+End If
 
-    !###############################################################################
-    !###############################################################################
+call add_leaf_to_branch(res_tree, "Averaged Effective stiffness",  36_pd_ik, reshape(ee,[36_pd_ik]))
+! call pd_store(res_tree%streams,res_tree,"Averaged Effective stiffness",reshape(ee,[36_pd_ik]))
+Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+        Int(root%branches(4)%leaves(8)%lbound-1+(lin_nn-1)*36, MPI_OFFSET_KIND), &
+        reshape(ee,[36]), &
+        Int(36,pd_mik), MPI_Real8, &
+        status_mpi, ierr)
+
+call add_leaf_to_branch(res_tree, &
+    "Symmetry deviation - Averaged effective stiffness",  1_pd_ik, tmp_real_fd1)
+! call pd_store(res_tree%streams, res_tree, &
+!     "Symmetry deviation - Averaged effective stiffness", tmp_real_fd1)
+Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+        Int(root%branches(4)%leaves(9)%lbound-1+(lin_nn-1), MPI_OFFSET_KIND), &
+        tmp_real_fd1, &
+        Int(1,pd_mik), MPI_Real8, &
+        status_mpi, ierr)
+
+EE_Orig = EE
+
+!###############################################################################
+!###############################################################################
 
 !!$  !==========================================
 !!$
@@ -1122,19 +1127,19 @@ subroutine calc_effective_material_parameters(root, domain_tree, ddc_nn)
     End If
     
     tmp_real_fd1 = alpha 
-    Call add_leaf_to_branch(domain_results,"Rotation Angle CR_1" , 1_pd_ik, tmp_real_fd1)
-   !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-   !       Int(root%branches(4)%leaves(10)%lbound-1+(nn-1), MPI_OFFSET_KIND), &
-   !       tmp_real_fd1, &
-   !       Int(1,pd_mik), MPI_Real8, &
-   !       status_mpi, ierr)
+    Call add_leaf_to_branch(res_tree,"Rotation Angle CR_1" , 1_pd_ik, tmp_real_fd1)
+    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+         Int(root%branches(4)%leaves(10)%lbound-1+(lin_nn-1), MPI_OFFSET_KIND), &
+         tmp_real_fd1, &
+         Int(1,pd_mik), MPI_Real8, &
+         status_mpi, ierr)
     
-    call add_leaf_to_branch(domain_results,"Rotation Vector CR_1", 3_pd_ik, n)
-   !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-   !       Int(root%branches(4)%leaves(11)%lbound-1+(nn-1)*3, MPI_OFFSET_KIND), &
-   !       n, &
-   !       Int(3,pd_mik), MPI_Real8, &
-   !       status_mpi, ierr)
+    call add_leaf_to_branch(res_tree,"Rotation Vector CR_1", 3_pd_ik, n)
+    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+         Int(root%branches(4)%leaves(11)%lbound-1+(lin_nn-1)*3, MPI_OFFSET_KIND), &
+         n, &
+         Int(3,pd_mik), MPI_Real8, &
+         status_mpi, ierr)
        
     !=========================================================================
     !== Inlining of EE =======================================================
@@ -1224,25 +1229,23 @@ subroutine calc_effective_material_parameters(root, domain_tree, ddc_nn)
        Call Write_matrix(un_lf, "Inlined anisotropic stiffness CR_1", EE, fmti='std', unit='MPa')
     End If
     
-    call add_leaf_to_branch(domain_results,"Final coordinate system CR_1", 9_pd_ik, &
-        reshape(aa,[9_pd_ik]))
-    ! call pd_store(domain_results%streams, domain_results, &
+    call add_leaf_to_branch(res_tree, "Final coordinate system CR_1", 9_pd_ik, reshape(aa,[9_pd_ik]))
+    ! call pd_store(res_tree%streams, res_tree, &
     !     "Final coordinate system CR_1", reshape(aa,[9_pd_ik]))
-   !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-   !       Int(root%branches(4)%leaves(12)%lbound-1+(nn-1)*9, MPI_OFFSET_KIND), &
-   !       reshape(aa,[9_pd_ik]), &
-   !       Int(9,pd_mik), MPI_Real8, &
-   !       status_mpi, ierr)
+    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+         Int(root%branches(4)%leaves(12)%lbound-1+(lin_nn-1)*9, MPI_OFFSET_KIND), &
+         reshape(aa,[9_pd_ik]), &
+         Int(9,pd_mik), MPI_Real8, &
+         status_mpi, ierr)
 
-    call add_leaf_to_branch(domain_results,"Optimized Effective stiffness CR_1", 36_pd_ik, &
-        reshape(EE,[36_pd_ik]))
-    ! call pd_store(domain_results%streams, domain_results, &
+    call add_leaf_to_branch(res_tree, "Optimized Effective stiffness CR_1", 36_pd_ik, reshape(EE,[36_pd_ik]))
+    ! call pd_store(res_tree%streams, res_tree, &
     !     "Optimized Effective stiffness CR_1", reshape(EE,[36_pd_ik]))
-   !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-   !       Int(root%branches(4)%leaves(13)%lbound-1+(nn-1)*36, MPI_OFFSET_KIND), &
-   !       reshape(EE,[36_pd_ik]), &
-   !       Int(36,pd_mik), MPI_Real8, &
-   !       status_mpi, ierr)
+    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+         Int(root%branches(4)%leaves(13)%lbound-1+(lin_nn-1)*36, MPI_OFFSET_KIND), &
+         reshape(EE,[36_pd_ik]), &
+         Int(36,pd_mik), MPI_Real8, &
+         status_mpi, ierr)
  
     !=========================================================================
     !== Iteration of Crit_2 ==================================================
@@ -1549,45 +1552,43 @@ subroutine calc_effective_material_parameters(root, domain_tree, ddc_nn)
     n = n / sqrt(sum(n*n))
 
     If (out_amount /= "PRODUCTION" ) then
-       write(un_lf,*)
-       Write(un_lf,FMT_MSG_xAI0) "Solution converged after : ", jj," iterations"
-       Write(un_lf,FMT_MSG_AxF0) "With final citerion 2    : ", minval(crit_2(1:kk-2, 1:kk_phi-2, 1:kk_eta-2))
-       Write(un_lf,FMT_MSG_AxF0) "With final epsilon       : ", crit_min(jj-1)-crit_min(jj)
-       Write(un_lf,FMT_MSG_AxF0) "Final rotation angle  is : ", alpha
-       Write(un_lf,FMT_MSG_AxF0) "Final rotation vector is : ", n
-       Write(un_lf,*)
+       write(un_lf, *)
+       Write(un_lf, FMT_MSG_xAI0) "Solution converged after : ", jj," iterations"
+       Write(un_lf, FMT_MSG_AxF0) "With final citerion 2    : ", minval(crit_2(1:kk-2, 1:kk_phi-2, 1:kk_eta-2))
+       Write(un_lf, FMT_MSG_AxF0) "With final epsilon       : ", crit_min(jj-1)-crit_min(jj)
+       Write(un_lf, FMT_MSG_AxF0) "Final rotation angle  is : ", alpha
+       Write(un_lf, FMT_MSG_AxF0) "Final rotation vector is : ", n
+       Write(un_lf, *)
     End If
     
     tmp_real_fd1 = alpha 
-    call add_leaf_to_branch(domain_results,"Rotation Angle CR_2" , 1_pd_ik, tmp_real_fd1)
-    ! call pd_store(domain_results%streams, domain_results, &
+    call add_leaf_to_branch(res_tree, "Rotation Angle CR_2" , 1_pd_ik, tmp_real_fd1)
+    ! call pd_store(res_tree%streams, res_tree, &
     !     "Rotation Angle CR_2", tmp_real_fd1)
-   !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-   !       Int(root%branches(4)%leaves(14)%lbound-1+(nn-1), MPI_OFFSET_KIND), &
-   !       tmp_real_fd1, &
-   !       Int(1,pd_mik), MPI_Real8, &
-   !       status_mpi, ierr)
+    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+         Int(root%branches(4)%leaves(14)%lbound-1+(lin_nn-1), MPI_OFFSET_KIND), &
+         tmp_real_fd1, &
+         Int(1,pd_mik), MPI_Real8, &
+         status_mpi, ierr)
     
-    call add_leaf_to_branch(domain_results,"Rotation Vector CR_2", 3_pd_ik, n)
-    ! call pd_store(domain_results%streams, domain_results, &
+    call add_leaf_to_branch(res_tree, "Rotation Vector CR_2", 3_pd_ik, n)
+    ! call pd_store(res_tree%streams, res_tree, &
     !     "Rotation Vector CR_2", n)
-   !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-   !       Int(root%branches(4)%leaves(15)%lbound-1+(nn-1)*3, MPI_OFFSET_KIND), &
-   !       n, &
-   !       Int(3,pd_mik), MPI_Real8, &
-   !       status_mpi, ierr)
+    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+         Int(root%branches(4)%leaves(15)%lbound-1+(lin_nn-1)*3, MPI_OFFSET_KIND), &
+         n, &
+         Int(3,pd_mik), MPI_Real8, &
+         status_mpi, ierr)
     
-    !=========================================================================
-    !== Inlining of EE =======================================================
-
+    !------------------------------------------------------------------------------
+    ! Inlining of EE
+    !------------------------------------------------------------------------------
     aa = rot_alg(n,alpha)
     BB = tra_R6(aa)
     EE = matmul(matmul(transpose(BB),EE),BB)
 
     If (out_amount /= "PRODUCTION" ) &
          Call Write_matrix(un_lf, "Backrotated anisotropic stiffness CR_2", EE, fmti='std', unit='MPa')
-
-    !=========================================================
 
     If ( (EE(1,1) < EE(2,2)) .AND.  &
          (EE(1,1) < EE(3,3)) .AND.  (EE(2,2) < EE(3,3))         ) then
@@ -1665,25 +1666,23 @@ subroutine calc_effective_material_parameters(root, domain_tree, ddc_nn)
        Call Write_matrix(un_lf, "Inlined anisotropic stiffness CR_2", EE, fmti='std', unit='MPa')
     End If
     
-    Call add_leaf_to_branch(domain_results,"Final coordinate system CR_2", 9_pd_ik, &
-       reshape(aa,[9_pd_ik]))
-    ! call pd_store(domain_results%streams, domain_results, &
+    Call add_leaf_to_branch(res_tree,"Final coordinate system CR_2", 9_pd_ik, reshape(aa,[9_pd_ik]))
+    ! call pd_store(res_tree%streams, res_tree, &
     !     "Final coordinate system CR_2", reshape(aa,[9_pd_ik]))
-   !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-   !       Int(root%branches(4)%leaves(16)%lbound-1+(nn-1)*9, MPI_OFFSET_KIND), &
-   !       reshape(aa,[9_pd_ik]), &
-   !       Int(9,pd_mik), MPI_Real8, &
-   !       status_mpi, ierr)
-    
-    call add_leaf_to_branch(domain_results,"Optimized Effective stiffness CR_2", 36_pd_ik, &
-        reshape(EE,[36_pd_ik]))
-    ! call pd_store(domain_results%streams, domain_results, &
+    !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+    !       Int(root%branches(4)%leaves(16)%lbound-1+(lin_nn-1)*9, MPI_OFFSET_KIND), &
+    !       reshape(aa,[9_pd_ik]), &
+    !       Int(9,pd_mik), MPI_Real8, &
+    !       status_mpi, ierr)
+        
+    call add_leaf_to_branch(res_tree,"Optimized Effective stiffness CR_2", 36_pd_ik, reshape(EE,[36_pd_ik]))
+    ! call pd_store(res_tree%streams, res_tree, &
     !     "Optimized Effective stiffness CR_2", reshape(EE,[36_pd_ik]))
-   !  Call MPI_FILE_WRITE_AT(FH_MPI(5), &
-   !       Int(root%branches(4)%leaves(17)%lbound-1+(nn-1)*36, MPI_OFFSET_KIND), &
-   !       reshape(EE,[36_pd_ik]), &
-   !       Int(36,pd_mik), MPI_Real8, &
-   !       status_mpi, ierr)
+    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+         Int(root%branches(4)%leaves(17)%lbound-1+(lin_nn-1)*36, MPI_OFFSET_KIND), &
+         reshape(EE,[36_pd_ik]), &
+         Int(36,pd_mik), MPI_Real8, &
+         status_mpi, ierr)
         
     Select Case (timer_level)
     Case (3)
@@ -1697,16 +1696,22 @@ subroutine calc_effective_material_parameters(root, domain_tree, ddc_nn)
 !------------------------------------------------------------------------------
 ! Create new stream files
 !------------------------------------------------------------------------------
-! call close_stream_files(domain_results)
+! call close_stream_files(res_tree)
 
 1000 Continue
 
-    deallocate(nodes,uu,edat,cref_cnodes,rforces)
+deallocate(nodes,uu,edat,cref_cnodes,rforces)
 
-  End subroutine calc_effective_material_parameters
+End subroutine calc_effective_material_parameters
+
+
+
+
+
+
 
   !**
-  subroutine init_loadcase(eps,vv)
+subroutine init_loadcase(eps,vv)
 
     Real(Kind=rk), intent(in)     :: eps
     Real(Kind=rk), Dimension(:,:) :: vv
