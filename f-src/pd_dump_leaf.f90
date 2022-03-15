@@ -45,19 +45,21 @@ Program pd_dump_leaf
 
   num_args = command_argument_count()
 
-  If (num_args /= 2) then
+  If (num_args /= 3) then
      Write(*,FMT_TXT_SEP)
      Write(*,FMT_TXT) "Usage:"
-     Write(*,FMT_TXT) "arg 1: Output Meta path and basename."
-     Write(*,FMT_TXT) "arg 2: Number of leaf to be dumped"
+     Write(*,FMT_TXT) "arg 1: Path of the branch."
+     Write(*,FMT_TXT) "arg 2: basename of the branch."
+     Write(*,FMT_TXT) "arg 3: Number of leaf to be dumped"
      Write(*,FMT_TXT_SEP)
      Stop
   End If
 
   call get_command_argument(1, pro_path)
-  call get_command_argument(2, arg)
+  call get_command_argument(2, pro_name)
+  call get_command_argument(3, arg)
 
-  pro_name="/results"
+!   pro_name="/results"
 
   Read(arg,*)leaf_no
 

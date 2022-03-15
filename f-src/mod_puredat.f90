@@ -428,6 +428,7 @@ Implicit None
 
      Module Procedure close_stream_files_from_tree
      Module Procedure close_stream_files_from_streams
+     Module Procedure close_stream_files_from_streams_mpi
 
   End Interface close_stream_files
 
@@ -2334,7 +2335,7 @@ CONTAINS
   !> Subroutine which connects stream files
   !> 
   !> The subroutine opens all stream files that belong to  puredat tree 
-  !> structure it takes the followig parametres IN SMALL LETERS for action and 
+  !> structure it takes the followig parametres IN SMALL LETTERS for action and 
   !> status :
   !> ACTION : "read", "write"
   !> STATUS : "old", "new", "replace" 
@@ -2611,12 +2612,14 @@ CONTAINS
   !> They are transformed to the corresponding prameters of the MPI open 
   !> statement
   !> Remark: Subroutine is in pre alpha state !!!
-  Subroutine open_stream_files_from_streams_mpi(streams, action, status, fh_mpi, position)
+  Subroutine open_stream_files_from_streams_mpi(streams, action, status, fh_mpi, comm, position)
 
     Type(tStreams)  , Intent(InOut) :: streams
     Character(len=*), intent(In)    :: action, status
 
     Integer(kind=pd_mik), Intent(InOut), Dimension(no_streams) :: fh_mpi
+    Integer(kind=mik), Intent(InOut) :: comm
+
     Integer(kind=pd_mik) :: ierr
     
     Character(len=*), intent(In),optional :: position
@@ -2686,7 +2689,7 @@ CONTAINS
 
           If ((status == 'new') .or. (status == 'replace')) then
 
-             Call MPI_FILE_OPEN(MPI_COMM_WORLD, trim(streams%stream_files(ii)), &
+             Call MPI_FILE_OPEN(comm, trim(streams%stream_files(ii)), &
                   MPI_MODE_WRONLY+MPI_MODE_CREATE, MPI_INFO_NULL, FH_MPI(ii), ierr)
 
              If (ierr /= 0) call file_err(trim(streams%stream_files(ii)), Int(ierr,pd_ik), &
@@ -2786,7 +2789,7 @@ CONTAINS
   !> 
   !> The subroutine closes all stream files that belong to a puredat tree 
   !> structure
-  Subroutine close_stream_files_from_tree(tree,clean)
+  Subroutine close_stream_files_from_tree(tree, clean)
 
     Type(tBranch), Intent(InOut)  :: tree
     Logical, intent(in), optional :: clean
@@ -2830,7 +2833,7 @@ CONTAINS
   !> 
   !> The subroutine closes all stream files that belong to a puredat tree 
   !> structure
-  Subroutine close_stream_files_from_streams(streams,clean)
+  Subroutine close_stream_files_from_streams(streams, clean)
 
     Type(tStreams), Intent(InOut) :: streams
     Logical, intent(in), optional :: clean
@@ -2865,43 +2868,70 @@ CONTAINS
 
   End Subroutine close_stream_files_from_streams
 
-  !============================================================================
-  !> Function which writes tStreaam comonents to disk
-  Subroutine Write_Streams(streams)
+!------------------------------------------------------------------------------
+! MODULE: close_stream_files_from_streams_mpi
+!------------------------------------------------------------------------------
+!> @author Johannes Gebert - HLRS - NUM - gebert@hlrs.de
+!
+!> @description: 
+!> Closes opened stream files with mpi
+!------------------------------------------------------------------------------
+SUBROUTINE close_stream_files_from_streams_mpi(streams, fh_mpi)
 
-    Type(tStreams), intent(In) :: streams
+Type(tStreams)      , Intent(InOut) :: streams
+Integer(kind=pd_mik), Intent(InOut), Dimension(no_streams) :: fh_mpi
 
-    If ( streams%dim_st(1) > 0 ) then
-       Write(streams%units(1)) streams%int1_st
-    End If
+Integer(kind=pd_mik) :: ierr
+Integer :: ii
 
-    If ( streams%dim_st(2) > 0 ) then
-       Write(streams%units(2)) streams%int2_st
+DO ii = 1, no_streams
+    If (streams%ifopen(ii)) then
+        CALL MPI_FILE_CLOSE(fh_mpi(ii), ierr)
+        streams%units(ii) = -1
+        streams%ifopen(ii) = .FALSE.
     End If
+END DO
 
-    If ( streams%dim_st(3) > 0 ) then
-       Write(streams%units(3)) streams%int4_st
-    End If
+END SUBROUTINE close_stream_files_from_streams_mpi
 
-    If ( streams%dim_st(4) > 0 ) then
-       Write(streams%units(4)) streams%int8_st
-    End If
-    
-    If ( streams%dim_st(5) > 0 ) then
-       Write(streams%units(5)) streams%real8_st
-    End If
-    
-    If ( streams%dim_st(6) > 0 ) then
-       Write(streams%units(6)) streams%char_st
-    End If
-    
-    If ( streams%dim_st(7) > 0 ) then
-       Write(streams%units(7)) streams%log_st
-    End If
-    
-  End Subroutine Write_Streams
-  !> @} 
-  !# End of memeber group "Puredat stream file routines" ######################
+
+!============================================================================
+!> Function which writes tStreaam comonents to disk
+Subroutine Write_Streams(streams)
+
+Type(tStreams), intent(In) :: streams
+
+If ( streams%dim_st(1) > 0 ) then
+    Write(streams%units(1)) streams%int1_st
+End If
+
+If ( streams%dim_st(2) > 0 ) then
+    Write(streams%units(2)) streams%int2_st
+End If
+
+If ( streams%dim_st(3) > 0 ) then
+    Write(streams%units(3)) streams%int4_st
+End If
+
+If ( streams%dim_st(4) > 0 ) then
+    Write(streams%units(4)) streams%int8_st
+End If
+
+If ( streams%dim_st(5) > 0 ) then
+    Write(streams%units(5)) streams%real8_st
+End If
+
+If ( streams%dim_st(6) > 0 ) then
+    Write(streams%units(6)) streams%char_st
+End If
+
+If ( streams%dim_st(7) > 0 ) then
+    Write(streams%units(7)) streams%log_st
+End If
+
+End Subroutine Write_Streams
+!> @} 
+!# End of memeber group "Puredat stream file routines" ######################
 
   !############################################################################
   !> \name Puredat load routines
@@ -4461,7 +4491,7 @@ End Subroutine pd_get_4
 
     Open(UNIT=un_head, FILE=TRIM(pro_path)//TRIM(pro_name)//'.head', STATUS='REPLACE', ACTION='WRITE')
 
-    Call write_branch(tree,un_head)
+    Call write_branch(tree, un_head)
 
     Close(un_head)
 

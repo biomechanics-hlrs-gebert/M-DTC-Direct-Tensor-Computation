@@ -19,12 +19,12 @@ Module gen_geometry
 
 Contains
 
-  Subroutine generate_geometry(root, lin_nn, ddc_nn, job_dir, fh_mpi, glob_success)
+  Subroutine generate_geometry(root, lin_nn, ddc_nn, job_dir, fh_mpi_worker, glob_success)
 
     Type(tBranch), Intent(InOut) :: root
     Character(LEN=*), Intent(in) :: job_dir
     integer(Kind=ik), Intent(in) :: ddc_nn, lin_nn
-    Integer(kind=mik), Dimension(no_streams), Intent(in) :: fh_mpi
+    Integer(kind=mik), Dimension(no_streams), Intent(in) :: fh_mpi_worker
     Logical, Intent(Out) :: glob_success
 
     ! MPI Variables
@@ -219,7 +219,7 @@ Contains
     !------------------------------------------------------------------------------
     Call Search_branch("Averaged Material Properties", root, res_b, success)
     
-    Call MPI_FILE_WRITE_AT(FH_MPI(5), &
+    Call MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
          Int(res_b%leaves(18)%lbound-1+(lin_nn-1), MPI_OFFSET_KIND), &
          Real(no_elems, pd_rk), &
          Int(1,pd_mik), MPI_Real8, &

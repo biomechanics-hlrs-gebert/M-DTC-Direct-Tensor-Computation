@@ -40,19 +40,18 @@ Program pd_dump_tree
   If ((num_args < 3) .or. (num_args > 4)) then
      WRITE(*, FMT_TXT_SEP)
      WRITE(*, FMT_TXT) "Usage:"
-     WRITE(*, FMT_TXT) "arg 1: Output Meta path and basename of tree to be logged"
-     WRITE(*, FMT_TXT) "arg 2: Path to output file"
-     WRITE(*, FMT_TXT) "arg 3: Name of output file to dump the tree to. 'arg 3' gets appended to out_file."
-     WRITE(*, FMT_TXT) "arg 4 [optional]: Dump data default=.FALSE."
+     WRITE(*, FMT_TXT) "arg 1: Output Meta path and basename of tree to be logged."
+     WRITE(*, FMT_TXT) "arg 2: Project name - currently only 'results'."
+     WRITE(*, FMT_TXT) "arg 3: Path of output file."
+     WRITE(*, FMT_TXT) "arg 3: Name of output file."
      WRITE(*, FMT_TXT_SEP)
      STOP
   End If
 
   call get_command_argument(1, pro_path)
-  call get_command_argument(2, outpath)
-  call get_command_argument(3, outfile)
-
-  pro_name="/results"
+  call get_command_argument(2, pro_name)
+  call get_command_argument(3, outpath)
+  call get_command_argument(4, outfile)
 
   if (num_args > 3) then
      call get_command_argument(4, arg)
