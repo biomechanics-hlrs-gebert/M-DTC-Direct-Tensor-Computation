@@ -1830,7 +1830,6 @@ CONTAINS
     Integer(kind=pd_ik) :: ii
     
     Do ii = 1, branch%no_branches 
-write(*,*) "TESTBRANCH", ii
 
        Call reset_bounds_in_branch(branch%branches(ii), t_streams)
 

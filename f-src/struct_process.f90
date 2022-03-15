@@ -2090,33 +2090,33 @@ Else
         !------------------------------------------------------------------------------
         ! Organize Results
         !------------------------------------------------------------------------------
-        IF (worker_rank_mpi==0) THEN
-            Call Start_Timer("Write Root Branch")
-            
-            root%streams%ii_st  = 1
-            root%streams%dim_st = 0
-            Call reset_bounds_in_branch(root, root%streams)
-            
-            root%streams%ii_st  = 1
-            root%streams%dim_st = 0
-            Call homogenize_branch(root, root%streams)
-            
-            pro_path = outpath
-            pro_name = project_name 
-            
-            Call Write_Tree(root)
+                        ! IF (worker_rank_mpi==0) THEN
+                        !     Call Start_Timer("Write Root Branch")
+                            
+                        !     root%streams%ii_st  = 1
+                        !     root%streams%dim_st = 0
+                        !     Call reset_bounds_in_branch(root, root%streams)
+                            
+                        !     root%streams%ii_st  = 1
+                        !     root%streams%dim_st = 0
+                        !     Call homogenize_branch(root, root%streams)
+                            
+                        !     pro_path = outpath
+                        !     pro_name = project_name 
+                            
+                        !     Call Write_Tree(root)
 
-            Call set_stream_filenames(root%streams)
-            
-            Call Open_Stream_Files(root%streams, "write", "replace")
-            
-            Call Write_Streams(root%streams)
-            ! call store_parallel_branch(root, FH_MPI)
-            
-            Call Close_Stream_Files(root%streams,  .TRUE.)
+                        !     Call set_stream_filenames(root%streams)
+                            
+                        !     Call Open_Stream_Files(root%streams, "write", "replace")
+                            
+                        !     Call Write_Streams(root%streams)
+                        !     ! call store_parallel_branch(root, FH_MPI)
+                            
+                        !     Call Close_Stream_Files(root%streams,  .TRUE.)
 
-            Call End_Timer("Write Root Branch")
-        END IF
+                        !     Call End_Timer("Write Root Branch")
+                        ! END IF
 
       !   ! Look for the Domain branch
       !   domain_desc=''
