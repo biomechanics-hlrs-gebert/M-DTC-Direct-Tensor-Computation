@@ -176,7 +176,7 @@ integer(Kind=ik) :: preallo
         
 !--------------------------------------------------------------------------
 
-! Init Activity status
+! Init worker_is_active status
 Active = 0_mik
 
 write(domain_char,'(I0)') domain
@@ -200,8 +200,8 @@ If (rank_mpi == 0) then
     !------------------------------------------------------------------------------
     ! Create local tree
     !------------------------------------------------------------------------------
-    ! Call raise_tree(Trim(project_name), domain_tree)
-    ! Call include_branch_into_branch(s_b=meta_para, t_b=root, blind=.TRUE.)
+    ! CALL raise_tree(Trim(project_name), domain_tree)
+    ! CALL include_branch_into_branch(s_b=meta_para, t_b=root, blind=.TRUE.)
 
     !------------------------------------------------------------------------------
     ! Add part branch to domain_tree
@@ -209,9 +209,9 @@ If (rank_mpi == 0) then
     ! part_desc=''
     ! Write(part_desc,'(A,I0)')'Part_', parts
 
-    ! call add_branch_to_branch(domain_tree, domain_branch)
+    ! CALL add_branch_to_branch(domain_tree, domain_branch)
 
-    ! call raise_branch(trim(part_desc), 0_pd_ik, 0_pd_ik, domain_branch)
+    ! CALL raise_branch(trim(part_desc), 0_pd_ik, 0_pd_ik, domain_branch)
     
     !------------------------------------------------------------------------------
     ! Create job directory in case of non-production run
@@ -220,7 +220,7 @@ If (rank_mpi == 0) then
 
         c_char_array(1:len(Trim(job_dir)//Char(0))) = str_to_char(Trim(job_dir)//Char(0))
 
-        Call Stat_Dir(c_char_array, stat_c_int)
+        CALL Stat_Dir(c_char_array, stat_c_int)
 
         If(stat_c_int /= 0) Then
 
@@ -253,7 +253,7 @@ If (rank_mpi == 0) then
     
     WRITE(un_lf, '(2A)') 'Start time: ', TRIM(str)
 
-    Call get_environment_Variable("HOSTNAME", env_var)
+    CALL get_environment_Variable("HOSTNAME", env_var)
     Write(un_lf,FMT_MSG) "Host       : "//Trim(env_var)
 
     umon = give_new_unit()
@@ -274,15 +274,15 @@ If (rank_mpi == 0) then
         timer_name = "generate_geometry"
     End Select
 
-    Call start_timer(trim(timer_name), .FALSE.)
+    CALL start_timer(trim(timer_name), .FALSE.)
 
-    Call generate_geometry(root, lin_domain, domain, job_dir, fh_mpi_worker, success)
+    CALL generate_geometry(root, lin_domain, domain, job_dir, fh_mpi_worker, success)
 
     if (.not.success) then
         write(*,FMT_WRN)"generate_geometry() returned .FALSE."
     End if
 
-    Call end_timer(trim(timer_name))
+    CALL end_timer(trim(timer_name))
     
     CALL DATE_AND_TIME(DATE=date, TIME=time, ZONE=timezone)
 
@@ -301,7 +301,7 @@ If (rank_mpi == 0) then
     domain_desc=''
     Write(domain_desc,'(A,I0)')'Domain ', domain
     
-    Call search_branch(trim(domain_desc), root, domain_branch, success, DEBUG)
+    CALL search_branch(trim(domain_desc), root, domain_branch, success, DEBUG)
 
     !------------------------------------------------------------------------------
     ! Get the no of nodes per part
@@ -309,8 +309,8 @@ If (rank_mpi == 0) then
     mesh_desc = ''
     Write(mesh_desc,'(A,I0)')'Mesh info of '//trim(project_name)//'_', domain
     
-    Call search_branch(trim(mesh_desc), domain_branch, mesh_branch, success, DEBUG)
-    call pd_get(mesh_branch, 'No of nodes in mesh',  nodes_in_mesh)
+    CALL search_branch(trim(mesh_desc), domain_branch, mesh_branch, success, DEBUG)
+    CALL pd_get(mesh_branch, 'No of nodes in mesh',  nodes_in_mesh)
 
     !------------------------------------------------------------------------------
     ! Set the global matrix size
@@ -324,7 +324,7 @@ If (rank_mpi == 0) then
         !------------------------------------------------------------------------------
         domain_desc=''
         Write(part_desc,'(A,I0)')'Part_',ii
-        Call search_branch(trim(part_desc), domain_branch, part_branch, success)
+        CALL search_branch(trim(part_desc), domain_branch, part_branch, success)
 
         If (.NOT. success) Then
             WRITE(mssg,'(A,I0,A,L,A,I0,A)') "Something bad and unexpected happend &
@@ -336,11 +336,11 @@ If (rank_mpi == 0) then
         !------------------------------------------------------------------------------
         ! Serialize branch with mesh part to send via mpi
         !------------------------------------------------------------------------------
-        Call serialize_branch(part_branch, serial_pb, serial_pb_size, .TRUE.)
+        CALL serialize_branch(part_branch, serial_pb, serial_pb_size, .TRUE.)
 
-        Call mpi_send(serial_pb_size, 1_mik, MPI_INTEGER8, Int(ii,mik), Int(ii,mik), &
+        CALL mpi_send(serial_pb_size, 1_mik, MPI_INTEGER8, Int(ii,mik), Int(ii,mik), &
             COMM_MPI, ierr)
-        Call mpi_send(serial_pb, INT(serial_pb_size,mik), MPI_INTEGER8, &
+        CALL mpi_send(serial_pb, INT(serial_pb_size,mik), MPI_INTEGER8, &
             Int(ii,mik), Int(ii,mik), COMM_MPI, ierr)
 
         Deallocate(serial_pb)
@@ -350,46 +350,46 @@ If (rank_mpi == 0) then
     part_desc=''
     Write(part_desc,'(A,I0)')'Part_', parts
         
-    Call search_branch(trim(part_desc), domain_branch, part_branch, success, DEBUG)
+    CALL search_branch(trim(part_desc), domain_branch, part_branch, success, DEBUG)
 
     !------------------------------------------------------------------------------
     ! Broadcast matrix size. 
     ! TODO could also be included into part branches.
     !------------------------------------------------------------------------------
-    Call mpi_bcast(m_size, 1_mik, MPI_INTEGER8, 0_mik, COMM_MPI, ierr)
+    CALL mpi_bcast(m_size, 1_mik, MPI_INTEGER8, 0_mik, COMM_MPI, ierr)
 
 !------------------------------------------------------------------------------
 ! Ranks > 0 - Workers
 !------------------------------------------------------------------------------
 Else
 
-    Call mpi_recv(serial_pb_size, 1_mik, mpi_integer8, 0_mik, &
+    CALL mpi_recv(serial_pb_size, 1_mik, MPI_INTEGER8, 0_mik, &
         rank_mpi, COMM_MPI, status_mpi, ierr)
 
     if (allocated(serial_pb)) deallocate(serial_pb)
     
     Allocate(serial_pb(serial_pb_size))
 
-    Call mpi_recv(serial_pb, INT(serial_pb_size,mik), mpi_integer8, &
+    CALL mpi_recv(serial_pb, INT(serial_pb_size,mik), MPI_INTEGER8, &
         0_mik, rank_mpi, COMM_MPI, status_mpi, ierr)
 
     ! Deserialize part branch
-    Call Start_Timer("Deserialize part branch branch")
+    CALL Start_Timer("Deserialize part branch branch")
 
     Allocate(part_branch)
     
-    Call deserialize_branch(part_branch, serial_pb, .TRUE.)
+    CALL deserialize_branch(part_branch, serial_pb, .TRUE.)
 
-    Call End_Timer("Deserialize part branch branch")
+    CALL End_Timer("Deserialize part branch branch")
 
-    Call mpi_bcast(m_size, 1_mik, MPI_INTEGER8, 0_mik, COMM_MPI, ierr)
+    CALL mpi_bcast(m_size, 1_mik, MPI_INTEGER8, 0_mik, COMM_MPI, ierr)
             
 End If ! (rank_mpi == 0) then
 
 If (out_amount == "DEBUG") THEN 
     Write(un_lf, fmt_dbg_sep)
     Write(un_lf, '(A)') "part branch right after deserialization"
-    Call log_tree(part_branch, un_lf, .TRUE.)
+    CALL log_tree(part_branch, un_lf, .TRUE.)
     Write(un_lf, fmt_dbg_sep)
     flush(un_lf)
 END If
@@ -420,14 +420,14 @@ preallo = (part_branch%leaves(5)%dat_no * 3) / parts + 1
 ! Create Stiffness matrix
 ! Preallocation avoids dynamic allocations during matassembly.
 !------------------------------------------------------------------------------
-call MatCreate(COMM_MPI, AA    , petsc_ierr)
-call MatCreate(COMM_MPI, AA_org, petsc_ierr)
+CALL MatCreate(COMM_MPI, AA    , petsc_ierr)
+CALL MatCreate(COMM_MPI, AA_org, petsc_ierr)
 
-call MatSetFromOptions(AA,     petsc_ierr)
-call MatSetFromOptions(AA_org, petsc_ierr)
+CALL MatSetFromOptions(AA,     petsc_ierr)
+CALL MatSetFromOptions(AA_org, petsc_ierr)
 
-call MatSetSizes(AA,PETSC_DECIDE,PETSC_DECIDE,m_size,m_size,petsc_ierr)
-call MatSetSizes(AA_org,PETSC_DECIDE,PETSC_DECIDE,m_size,m_size,petsc_ierr)
+CALL MatSetSizes(AA,PETSC_DECIDE,PETSC_DECIDE,m_size,m_size,petsc_ierr)
+CALL MatSetSizes(AA_org,PETSC_DECIDE,PETSC_DECIDE,m_size,m_size,petsc_ierr)
 
 CALL MatSeqAIJSetPreallocation(AA, preallo, PETSC_NULL_INTEGER, petsc_ierr)
 CALL MatMPIAIJSetPreallocation(AA, preallo, PETSC_NULL_INTEGER, preallo, PETSC_NULL_INTEGER, petsc_ierr)
@@ -435,8 +435,8 @@ CALL MatMPIAIJSetPreallocation(AA, preallo, PETSC_NULL_INTEGER, preallo, PETSC_N
 CALL MatSeqAIJSetPreallocation(AA_org, preallo, PETSC_NULL_INTEGER, petsc_ierr)
 CALL MatMPIAIJSetPreallocation(AA_org, preallo, PETSC_NULL_INTEGER, preallo, PETSC_NULL_INTEGER, petsc_ierr)
 
-call MatSetOption(AA    ,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
-call MatSetOption(AA_org,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
+CALL MatSetOption(AA    ,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
+CALL MatSetOption(AA_org,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
 
 !------------------------------------------------------------------------------
 ! End timer
@@ -444,11 +444,11 @@ call MatSetOption(AA_org,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
 IF (rank_mpi == 0) CALL end_timer(TRIM(timer_name))
 
 If (out_amount == "DEBUG") THEN 
-    call MatGetOwnershipRange(AA, Istart, Iend, petsc_ierr)
+    CALL MatGetOwnershipRange(AA, Istart, Iend, petsc_ierr)
     Write(un_lf,"('MM ', A,I4,A,A6,2(A,I9))")&
         "MPI rank : ",rank_mpi,"| matrix ownership for ","A    ", ":",Istart," -- " , Iend
 
-    call MatGetOwnershipRange(AA_org, Istart, Iend, petsc_ierr)
+    CALL MatGetOwnershipRange(AA_org, Istart, Iend, petsc_ierr)
 
     Write(un_lf, "('MM ', A,I4,A,A6,2(A,I9))") &
     "MPI rank : ", rank_mpi, "| matrix ownership for ", "A_org", ":",Istart, " -- " , Iend
@@ -467,7 +467,7 @@ End If
 !------------------------------------------------------------------------------
 ! Assemble matrix
 !------------------------------------------------------------------------------
-Call pd_get(root%branches(1), 'Element type  on micro scale', char_arr)
+CALL pd_get(root%branches(1), 'Element type  on micro scale', char_arr)
 elt_micro = char_to_str(char_arr)
 
 if (TRIM(elt_micro) == "HEX08") then
@@ -496,9 +496,9 @@ if (TRIM(elt_micro) == "HEX08") then
         
         idxn_08 = idxm_08
 
-        Call MatSetValues(AA, 24_8, idxm_08, 24_8 ,idxn_08, K_loc_08, ADD_VALUES, petsc_ierr)
+        CALL MatSetValues(AA, 24_8, idxm_08, 24_8 ,idxn_08, K_loc_08, ADD_VALUES, petsc_ierr)
 
-        Call MatSetValues(AA_org, 24_8, idxm_08, 24_8 ,idxn_08, K_loc_08, ADD_VALUES, petsc_ierr)
+        CALL MatSetValues(AA_org, 24_8, idxm_08, 24_8 ,idxn_08, K_loc_08, ADD_VALUES, petsc_ierr)
         
     End Do
 
@@ -528,8 +528,8 @@ else if (elt_micro == "HEX20") then
         
         idxn_20 = idxm_20
 
-        Call MatSetValues(AA, 60_8, idxm_20, 60_8 ,idxn_20, K_loc_20, ADD_VALUES, petsc_ierr)
-        Call MatSetValues(AA_org, 60_8, idxm_20, 60_8 ,idxn_20, K_loc_20, ADD_VALUES, petsc_ierr)
+        CALL MatSetValues(AA, 60_8, idxm_20, 60_8 ,idxn_20, K_loc_20, ADD_VALUES, petsc_ierr)
+        CALL MatSetValues(AA_org, 60_8, idxm_20, 60_8 ,idxn_20, K_loc_20, ADD_VALUES, petsc_ierr)
         
     End Do
 
@@ -547,11 +547,11 @@ IF (rank_mpi == 0) THEN   ! Sub Comm Master
     CALL start_timer(TRIM(timer_name), .FALSE.)
 END IF 
 
-Call MatAssemblyBegin(AA, MAT_FINAL_ASSEMBLY ,petsc_ierr)
-Call MatAssemblyBegin(AA_org, MAT_FINAL_ASSEMBLY ,petsc_ierr)
+CALL MatAssemblyBegin(AA, MAT_FINAL_ASSEMBLY ,petsc_ierr)
+CALL MatAssemblyBegin(AA_org, MAT_FINAL_ASSEMBLY ,petsc_ierr)
 ! Computations can be done while messages are in transition
-Call MatAssemblyEnd(AA, MAT_FINAL_ASSEMBLY ,petsc_ierr)
-Call MatAssemblyEnd(AA_org, MAT_FINAL_ASSEMBLY ,petsc_ierr)
+CALL MatAssemblyEnd(AA, MAT_FINAL_ASSEMBLY ,petsc_ierr)
+CALL MatAssemblyEnd(AA_org, MAT_FINAL_ASSEMBLY ,petsc_ierr)
 
 !------------------------------------------------------------------------------
 ! End timer
@@ -562,11 +562,11 @@ IF (rank_mpi == 0) CALL end_timer(TRIM(timer_name))
 ! Crashes on hawk. Out of memory?
 !------------------------------------------------------------------------------
 !  If (out_amount == "DEBUG") THEN 
-!     Call PetscViewerCreate(COMM_MPI, PetscViewer, petsc_ierr)
-!     Call PetscViewerASCIIOpen(COMM_MPI,"AA.output.1",PetscViewer, petsc_ierr);
-!     Call PetscViewerSetFormat(PetscViewer, PETSC_VIEWER_ASCII_DENSE, petsc_ierr)
-!     Call MatView(AA, PetscViewer, petsc_ierr)
-!     Call PetscViewerDestroy(PetscViewer, petsc_ierr)
+!     CALL PetscViewerCreate(COMM_MPI, PetscViewer, petsc_ierr)
+!     CALL PetscViewerASCIIOpen(COMM_MPI,"AA.output.1",PetscViewer, petsc_ierr);
+!     CALL PetscViewerSetFormat(PetscViewer, PETSC_VIEWER_ASCII_DENSE, petsc_ierr)
+!     CALL MatView(AA, PetscViewer, petsc_ierr)
+!     CALL PetscViewerDestroy(PetscViewer, petsc_ierr)
 !  End If
     
 
@@ -592,12 +592,12 @@ Do ii = 1, 24
     !------------------------------------------------------------------------------
     ! Create load vectors
     !------------------------------------------------------------------------------
-    call VecCreate(COMM_MPI, FF(ii), petsc_ierr)
-    call VecSetSizes(FF(ii), PETSC_DECIDE, m_size, petsc_ierr)
-    call VecSetFromOptions(FF(ii), petsc_ierr)
-    Call VecSet(FF(ii), 0._rk,petsc_ierr)
+    CALL VecCreate(COMM_MPI, FF(ii), petsc_ierr)
+    CALL VecSetSizes(FF(ii), PETSC_DECIDE, m_size, petsc_ierr)
+    CALL VecSetFromOptions(FF(ii), petsc_ierr)
+    CALL VecSet(FF(ii), 0._rk,petsc_ierr)
     
-    call VecGetOwnershipRange(FF(ii), IVstart, IVend, petsc_ierr)
+    CALL VecGetOwnershipRange(FF(ii), IVstart, IVend, petsc_ierr)
 
     If (out_amount == "DEBUG") THEN 
         Write(un_lf,"('MM ', A,I4,A,A6,2(A,I9))")&
@@ -605,11 +605,11 @@ Do ii = 1, 24
     End If
     
     !------------------------------------------------------------------------------
-    Call VecAssemblyBegin(FF(ii), petsc_ierr)
+    CALL VecAssemblyBegin(FF(ii), petsc_ierr)
     ! Computations can be done while messages are transferring
 End Do
 Do ii = 1, 24 
-    Call VecAssemblyEnd(FF(ii), petsc_ierr)
+    CALL VecAssemblyEnd(FF(ii), petsc_ierr)
 End Do
 !------------------------------------------------------------------------------
 
@@ -619,7 +619,7 @@ End Do
 ! boundary_branch%leaves(2)%p_real8 : Boundary displacement values
 !------------------------------------------------------------------------------ 
 write(desc,'(A,I0)') "Boundaries_"//trim(domain_char)//"_",1
-Call search_branch(trim(desc), part_branch, boundary_branch, success, DEBUG)
+CALL search_branch(trim(desc), part_branch, boundary_branch, success, DEBUG)
 
 !------------------------------------------------------------------------------ 
 ! Setup id reference vector for displacement insertion
@@ -639,10 +639,10 @@ End Do
 !------------------------------------------------------------------------------ 
 ! Create solution vector
 !------------------------------------------------------------------------------ 
-call VecCreate(COMM_MPI, XX, petsc_ierr)
-call VecSetSizes(XX, PETSC_DECIDE, m_size, petsc_ierr)
-call VecSetFromOptions(XX, petsc_ierr)
-Call VecSet(XX, 0._rk,petsc_ierr)
+CALL VecCreate(COMM_MPI, XX, petsc_ierr)
+CALL VecSetSizes(XX, PETSC_DECIDE, m_size, petsc_ierr)
+CALL VecSetFromOptions(XX, petsc_ierr)
+CALL VecSet(XX, 0._rk,petsc_ierr)
 
 !------------------------------------------------------------------------------
 ! Only set prescribed displacements if there are boundary nodes available.
@@ -650,15 +650,15 @@ Call VecSet(XX, 0._rk,petsc_ierr)
 !------------------------------------------------------------------------------
 IF(boundary_branch%leaves(2)%dat_no /= 0_ik) THEN
     ! Set prescribed displacements of LC1 to solution vector
-    Call VecSetValues(XX, boundary_branch%leaves(2)%dat_no, &
+    CALL VecSetValues(XX, boundary_branch%leaves(2)%dat_no, &
         gnid_cref, -boundary_branch%leaves(2)%p_real8, INSERT_VALUES, petsc_ierr)
 END IF 
 
-Call VecAssemblyBegin(XX, petsc_ierr)
+CALL VecAssemblyBegin(XX, petsc_ierr)
 ! Computations can be done while messages are in transition
-Call VecAssemblyEnd(XX, petsc_ierr)
+CALL VecAssemblyEnd(XX, petsc_ierr)
 
-call VecGetOwnershipRange(XX, IVstart, IVend, petsc_ierr)
+CALL VecGetOwnershipRange(XX, IVstart, IVend, petsc_ierr)
 
 !------------------------------------------------------------------------------
 ! End timer
@@ -668,11 +668,11 @@ IF (rank_mpi == 0) CALL end_timer(TRIM(timer_name))
 If (out_amount == "DEBUG") THEN 
     Write(un_lf,"('MM ', A,I4,A,A6,2(A,I9))") &
         "MPI rank : ",rank_mpi,"| vector ownership for ","X", ":",IVstart," -- " , IVend
-    Call PetscViewerCreate(COMM_MPI, PetscViewer, petsc_ierr)
-    Call PetscViewerASCIIOpen(COMM_MPI,"FX.output.1",PetscViewer, petsc_ierr);
-    Call PetscViewerSetFormat(PetscViewer, PETSC_VIEWER_ASCII_DENSE, petsc_ierr)
-    Call VecView(XX, PetscViewer, petsc_ierr)
-    Call PetscViewerDestroy(PetscViewer, petsc_ierr)
+    CALL PetscViewerCreate(COMM_MPI, PetscViewer, petsc_ierr)
+    CALL PetscViewerASCIIOpen(COMM_MPI,"FX.output.1",PetscViewer, petsc_ierr);
+    CALL PetscViewerSetFormat(PetscViewer, PETSC_VIEWER_ASCII_DENSE, petsc_ierr)
+    CALL VecView(XX, PetscViewer, petsc_ierr)
+    CALL PetscViewerDestroy(PetscViewer, petsc_ierr)
 End If
 
 !------------------------------------------------------------------------------
@@ -698,16 +698,16 @@ END IF
 !------------------------------------------------------------------------------ 
 ! Compute dirichlet boundary corrections of first right hand side vector
 !------------------------------------------------------------------------------ 
-Call MatMult(AA,XX,FF(1), petsc_ierr);
+CALL MatMult(AA,XX,FF(1), petsc_ierr);
 
 IF(boundary_branch%leaves(2)%dat_no /= 0_ik) THEN
     ! Set zero values for dofs with prescribed displacements
-    Call VecSetValues(FF(1), boundary_branch%leaves(2)%dat_no, &
+    CALL VecSetValues(FF(1), boundary_branch%leaves(2)%dat_no, &
         gnid_cref, zeros_R8, INSERT_VALUES, petsc_ierr)
 END IF 
 
-Call VecAssemblyBegin(FF(1), petsc_ierr)
-Call VecAssemblyEnd(FF(1), petsc_ierr)
+CALL VecAssemblyBegin(FF(1), petsc_ierr)
+CALL VecAssemblyEnd(FF(1), petsc_ierr)
 
 !------------------------------------------------------------------------------
 ! Compute dirichlet boundary corrections of 2nd to 23rd
@@ -723,30 +723,30 @@ Do ii = 2, 23
     ! boundary_branch%leaves(2)%p_real8 : Boundary displacement values
     !------------------------------------------------------------------------------
     write(desc,'(A,I0)') "Boundaries_"//trim(domain_char)//"_",ii
-    Call search_branch(trim(desc), part_branch, boundary_branch, success, DEBUG)
+    CALL search_branch(trim(desc), part_branch, boundary_branch, success, DEBUG)
 
     IF(boundary_branch%leaves(2)%dat_no /= 0_ik) THEN
         ! Set prescribed displacements of LCii to solution vector
-        Call VecSetValues(XX, boundary_branch%leaves(2)%dat_no, &
+        CALL VecSetValues(XX, boundary_branch%leaves(2)%dat_no, &
             gnid_cref, -boundary_branch%leaves(2)%p_real8, INSERT_VALUES, petsc_ierr)
     END IF 
 
-    Call VecAssemblyBegin(XX, petsc_ierr)
+    CALL VecAssemblyBegin(XX, petsc_ierr)
     ! Computations can be done while messages are in transition
-    Call VecAssemblyEnd(XX, petsc_ierr)
+    CALL VecAssemblyEnd(XX, petsc_ierr)
 
     !------------------------------------------------------------------------------ 
     ! Compute dirichlet boundary corrections of ii th right hand side vector.
     !------------------------------------------------------------------------------ 
-    Call MatMult(AA,XX,FF(ii), petsc_ierr);
+    CALL MatMult(AA,XX,FF(ii), petsc_ierr);
 
     IF(boundary_branch%leaves(2)%dat_no /= 0_ik) THEN
         ! Set zero values for dofs with prescribed displacements
-        Call VecSetValues(FF(ii), boundary_branch%leaves(2)%dat_no, &
+        CALL VecSetValues(FF(ii), boundary_branch%leaves(2)%dat_no, &
             gnid_cref, zeros_R8, INSERT_VALUES, petsc_ierr)
     END IF 
 
-    Call VecAssemblyBegin(FF(ii), petsc_ierr)
+    CALL VecAssemblyBegin(FF(ii), petsc_ierr)
     
 End Do
 
@@ -756,7 +756,7 @@ End Do
 ! boundary_branch%leaves(2)%p_real8 : Boundary displacement values
 !------------------------------------------------------------------------------
 write(desc,'(A,I0)') "Boundaries_"//trim(domain_char)//"_",24
-Call search_branch(trim(desc), part_branch, boundary_branch, success, DEBUG)
+CALL search_branch(trim(desc), part_branch, boundary_branch, success, DEBUG)
 
 !------------------------------------------------------------------------------
 ! Only set prescribed displacements if there are boundary nodes available.
@@ -764,19 +764,19 @@ Call search_branch(trim(desc), part_branch, boundary_branch, success, DEBUG)
 !------------------------------------------------------------------------------
 IF(boundary_branch%leaves(2)%dat_no /= 0_ik) THEN
     ! Set prescribed displacements of LC24 to solution vector
-    Call VecSetValues(XX, boundary_branch%leaves(2)%dat_no, &
+    CALL VecSetValues(XX, boundary_branch%leaves(2)%dat_no, &
         gnid_cref, -boundary_branch%leaves(2)%p_real8, INSERT_VALUES, petsc_ierr)
 END IF 
 
-Call VecAssemblyBegin(XX, petsc_ierr)
+CALL VecAssemblyBegin(XX, petsc_ierr)
 ! Computations can be done while messages are in transition
-Call VecAssemblyEnd(XX, petsc_ierr)
+CALL VecAssemblyEnd(XX, petsc_ierr)
 
 !------------------------------------------------------------------------------
 ! Finalize the open assembleys
 !------------------------------------------------------------------------------
 Do ii = 2, 23
-    Call VecAssemblyEnd(FF(ii), petsc_ierr)
+    CALL VecAssemblyEnd(FF(ii), petsc_ierr)
 End Do
 
 !------------------------------------------------------------------------------
@@ -784,12 +784,12 @@ End Do
 ! times -1. , we have to rescale XX before using it in
 ! MatZeroRowsColumns.
 !------------------------------------------------------------------------------
-Call VecScale(XX, -1._rk, petsc_ierr)
+CALL VecScale(XX, -1._rk, petsc_ierr)
 
 !------------------------------------------------------------------------------
 ! Apply Dirichlet Boundaries to A and the 24th right hand side vector.
 !------------------------------------------------------------------------------
-call MatZeroRowsColumns(AA, boundary_branch%leaves(2)%dat_no, gnid_cref, &
+CALL MatZeroRowsColumns(AA, boundary_branch%leaves(2)%dat_no, gnid_cref, &
         0.0_8, XX, FF(24), petsc_ierr)
 
 !------------------------------------------------------------------------------
@@ -798,11 +798,11 @@ call MatZeroRowsColumns(AA, boundary_branch%leaves(2)%dat_no, gnid_cref, &
 IF (rank_mpi == 0) CALL end_timer(TRIM(timer_name))
 
 If (out_amount == "DEBUG") THEN 
-    Call PetscViewerCreate(COMM_MPI, PetscViewer, petsc_ierr)
-    Call PetscViewerASCIIOpen(COMM_MPI,"FF.output.1", PetscViewer, petsc_ierr);
-    Call PetscViewerSetFormat(PetscViewer, PETSC_VIEWER_ASCII_DENSE, petsc_ierr)
-    Call VecView(FF( 1), PetscViewer, petsc_ierr)
-    Call PetscViewerDestroy(PetscViewer, petsc_ierr)
+    CALL PetscViewerCreate(COMM_MPI, PetscViewer, petsc_ierr)
+    CALL PetscViewerASCIIOpen(COMM_MPI,"FF.output.1", PetscViewer, petsc_ierr);
+    CALL PetscViewerSetFormat(PetscViewer, PETSC_VIEWER_ASCII_DENSE, petsc_ierr)
+    CALL VecView(FF( 1), PetscViewer, petsc_ierr)
+    CALL PetscViewerDestroy(PetscViewer, petsc_ierr)
 End If
 
 !------------------------------------------------------------------------------
@@ -837,21 +837,21 @@ CALL KSPSetOperators(ksp, AA, AA, petsc_ierr)
 !------------------------------------------------------------------------------
 ! Set linear solver defaults for this problem (optional).
 ! - By extracting the KSP and PC contexts from the KSP context,
-!   we can then directly call any KSP and PC routines to set
+!   we can then directly CALL any KSP and PC routines to set
 !   various options.
 ! - The following two statements are optional; all of these
 !   parameters could alternatively be specified at runtime via
 !   KSPSetFromOptions().  All of these defaults can be
 !   overridden at runtime, as indicated below.
 !------------------------------------------------------------------------------
-Call KSPSetTolerances(ksp,1.e-2/((m_size+1)*(m_size+1)),1.e-50_rk, &
+CALL KSPSetTolerances(ksp,1.e-2/((m_size+1)*(m_size+1)),1.e-50_rk, &
         PETSC_DEFAULT_REAL, PETSC_DEFAULT_INTEGER, petsc_ierr);
 
 !------------------------------------------------------------------------------
 ! Set runtime options, e.g.,
 !     -ksp_type <type> -pc_type <type> -ksp_monitor -ksp_rtol <rtol>
 ! These options will override those specified above as long as
-! KSPSetFromOptions() is called _after_ any other customization
+! KSPSetFromOptions() is CALLed _after_ any other customization
 ! routines.
 !------------------------------------------------------------------------------
 CALL KSPSetFromOptions(ksp, petsc_ierr)
@@ -861,7 +861,7 @@ If (out_amount == "DEBUG") THEN
     if ( rank_mpi == 0 ) then
         filename=''
         write(filename,'(A,I0,A)')trim(job_dir)//trim(project_name)//"_",domain,"_usg.vtk"
-        Call write_data_head(filename, m_size/3)
+        CALL write_data_head(filename, m_size/3)
     End if
 
 End If
@@ -887,7 +887,7 @@ IF (rank_mpi == 0) THEN
     CALL raise_branch("Strains"                         , 0,  0, esd_result_branch%branches(3))
     CALL raise_branch("Stresses"                        , 0,  0, esd_result_branch%branches(4))
 
-    call log_tree(mesh_branch, un_lf, .FALSE.)
+    CALL log_tree(mesh_branch, un_lf, .FALSE.)
     
     !------------------------------------------------------------------------------
     ! Look again for the Part branch since the part_branch pointer 
@@ -895,7 +895,7 @@ IF (rank_mpi == 0) THEN
     !------------------------------------------------------------------------------
     part_desc=''
     Write(part_desc,'(A,I0)')'Part_', parts
-    Call search_branch(trim(part_desc), mesh_branch, part_branch, success, DEBUG)
+    CALL search_branch(trim(part_desc), mesh_branch, part_branch, success, DEBUG)
 
     ! Allocate global displacement result
     Allocate(glob_displ(0:m_size-1))
@@ -908,7 +908,7 @@ End If
 
 Do jj = 1,24
     
-    Call KSPSolve(ksp, FF(jj), XX, petsc_ierr)
+    CALL KSPSolve(ksp, FF(jj), XX, petsc_ierr)
     
     !------------------------------------------------------------------------------
     ! Get Bounds branch of LC jj
@@ -916,7 +916,7 @@ Do jj = 1,24
     ! boundary_branch%leaves(2)%p_real8 : Boundary displacement values
     !------------------------------------------------------------------------------
     write(desc,'(A,I0)') "Boundaries_"//trim(domain_char)//"_",jj
-    Call search_branch(trim(desc), part_branch, boundary_branch, success, DEBUG)
+    CALL search_branch(trim(desc), part_branch, boundary_branch, success, DEBUG)
     
     !------------------------------------------------------------------------------
     ! Only set prescribed displacements if there are boundary nodes available.
@@ -924,34 +924,34 @@ Do jj = 1,24
     !------------------------------------------------------------------------------
     IF(boundary_branch%leaves(2)%dat_no /= 0_ik) THEN
         ! Extend XX with Boundary displacements
-        Call VecSetValues(XX, boundary_branch%leaves(2)%dat_no, &
+        CALL VecSetValues(XX, boundary_branch%leaves(2)%dat_no, &
         gnid_cref, boundary_branch%leaves(2)%p_real8, INSERT_VALUES, petsc_ierr)
     END IF 
     
-    Call VecAssemblyBegin(XX, petsc_ierr)
+    CALL VecAssemblyBegin(XX, petsc_ierr)
     ! Computations can be done while messages are in transition
-    Call VecAssemblyEnd(XX, petsc_ierr)
+    CALL VecAssemblyEnd(XX, petsc_ierr)
 
     ! Calc reaction forces
-    Call MatMult(AA_org, XX, FF(jj), petsc_ierr);
+    CALL MatMult(AA_org, XX, FF(jj), petsc_ierr);
     
     ! Get Pointer to result vector
-    Call VecGetArrayReadF90(XX,displ,petsc_ierr)
+    CALL VecGetArrayReadF90(XX,displ,petsc_ierr)
     
     ! Get Pointer to force vector
-    Call VecGetArrayReadF90(FF(jj),force,petsc_ierr)
+    CALL VecGetArrayReadF90(FF(jj),force,petsc_ierr)
     
     !------------------------------------------------------------------------------
     ! Master/Worker
     !------------------------------------------------------------------------------
     if (rank_mpi > 0) then
-        Call mpi_send([IVstart,IVend], 2_mik, &
+        CALL mpi_send([IVstart,IVend], 2_mik, &
             MPI_Integer8,  0_mik, rank_mpi, COMM_MPI, ierr)
         
-        Call mpi_send(displ, Int(IVend-IVstart,mik), &
+        CALL mpi_send(displ, Int(IVend-IVstart,mik), &
             MPI_Real8,  0_mik, Int(rank_mpi+size_mpi,mik), COMM_MPI, ierr)
 
-        Call mpi_send(force, Int(IVend-IVstart,mik), &
+        CALL mpi_send(force, Int(IVend-IVstart,mik), &
             MPI_Real8,  0_mik, Int(rank_mpi+2*size_mpi,mik), COMM_MPI, ierr)
 
     Else ! Master
@@ -966,7 +966,7 @@ Do jj = 1,24
         ! Recv bounds of local results
         !------------------------------------------------------------------------------
         Do ii = 1, size_mpi-1
-            Call mpi_recv(res_sizes(:,ii), 2_mik, MPI_Integer8,  Int(ii, mik), &
+            CALL mpi_recv(res_sizes(:,ii), 2_mik, MPI_Integer8,  Int(ii, mik), &
                 Int(ii, mik), COMM_MPI, status_mpi, ierr)
         End Do
         
@@ -974,12 +974,12 @@ Do jj = 1,24
         ! Recv local parts of global result
         !------------------------------------------------------------------------------
         Do ii = 1, size_mpi-1
-            Call mpi_recv(glob_displ(res_sizes(1,ii):res_sizes(2,ii)-1), &
+            CALL mpi_recv(glob_displ(res_sizes(1,ii):res_sizes(2,ii)-1), &
                 Int(res_sizes(2,ii)-res_sizes(1,ii),mik), &
                 MPI_Integer8,  Int(ii, mik), Int(ii+size_mpi, mik), &
                 COMM_MPI, status_mpi, ierr)
 
-            Call mpi_recv(glob_force(res_sizes(1,ii):res_sizes(2,ii)-1), &
+            CALL mpi_recv(glob_force(res_sizes(1,ii):res_sizes(2,ii)-1), &
                 Int(res_sizes(2,ii)-res_sizes(1,ii),mik), &
                 MPI_Integer8,  Int(ii, mik), Int(ii+2*size_mpi, mik) , &
                 COMM_MPI, status_mpi, ierr)
@@ -989,23 +989,23 @@ Do jj = 1,24
         ! Add leaf with displacements to the results branch
         !------------------------------------------------------------------------------
         write(desc,'(A)') "Displacements"
-        call Add_Leaf_to_Branch(esd_result_branch%branches(1), trim(desc), m_size, glob_displ) 
+        CALL Add_Leaf_to_Branch(esd_result_branch%branches(1), trim(desc), m_size, glob_displ) 
 
         !------------------------------------------------------------------------------
         ! Add leaf with resultant forces to the results branch
         !------------------------------------------------------------------------------
         write(desc,'(A)') "Reaction Forces"
-        call Add_Leaf_to_Branch(esd_result_branch%branches(2), trim(desc), m_size, glob_force) 
+        CALL Add_Leaf_to_Branch(esd_result_branch%branches(2), trim(desc), m_size, glob_force) 
 
 
         If (out_amount == "DEBUG") THEN 
             write(desc,'(A,I2.2)') "DispRes", jj
-            Call write_vtk_data_Real8_vector_1D(matrix = reshape(glob_displ, &
+            CALL write_vtk_data_Real8_vector_1D(matrix = reshape(glob_displ, &
                 [3,size(glob_displ)/3]), filename = trim(filename),  &
                 desc = trim(desc), head = .FALSE., location="POINT_DATA")
 
             write(desc,'(A,I2.2)') "ForcRes", jj
-            Call write_vtk_data_Real8_vector_1D(matrix = reshape(glob_force, &
+            CALL write_vtk_data_Real8_vector_1D(matrix = reshape(glob_force, &
                 [3,size(glob_force)/3]), filename = trim(filename),  &
                 desc = trim(desc), head = .FALSE., location="POINT_DATA")
         End if
@@ -1040,33 +1040,72 @@ End if
 !------------------------------------------------------------------------------
 CALL MatDestroy(AA,     petsc_ierr)
 CALL MatDestroy(AA_org, petsc_ierr)
-Call VecDestroy(XX,     petsc_ierr)
+CALL VecDestroy(XX,     petsc_ierr)
 
 Do ii = 1, 24
-    Call VecDestroy(FF(ii), petsc_ierr)
+    CALL VecDestroy(FF(ii), petsc_ierr)
 End Do
 
 End Subroutine exec_single_domain
 
-!============================================================================
-!> Broadcast sequence to stop slave procs correctly
-Subroutine stop_slaves(text)
+!------------------------------------------------------------------------------
+! SUBROUTINE: Broadcast sequence to stop slave procs correctly
+!------------------------------------------------------------------------------
+!> @author Ralf Schneider - HLRS - NUM - schneider@hlrs.de
+!
+!> @brief
+!> Stop a program.
+!------------------------------------------------------------------------------  
+Subroutine stop_slaves()
 
-    Character(len=*), intent(In) :: text
-    Integer(mik)              :: ierr
-    
-    Write(un_mon, FMT_ERR)
-    Write(un_mon, FMT_ERR) trim(text)
-    Write(un_mon, FMT_ERR_STOP)
-    
-    Call mpi_bcast(pro_path, INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
-    
-    Call mpi_bcast(pro_name, INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
-    
-    ! Bcast Serial_root_size = -1 ==> Signal for slave to stop
-    Call mpi_bcast(-1_ik, 1_mik, MPI_INTEGER8, 0_mik, MPI_COMM_WORLD, ierr)
+Integer(mik) :: ierr
+
+CALL mpi_bcast(pro_path, INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
+CALL mpi_bcast(pro_name, INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
+!------------------------------------------------------------------------------
+! Bcast Serial_root_size = -1 ==> Signal for slave to stop
+!------------------------------------------------------------------------------
+CALL mpi_bcast(-1_ik, 1_mik, MPI_INTEGER8, 0_mik, MPI_COMM_WORLD, ierr)
 
 End Subroutine stop_slaves
+
+!------------------------------------------------------------------------------
+! SUBROUTINE: Broadcast sequence to stop slave procs correctly and print a mssg
+!------------------------------------------------------------------------------
+!> @author Johannes Gebert - HLRS - NUM - gebert@hlrs.de
+!
+!> @brief
+!> Stop a program. Tailored to the DTC/struct-process. Basically a wrapper.
+!------------------------------------------------------------------------------  
+SUBROUTINE print_err_stop_slaves(text, tag)
+
+CHARACTER(LEN=*) , INTENT(IN) :: text
+CHARACTER(LEN=*) , INTENT(IN), OPTIONAL :: tag
+
+CHARACTER(LEN=SCL) :: tag_used, frmt, frmt_stp
+Integer(mik) :: ierr
+
+tag_used = ""
+IF (PRESENT(tag)) tag_used=tag
+
+SELECT CASE (tag_used)
+CASE ("warning")
+    frmt     = FMT_WRN
+    frmt_stp = FMT_WRN_STOP
+CASE ("message")
+    frmt     = FMT_MSG
+    frmt_stp = FMT_MSG_STOP
+CASE DEFAULT
+    frmt     = FMT_ERR
+    frmt_stp = FMT_ERR_STOP
+END SELECT
+
+WRITE(std_out, frmt) TRIM(text)
+WRITE(std_out, frmt_stp)
+
+CALL stop_slaves()
+
+END SUBROUTINE print_err_stop_slaves
 
 End Module sp_aux_routines
 
@@ -1119,7 +1158,8 @@ INTEGER(KIND=mik) :: Active, request, finished, worker_comm
 INTEGER(KIND=mik), Dimension(no_streams)       :: fh_mpi, fh_mpi_worker
 INTEGER(KIND=mik), Dimension(MPI_STATUS_SIZE)  :: status_mpi
 INTEGER(KIND=mik), Dimension(:,:), Allocatable :: statuses_mpi
-INTEGER(KIND=mik), Dimension(:)  , Allocatable :: Activity, req_list
+INTEGER(KIND=mik), Dimension(:)  , Allocatable :: worker_is_active, req_list
+INTEGER(KIND=mik) :: mii, mjj
 
 CHARACTER(Len=mcl)  :: link_name = 'struct process'
 
@@ -1142,11 +1182,13 @@ CHARACTER(LEN=1)     :: restart='N', restart_cmd_arg='U' ! U = 'undefined'
 REAL(KIND=rk), DIMENSION(3) :: delta
 REAL(KIND=rk) :: strain
 
-INTEGER(KIND=ik), DIMENSION(:), ALLOCATABLE :: Domains, Domain_stats, act_domains, nn_D
+INTEGER(KIND=ik), DIMENSION(:), ALLOCATABLE :: Domains, workers_assigned_domains, nn_D
+INTEGER(KIND=ik), DIMENSION(:), ALLOCATABLE :: Domain_stats
+
 INTEGER(KIND=ik), DIMENSION(3) :: xa_d, xe_d, vdim
 
-INTEGER(KIND=ik) :: nn, ii, jj, kk, dc, stat
-INTEGER(KIND=ik) :: Domain_number, path_count, tmp_un
+INTEGER(KIND=ik) :: nn, ii, jj, kk, dc, stat, computed_domains = 0
+INTEGER(KIND=ik) :: No_of_domains, path_count, tmp_un
 INTEGER(KIND=ik) :: alloc_stat, aun, free_file_handle
 INTEGER(KIND=ik) :: Domain, llimit, parts, elo_macro
 
@@ -1155,33 +1197,35 @@ INTEGER(KIND=pd_ik), DIMENSION(no_streams) :: dsize, removed_data
 
 INTEGER(KIND=pd_ik) :: serial_root_size
 
-LOGICAL :: success, fexist, heaxist, stp = .FALSE.
+LOGICAL :: success, stat_exists, heaxist, stp = .FALSE., create_new_header = .FALSE.
 
 !----------------------------------------------------------------------------
-
 CALL mpi_init(ierr)
-CALL print_err_stop(std_out, "MPI_INIT didn't succeed", INT(ierr, KIND=ik))
+CALL print_err_stop(std_out, "MPI_INIT didn't succeed", ierr)
 
 CALL MPI_COMM_RANK(MPI_COMM_WORLD, rank_mpi, ierr)
-CALL print_err_stop(std_out, "MPI_COMM_RANK couldn't be retrieved", INT(ierr, KIND=ik))
+CALL print_err_stop(std_out, "MPI_COMM_RANK couldn't be retrieved", ierr)
 
 CALL MPI_COMM_SIZE(MPI_COMM_WORLD, size_mpi, ierr)
-CALL print_err_stop(std_out, "MPI_COMM_SIZE couldn't be retrieved", INT(ierr, KIND=ik))
-
-If (size_mpi < 2) CALL print_err_stop(std_out, "We need at least 2 MPI processes to execute this program.", 1)
+CALL print_err_stop(std_out, "MPI_COMM_SIZE couldn't be retrieved", ierr)
 
 !------------------------------------------------------------------------------
 ! Rank 0 -- Init (Master) Process and broadcast init parameters 
 !------------------------------------------------------------------------------
-If (rank_mpi==0) Then
+If (rank_mpi == 0) THEN
 
-    Call Start_Timer("Init Process")
+    If (size_mpi < 2) THEN
+        mssg = "We need at least 2 MPI processes to execute this program."
+        CALL print_err_stop_slaves(mssg); GOTO 1000
+    END IF 
+
+    CALL Start_Timer("Init Process")
 
     !------------------------------------------------------------------------------
     ! Parse the command arguments
     !------------------------------------------------------------------------------
     CALL get_cmd_args(binary, in%full, stp, restart_cmd_arg, cmd_arg_history)
-    IF(stp) GOTO 1001
+    IF(stp) GOTO 1000
     
     IF (in%full=='') THEN
         CALL usage(binary)    
@@ -1189,7 +1233,8 @@ If (rank_mpi==0) Then
         !------------------------------------------------------------------------------
         ! On std_out since file of std_out is not spawned
         !------------------------------------------------------------------------------
-        CALL print_err_stop(6, "No input file given", 1)
+        mssg = "No input file given"
+        CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF
 
     !------------------------------------------------------------------------------
@@ -1238,6 +1283,7 @@ If (rank_mpi==0) Then
     CALL meta_read('MICRO_ELMNT_TYPE' , m_rry, elt_micro)
     CALL meta_read('OUT_FMT'          , m_rry, output)
     CALL meta_read('RESTART'          , m_rry, restart)
+write(*,*) "Restart: ", restart
     CALL meta_read('SIZE_DOMAIN'      , m_rry, bone%phdsize)
     CALL meta_read('SPACING'          , m_rry, bone%delta)
     CALL meta_read('DIMENSIONS'       , m_rry, vdim)
@@ -1252,9 +1298,12 @@ If (rank_mpi==0) Then
 
     !------------------------------------------------------------------------------
     ! Restart handling
-    ! Done after meta_io to decide based on keywords
     !------------------------------------------------------------------------------
-    CALL meta_handle_lock_file(restart, restart_cmd_arg)
+    ! Standard lock file of MeRaDat not used, because it would interfere with the 
+    ! status file of the struct process. 
+    !------------------------------------------------------------------------------
+    ! CALL meta_handle_lock_file(restart, restart_cmd_arg)
+    CALL meta_compare_restart(restart, restart_cmd_arg)
 
     !------------------------------------------------------------------------------
     ! Spawn a results file
@@ -1262,7 +1311,7 @@ If (rank_mpi==0) Then
     ! This log file may collide with the original log file (!)
     ! The regular struct_process log file contains still has the "old" basename!
     !------------------------------------------------------------------------------
-    CALL meta_start_ascii(fhmon, mon_suf)
+    CALL meta_start_ascii(fh_mon, mon_suf)
     
     IF (std_out/=6) CALL meta_start_ascii(std_out, '.std_out')
 
@@ -1272,24 +1321,29 @@ If (rank_mpi==0) Then
     ! Warning / Error handling
     !------------------------------------------------------------------------------
     IF ( (bone%phdsize(1) /= bone%phdsize(2)) .OR. (bone%phdsize(1) /= bone%phdsize(3)) ) THEN
-        CALL print_err_stop(std_out, 'Currently, all 3 dimensions of the physical domain size must be equal!', 1)
+        mssg = 'Currently, all 3 dimensions of the physical domain size must be equal!'
+        CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF
     
     IF ( (delta(1) /= delta(2)) .OR. (delta(1) /= delta(3)) ) THEN
-        CALL print_err_stop(std_out, 'Currently, the spacings of all 3 dimensions must be equal!', 1)
+        mssg = 'Currently, the spacings of all 3 dimensions must be equal!'
+        CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF
 
     IF ( (xa_d(1) > xe_d(1)) .OR. (xa_d(2) > xe_d(2)) .or. (xa_d(3) > xe_d(3)) ) THEN
-        CALL print_err_stop(std_out, 'Input parameter error: Start value of domain range larger than end value.', 1)
+        mssg = 'Input parameter error: Start value of domain range larger than end value.'
+        CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF
 
+    !------------------------------------------------------------------------------
     ! Program breaks if the phdsize is not taking the boundary nodes into account (!).
     ! Therefore, the boundaries are calculated with + 2 Voxels
-    IF((bone%phdsize(1) > (vdim(1) + 2_ik)*bone%delta(1)) .OR. & 
+    !------------------------------------------------------------------------------
+    IF ((bone%phdsize(1) > (vdim(1) + 2_ik)*bone%delta(1)) .OR. & 
         (bone%phdsize(2) > (vdim(2) + 2_ik)*bone%delta(2)) .OR. & 
         (bone%phdsize(3) > (vdim(3) + 2_ik)*bone%delta(3))) THEN
-        CALL print_err_stop(std_out, &
-            'The domains are larger than the field of view.', 1)
+        mssg = 'The domains are larger than the field of view.'
+        CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF
     
     !------------------------------------------------------------------------------
@@ -1298,17 +1352,20 @@ If (rank_mpi==0) Then
     ! Ideally, all processors are used. Therefore, MOD(size_mpi-1, parts) shall 
     ! resolve without a remainder. "-1" to take the master process into account.
     !------------------------------------------------------------------------------
+    ! This dependency is checked after the restart handling again.
+    !------------------------------------------------------------------------------
     IF (MOD(size_mpi-1, parts) /= 0) THEN
-        CALL print_err_stop(std_out, 'mod(size_mpi-1,parts) /= 0 ! This case is not supported.', 1)
-    END IF
-
+        mssg = 'mod(size_mpi-1,parts) /= 0 ! This case is not supported.'
+        CALL print_err_stop_slaves(mssg); GOTO 1000
+    END IF 
+    
     !------------------------------------------------------------------------------
     ! Raise and build meta_para tree
     ! Hardcoded, implicitly given order of the leafs. 
     ! DO NOT CHANGE ORDER WITHOUT MODIFYING ALL OTHER INDICES REGARDING »meta_para«
     !------------------------------------------------------------------------------
     Allocate(meta_para)
-    Call raise_tree("Input parameters", meta_para)
+    CALL raise_tree("Input parameters", meta_para)
 
     CALL add_leaf_to_branch(meta_para, "muCT puredat pro_path"                , mcl , str_to_char(muCT_pd_path)) 
     CALL add_leaf_to_branch(meta_para, "muCT puredat pro_name"                , mcl , str_to_char(muCT_pd_name)) 
@@ -1332,7 +1389,7 @@ If (rank_mpi==0) Then
     CALL add_leaf_to_branch(meta_para, "Number of voxels per direction", 3_ik           , vdim) 
 
     !------------------------------------------------------------------------------
-    ! Prepare output directory via calling the c function.
+    ! Prepare output directory via CALLing the c function.
     ! Required, because INQUIRE only acts on files, not on directories.
     ! File exists if stat_c_int = 0 
     !------------------------------------------------------------------------------
@@ -1344,129 +1401,148 @@ If (rank_mpi==0) Then
         CALL execute_command_line("mkdir -p "//TRIM(outpath),CMDSTAT=stat)
 
         IF(stat /= 0) THEN
-        CALL print_err_stop(std_out, 'Could not execute syscall »mkdir -p '//trim(outpath)//'«.', 1)
-        END IF 
-
+            mssg = 'Could not execute syscall »mkdir -p '//trim(outpath)//'«.'
+            CALL print_err_stop_slaves(mssg); GOTO 1000
+        END IF
+        
         CALL Stat_Dir(c_char_array, stat_c_int)
 
         IF(stat_c_int /= 0) THEN
-        CALL print_err_stop(std_out, 'Could not create the output directory »'//TRIM(outpath)//'«.', 1)
+            mssg = 'Could not create the output directory »'//TRIM(outpath)//'«.'
+            CALL print_err_stop_slaves(mssg); GOTO 1000
         END IF
     ELSE 
-        WRITE(un_mon, FMT_MSG) "Reusing the output directory"
-        WRITE(un_mon, FMT_MSG) TRIM(outpath)
+        WRITE(fh_mon, FMT_MSG) "Reusing the output directory"
+        WRITE(fh_mon, FMT_MSG) TRIM(outpath)
     END IF
 
     CALL link_start(link_name, .TRUE., .FALSE., success)
-    IF (.NOT. success) CALL print_err_stop(std_out, "Something went wrong during link_start", 1)
-   
+    IF (.NOT. success) THEN
+        mssg = "Something went wrong during link_start"
+        CALL print_err_stop_slaves(mssg); GOTO 1000
+    END IF
+        
     !------------------------------------------------------------------------------
     ! Allocate and init field for selected domain range
+    ! Required for the worker_is_active tracking
+    ! Required for steering the allocation of memory for writing data into 
+    ! the stream files (raise leaves etc.)
     !------------------------------------------------------------------------------
-    Domain_number = (xe_d(1)-xa_d(1)+1) * (xe_d(2)-xa_d(2)+1) * (xe_d(3)-xa_d(3)+1)
+    No_of_domains = (xe_d(1)-xa_d(1)+1) * (xe_d(2)-xa_d(2)+1) * (xe_d(3)-xa_d(3)+1)
 
-    Allocate(Domains(Domain_number),stat=alloc_stat)
-    Call alloc_err("Domains",alloc_stat)
+    Allocate(Domains(No_of_domains), stat=alloc_stat)
+    CALL alloc_err("Domains", alloc_stat)
 
-    Allocate(Domain_stats(Domain_number),stat=alloc_stat)
-    Call alloc_err("Domain_stats",alloc_stat)
+    Allocate(Domain_stats(No_of_domains), stat=alloc_stat)
+    CALL alloc_err("Domain_stats", alloc_stat)
+    Domain_stats = 0
 
-    Allocate(domain_path(0:Domain_number))
+    Allocate(domain_path(0:No_of_domains))
     domain_path = ''
 
-
     !------------------------------------------------------------------------------
-    ! New activity tracker unit
+    ! Check whether there already is a project header and an worker_is_active tracker
+    ! Header-files are PureDat, not MeRaDat. Therefore via pro_path/pro_name
     !------------------------------------------------------------------------------
+    INQUIRE(FILE = TRIM( in%p_n_bsnm)//".head", EXIST=heaxist)
+    INQUIRE(FILE = TRIM(out%p_n_bsnm)//".status", EXIST=stat_exists)
     aun = give_new_unit()
 
     !------------------------------------------------------------------------------
-    ! Check whether there already is a project header
+    ! Check if input header exists. If not --> create one.
     !------------------------------------------------------------------------------
-    INQUIRE(FILE=TRIM(pro_path)//TRIM(pro_name)//'.head', EXIST=heaxist)
+    IF(.NOT. heaxist) THEN
+        free_file_handle = give_new_unit()
+        CALL convert_meta_to_puredat(free_file_handle, m_rry)
+    END IF
 
+    !------------------------------------------------------------------------------
+    ! Check if output header exists. If not --> Internally reset to restart='N'.
+    !------------------------------------------------------------------------------
+    INQUIRE(FILE = TRIM(pro_path)//TRIM(pro_name)//".head", EXIST=heaxist)
+
+    IF((restart == 'Y') .AND. (.NOT. heaxist)) create_new_header=.TRUE.
+
+
+
+write(*,*) "Restart: ", restart
     !------------------------------------------------------------------------------
     ! The Output name normally is different than the input name.
     ! Therefore, an existing header implies a restart.
     !------------------------------------------------------------------------------
-    IF (restart == 'N') THEN ! Project header not available
-
-        IF(heaxist) CALL print_err_stop(std_out, &
-            "Restart requested, but header already exists", 1)
+    IF ((restart == 'N') .OR. (create_new_header)) THEN ! BasiCALLy a completely new computation
 
         !------------------------------------------------------------------------------
-        ! Create a PureDat header file, based on the meta file and the raw bin blob
+        ! project_name --> out%p_n_bsnm/bsnm --> subdirectory with file name = bsnm.suf
         !------------------------------------------------------------------------------
-        free_file_handle = give_new_unit()
-        CALL convert_meta_to_puredat(free_file_handle, m_rry)
+        IF ((stat_exists) .AND. (.NOT. create_new_header)) THEN
+            mssg = "No restart requested, but the file '"&
+                //TRIM(out%p_n_bsnm)//".status' already exists."
+            CALL print_err_stop_slaves(mssg, "warning"); GOTO 1000
+        END IF 
 
+write(*,*) "Restart: dafuq!"
         !------------------------------------------------------------------------------
         ! project_name --> out%p_n_bsnm/bsnm --> subdirectory with file name = bsnm.suf
         !------------------------------------------------------------------------------
         ! Tree which is fed back = root. A collection of stream paths and Null pointers
         !------------------------------------------------------------------------------
-        Call raise_tree(Trim(project_name), root)
+        CALL raise_tree(Trim(project_name), root)
 
         !------------------------------------------------------------------------------
         ! Source branch / target branch
         !------------------------------------------------------------------------------
-        Call include_branch_into_branch(s_b=meta_para, t_b=root, blind=.TRUE.)
+        CALL include_branch_into_branch(s_b=meta_para, t_b=root, blind=.TRUE.)
 
         !------------------------------------------------------------------------------
         ! Read an existing input tree (with microfocus ct data).
         !------------------------------------------------------------------------------
         ! Load puredat tree of micro-CT data and calculate the global
         ! parameters of the domain decomposition
+        !------------------------------------------------------------------------------
         pro_path = muCT_pd_path
         pro_name = muCT_pd_name
 
         phi_tree = read_tree()
 
+        !------------------------------------------------------------------------------
         ! Set project name and path of global domain decomposition     
+        !------------------------------------------------------------------------------
         pro_path = outpath
         pro_name = project_name
 
         allocate(ddc)
         ddc = calc_general_ddc_params(bone%phdsize, phi_tree)
         
-        call include_branch_into_branch(s_b=ddc, t_b=root, blind=.TRUE.)
-
-        !------------------------------------------------------------------------------
-        ! Initialize the activity tracker.
-        !------------------------------------------------------------------------------
-        OPEN(aun, FILE=TRIM(outpath)//"/"//trim(project_name)//".status", &
-            ACTION="WRITE", STATUS="REPLACE", ACCESS="STREAM")
-
-        Domain_stats = 1_ik
-
-        WRITE(aun) Domain_stats
-        FLUSH(aun)
-
+        CALL include_branch_into_branch(s_b=ddc, t_b=root, blind=.TRUE.)
+        
     ELSE ! restart = 'Y'         
-
-        IF(.NOT. heaxist) THEN  
-            mssg="Restart requested, but header does not exist. &
-            &Please specify 'RESTART = N' if there was no previous computation. &
-            &Currently, the restart procedure does not support an automatic switch &
-            &to 'RESTART = N'."
-            CALL print_err_stop(std_out, mssg, 1)
-        END IF
 
         !------------------------------------------------------------------------------
         ! Read an existing output tree (with microfocus ct data).
+        ! Characteristics of PureDat and MeRaDat require this chicken dance...
         !------------------------------------------------------------------------------
+        ! pro_path = TRIM(in%path)
+        ! pro_name = TRIM(in%bsnm)
+write(*,*) "root path: "//TRIM(pro_path)//TRIM(pro_name)
+
         root = read_tree()
 
+        pro_path = outpath
+        pro_name = project_name
+write(*,*) "root path: "//TRIM(pro_path)//TRIM(pro_name)
+        !------------------------------------------------------------------------------
+        
         If (out_amount == "DEBUG") THEN 
-           WRITE(un_lf, fmt_dbg_sep)
-           Write(un_lf,'(A)') "root right after restart read"
-           Call log_tree(root,un_lf,.FALSE.)
-           WRITE(un_lf, fmt_dbg_sep)
-           flush(un_lf)
+            WRITE(un_lf, fmt_dbg_sep)
+            Write(un_lf,'(A)') "root right after restart read"
+            CALL log_tree(root,un_lf,.FALSE.)
+            WRITE(un_lf, fmt_dbg_sep)
+            flush(un_lf)
         END If
        
         !------------------------------------------------------------------------------
-        ! This calling sequence is only valid since "Averaged Material 
+        ! This CALLing sequence is only valid since "Averaged Material 
         ! Properties" only contains r8 data added at the end of the 
         ! r8-stream. More correct would be a routine that ensures data
         ! integrity and compresses potentially missing stream data in
@@ -1486,111 +1562,136 @@ If (rank_mpi==0) Then
 
         IF (.NOT. success) THEN
             mssg = "No branch named 'Global domain decomposition', however a restart was requested."
-            CALL print_err_stop(std_out, mssg, 1)
+            CALL print_err_stop_slaves(mssg); GOTO 1000
         END IF
 
         CALL search_branch("Input parameters", root, meta_para, success)
 
         IF (.NOT. success) then
             mssg = "No branch named 'Input parameters', however a restart was requested."
-            CALL print_err_stop(std_out, mssg, 1)
+            CALL print_err_stop_slaves(mssg); GOTO 1000
         END IF
 
         !------------------------------------------------------------------------------
         ! Reset Output amount and Restart in loaded param branch
-        ! Hardcoded, implicitly given order of the leafs. 
+        ! Hardcoded, implicitly given order of the leaves. 
         ! DO NOT CHANGE INDICES WITHOUT MODYFING THE »add_leaf_to_branch« SEQUENCES.
         !------------------------------------------------------------------------------
         meta_para%leaves(15)%p_char = str_to_char(out_amount)
         meta_para%leaves(16)%p_char = "Y"
 
-         If (out_amount == "DEBUG") THEN 
+        If (out_amount == "DEBUG") THEN 
             Write(un_lf,fmt_dbg_sep)
             Write(un_lf,'(A)') "root right after restart and deletion of avg mat props branch"
-            Call log_tree(root,un_lf,.FALSE.)
-            Write(un_lf,fmt_dbg_sep)
+            CALL log_tree(root,un_lf,.FALSE.)
+            Write(un_lf, fmt_dbg_sep)
             flush(un_lf)
-         END If
+        END If
 
-        !------------------------------------------------------------------------------
-        ! Read the activity tracker.
-        !------------------------------------------------------------------------------
-        INQUIRE(aun, EXIST=fexist)
+    END IF ! restart == Yes/No
 
-        IF (.NOT. fexist) THEN
-            mssg='The file '//TRIM(outpath)//"/"//trim(project_name)//"does not exist."//'.'
-            CALL print_err_stop(std_out, TRIM(ADJUSTL(mssg)), 1_ik)
-        END IF
-
-        ! Open to read
-        OPEN(aun, FILE=TRIM(outpath)//"/"//trim(project_name)//".status", &
-        ACTION="READ", STATUS="OLD", ACCESS="STREAM")
-
+    !------------------------------------------------------------------------------
+    ! Initial setup of the worker_is_active tracker
+    !------------------------------------------------------------------------------
+    ! Tracker writes 0       if: Space within tracking is not occupied by a domain
+    ! Tracker writes +Number if: Domain is computed successfully
+    ! Tracker writes -Number if: Domain is in computation
+    !
+    ! Shift all Domains by +1 to avoid "domain 0"
+    !
+    ! If the position within the tracking file is implicitely connected to the 
+    ! domain number, changes to the domain range before restart will crash the 
+    ! computations (!)
+    !------------------------------------------------------------------------------
+    IF (stat_exists) THEN
+        OPEN(aun, FILE=TRIM(out%p_n_bsnm)//".status", &
+            ACTION="READWRITE", STATUS="OLD", ACCESS="STREAM")
+        
         READ(aun) Domain_stats
+        REWIND(aun)
+ 
+        !------------------------------------------------------------------------------
+        ! Check whether computation will use resources properly.
+        !------------------------------------------------------------------------------
+        DO ii=1, SIZE(domain_stats)
+            IF (domain_stats(ii) > 0) computed_domains = computed_domains + 1 
+        END DO
 
-        CLOSE(aun)
+        IF (No_of_domains == computed_domains) THEN 
+            mssg = "Job is already finished. No restart required."
+            CALL print_err_stop_slaves(mssg, "message"); GOTO 1000
+        END IF 
+        
+    ELSE
+        OPEN(aun, FILE=TRIM(out%p_n_bsnm)//".status", &
+            ACTION="READWRITE", STATUS="NEW", ACCESS="STREAM")
+        WRITE(aun) Domain_stats
+        FLUSH(aun)
+    END IF ! (stat_exists)
 
-        ! Open to write
-        OPEN(aun, FILE=TRIM(outpath)//"/"//trim(project_name)//".status", &
-            ACTION="WRITE", STATUS="OLD", ACCESS="STREAM")
-
-      END IF ! restart == Yes/No
-         
-      Call pd_get(ddc,"nn_D", nn_D)
-
-     ! Init Result branch
-     !if ( Restart == "N" ) Then
-     
-     Call add_branch_to_branch(root, result_branch)
-     Call raise_branch("Averaged Material Properties", 0_pd_ik, 18_pd_ik, result_branch)
-     
-     Call raise_leaves(no_leaves = 18_pd_ik, &
-          desc = [ &
-          "Domain forces                                     ", &
-          "Effective numerical stiffness                     ", &
-          "Symmetry deviation - effective numerical stiffness", &
-          "Averaged stresses                                 ", &
-          "Averaged strains                                  ", &
-          "Effective stiffness                               ", &
-          "Symmetry deviation - effective stiffness          ", &
-          "Averaged Effective stiffness                      ", &
-          "Symmetry deviation - Averaged effective stiffness ", &
-          "Rotation Angle CR_1                               ", &
-          "Rotation Vector CR_1                              ", &
-          "Final coordinate system CR_1                      ", &
-          "Optimized Effective stiffness CR_1                ", &
-          "Rotation Angle CR_2                               ", &
-          "Rotation Vector CR_2                              ", &
-          "Final coordinate system CR_2                      ", &
-          "Optimized Effective stiffness CR_2                ", &
-          "Effective density                                 "], &
-          dat_ty = [(5_1, ii=1,18)], &
-          dat_no = [ &
-          Domain_number * 24*24, Domain_number * 24*24, Domain_number        , &
-          Domain_number *  6*24, Domain_number *  6*24, Domain_number *  6* 6, &
-          Domain_number        , Domain_number *  6* 6, Domain_number        , &
-          Domain_number        , Domain_number *     3, Domain_number *     9, &
-          Domain_number *  6* 6, Domain_number        , Domain_number *     3, &
-          Domain_number *     9, Domain_number *  6* 6, Domain_number       ], &
-          branch = result_branch)
-     
-     result_branch%leaves(:)%pstat = -1
-     
-     Call set_bounds_in_branch(root, root%streams)
-     
-     !End If
-     
-     If (out_amount == "DEBUG") THEN 
-        Write(un_lf,fmt_dbg_sep)
-        Write(un_lf,'(A)') "root right before serialisation"
-        Call log_tree(root,un_lf,.True.)
-        Write(un_lf,fmt_dbg_sep)
+    !------------------------------------------------------------------------------
+    ! Check whether computation will use resources properly.
+    ! Check outside Yes/No if/else because the amount of remaining domains
+    ! determines the (re-)start of the job.
+    !------------------------------------------------------------------------------
+    IF ((No_of_domains - computed_domains) * parts /= size_mpi - 1) THEN
+        mssg = "Remaining domains * parts /= /= size_mpi - 1"
+        CALL print_err_stop_slaves(mssg); GOTO 1000
+    END IF
+    
+    CALL add_branch_to_branch(root, result_branch)
+    CALL raise_branch("Averaged Material Properties", 0_pd_ik, 18_pd_ik, result_branch)
+    
+    CALL raise_leaves(no_leaves = 18_pd_ik, &
+        desc = [ &
+        "Domain forces                                     ", &
+        "Effective numerical stiffness                     ", &
+        "Symmetry deviation - effective numerical stiffness", &
+        "Averaged stresses                                 ", &
+        "Averaged strains                                  ", &
+        "Effective stiffness                               ", &
+        "Symmetry deviation - effective stiffness          ", &
+        "Averaged Effective stiffness                      ", &
+        "Symmetry deviation - Averaged effective stiffness ", &
+        "Rotation Angle CR_1                               ", &
+        "Rotation Vector CR_1                              ", &
+        "Final coordinate system CR_1                      ", &
+        "Optimized Effective stiffness CR_1                ", &
+        "Rotation Angle CR_2                               ", &
+        "Rotation Vector CR_2                              ", &
+        "Final coordinate system CR_2                      ", &
+        "Optimized Effective stiffness CR_2                ", &
+        "Effective density                                 "], &
+        dat_ty = [(5_1, ii=1,18)], &
+        dat_no = [ &
+        No_of_domains * 24*24, No_of_domains * 24*24, No_of_domains        , &
+        No_of_domains *  6*24, No_of_domains *  6*24, No_of_domains *  6* 6, &
+        No_of_domains        , No_of_domains *  6* 6, No_of_domains        , &
+        No_of_domains        , No_of_domains *     3, No_of_domains *     9, &
+        No_of_domains *  6* 6, No_of_domains        , No_of_domains *     3, &
+        No_of_domains *     9, No_of_domains *  6* 6, No_of_domains       ], &
+        branch = result_branch)
+    
+    result_branch%leaves(:)%pstat = -1
+    
+    CALL set_bounds_in_branch(root, root%streams)
+    
+    If (out_amount == "DEBUG") THEN 
+        Write(un_lf, fmt_dbg_sep)
+        Write(un_lf, '(A)') "root right before serialisation"
+        CALL log_tree(root,un_lf,.True.)
+        Write(un_lf, fmt_dbg_sep)
         flush(un_lf)
-     END If
+    END If
     !------------------------------------------------------------------------------
     ! serialize root branch
     !------------------------------------------------------------------------------
-    Call serialize_branch(root, serial_root, serial_root_size, .TRUE.)
+    CALL serialize_branch(root, serial_root, serial_root_size, .TRUE.)
+
+    !------------------------------------------------------------------------------
+    ! Get number of domains on each axis
+    !------------------------------------------------------------------------------
+    CALL pd_get(ddc,"nn_D", nn_D)
 
     !------------------------------------------------------------------------------
     ! Init Domain Cross Reference and domain paths
@@ -1601,90 +1702,55 @@ If (rank_mpi==0) Then
     nn = 1
     Do kk = xa_d(3), xe_d(3)
     Do jj = xa_d(2), xe_d(2)
-        Do ii = xa_d(1), xe_d(1)
-            
-            dc         = dc + 1_mik
-            path_count = dc / 2_mik
-            Write(domain_path(dc),'(A,"/",I0)')Trim(domain_path(path_count)),dc
+    Do ii = xa_d(1), xe_d(1)
+        dc         = dc + 1_mik
+        path_count = dc / 2_mik
 
-            Domains(nn) = ii + jj * nn_D(1)         + &
-                                kk * nn_D(1)*nn_D(2)
-            nn = nn + 1_mik
+        Write(domain_path(dc),'(A,"/",I0)')Trim(domain_path(path_count)),dc
 
-        End Do
+        Domains(nn) = ii + jj * nn_D(1) + kk * nn_D(1)*nn_D(2)
+
+        !------------------------------------------------------------------------------
+        ! Assign a negative domain number to the restart list. If the entry ist set
+        ! to a positive integer, the domain is computed.
+        !------------------------------------------------------------------------------
+        IF (Domain_stats(nn) <= 0) Domain_stats(nn) = - (Domains(nn)+1)
+
+        nn = nn + 1_mik
+    End Do
     End Do
     End Do
 
     !------------------------------------------------------------------------------
-    ! Generate Activity_List
+    ! Generate worker_is_active_List
     !------------------------------------------------------------------------------
-    Allocate(Activity(size_mpi-1), stat=alloc_stat)
-    Call alloc_err("Activity_List", alloc_stat)
+    Allocate(worker_is_active(size_mpi-1), stat=alloc_stat)
+    CALL alloc_err("worker_is_active_List", alloc_stat)
 
-    Activity=1
+    worker_is_active=0
 
-    Allocate(act_domains(size_mpi-1),stat=alloc_stat)
-    Call alloc_err("act_domains",alloc_stat)
+    Allocate(workers_assigned_domains(size_mpi-1), stat=alloc_stat)
+    CALL alloc_err("workers_assigned_domains",alloc_stat)
 
-     act_domains = 0
-     
-     If ( (Domain_number*parts < size_mpi-1) .OR. &
-          ( count( Domain_stats < 10 ) == 0 ) .OR. &
-          ((count( Domain_stats < 10 )*parts) < size_mpi-1) ) Then
-
-        If (Domain_number*parts < size_mpi-1) then
-           Write(un_mon,FMT_ERR_AxI0)"Domain_number: ", Domain_number
-           Write(un_mon,FMT_ERR_AxI0)"parts: ", parts
-           Write(un_mon,FMT_ERR_AxI0)"size_mpi-1: ", size_mpi-1
-           Write(un_mon,FMT_ERR)"Domain_number*parts < size_mpi-1"
-
-        Else If ((count( Domain_stats < 10 )*parts) < size_mpi-1) then
-           Write(un_mon, FMT_ERR)   "Remaining Domain_number < Number of Solution Master"
-           Write(un_mon, FMT_ERR_xAI0) "Remaining Domain_number:   ", count( Domain_stats < 10 )
-           Write(un_mon, FMT_ERR_xAI0) "Number of solution masters: ", (size_mpi-1)/parts
-        Else
-
-           Write(un_mon, FMT_ERR)"Restart on fully finished job."
-        End If
-        Write(un_mon, FMT_ERR)"This case is not supported."
-        
-        Call mpi_bcast(pro_path, INT(mcl,mik), MPI_CHAR, 0_mik,&
-                       MPI_COMM_WORLD, ierr)
-
-        Call mpi_bcast(pro_name, INT(mcl,mik), MPI_CHAR, 0_mik,&
-             MPI_COMM_WORLD, ierr)
-        
-        !------------------------------------------------------------------------------
-        ! Bcast Serial_root_size = -1 ==> Signal for slave to stop
-        !------------------------------------------------------------------------------
-        Call mpi_bcast(-1_ik, 1_mik, MPI_INTEGER8, 0_mik,&
-                        MPI_COMM_WORLD, ierr)
-
-        Call End_Timer("Init Process")
-
-        Goto 1000
-
-    End If
-
-    Call End_Timer("Init Process")
+    workers_assigned_domains = 0
+    CALL End_Timer("Init Process")
 
     !------------------------------------------------------------------------------
     ! Start Workers
     !------------------------------------------------------------------------------
-    Call Start_Timer("Broadcast Init meta_para")
-    
-    Call mpi_bcast(pro_path, INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
+    CALL Start_Timer("Broadcast Init meta_para")
 
-    Call mpi_bcast(pro_name, INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
+    CALL mpi_bcast(outpath,      INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
+    CALL mpi_bcast(project_name, INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
 
-    write(un_lf, FMT_MSG_xAI0)"Broadcasting serialized root of size [Byte] ", serial_root_size*8
-    
-    Call mpi_bcast(serial_root_size, 1_mik, MPI_INTEGER8, 0_mik, MPI_COMM_WORLD, ierr)
-    
-    Call mpi_bcast(serial_root, INT(serial_root_size,mik), MPI_INTEGER8, 0_mik,&
+    ! write(un_lf, FMT_MSG_xAI0)"Broadcasting serialized root of size [Byte] ", serial_root_size*8
+
+    CALL mpi_bcast(serial_root_size, 1_mik, MPI_INTEGER8, 0_mik, MPI_COMM_WORLD, ierr)
+
+    CALL mpi_bcast(serial_root, INT(serial_root_size,mik), MPI_INTEGER8, 0_mik,&
         MPI_COMM_WORLD, ierr)
 
-    Call End_Timer("Broadcast Init meta_para")
+    CALL End_Timer("Broadcast Init meta_para")
 
     !------------------------------------------------------------------------------
     ! Execute collective mpi_comm_split. Since mpi_comm_world rank 0 is
@@ -1692,112 +1758,110 @@ If (rank_mpi==0) Then
     ! any worker group and communicator. With MPI_UNDEFINED passed as
     ! color worker_comm gets the value MPI_COMM_NULL
     !------------------------------------------------------------------------------
-    Call MPI_Comm_split(MPI_COMM_WORLD, MPI_UNDEFINED, rank_mpi, worker_comm, ierr)
-    CALL print_err_stop(std_out, "MPI_COMM_SPLIT couldn't split MPI_COMM_WORLD", INT(ierr, KIND=ik))
+    CALL MPI_Comm_split(MPI_COMM_WORLD, MPI_UNDEFINED, rank_mpi, worker_comm, ierr)
+    IF (ierr /=0) THEN
+        mssg = "MPI_COMM_SPLIT couldn't split MPI_COMM_WORLD"
+        CALL print_err_stop_slaves(mssg); GOTO 1000
+    END IF 
 
 !------------------------------------------------------------------------------
 ! Ranks > 0 -- Worker slaves
 !------------------------------------------------------------------------------
 Else
+    CALL Start_Timer("Broadcast Init meta_para")
      
     !------------------------------------------------------------------------------
     ! Broadcast recieve init parameters
     !------------------------------------------------------------------------------
-    Call Start_Timer("Broadcast Init meta_para")
+    CALL mpi_bcast(outpath      , INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
+    CALL mpi_bcast(project_name , INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
+    CALL mpi_bcast(serial_root_size, 1_mik, MPI_INTEGER8, 0_mik, MPI_COMM_WORLD, ierr)
     
-    Call mpi_bcast(outpath         , INT(mcl,mik), MPI_CHAR    , 0_mik, MPI_COMM_WORLD, ierr)
-    Call mpi_bcast(project_name    , INT(mcl,mik), MPI_CHAR    , 0_mik, MPI_COMM_WORLD, ierr)
-    Call mpi_bcast(serial_root_size, 1_mik       , MPI_INTEGER8, 0_mik, MPI_COMM_WORLD, ierr)
+    pro_path = outpath
+    pro_name = project_name
 
     !------------------------------------------------------------------------------
-    ! Serial_root_size == -1 ==> Signal that Domain_number < size_mpi-1
+    ! Serial_root_size == -1 ==> Signal that No_of_domains < size_mpi-1
     !------------------------------------------------------------------------------
-    If ( serial_root_size == -1 ) then
-
-        Call End_Timer("Broadcast Init meta_para")
-        
-        Goto 1001
-
+    If (serial_root_size == -1) then
+        CALL End_Timer("Broadcast Init meta_para")
+        Goto 1000
     End If
     
     Allocate(serial_root(serial_root_size))
     
-    Call mpi_bcast(serial_root, INT(serial_root_size,mik), MPI_INTEGER8, 0_mik,&
+    CALL mpi_bcast(serial_root, INT(serial_root_size, mik), MPI_INTEGER8, 0_mik, &
         MPI_COMM_WORLD, ierr)
 
-    Call End_Timer("Broadcast Init meta_para")
+    CALL End_Timer("Broadcast Init meta_para")
 
     !------------------------------------------------------------------------------
     ! Deserialize root branch
     !------------------------------------------------------------------------------
-    Call Start_Timer("Deserialize root branch")
+    CALL Start_Timer("Deserialize root branch")
 
-    Call deserialize_branch(root, serial_root, .TRUE.)
-    Call assign_pd_root (root)
-    Call set_bounds_in_branch(root,root%streams)
+    CALL deserialize_branch(root, serial_root, .TRUE.)
+    CALL assign_pd_root(root)
+    CALL set_bounds_in_branch(root,root%streams)
 
     !------------------------------------------------------------------------------
     ! Commented out since out_amount is a parametrized global variable 
-    ! Call pd_get(root%branches(1),"Output amount", char_arr)
+    ! CALL pd_get(root%branches(1),"Output amount", char_arr)
     ! out_amount = char_to_str(char_arr)
     ! deallocate(char_arr)
     !------------------------------------------------------------------------------
-    
-    Call pd_get(root%branches(1),"Restart", char_arr)
+    CALL pd_get(root%branches(1),"Restart", char_arr)
     restart = char_to_str(char_arr)
     deallocate(char_arr)
 
-    Call End_Timer("Deserialize root branch")
+    CALL End_Timer("Deserialize root branch")
 
     !------------------------------------------------------------------------------
     ! Init Domain Cross Reference
     !------------------------------------------------------------------------------
-    Call pd_get(root%branches(1), "Lower bounds of selected domain range", xa_d, 3)
-    Call pd_get(root%branches(1), "Upper bounds of selected domain range", xe_d, 3)
+    CALL pd_get(root%branches(1), "Lower bounds of selected domain range", xa_d, 3)
+    CALL pd_get(root%branches(1), "Upper bounds of selected domain range", xe_d, 3)
     
-    Domain_number= (xe_d(1)-xa_d(1)+1) * &
-                    (xe_d(2)-xa_d(2)+1) * &
-                    (xe_d(3)-xa_d(3)+1)
+    No_of_domains = (xe_d(1)-xa_d(1)+1) * (xe_d(2)-xa_d(2)+1) * (xe_d(3)-xa_d(3)+1)
     
-    Allocate(Domains(Domain_number),stat=alloc_stat)
-    Call alloc_err("Domains",alloc_stat)
+    Allocate(Domains(No_of_domains),stat=alloc_stat)
+    CALL alloc_err("Domains",alloc_stat)
 
-    Call pd_get(root%branches(2),"nn_D", nn_D)
+    CALL pd_get(root%branches(2),"nn_D", nn_D)
     
+    !------------------------------------------------------------------------------
+    ! Linear vs ddc (3D) domain numbers. nn is a purely internal variable.
+    !------------------------------------------------------------------------------
     nn = 1
     Do kk = xa_d(3), xe_d(3)
-        Do jj = xa_d(2), xe_d(2)
-            Do ii = xa_d(1), xe_d(1)
-                
-                Domains(nn) = ii + jj * nn_D(1)         + &
-                                    kk * nn_D(1)*nn_D(2)
-                nn = nn + 1_mik
-
-            End Do
-        End Do
+    Do jj = xa_d(2), xe_d(2)
+    Do ii = xa_d(1), xe_d(1)
+        Domains(nn) = ii + jj * nn_D(1) + kk * nn_D(1)*nn_D(2)
+        nn = nn + 1_mik
+    End Do
+    End Do
     End Do
 
-    Call pd_get(root%branches(1),"No of mesh parts per subdomain", parts)
+    CALL pd_get(root%branches(1), "No of mesh parts per subdomain", parts)
 
     !------------------------------------------------------------------------------
     ! All Worker Ranks -- Init worker Communicators
     !------------------------------------------------------------------------------
-    Call MPI_Comm_split(MPI_COMM_WORLD, Int((rank_mpi-1)/parts,mik), &
-                        rank_mpi, worker_comm, ierr)
-    CALL print_err_stop(std_out, "MPI_COMM_SPLIT couldn't split MPI_COMM_WORLD", INT(ierr, KIND=ik))
+    CALL MPI_Comm_split(MPI_COMM_WORLD, Int((rank_mpi-1)/parts, mik), rank_mpi, worker_comm, ierr)
+    CALL print_err_stop(std_out, "MPI_COMM_SPLIT couldn't split MPI_COMM_WORLD", ierr)
     
-    Call MPI_COMM_RANK(WORKER_COMM, worker_rank_mpi, ierr)
-    CALL print_err_stop(std_out, "MPI_COMM_RANK couldn't retrieve worker_rank_mpi", INT(ierr, KIND=ik))
+    CALL MPI_COMM_RANK(WORKER_COMM, worker_rank_mpi, ierr)
+    CALL print_err_stop(std_out, "MPI_COMM_RANK couldn't retrieve worker_rank_mpi", ierr)
 
-    Call MPI_COMM_SIZE(WORKER_COMM, worker_size_mpi, ierr)
-    CALL print_err_stop(std_out, "MPI_COMM_SIZE couldn't retrieve worker_size_mpi", INT(ierr, KIND=ik))
+    CALL MPI_COMM_SIZE(WORKER_COMM, worker_size_mpi, ierr)
+    CALL print_err_stop(std_out, "MPI_COMM_SIZE couldn't retrieve worker_size_mpi", ierr)
 
     !------------------------------------------------------------------------------
     ! This sets the options for PETSc in-core. To alter the options
     ! add them in Set_PETSc_Options in Module pets_opt in file
     ! f-src/mod_parameters.f90
     !------------------------------------------------------------------------------
-    Call Set_PETSc_Options()
+    CALL Set_PETSc_Options()
 
     PETSC_COMM_WORLD = worker_comm
     CALL PetscInitialize(PETSC_NULL_CHARACTER, petsc_ierr)
@@ -1807,11 +1871,11 @@ End If
 ! All Ranks -- Init MPI request and status lists
 !------------------------------------------------------------------------------
 Allocate(req_list(size_mpi-1), stat=alloc_stat)
-Call alloc_err("req_list", alloc_stat)
-req_list=0 
+CALL alloc_err("req_list", alloc_stat)
+req_list=1 
 
-Allocate(statuses_mpi(MPI_STATUS_SIZE,size_mpi-1), stat=alloc_stat)
-Call alloc_err("statuses_mpi", alloc_stat)
+Allocate(statuses_mpi(MPI_STATUS_SIZE, size_mpi-1), stat=alloc_stat)
+CALL alloc_err("statuses_mpi", alloc_stat)
 
 !------------------------------------------------------------------------------
 ! Global Rank 0 -- Process master Start working process
@@ -1821,189 +1885,274 @@ If (rank_mpi==0) Then
     ! Only global rank 0 -- Init MPI IO-System
     !------------------------------------------------------------------------------
     ! Previous approach (serial, not parallel)
-    ! Call Open_Stream_Files(root%streams, "write", "replace")
-    ! Call Open_Stream_Files(root%streams, "write", "replace", fh_mpi, MPI_COMM_WORLD)
+    ! CALL Open_Stream_Files(root%streams, "write", "replace")
+    ! CALL Open_Stream_Files(root%streams, "write", "replace", fh_mpi, MPI_COMM_WORLD)
     !------------------------------------------------------------------------------
     ! Another possibility: Write the branches with information that is valid for 
     ! all ranks/domains to this root directory. The domain-specific results into
     ! the corresponding rank directories.
-    ! Call Open_Stream_Files(root%branches(1:2)streams, "write", "replace")
+    ! CALL Open_Stream_Files(root%branches(1:2)streams, "write", "replace")
     !------------------------------------------------------------------------------
-    call get_stream_size(root, dsize)
+    CALL get_stream_size(root, dsize)
 
-    If (out_amount == "DEBUG") THEN
-        write(un_mon,FMT_MSG_AxI0) "On rank zero, stream sizes: ", dsize
-    End If
+    If (out_amount == "DEBUG") &
+        write(fh_mon,FMT_MSG_AxI0) "On rank zero, stream sizes: ", dsize
     
-    nn = 1
-    ii = 1
+    nn = 1; mii = 1
 
     !------------------------------------------------------------------------------
-    ! Supply all worker masters  with their first work package
-    ! ii is incremented by ii = ii + parts
+    ! mii is incremented by mii = mii + parts
+    ! mii --> Worker master
     !------------------------------------------------------------------------------
-    Do While (ii <= (size_mpi-1_mik))
+    DO WHILE (nn <= No_of_domains) 
+    
+    ! (mii <= (size_mpi-1_mik))
 
-        if (nn > Domain_number) exit
-
-        If ( Domain_stats(nn) /= 1 ) then
-            nn = nn + 1_mik
+        !------------------------------------------------------------------------------
+        ! Skip this DO WHILE cycle if Domain_stat of the domain (nn) > 0 and therefore
+        ! marked as "already computed".
+        !------------------------------------------------------------------------------
+        If (Domain_stats(nn) > 0) then
+            nn = nn + 1_ik
             cycle
         End If
 
-         act_domains(ii) = nn
-
-        Do jj = ii, ii + parts-1
+        !------------------------------------------------------------------------------
+        ! Send information for all parts to the corresponding ranks.
+        ! From global "first worker rank of specific domain" to "global last worker 
+        ! rank of specific domain"
+        !------------------------------------------------------------------------------
+        ! jj --> Worker
+        !------------------------------------------------------------------------------
+        Do mjj = mii, mii + parts-1
             
-            !------------------------------------------------------------------------------
-            ! Activity = 1 (Set above during init)
-            !------------------------------------------------------------------------------
-            CALL mpi_send(Activity(jj), 1_mik, mpi_integer4, Int(jj,mik), Int(jj,mik), MPI_COMM_WORLD,ierr)
-            CALL print_err_stop(std_out, "MPI_SEND of activity didn't succeed", INT(ierr, KIND=ik))
+            req_list(mjj) = 1_mik
+            worker_is_active(mjj) = 1_mik
+            workers_assigned_domains(mjj) = nn
 
-            CALL mpi_send(nn, 1_mik, mpi_integer8, Int(jj,mik), Int(jj,mik), MPI_COMM_WORLD,ierr)
-            CALL print_err_stop(std_out, "MPI_SEND of Domain number didn't succeed", INT(ierr, KIND=ik))
+            !------------------------------------------------------------------------------
+            ! Start worker
+            !------------------------------------------------------------------------------
+            CALL mpi_send(worker_is_active(mjj), 1_mik, MPI_INTEGER4, mjj, mjj, MPI_COMM_WORLD, ierr)
+            CALL print_err_stop(std_out, "MPI_SEND of worker_is_active didn't succeed", ierr)
+
+            !------------------------------------------------------------------------------
+            ! Send Domain number
+            !------------------------------------------------------------------------------
+            CALL mpi_send(nn, 1_mik, MPI_INTEGER8, mjj, mjj, MPI_COMM_WORLD,ierr)
+            CALL print_err_stop(std_out, "MPI_SEND of Domain number didn't succeed", ierr)
             
             if (out_amount /= "PRODUCTION") then
-               Call mpi_send(domain_path(nn), Int(4_mik*mcl,mik), &
-                     MPI_CHARACTER, Int(jj,mik), Int(jj,mik), MPI_COMM_WORLD,ierr)
-               CALL print_err_stop(std_out, "MPI_SEND of Domain path didn't succeed", INT(ierr, KIND=ik))
+               CALL mpi_send(domain_path(nn), Int(4*mcl,mik), MPI_CHARACTER, mjj, mjj, MPI_COMM_WORLD,ierr)
+               CALL print_err_stop(std_out, "MPI_SEND of Domain path didn't succeed", ierr)
             End if
+
+            !------------------------------------------------------------------------------
+            ! Worker has finished
+            !------------------------------------------------------------------------------
+            CALL MPI_IRECV(worker_is_active(mjj), 1_mik, MPI_INTEGER4, mjj, mjj, MPI_COMM_WORLD, req_list(mjj), ierr)
+            CALL print_err_stop(std_out, "MPI_IRECV of worker_is_active(mjj) didn't succeed", ierr)
         End Do
          
         !------------------------------------------------------------------------------
-        ! Log to global stdout
+        ! Log to monitor file. Only for master worker!
         !------------------------------------------------------------------------------
-        Write(un_mon, FMT_MSG_xAI0) "MPI rank: ",ii, "      Domain number: ",Domains(nn)
-        flush(un_mon)
+        IF(out_amount == "DEBUG") THEN
+            WRITE(fh_mon, FMT_MSG_xAI0) "Domain ", nn, " at Ranks ", mii, " to ", mii + parts-1
+            flush(fh_mon)
+        END IF
 
+        !------------------------------------------------------------------------------
+        ! After all ranks have their first work package
+        !------------------------------------------------------------------------------
+        IF ((size_mpi-1_mik)/parts >= nn) THEN
+            !------------------------------------------------------------------------------
+            ! Only the master worker is allowed to send a 'finished' flag. 
+            ! Otherwise, index mii will screw up.
+            !------------------------------------------------------------------------------
+            CALL MPI_WAITANY(size_mpi-1_mik, req_list, finished, status_mpi, ierr)
+write(*,*) "Request list during send: ", req_list
+            CALL print_err_stop(std_out, &
+            "MPI_WAITANY on req_list for IRECV of worker_is_active(mii) didn't succeed", ierr)
+
+            IF(finished /= MPI_UNDEFINED) THEN
+                mii = finished
+
+                Domain_stats(nn) = (Domains(nn)+1)
+
+                !------------------------------------------------------------------------------
+                ! Job is finished.Now, write domain number to position of linear domain number.
+                !------------------------------------------------------------------------------
+write(*,*) "This domain number: ", Domains(nn)   
+                write(aun, pos=((nn-1) * ik + 1)) INT((Domains(nn)+1), KIND=ik)
+                flush(aun)
+            END IF
+        END IF
+
+        !------------------------------------------------------------------------------
+        ! iterate with step with of parts since the DO WHILE acts on all parts
+        ! in one iteration with a dedicated loop (jj = mii, mii+parts-1)
+        !------------------------------------------------------------------------------
+        mii = mii + Int(parts,mik)
+
+        !------------------------------------------------------------------------------
+        ! Iterate over domain
+        !------------------------------------------------------------------------------
         nn = nn + 1_mik
-        
-        Call MPI_IRECV(Activity(ii), 1_mik, MPI_INTEGER4, Int(ii,mik), Int(ii,mik), &
-            MPI_COMM_WORLD, REQ_LIST(ii), IERR)
-        CALL print_err_stop(std_out, "MPI_IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
-
-        ii = ii + Int(parts,mik)
-
     End Do
 
-    If ( restart == "N" ) then
-        !------------------------------------------------------------------------------
-        ! Add leaf with analyzed cube numbers to root
-        !------------------------------------------------------------------------------
-        Call add_leaf_to_branch(root, "Domain Numbers", Domain_number, Domains)
-        Call set_bounds_in_branch(root, root%streams)
-    End If
+    ! If ( restart == "N" ) then
+    !     !------------------------------------------------------------------------------
+    !     ! Add leaf with analyzed cube numbers to root
+    !     !------------------------------------------------------------------------------
+    !     CALL add_leaf_to_branch(root, "Number of domains", No_of_domains, Domains)
+    !     CALL set_bounds_in_branch(root, root%streams)
+    ! End If
 
     !------------------------------------------------------------------------------
     ! Write Root header and input parameters
     !------------------------------------------------------------------------------
-    ! Call Start_Timer("Write Root Branch")
-    ! call store_parallel_branch(root, FH_MPI)
-    ! call store_branch(root, root%streams, .TRUE.)
-    ! Call Write_Tree(root)
-    ! Call End_Timer("Write Root Branch")
+    CALL Start_Timer("Write Root Branch")
+    ! CALL store_parallel_branch(root, FH_MPI)
+    ! CALL store_branch(root, root%streams, .TRUE.)
+    ! CALL Write_Tree(root)
+    CALL End_Timer("Write Root Branch")
         
-    Call MPI_WAITANY(size_mpi-1_mik, req_list, finished, status_mpi, ierr)
-    CALL print_err_stop(std_out, &
-    "MPI_WAITANY on req_list for IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
+    !------------------------------------------------------------------------------
+    ! A CALL to MPI_Waitany can be used to wait for 
+    ! the completion of one out of several requests.
+    ! https://www.open-mpi.org/doc/v4.0/man3/MPI_Waitany.3.php
+    !------------------------------------------------------------------------------
+    ! CALL MPI_WAITANY(size_mpi-1_mik, req_list, finished, status_mpi, ierr)
+    ! CALL print_err_stop(std_out, &
+    ! "MPI_WAITANY on req_list for IRECV of worker_is_active(ii) didn't succeed", ierr)
 
-    ii = finished
+    ! IF(finished /= MPI_UNDEFINED) THEN
+    !     ii = finished
 
-    Domain_stats(act_domains(ii)) = Activity(ii)
+    !     Domain_stats(nn) = Domains(nn)
 
-    write(aun,pos=(act_domains(ii)-1)*ik+1) INT(Activity(ii), KIND=ik)
-    flush(aun)
-    act_domains(ii) = nn
+    !     !------------------------------------------------------------------------------
+    !     ! Job is finished(?)
+    !     !------------------------------------------------------------------------------
+    !     write(aun, pos=(Domain_stats(nn)-1) * ik + 1) INT(Domains(nn), KIND=ik)
+    !     flush(aun)
+    ! END IF
 
-    Do While (nn <= Domain_number)
+    ! !------------------------------------------------------------------------------
+    ! ! After all worker masters have a job, the succeeding iterations start.
+    ! !------------------------------------------------------------------------------
+    ! Do While (nn <= No_of_domains)
 
-         If ( Domain_stats(nn) /= 1 ) then
-            if (nn > Domain_number) exit
-            nn = nn + 1_mik
-            cycle
-        End If
+    !     !------------------------------------------------------------------------------
+    !     ! Skip this DO WHILE cycle if Domain_stat of the domain (nn) > 0 and therefore
+    !     ! marked as "already computed".
+    !     !------------------------------------------------------------------------------
+    !     If (Domain_stats(nn) > 0) then
+    !         nn = nn + 1_ik
+    !         cycle
+    !     End If
 
-        Do jj = ii, ii + parts- 1
+    !     Do jj = ii, ii + parts- 1
 
-            Activity(jj) = 1_mik
-            
-            Call mpi_send(Activity(jj), 1_mik, mpi_integer4 , Int(jj,mik), Int(jj,mik), MPI_COMM_WORLD,ierr)
-            CALL print_err_stop(std_out, "MPI_SEND of activity didn't succeed", INT(ierr, KIND=ik))
+    !         worker_is_active(jj) = 1_mik
+    !         workers_assigned_domains(jj) = nn
 
-            Call mpi_send(nn, 1_mik, mpi_integer8, Int(jj,mik), Int(jj,mik), MPI_COMM_WORLD,ierr)
-            CALL print_err_stop(std_out, "MPI_SEND of Domain number didn't succeed", INT(ierr, KIND=ik))
+    !         CALL mpi_send(worker_is_active(jj), 1_mik, MPI_INTEGER4 , Int(jj,mik), Int(jj,mik), MPI_COMM_WORLD,ierr)
+    !         CALL print_err_stop(std_out, "MPI_SEND of worker_is_active didn't succeed", ierr)
 
-            if (out_amount /= "PRODUCTION") then
-                Call mpi_send(domain_path(nn), Int(4_mik*mcl,mik), &
-                        MPI_CHARACTER, Int(jj,mik), Int(jj,mik), MPI_COMM_WORLD,ierr)
-                CALL print_err_stop(std_out, "MPI_SEND of Domain path didn't succeed", INT(ierr, KIND=ik))
-            End if
-        End Do
+    !         CALL mpi_send(nn, 1_mik, MPI_INTEGER8, Int(jj,mik), Int(jj,mik), MPI_COMM_WORLD,ierr)
+    !         CALL print_err_stop(std_out, "MPI_SEND of Domain number didn't succeed", ierr)
+
+    !         if (out_amount /= "PRODUCTION") then
+    !             CALL mpi_send(domain_path(nn), Int(4_mik*mcl,mik), &
+    !                     MPI_CHARACTER, Int(jj,mik), Int(jj,mik), MPI_COMM_WORLD,ierr)
+    !             CALL print_err_stop(std_out, "MPI_SEND of Domain path didn't succeed", ierr)
+    !         End if
+    !     End Do
          
-        !------------------------------------------------------------------------------
-        ! Log to global stdout
-        !------------------------------------------------------------------------------
-        Write(un_mon,'(2(A,I10))') "MPI rank : ",ii, " ; Domain number: ",Domains(domain)
-        flush(un_mon)
+    !     !------------------------------------------------------------------------------
+    !     ! Log to monitor file. Only for master worker!
+    !     !------------------------------------------------------------------------------
+    !     IF(out_amount == "DEBUG") THEN
+    !         WRITE(fh_mon, FMT_MSG_xAI0) "Domain ", nn, " at Rank ", ii
+    !         flush(fh_mon)
+    !     END IF
         
-        nn = nn + 1_mik
+    !     !------------------------------------------------------------------------------
+    !     ! Worker confirmes start
+    !     !------------------------------------------------------------------------------
+    !     CALL MPI_IRECV(worker_is_active(ii), 1_mik, MPI_INTEGER4, Int(ii,mik), &
+    !                 Int(ii,mik), MPI_COMM_WORLD, REQ_LIST(ii), IERR)
+    !     CALL print_err_stop(std_out, "MPI_IRECV of worker_is_active(ii) didn't succeed", ierr)
+
+    !     CALL MPI_WAITANY(size_mpi-1_mik, req_list, finished, status_mpi, ierr)
+    !     CALL print_err_stop(std_out, "MPI_WAITANY for IRECV of worker_is_active(ii) didn't succeed", ierr)
+
+    !     IF(finished /= MPI_UNDEFINED) THEN
+    !         ii = finished
+
+    !     END IF
+
+    !     If (out_amount == "DEBUG") WRITE(fh_mon, FMT_MSG_xAI0) "Domain ", nn, " finished"
         
-        Call MPI_IRECV(Activity(ii), 1_mik, MPI_INTEGER4, Int(ii,mik), &
-                    Int(ii,mik), MPI_COMM_WORLD, REQ_LIST(ii), IERR)
-        CALL print_err_stop(std_out, "MPI_IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
+    !     Domain_stats(nn) = Domains(nn)
+    !     ! Domain_stats(workers_assigned_domains(ii)) = worker_is_active(ii)
 
-        Call MPI_WAITANY(size_mpi-1_mik, req_list, finished, status_mpi, ierr)
-        CALL print_err_stop(std_out, "MPI_WAITANY on   for IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
+    !     !------------------------------------------------------------------------------
+    !     ! Job is finished(?)
+    !     !------------------------------------------------------------------------------
+    !     write(aun, pos=(Domain_stats(nn)-1) * ik + 1) INT(Domains(nn), KIND=ik)
+    !     flush(aun)
+        
+    !     nn = nn + 1_mik
 
-        ii = finished
-
-         If (out_amount == "DEBUG") THEN
-            Write(un_mon, *) "Domain ", ii, Domains(act_domains(ii)), " finished"
-         End If
-         
-         Domain_stats(act_domains(ii)) = Activity(ii)
-
-         write(aun,pos=(act_domains(ii)-1)*ik+1) INT(Activity(ii), KIND=ik)
-         flush(aun)
-         act_domains(ii) = nn
-
-    End Do
-
-    Call MPI_WAITALL(size_mpi-1_mik, req_list, statuses_mpi, ierr)
+    ! End Do
+write(*,*) "Request list: ", req_list
+    !------------------------------------------------------------------------------
+    ! Wait for all workers to return
+    !------------------------------------------------------------------------------
+    CALL MPI_WAITALL(size_mpi-1_mik, req_list, statuses_mpi, ierr)
     CALL print_err_stop(std_out, &
-    "MPI_WAITANY on req_list for IRECV of Activity(ii) didn't succeed", INT(ierr, KIND=ik))
-
+        "MPI_WAITALL on req_list for IRECV of worker_is_active(ii) didn't succeed", ierr)
+Write(*,*) "Shut the fuck up"
     !------------------------------------------------------------------------------
     ! TODO refactor domain_cross reference from size size_mpi-1 to
     ! (size_mpi-1)/parts
     !------------------------------------------------------------------------------
-    Do ii = 1, size_mpi-1, parts
-        write(aun,pos=(act_domains(ii)-1)*ik+1) INT(Activity(ii), KIND=ik)
-    End Do
+! HOPE IT IS NOT REQUIRED?
 
-    flush(aun)
+    ! Do ii = 1, size_mpi-1, parts
+    !     write(aun, pos=(workers_assigned_domains(ii)-1)*ik+1) INT(worker_is_active(ii), KIND=ik)
+    ! End Do
 
-    Activity = -1
+    ! flush(aun)
+
+    !------------------------------------------------------------------------------
+    ! Stop workers
+    !------------------------------------------------------------------------------
+    worker_is_active = -1_mik
     
-    Do ii = 1_mik, size_mpi-1_mik
-        Call mpi_send(Activity(ii), 1_mik, mpi_integer4, Int(ii,mik), Int(ii,mik), MPI_COMM_WORLD,ierr)
-        CALL print_err_stop(std_out, "MPI_SEND of activity didn't succeed", INT(ierr, KIND=ik))
+    Do mii = 1_mik, size_mpi-1_mik
+        CALL mpi_send(worker_is_active(mii), 1_mik, MPI_INTEGER4, mii, mii, MPI_COMM_WORLD, ierr)
+        CALL print_err_stop(std_out, "MPI_SEND of worker_is_active didn't succeed", ierr)
     End Do
+Write(*,*) "oh no"
 
 !------------------------------------------------------------------------------
 ! Global ranks > 0 -- Workers
 !------------------------------------------------------------------------------
 Else
-    IF (worker_rank_mpi==0) THEN
+
+    IF (worker_rank_mpi == 0) THEN
         !------------------------------------------------------------------------------
         ! Extend project_name and outpath with rank - only for domain specific master!
         !------------------------------------------------------------------------------
-        WRITE(outpath,'(A,A,I7.7,A)') TRIM(outpath), "Rank_", rank_mpi, "/"
+        WRITE(outpath,'(A,A,I7.7,A)')    TRIM(outpath), "Rank_", rank_mpi, "/"
         WRITE(project_name,'(A,A,I7.7)') TRIM(project_name), "_", rank_mpi
 
         !------------------------------------------------------------------------------
-        ! Prepare output directory via calling the c function.
+        ! Prepare output directory via CALLing the c function.
         ! File exists if stat_c_int = 0 
         !------------------------------------------------------------------------------
         c_char_array(1:LEN(TRIM(outpath)//CHAR(0))) = str_to_char(TRIM(outpath)//CHAR(0))
@@ -2022,17 +2171,21 @@ Else
             CALL print_err_stop(std_out,'Could not create the output directory »'//TRIM(outpath)//'«.', 1)
             END IF
         ELSE 
-            WRITE(un_mon, FMT_MSG) "Reusing the output directory "//TRIM(outpath)
+            WRITE(fh_mon, FMT_MSG) "Reusing the output directory "//TRIM(outpath)
         END IF
 
-        Call link_start(link_name, .True., .True.)
+        CALL link_start(link_name, .True., .True.)
     END IF 
 
     !------------------------------------------------------------------------------
     ! Send new directory/filename
+    ! It is the Rank_ and not the root directory! Do not delete this sequence!
+    ! Root dir was send via broadcast, because the worker masters are not 
+    ! determined at the beginning of the program.
     !------------------------------------------------------------------------------
-    CALL MPI_BCAST(outpath, INT(mcl, mik), MPI_CHAR, 0_mik, WORKER_COMM, ierr)
+    CALL MPI_BCAST(outpath,      INT(mcl, mik), MPI_CHAR, 0_mik, WORKER_COMM, ierr)
     CALL MPI_BCAST(project_name, INT(mcl, mik), MPI_CHAR, 0_mik, WORKER_COMM, ierr)
+write(*,*)"Test0"
 
     !------------------------------------------------------------------------------
     ! Open Stream files to write data to master-worker rank directories
@@ -2041,63 +2194,61 @@ Else
     pro_name = project_name     
 
     CALL set_stream_filenames(root%streams)
-
     CALL open_stream_files(root%streams, "write", "replace", fh_mpi_worker, WORKER_COMM)
 
     !------------------------------------------------------------------------------
     ! Worker Loop
     !------------------------------------------------------------------------------
     Do
-        Call mpi_recv(Active, 1_mik, mpi_integer4, 0_mik, rank_mpi, &
-                      MPI_COMM_WORLD, status_mpi, ierr)
-        CALL print_err_stop(std_out, "MPI_RECV on Active didn't succseed", INT(ierr, KIND=ik))
+        !------------------------------------------------------------------------------
+        ! Start workers
+        !------------------------------------------------------------------------------
+        CALL MPI_RECV(active, 1_mik, MPI_INTEGER4, 0_mik, rank_mpi, MPI_COMM_WORLD, status_mpi, ierr)
+        CALL print_err_stop(std_out, "MPI_RECV on Active didn't succseed", ierr)
 
-        If (Active == -1) Exit
+        !------------------------------------------------------------------------------
+        ! Stop workers
+        !------------------------------------------------------------------------------
+        IF (active == -1) EXIT
 
-        CALL mpi_recv(nn, 1_mik, mpi_integer8, 0_mik, rank_mpi, &
-                      MPI_COMM_WORLD, status_mpi, ierr)
-        CALL print_err_stop(std_out, "MPI_RECV on Domain didn't succeed", INT(ierr, KIND=ik))
+        !------------------------------------------------------------------------------
+        ! Receive domain numbers
+        !------------------------------------------------------------------------------
+        CALL mpi_recv(nn, 1_mik, MPI_INTEGER8, 0_mik, rank_mpi, MPI_COMM_WORLD, status_mpi, ierr)
+        CALL print_err_stop(std_out, "MPI_RECV on Domain didn't succeed", ierr)
+write(*,*)"Test_nn"
 
         Domain = Domains(nn)
         
-        if (out_amount /= "PRODUCTION") then
+        IF (out_amount /= "PRODUCTION") THEN
            !------------------------------------------------------------------------------
            ! Receive Job_Dir
            !------------------------------------------------------------------------------
-           CALL mpi_recv(job_dir, 4_mik*int(mcl,mik), mpi_character, 0_mik, &
-                rank_mpi, MPI_COMM_WORLD, status_mpi, ierr)
-           CALL print_err_stop(std_out, "MPI_RECV on Domain path didn't succeed", INT(ierr, KIND=ik))
-        Else
+           CALL mpi_recv(job_dir, 4_mik*int(mcl,mik), mpi_character, 0_mik, rank_mpi, MPI_COMM_WORLD, status_mpi, ierr)
+           CALL print_err_stop(std_out, "MPI_RECV on Domain path didn't succeed", ierr)
+        ELSE
            job_dir = outpath
         End if
         
-        if (job_dir(len(job_dir):len(job_dir)) /= "/") then
-           job_dir = trim(job_dir)//"/"
-        End if
+        IF (job_dir(len(job_dir):len(job_dir)) /= "/") job_dir = trim(job_dir)//"/"
 
         If (out_amount == "DEBUG") THEN
            Write(un_lf, fmt_dbg_sep)
            Write(un_lf, fmt_MSG_xAI0) "Root pointer before exec_single_domain on proc ",rank_mpi
-           Call log_tree(root, un_lf, .True.)
+           CALL log_tree(root, un_lf, .True.)
            Write(un_lf, fmt_dbg_sep)
         END If
-
-        !------------------------------------------------------------------------------
-        ! Log to global stdout
-        !------------------------------------------------------------------------------
-        Write(un_mon,'(3(A,I10))')  "Global MPI rank : ",rank_mpi, &
-                                    "Domain MPI rank : ",worker_rank_mpi, &
-                                    " ; Domain number : ",Domain
-
+write(*,*)"Test1"
         !======================================================================
-        Call exec_single_domain(root, nn, Domain, job_dir, Active, fh_mpi_worker, &
+        CALL exec_single_domain(root, nn, Domain, job_dir, Active, fh_mpi_worker, &
              worker_rank_mpi, worker_size_mpi, worker_comm)
         !======================================================================
+write(*,*)"Test2"
 
         If (out_amount == "DEBUG") THEN
            Write(un_lf, fmt_dbg_sep)
            Write(un_lf, fmt_MSG_xAI0) "Root pointer after exec_single_domain on proc ",rank_mpi
-           Call log_tree(root, un_lf, .True.)
+           CALL log_tree(root, un_lf, .True.)
            Write(un_lf, fmt_dbg_sep)
         END If
 
@@ -2105,55 +2256,53 @@ Else
         ! Organize Results
         !------------------------------------------------------------------------------
         IF (worker_rank_mpi==0) THEN
-            Call Start_Timer("Write Root Branch")
+            CALL Start_Timer("Write Root Branch")
+
+            ! root%streams%ii_st  = 1
+            ! root%streams%dim_st = 0
+            ! CALL reset_bounds_in_branch(root, root%streams)
             
             ! root%streams%ii_st  = 1
             ! root%streams%dim_st = 0
-            ! Call reset_bounds_in_branch(root, root%streams)
-            
-            ! root%streams%ii_st  = 1
-            ! root%streams%dim_st = 0
-            ! Call homogenize_branch(root, root%streams)
+            ! CALL homogenize_branch(root, root%streams)
 
             !------------------------------------------------------------------------------
             ! Set these variables again...
             !------------------------------------------------------------------------------
             pro_path = outpath
             pro_name = project_name     
-
+                                   
             !------------------------------------------------------------------------------
             ! Store header file
             !------------------------------------------------------------------------------
-            Call Write_Tree(root)
-            ! Call Write_Tree(root%branches(3)) ! Branch with 'Averaged Material Properties'
+            CALL Write_Tree(root)
+            ! CALL Write_Tree(root%branches(3)) ! Branch with 'Averaged Material Properties'
             ! ../../../bin/pd_dump_leaf_x86_64 $PWD/ results_0000001 7
     
-            Call End_Timer("Write Root Branch")
+            CALL End_Timer("Write Root Branch")
         END IF
 
         !------------------------------------------------------------------------------
-        ! Store stream files
+        ! Store stream files. MPI-Parallel. All must work together.
         !------------------------------------------------------------------------------
         CALL store_parallel_branch(root, fh_mpi_worker)
         ! ../../../bin/pd_dump_Eleaf_x86_64 $PWD/ results_0000001 35
         ! CALL store_parallel_branch(root%branches(3), fh_mpi_worker) ! Branch with 'Averaged Material Properties'
         CALL close_stream_files(root%streams, fh_mpi_worker)
 
-        Active = 0_mik
+        active = 0_mik
 
-        Call MPI_ISEND(Active, 1_mik, MPI_INTEGER4, 0_mik, rank_mpi, MPI_COMM_WORLD, REQUEST, IERR)
-        CALL print_err_stop(std_out, "MPI_ISEND on Active didn't succeed", INT(ierr, KIND=ik))
+        CALL MPI_ISEND(active, 1_mik, MPI_INTEGER4, 0_mik, rank_mpi, MPI_COMM_WORLD, request, ierr)
+        CALL print_err_stop(std_out, "MPI_ISEND on Active didn't succeed", ierr)
 
-        Call MPI_WAIT(REQUEST, status_mpi, ierr)
-        CALL print_err_stop(std_out, "MPI_WAIT on request for ISEND Active didn't succeed", INT(ierr, KIND=ik))
+        CALL MPI_WAIT(request, status_mpi, ierr)
+        CALL print_err_stop(std_out, "MPI_WAIT on request for ISEND Active didn't succeed", ierr)
 
     End Do
 
     CALL PetscFinalize(petsc_ierr) 
     
 End If
-
-1000 Continue
 
 !------------------------------------------------------------------------------
 ! Write logfiles
@@ -2162,13 +2311,12 @@ IF ((worker_rank_mpi==0) .OR. (rank_mpi==0)) THEN
     If (out_amount == "DEBUG") THEN
         Write(un_lf, fmt_dbg_sep)
         Write(un_lf, fmt_MSG_xAI0) "Final Root pointer proc", rank_mpi
-        Call log_tree(root, un_lf, .True.)
+        CALL log_tree(root, un_lf, .True.)
         Write(un_lf, fmt_dbg_sep)
     END If
 END IF 
 
-1001 Continue
-
+write(*,*) "my_rank: ", rank_mpi, " after goto 1000"
 IF(rank_mpi == 0) THEN
 
     !------------------------------------------------------------------------------
@@ -2176,21 +2324,25 @@ IF(rank_mpi == 0) THEN
     !------------------------------------------------------------------------------
     DO ii = 1, SIZE(root%branches)
         write(un_lf, '(A, I0, 2A, T80, I0, T84, A)') &
-            "Branch(", ii, ") of the tree: ", TRIM(root%branches(ii)%desc), size(root%branches(ii)%leaves), " leaves."
+            "Branch(", ii, ") of the tree: ", &
+            TRIM(root%branches(ii)%desc), &
+            SIZE(root%branches(ii)%leaves), " leaves."
     END DO
 
-    Call link_end(link_name,.True.)
+    CALL link_end(link_name,.True.)
 
     CALL meta_signing(binary)
     CALL meta_close(size_mpi)
 
-    ! CALL meta_stop_ascii(fh=fhl  , suf=log_suf)
-    CALL meta_stop_ascii(fh=fhmon, suf=mon_suf)
+    CALL meta_stop_ascii(fh=fh_mon, suf=mon_suf)
+    CALL meta_stop_ascii(fh=aun   , suf=".status")
 
     IF (std_out/=6) CALL meta_stop_ascii(fh=std_out, suf='.std_out')
 END IF ! (rank_mpi == 0)
 
-Call MPI_FINALIZE(ierr)
-CALL print_err_stop(std_out, "MPI_FINALIZE didn't succeed", INT(ierr, KIND=ik))
+1000 Continue
+
+CALL MPI_FINALIZE(ierr)
+CALL print_err_stop(std_out, "MPI_FINALIZE didn't succeed", ierr)
 
 End Program main_struct_process
