@@ -6080,13 +6080,13 @@ End Subroutine store_parallel_branch
   !>
   !> The subroutine calls search_branch rec and warns to std out in case a
   !> branch withdescr was not found in the tBranch structure.
-  Subroutine Search_branch_wrn(descr, branch, out_branch, success, warning)
+  Subroutine Search_branch_wrn(descr, branch, out_branch, success, debug)
 
     Character(len=*)       , Intent(In)         :: descr
     Type(tBranch)          , Intent(In), Target :: branch
     Type(tBranch), Pointer , Intent(out)   :: out_branch
-    Logical, Intent(inout) :: success
-    Logical, Intent(in)    :: warning
+    Logical          , Intent(inout) :: success
+    Character(len=*) , Intent(in)    :: debug
 
     Integer :: ii
 
@@ -6108,7 +6108,7 @@ End Subroutine store_parallel_branch
        
     End If
 
-    IF (warning .AND. (.NOT.success)) then
+    IF ((debug == "DEBUG") .AND. (.NOT.success)) then
       WRITE(pd_umon, FMT_WRN) 'The branch with description: '//TRIM(descr)
       WRITE(pd_umon, FMT_WRN) 'Was not found in branch '//TRIM(branch%desc)
       WRITE(pd_umon, FMT_WRN_SEP)

@@ -21,74 +21,47 @@ contains
 
 subroutine calc_effective_material_parameters(root, lin_nn, ddc_nn, fh_mpi_worker) 
 
-Type(tBranch), Intent(InOut) :: root
-integer(Kind=ik), Intent(in) :: ddc_nn, lin_nn
-
+Type(tBranch)                           , Intent(InOut) :: root
+integer(Kind=ik)                        , Intent(in) :: ddc_nn, lin_nn
 Integer(kind=mik), Dimension(no_streams), Intent(in) :: fh_mpi_worker
 
-Integer(kind=mik) :: ierr
+Real(kind=rk) :: div_10_exp_jj, eff_density, n12, n13, n23, alpha, phi, eta
+Real(kind=rk) :: cos_alpha, sin_alpha, One_Minus_cos_alpha 
+
+Real(kind=rk), Dimension(:)  , allocatable :: tmp_nn, delta, x_D_phy
+Real(kind=rk), Dimension(:,:), allocatable :: nodes, vv, ff, stiffness
+Real(kind=rk), Dimension(:,:,:), allocatable :: calc_rforces, uu, rforces, edat, crit_1, crit_2
+Real(kind=rk), Dimension(1)    :: tmp_real_fd1
+Real(Kind=rk), Dimension(3)    :: min_c, max_c, n
+Real(kind=rk), Dimension(6)    :: ro_stress
+Real(kind=rk), Dimension(8)    :: tmp_r8 
+Real(kind=rk), Dimension(12)   :: tmp_r12
+Real(kind=rk), Dimension(3,3)  :: aa
+Real(kind=rk), Dimension(6,6)  :: ee_orig, BB, CC, cc_mean, EE, fv,meps
+Real(kind=rk), Dimension(0:16) :: crit_min
+Real(Kind=rk), Dimension(6,24) :: int_strain, int_stress
+Real(kind=rk):: E_Modul, nu, rve_strain, v_elem, v_cube
+
 Integer(kind=mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
+Integer(kind=mik) :: ierr
 
-Character(len=*), Parameter :: link_name="struct_calcmat_fmps"
+integer(Kind=ik) :: ii, jj, kk, ll, no_elem_nodes, micro_elem_nodes, no_lc, num_leaves, alloc_stat
+Integer(Kind=ik) :: no_dat, no_nodes, no_cnodes, macro_order, ii_phi, ii_eta, kk_phi, kk_eta
 
-Integer(Kind=8)                              :: no_dat, no_nodes,no_cnodes
-Integer(Kind=8), Dimension(:), Allocatable   :: no_cnodes_pp
-Integer(Kind=8)                              :: macro_order
+Integer(kind=ik), Dimension(:,:,:,:), Allocatable :: ang
+Integer(Kind=ik), Dimension(:), Allocatable        :: xa_n, xe_n, no_cnodes_pp, cref_cnodes
+Integer(kind=ik), Dimension(3)                    :: s_loop,e_loop, mlc
 
-integer(Kind=8), Dimension(:)  , allocatable :: cref_cnodes
-Real(kind=8)   , Dimension(:)  , allocatable :: tmp_nn
-Real(kind=8)   , Dimension(:,:), allocatable :: nodes, vv, ff, stiffness
-
-Real(kind=8)   , Dimension(:,:,:), allocatable :: uu, rforces
-
-Real(kind=8)   , Dimension(:,:,:), allocatable :: calc_rforces
-Real(kind=8)   , Dimension(6)    :: ro_stress
-Real(kind=8)   , Dimension(6,6)  :: CC
-Real(kind=8)   , Dimension(6,6)  :: cc_mean, EE, fv,meps
-Real(kind=8)   , Dimension( 8)   :: tmp_r8 
-Real(kind=8)   , Dimension(12)   :: tmp_r12
-Real(Kind=rk)  , Dimension(6,24) :: int_strain, int_stress
-
-Real(kind=8)                   :: E_Modul, nu, rve_strain
-Real(kind=8)                   :: v_elem, v_cube
-integer(Kind=ik)               :: ii, jj, kk, ll
-integer(Kind=ik)               :: no_elem_nodes,micro_elem_nodes
-integer(Kind=ik)               :: no_lc
-Real(Kind=rk),    Dimension(3) :: min_c, max_c
-Type(tBranch), Pointer         :: ddc, loc_ddc, meta_para, domain_branch
-Character(Len=mcl)             :: desc
-
-Real(kind=rk), Dimension(1) :: tmp_real_fd1
-
-Type(tBranch),pointer :: mesh_branch, result_branch
-Type(tLeaf),  pointer :: node_leaf_pointer
-
-Real(kind=rk) :: alpha, phi, eta
-Integer       :: ii_phi,ii_eta,kk_phi,kk_eta
-
-Real(kind=rk), Dimension (3)   :: n
-Real(kind=rk), Dimension (3,3) :: aa
-Real(kind=rk), Dimension (6,6) :: ee_orig, BB
-
-Integer      , Dimension (:,:,:,:), Allocatable :: ang
-Real(kind=rk), Dimension (:,:,:)  , Allocatable :: crit_1,crit_2
-Real(kind=rk), Dimension (0 :16) :: crit_min
-Integer      , Dimension (3)     :: s_loop,e_loop, mlc
-
-Real(kind=rk) :: div_10_exp_jj, eff_density
-Real(kind=rk) :: cos_alpha, sin_alpha           
-Real(kind=rk) :: One_Minus_cos_alpha 
-Real(kind=rk) :: n12, n13, n23
-
-Real(kind=rk), Dimension(:), Allocatable :: delta, x_D_phy
-Type(tLeaf), Allocatable, Dimension(:)   :: leaf_list
-Integer :: num_leaves, alloc_stat, amount_domains
-
-Real(kind=8)   , Dimension(:,:,:), allocatable :: edat
-Integer(Kind=ik), Dimension(:), Allocatable    :: xa_n, xe_n
 Logical :: success
 
-Character(len=9) :: nn_char
+Character(len=*), Parameter :: link_name="struct_calcmat_fmps"
+Character(len=9)   :: nn_char
+Character(Len=mcl) :: desc
+
+Type(tBranch), Pointer :: ddc, loc_ddc, meta_para, domain_branch, mesh_branch, result_branch
+
+Type(tLeaf),  pointer :: node_leaf_pointer
+Type(tLeaf), Allocatable, Dimension(:)   :: leaf_list
 
 write(nn_char,'(I0)') ddc_nn
 
@@ -1735,8 +1708,6 @@ EE_Orig = EE
         eff_density, &
         Int(1,pd_mik), MPI_Real8, &
         status_mpi, ierr)
-
-1000 Continue
 
 deallocate(nodes,uu,edat,cref_cnodes,rforces)
 

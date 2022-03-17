@@ -173,6 +173,7 @@ f-objects = $(st_obj_dir)mod_global_std$(obj_ext) \
             $(obj_dir)mod_gen_quadmesh$(obj_ext) \
             $(obj_dir)mod_struct_preprocess$(obj_ext) \
             $(obj_dir)mod_struct_calcmat$(obj_ext) \
+            $(obj_dir)mod_dtc_main_subroutines$(obj_ext) \
             $(obj_dir)struct_process$(obj_ext)
 #
 # For linking
@@ -418,6 +419,16 @@ $(obj_dir)mod_struct_calcmat$(obj_ext):$(st_mod_dir)global_std$(mod_ext)   $(st_
 	@echo 
 
 # -----------------------------------------------------------------------------
+# Execution chain for the treatment of a single MVE
+$(obj_dir)mod_dtc_main_subroutines$(obj_ext):$(st_mod_dir)global_std$(mod_ext) $(mod_dir)operating_system$(mod_ext) \
+                                        $(mod_dir)puredat_com$(mod_ext)        $(mod_dir)chain_routines$(mod_ext) \
+                                        $(mod_dir)linfe$(mod_ext)              $(mod_dir)gen_geometry$(mod_ext) \
+                                        $(f_src_dir)mod_dtc_main_subroutines$(f90_ext)
+	@echo "----- Compiling " $(f_src_dir)mod_dtc_main_subroutines$(f90_ext) " -----"
+	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_dtc_main_subroutines$(f90_ext) -o $@
+	@echo 
+
+# -----------------------------------------------------------------------------
 # main Object 
 $(obj_dir)struct_process$(obj_ext):$(st_mod_dir)global_std$(mod_ext)     $(st_mod_dir)mechanical$(mod_ext) \
                                    $(st_mod_dir)meta$(mod_ext) 			 $(st_mod_dir)meta_puredat_interface$(mod_ext) \
@@ -431,7 +442,8 @@ $(obj_dir)struct_process$(obj_ext):$(st_mod_dir)global_std$(mod_ext)     $(st_mo
                                    $(mod_dir)write_deck$(mod_ext)        $(mod_dir)gen_geometry$(mod_ext) \
                                    $(mod_dir)tensors$(mod_ext)           $(mod_dir)mat_matrices$(mod_ext) \
                                    $(mod_dir)calcmat$(mod_ext)           $(mod_dir)puredat_com$(mod_ext) \
-                                   $(mod_dir)petsc_opt$(mod_ext)         $(f_src_dir)struct_process$(f90_ext)
+                                   $(mod_dir)petsc_opt$(mod_ext)         $(mod_dir)dtc_main_subroutines$(mod_ext) \
+								   $(f_src_dir)struct_process$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)struct_process$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)struct_process$(f90_ext) -o $@
 	@echo 
