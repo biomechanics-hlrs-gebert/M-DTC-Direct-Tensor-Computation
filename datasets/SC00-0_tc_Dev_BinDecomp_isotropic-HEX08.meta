@@ -33,9 +33,9 @@ r MACRO_ELMNT_ORDER     1                                              ! 1=linea
 r MICRO_ELMNT_TYPE      HEX08                                          ! Element type  on micro scale
 r MESH_PER_SUB_DMN      2                                              ! Processors/Mesh parts per subdomain. Size_mpi-1! 
 r OUT_FMT               FMPS                                           ! Output Format
-r LO_BNDS_DMN_RANGE     1    1    1                                    ! xa_n - Lower bounds of selected domain range
-r UP_BNDS_DMN_RANGE     1    1    1                                    ! xe_n - Upper bounds of selected domain range
-r RESTART               N                                              ! Restart a (partly) computed project
+r LO_BNDS_DMN_RANGE     0    0    0                                    ! xa_n - Lower bounds of selected domain range
+r UP_BNDS_DMN_RANGE     2    1    2                                    ! xe_n - Upper bounds of selected domain range
+r RESTART               Y                                              ! Restart a (partly) computed project
 
 r NEW_BSNM_FEATURE      Tensors                                        ! Last segment of basename - NO '_'
 r NEW_BSNM_PURPOSE      Pro                                            ! 3rd segment of basename - NO '_'

@@ -346,6 +346,8 @@ Implicit None
 
      Module Procedure add_empty_leaf_to_branch
      Module Procedure add_filled_leaf_to_branch
+     Module Procedure add_filled_leaf_to_branch_2
+     Module Procedure add_filled_leaf_to_branch_3
      Module Procedure add_filled_leaf_to_branch_4
      Module Procedure add_filled_leaf_to_branch_5
      Module Procedure add_filled_leaf_to_branch_6
@@ -776,6 +778,142 @@ CONTAINS
     t_b%leaves(t_b%no_leaves)%pstat = 0
 
   End Subroutine add_filled_leaf_to_branch
+
+  !============================================================================
+  !> Subroutine which adds a leaf to a tBranch structure
+  !>
+  !> The subroutine adds a leaf of type 2 (Int_2) to a tBranch structure at 
+  !> the end of its leaves array and fills the attributes of the new leaf 
+  !> desc and dat_no as given by the input parameters.<br>
+  !> The p_int2 data pointer is allocated with size dat_no and the values array
+  !> passed in as the last parameter is copied to the allocated memory. <br>
+  !> ! There is no assignment of the lbound and ubound attributes done in the
+  !> new leaf as the data values reside directly in the tLeaf structure and not
+  !> in a tStreams structure belonging to one of the Leaf's parent tBranch
+  !> structures. <br>
+  !> ! The fourth element of the pstat attribute arrayis set to 1 to indicate,
+  !> that the data resides directly in the leaf.
+  Subroutine add_filled_leaf_to_branch_2(t_b, desc, dat_no, values)
+
+    Type(tBranch), Intent(inout) :: t_b
+
+    Character(Len=*)   , Intent(in) :: desc
+    Integer(Kind=1)    , Parameter  :: dat_ty = 2
+    Integer(Kind=pd_ik), Intent(in) :: dat_no
+
+    Integer(Kind=2)    , Intent(in), Dimension(:) :: values
+
+    !> Pointer to leaf children
+    Type(tLeaf), Dimension(:), Pointer :: leaves
+
+    Integer(kind=pd_ik) :: ii
+    Integer             :: alloc_stat
+
+    leaves     => t_b%leaves
+    t_b%leaves => Null()
+
+    allocate(t_b%leaves(t_b%no_leaves+1))
+
+    Do ii = 1, t_b%no_leaves
+       t_b%leaves(ii)=leaves(ii)
+    End Do
+
+    if (t_b%no_leaves > 0) deallocate(leaves)
+
+    t_b%no_leaves = t_b%no_leaves + 1
+
+    t_b%leaves(t_b%no_leaves)%desc    = trim(desc)
+    t_b%leaves(t_b%no_leaves)%dat_ty  = dat_ty
+    t_b%leaves(t_b%no_leaves)%dat_no  = dat_no
+    t_b%leaves(t_b%no_leaves)%lbound  = 0_pd_ik
+    t_b%leaves(t_b%no_leaves)%ubound  = 0_pd_ik
+
+    t_b%leaves(t_b%no_leaves)%p_int1  => NULL()
+    t_b%leaves(t_b%no_leaves)%p_int2  => NULL()
+    t_b%leaves(t_b%no_leaves)%p_int4  => NULL()
+    t_b%leaves(t_b%no_leaves)%p_int8  => NULL()
+    t_b%leaves(t_b%no_leaves)%p_real8 => NULL()
+    t_b%leaves(t_b%no_leaves)%p_char  => NULL()
+    t_b%leaves(t_b%no_leaves)%p_log   => NULL()
+
+    t_b%leaves(t_b%no_leaves)%pstat = 0
+
+    allocate(t_b%leaves(t_b%no_leaves)%p_int8(dat_no), stat=alloc_stat)
+    call alloc_error(alloc_stat, "t_b%leaves(t_b%no_leaves)%p_int2(dat_no)", &
+         "add_filled_leaf_to_branch_2") 
+    t_b%leaves(t_b%no_leaves)%p_int8 = values
+    
+    t_b%leaves(t_b%no_leaves)%pstat = 1
+
+  End Subroutine add_filled_leaf_to_branch_2
+
+  !============================================================================
+  !> Subroutine which adds a leaf to a tBranch structure
+  !>
+  !> The subroutine adds a leaf of type 3 (Int_4) to a tBranch structure at 
+  !> the end of its leaves array and fills the attributes of the new leaf 
+  !> desc and dat_no as given by the input parameters.<br>
+  !> The p_int4 data pointer is allocated with size dat_no and the values array
+  !> passed in as the last parameter is copied to the allocated memory. <br>
+  !> ! There is no assignment of the lbound and ubound attributes done in the
+  !> new leaf as the data values reside directly in the tLeaf structure and not
+  !> in a tStreams structure belonging to one of the Leaf's parent tBranch
+  !> structures. <br>
+  !> ! The fourth element of the pstat attribute arrayis set to 1 to indicate,
+  !> that the data resides directly in the leaf.
+  Subroutine add_filled_leaf_to_branch_3(t_b, desc, dat_no, values)
+
+    Type(tBranch), Intent(inout) :: t_b
+
+    Character(Len=*)   , Intent(in) :: desc
+    Integer(Kind=1)    , Parameter  :: dat_ty = 4
+    Integer(Kind=pd_ik), Intent(in) :: dat_no
+
+    Integer(Kind=4)    , Intent(in), Dimension(:) :: values
+
+    !> Pointer to leaf children
+    Type(tLeaf), Dimension(:), Pointer :: leaves
+
+    Integer(kind=pd_ik) :: ii
+    Integer             :: alloc_stat
+
+    leaves     => t_b%leaves
+    t_b%leaves => Null()
+
+    allocate(t_b%leaves(t_b%no_leaves+1))
+
+    Do ii = 1, t_b%no_leaves
+       t_b%leaves(ii)=leaves(ii)
+    End Do
+
+    if (t_b%no_leaves > 0) deallocate(leaves)
+
+    t_b%no_leaves = t_b%no_leaves + 1
+
+    t_b%leaves(t_b%no_leaves)%desc    = trim(desc)
+    t_b%leaves(t_b%no_leaves)%dat_ty  = dat_ty
+    t_b%leaves(t_b%no_leaves)%dat_no  = dat_no
+    t_b%leaves(t_b%no_leaves)%lbound  = 0_pd_ik
+    t_b%leaves(t_b%no_leaves)%ubound  = 0_pd_ik
+
+    t_b%leaves(t_b%no_leaves)%p_int1  => NULL()
+    t_b%leaves(t_b%no_leaves)%p_int2  => NULL()
+    t_b%leaves(t_b%no_leaves)%p_int4  => NULL()
+    t_b%leaves(t_b%no_leaves)%p_int8  => NULL()
+    t_b%leaves(t_b%no_leaves)%p_real8 => NULL()
+    t_b%leaves(t_b%no_leaves)%p_char  => NULL()
+    t_b%leaves(t_b%no_leaves)%p_log   => NULL()
+
+    t_b%leaves(t_b%no_leaves)%pstat = 0
+
+    allocate(t_b%leaves(t_b%no_leaves)%p_int8(dat_no), stat=alloc_stat)
+    call alloc_error(alloc_stat, "t_b%leaves(t_b%no_leaves)%p_int4(dat_no)", &
+         "add_filled_leaf_to_branch_3") 
+    t_b%leaves(t_b%no_leaves)%p_int8 = values
+    
+    t_b%leaves(t_b%no_leaves)%pstat = 1
+
+  End Subroutine add_filled_leaf_to_branch_3
 
   !============================================================================
   !> Subroutine which adds a leaf to a tBranch structure
@@ -1527,69 +1665,69 @@ CONTAINS
 
   End Subroutine raise_leaves
 
-  !============================================================================
-  !> Subroutine: Recursive subroutine to connect stream chunk pointers
-  !>
-  !> This recursive subroutine connects all stream chunk pointers specified
-  !> by the leaves of type tLeaf in a tBranch structure to their stream targets
-  Recursive Subroutine connect_pointers(streams, branch)
+!============================================================================
+!> Subroutine: Recursive subroutine to connect stream chunk pointers
+!>
+!> This recursive subroutine connects all stream chunk pointers specified
+!> by the leaves of type tLeaf in a tBranch structure to their stream targets
+Recursive Subroutine connect_pointers(streams, branch)
 
-    Type(tStreams), Intent(inout) :: streams
-    Type(tBranch) , Intent(inout) :: branch
+Type(tStreams), Intent(inout) :: streams
+Type(tBranch) , Intent(inout) :: branch
 
-    Integer :: ii
+Integer :: ii
 
-    Do ii =1, branch%no_branches
-       Call connect_pointers(streams, branch%branches(ii))
-    End Do
+Do ii =1, branch%no_branches
+    Call connect_pointers(streams, branch%branches(ii))
+End Do
 
-    Do ii = 1, branch%no_leaves
+Do ii = 1, branch%no_leaves
 
-       If (branch%leaves(ii)%pstat == 0) then
-       
-          Select Case(branch%leaves(ii)%dat_ty)
-             
-          Case(1)
-             branch%leaves(ii)%p_int1 => &
-                  streams%int1_st(branch%leaves(ii)%lbound:branch%leaves(ii)%ubound)
-          Case(2)
-             branch%leaves(ii)%p_int2 => &
-                  streams%int2_st(branch%leaves(ii)%lbound:branch%leaves(ii)%ubound)
-          Case(3)
-             branch%leaves(ii)%p_int4 => &
-                  streams%int4_st(branch%leaves(ii)%lbound:branch%leaves(ii)%ubound)
-          Case(4)
-             branch%leaves(ii)%p_int8 => &
-                  streams%int8_st(branch%leaves(ii)%lbound:branch%leaves(ii)%ubound)
-          Case(5)
-             branch%leaves(ii)%p_real8 => &
-                  streams%real8_st(branch%leaves(ii)%lbound:branch%leaves(ii)%ubound)
-          Case(6)
-             branch%leaves(ii)%p_char => &
-                  streams%char_st(branch%leaves(ii)%lbound:branch%leaves(ii)%ubound)
-          Case(7)
-             branch%leaves(ii)%p_log => &
-                  streams%log_st(branch%leaves(ii)%lbound:branch%leaves(ii)%ubound)
-             
-          Case default
-             Write(pd_umon,*)'! Bad data type in leaf descriptor !'
-             Write(pd_umon,*)'! See last leaf descriptor in header file !'
-             Write(pd_umon,*)'!'
-             Write(pd_umon,*)'! ========= PROGRAM TERMINATED ========== !'
-             Stop
-          End Select
+    If (branch%leaves(ii)%pstat == 0) then
+    
+        Select Case(branch%leaves(ii)%dat_ty)
+            
+        Case(1)
+            branch%leaves(ii)%p_int1 => &
+                streams%int1_st(branch%leaves(ii)%lbound:branch%leaves(ii)%ubound)
+        Case(2)
+            branch%leaves(ii)%p_int2 => &
+                streams%int2_st(branch%leaves(ii)%lbound:branch%leaves(ii)%ubound)
+        Case(3)
+            branch%leaves(ii)%p_int4 => &
+                streams%int4_st(branch%leaves(ii)%lbound:branch%leaves(ii)%ubound)
+        Case(4)
+            branch%leaves(ii)%p_int8 => &
+                streams%int8_st(branch%leaves(ii)%lbound:branch%leaves(ii)%ubound)
+        Case(5)
+            branch%leaves(ii)%p_real8 => &
+                streams%real8_st(branch%leaves(ii)%lbound:branch%leaves(ii)%ubound)
+        Case(6)
+            branch%leaves(ii)%p_char => &
+                streams%char_st(branch%leaves(ii)%lbound:branch%leaves(ii)%ubound)
+        Case(7)
+            branch%leaves(ii)%p_log => &
+                streams%log_st(branch%leaves(ii)%lbound:branch%leaves(ii)%ubound)
+            
+        Case default
+            Write(pd_umon, *) '! Bad data type in leaf descriptor !'
+            Write(pd_umon, *) '! See last leaf descriptor in header file !'
+            Write(pd_umon, *) '!'
+            Write(pd_umon, *) '! ========= PROGRAM TERMINATED ========== !'
+            Stop
+        End Select
 
-       Else if (branch%leaves(ii)%pstat == 1) then
+    Else if (branch%leaves(ii)%pstat == 1) then
 
-          Write(pd_umon,PDF_W_A)'In connect_pointers, leaf '
-          Write(pd_umon,PDF_W_A)trim(branch%leaves(ii)%desc)
-          Write(pd_umon,PDF_W_A)'has pstat = 1. No pointer reasignment is done !'
-          
-       End If
-          
-    End Do
+        Write(pd_umon, PDF_W_A) 'In connect_pointers, leaf '
+        Write(pd_umon, PDF_W_A) trim(branch%leaves(ii)%desc)
+        Write(pd_umon, PDF_W_A) 'has pstat = 1. No pointer reasignment is done !'
+        
+    End If
+        
+End Do
 
-  End Subroutine connect_pointers
+End Subroutine connect_pointers
 
   !============================================================================
   !> Subroutine which includes a branch into another branch

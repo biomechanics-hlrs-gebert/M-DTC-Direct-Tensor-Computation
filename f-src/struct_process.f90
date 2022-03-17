@@ -104,8 +104,8 @@ TYPE(materialcard) :: bone
 
 !-- MPI Variables
 INTEGER(KIND=mik) :: ierr, rank_mpi, size_mpi, petsc_ierr, mii, mjj
-INTEGER(KIND=mik) :: worker_rank_mpi, worker_size_mpi
-INTEGER(KIND=mik) :: Active, request, finished, worker_comm, WRITE_ROOT_COMM
+INTEGER(KIND=mik) :: worker_rank_mpi, worker_size_mpi, aun
+INTEGER(KIND=mik) :: Active, request, finished = -1, worker_comm, WRITE_ROOT_COMM
 
 INTEGER(KIND=mik), Dimension(no_streams)       :: fh_mpi_root, fh_mpi_worker
 INTEGER(KIND=mik), Dimension(MPI_STATUS_SIZE)  :: status_mpi
@@ -124,7 +124,7 @@ CHARACTER(LEN=mcl)  , DIMENSION(:), ALLOCATABLE :: m_rry
 
 CHARACTER(LEN=4*mcl) :: job_dir
 CHARACTER(LEN=mcl)   :: cmd_arg_history='', link_name = 'struct process'
-CHARACTER(LEN=mcl)   :: muCT_pd_path, muCT_pd_name, binary
+CHARACTER(LEN=mcl)   :: muCT_pd_path, muCT_pd_name, binary, activity_file
 CHARACTER(LEN=8)     :: elt_micro, output
 CHARACTER(LEN=1)     :: restart='N', restart_cmd_arg='U' ! U = 'undefined'
 
@@ -133,17 +133,17 @@ REAL(KIND=rk) :: strain
 
 INTEGER(KIND=ik), DIMENSION(:), ALLOCATABLE :: Domains, workers_assigned_domains, nn_D
 INTEGER(KIND=ik), DIMENSION(:), ALLOCATABLE :: Domain_stats
-INTEGER(KIND=ik), DIMENSION(3) :: xa_d, xe_d, vdim
+INTEGER(KIND=ik), DIMENSION(3) :: xa_d=0, xe_d=0, vdim
 
 INTEGER(KIND=ik) :: nn, ii, jj, kk, dc, stat, computed_domains = 0
-INTEGER(KIND=ik) :: No_of_domains, path_count
-INTEGER(KIND=ik) :: alloc_stat, aun, free_file_handle
+INTEGER(KIND=ik) :: No_of_domains, path_count, activity_size=0
+INTEGER(KIND=ik) :: alloc_stat, free_file_handle
 INTEGER(KIND=ik) :: Domain, llimit, parts, elo_macro
 
 INTEGER(KIND=pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
 INTEGER(KIND=pd_ik), DIMENSION(no_streams) :: dsize
 
-INTEGER(KIND=pd_ik) :: serial_root_size
+INTEGER(KIND=pd_ik) :: serial_root_size, add_leaves
 
 LOGICAL :: success, stat_exists, heaxist, stp = .FALSE., create_new_header = .FALSE.
 
@@ -183,6 +183,11 @@ If (rank_mpi == 0) THEN
         !------------------------------------------------------------------------------
         mssg = "No input file given"
         CALL print_err_stop_slaves(mssg); GOTO 1000
+    ELSE
+        IF ( in%full(LEN_TRIM(in%full)-4 : LEN_TRIM(in%full)) /= ".meta") THEN
+            mssg = "No meta file given."
+            CALL print_err_stop_slaves(mssg); GOTO 1000
+        END IF         
     END IF
 
     !------------------------------------------------------------------------------
@@ -206,7 +211,7 @@ If (rank_mpi == 0) THEN
 
     CALL show_title(["Dr.-Ing. Ralf Schneider (HLRS, NUM)", "Johannes Gebert, M.Sc. (HLRS, NUM) "])
 
-    IF(debug >=0) WRITE(std_out, FMT_MSG) "Post mortem info probably in ./datasets/temporary.std_out"
+    IF(debug >=0) WRITE(std_out, FMT_TXT) "Post mortem info probably in ./datasets/temporary.std_out"
     WRITE(std_out, FMT_TXT) "Program invocation:"//TRIM(cmd_arg_history)          
 
     !------------------------------------------------------------------------------
@@ -260,8 +265,6 @@ If (rank_mpi == 0) THEN
     !------------------------------------------------------------------------------
     CALL meta_start_ascii(fh_mon, mon_suf)
 
-    If (out_amount == "DEBUG") CALL meta_start_ascii(fh_log, log_suf)
-    
     IF (std_out/=6) CALL meta_start_ascii(std_out, '.std_out')
 
     CALL meta_write('DBG_LVL', out_amount )
@@ -269,6 +272,11 @@ If (rank_mpi == 0) THEN
     !------------------------------------------------------------------------------
     ! Warning / Error handling
     !------------------------------------------------------------------------------
+    IF (parts < 2) THEN
+        mssg = 'At least 2 parts per domain are required.'
+        CALL print_err_stop_slaves(mssg); GOTO 1000
+    END IF
+
     IF ( (bone%phdsize(1) /= bone%phdsize(2)) .OR. (bone%phdsize(1) /= bone%phdsize(3)) ) THEN
         mssg = 'Currently, all 3 dimensions of the physical domain size must be equal!'
         CALL print_err_stop_slaves(mssg); GOTO 1000
@@ -294,7 +302,27 @@ If (rank_mpi == 0) THEN
         mssg = 'The domains are larger than the field of view.'
         CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF
-    
+
+    !------------------------------------------------------------------------------
+    ! Calculate the number of requested domains
+    !------------------------------------------------------------------------------
+    No_of_domains = (xe_d(1)-xa_d(1)+1) * (xe_d(2)-xa_d(2)+1) * (xe_d(3)-xa_d(3)+1)
+
+    !------------------------------------------------------------------------------
+    ! Check whether there already is a project header and an worker_is_active tracker
+    ! Header-files are PureDat, not MeRaDat. Therefore via pro_path/pro_name
+    !------------------------------------------------------------------------------
+    activity_file = TRIM(out%p_n_bsnm)//".status"
+    INQUIRE(FILE = TRIM(activity_file), EXIST=stat_exists, SIZE=activity_size)
+
+    IF ((No_of_domains*ik /= activity_size ) .AND. (stat_exists)) THEN
+        mssg = 'Size of the status file and the number of requested domains do &
+        &not match. It is very likely that the domain ranges were modified and a &
+        &restart requested. This approach is not supported, as the stream sizes and &
+        &boundaries will get corrupted. Please set up a completely new job.'
+        CALL print_err_stop_slaves(mssg, "warning"); GOTO 1000
+    END IF
+
     !------------------------------------------------------------------------------
     ! Each subdomain gets computed by a user defined amount of processors. This 
     ! amount of processors equals to a specific amount of mesh parts.
@@ -377,8 +405,6 @@ If (rank_mpi == 0) THEN
     ! Required for steering the allocation of memory for writing data into 
     ! the stream files (raise leaves etc.)
     !------------------------------------------------------------------------------
-    No_of_domains = (xe_d(1)-xa_d(1)+1) * (xe_d(2)-xa_d(2)+1) * (xe_d(3)-xa_d(3)+1)
-
     Allocate(Domains(No_of_domains), stat=alloc_stat)
     CALL alloc_err("Domains", alloc_stat)
 
@@ -389,29 +415,73 @@ If (rank_mpi == 0) THEN
     Allocate(domain_path(0:No_of_domains))
     domain_path = ''
 
-    !------------------------------------------------------------------------------
-    ! Check whether there already is a project header and an worker_is_active tracker
-    ! Header-files are PureDat, not MeRaDat. Therefore via pro_path/pro_name
-    !------------------------------------------------------------------------------
-    INQUIRE(FILE = TRIM( in%p_n_bsnm)//".head", EXIST=heaxist)
-    INQUIRE(FILE = TRIM(out%p_n_bsnm)//".status", EXIST=stat_exists)
-    aun = give_new_unit()
+END IF
+
+!------------------------------------------------------------------------------
+! Send information about file
+!------------------------------------------------------------------------------
+CALL MPI_BCAST(stat_exists, 1_mik, MPI_LOGICAL, 0_mik, MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(activity_file , INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
+
+!------------------------------------------------------------------------------
+! Initial setup of the worker_is_active tracker
+!------------------------------------------------------------------------------
+! Tracker writes -9.999.999 if: Space within tracking is not occupied by a domain
+! Tracker writes    +Number if: Domain is computed successfully
+!
+! If the position within the tracking file is implicitely connected to the 
+! domain number, changes to the domain range before restart will crash the 
+! computations (!)
+!------------------------------------------------------------------------------
+IF (stat_exists) THEN
+    Call MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(activity_file), &
+        MPI_MODE_RDWR, MPI_INFO_NULL, aun, ierr)
+ELSE
+    Call MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(activity_file), &
+        MPI_MODE_CREATE+MPI_MODE_RDWR, MPI_INFO_NULL, aun, ierr)
+END IF ! (stat_exists)
+
+If (rank_mpi == 0) THEN
+    IF (stat_exists) THEN
+        !------------------------------------------------------------------------------
+        ! Read the Domain stats list
+        !------------------------------------------------------------------------------
+        CALL MPI_FILE_READ(aun, Domain_stats, INT(SIZE(Domain_stats), mik), &
+            MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
+
+        !------------------------------------------------------------------------------
+        ! Check whether computation will use resources properly.
+        !------------------------------------------------------------------------------
+        DO ii=1, SIZE(domain_stats)
+            IF (domain_stats(ii) >= 0) computed_domains = computed_domains + 1 
+        END DO
+
+        IF (No_of_domains == computed_domains) THEN 
+            mssg = "Job is already finished. No restart required."
+            CALL print_err_stop_slaves(mssg, "message"); GOTO 1000
+        END IF 
+
+    ELSE
+        CALL MPI_FILE_WRITE(aun, Domain_stats, INT(SIZE(Domain_stats), mik), &
+            MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
+    END IF
 
     !------------------------------------------------------------------------------
-    ! Check if input header exists. If not --> create one.
+    ! Check if INPUT header exists. If not --> create one.
     !------------------------------------------------------------------------------
+    INQUIRE(FILE = TRIM( in%p_n_bsnm)//".head", EXIST=heaxist)
     IF(.NOT. heaxist) THEN
         free_file_handle = give_new_unit()
         CALL convert_meta_to_puredat(free_file_handle, m_rry)
     END IF
 
     !------------------------------------------------------------------------------
-    ! Check if output header exists. If not --> Internally reset to restart='N'.
+    ! Check if OUTPUT header exists. If not --> Internally reset to restart='N'.
     !------------------------------------------------------------------------------
     INQUIRE(FILE = TRIM(pro_path)//TRIM(pro_name)//".head", EXIST=heaxist)
 
-    IF((restart == 'Y') .AND. (.NOT. heaxist)) create_new_header=.TRUE.
 
+    IF((restart == 'Y') .AND. (.NOT. heaxist)) create_new_header=.TRUE.
     !------------------------------------------------------------------------------
     ! The Output name normally is different than the input name.
     ! Therefore, an existing header implies a restart.
@@ -480,14 +550,12 @@ If (rank_mpi == 0) THEN
         END If
        
         !------------------------------------------------------------------------------
-        ! This CALLing sequence is only valid since "Averaged Material 
+        ! This Calling sequence is only valid since "Averaged Material 
         ! Properties" only contains r8 data added at the end of the 
         ! r8-stream. More correct would be a routine that ensures data
         ! integrity and compresses potentially missing stream data in
         ! an efficient way.
         !------------------------------------------------------------------------------
-        CALL delete_branch_from_branch("Averaged Material Properties", root, dsize)
-
         CALL get_stream_size(root, dsize)
         root%streams%dim_st = dsize
         root%streams%ii_st  = dsize + 1
@@ -527,61 +595,35 @@ If (rank_mpi == 0) THEN
         END If
 
     END IF ! restart == Yes/No
-  
-    !------------------------------------------------------------------------------
-    ! Initial setup of the worker_is_active tracker
-    !------------------------------------------------------------------------------
-    ! Tracker writes -9.999.999 if: Space within tracking is not occupied by a domain
-    ! Tracker writes    +Number if: Domain is computed successfully
-    !
-    ! If the position within the tracking file is implicitely connected to the 
-    ! domain number, changes to the domain range before restart will crash the 
-    ! computations (!)
-    !------------------------------------------------------------------------------
-    IF (stat_exists) THEN
-        OPEN(aun, FILE=TRIM(out%p_n_bsnm)//".status", &
-            ACTION="READWRITE", STATUS="OLD", ACCESS="STREAM")
-        
-        READ(aun) Domain_stats
-        REWIND(aun)
- 
-        !------------------------------------------------------------------------------
-        ! Check whether computation will use resources properly.
-        !------------------------------------------------------------------------------
-        DO ii=1, SIZE(domain_stats)
-            IF (domain_stats(ii) >= 0) computed_domains = computed_domains + 1 
-        END DO
-
-        IF (No_of_domains == computed_domains) THEN 
-            mssg = "Job is already finished. No restart required."
-            CALL print_err_stop_slaves(mssg, "message"); GOTO 1000
-        END IF 
-        
-    ELSE
-        OPEN(aun, FILE=TRIM(out%p_n_bsnm)//".status", &
-            ACTION="READWRITE", STATUS="NEW", ACCESS="STREAM")
-        WRITE(aun) Domain_stats
-        FLUSH(aun)
-    END IF ! (stat_exists)
 
     !------------------------------------------------------------------------------
     ! Check whether computation will use resources properly.
-    ! Check outside Yes/No if/else because the amount of remaining domains
-    ! determines the (re-)start of the job.
     !------------------------------------------------------------------------------
-    IF ((No_of_domains - computed_domains) * parts /= size_mpi - 1) THEN
-        mssg = "Remaining domains * parts /= /= size_mpi - 1"
-        CALL print_err_stop_slaves(mssg); GOTO 1000
+    ! Check 
+    !------------------------------------------------------------------------------
+    IF ( MOD((No_of_domains - computed_domains) * parts, size_mpi - 1) /= 0 ) THEN
+        mssg = "MOD((No_of_domains - computed_domains) * parts, size_mpi - 1) /= 0"
+        CALL print_err_stop_slaves(mssg, "warning"); GOTO 1000
     END IF
     
+    IF ( parts > size_mpi - 1 ) THEN
+        mssg = "parts > size_mpi - 1"
+        CALL print_err_stop_slaves(mssg, "warning"); GOTO 1000
+    END IF
+    !------------------------------------------------------------------------------
+    ! Ensure to update the number of leaves and the indices of these in every
+    ! line of code! Also update dat_ty and dat_no in "CALL raise_leaves"
+    !------------------------------------------------------------------------------
+    add_leaves = 19_pd_ik
     CALL add_branch_to_branch(root, result_branch)
-    CALL raise_branch("Averaged Material Properties", 0_pd_ik, 18_pd_ik, result_branch)
+    CALL raise_branch("Averaged Material Properties", 0_pd_ik, 19_pd_ik, result_branch)
     
     !------------------------------------------------------------------------------
     ! To use pd_store, the memory must be allocated by raising the leaves.
     !------------------------------------------------------------------------------
-    CALL raise_leaves(no_leaves = 18_pd_ik, &
+    CALL raise_leaves(no_leaves = add_leaves, &
         desc = [ &
+        "Domain number                                     ", &
         "Domain forces                                     ", &
         "Effective numerical stiffness                     ", &
         "Symmetry deviation - effective numerical stiffness", &
@@ -600,8 +642,8 @@ If (rank_mpi == 0) THEN
         "Final coordinate system CR_2                      ", &
         "Optimized Effective stiffness CR_2                ", &
         "Effective density                                 "], &
-        dat_ty = [(5_1, ii=1,18)], &
-        dat_no = [ &
+        dat_ty = [4_1,(5_1, ii=2, add_leaves)], &
+        dat_no = [ No_of_domains, &
         No_of_domains * 24*24, No_of_domains * 24*24, No_of_domains        , &
         No_of_domains *  6*24, No_of_domains *  6*24, No_of_domains *  6* 6, &
         No_of_domains        , No_of_domains *  6* 6, No_of_domains        , &
@@ -826,20 +868,19 @@ If (rank_mpi==0) Then
     If (out_amount == "DEBUG") &
         write(fh_mon,FMT_MSG_AxI0) "On rank zero, stream sizes: ", dsize
     
-    nn = 1; mii = 1
+    nn = 1_ik; mii = 1_mik
 
     !------------------------------------------------------------------------------
     ! mii is incremented by mii = mii + parts
     ! mii --> Worker master
     !------------------------------------------------------------------------------
-    DO WHILE (nn <= No_of_domains) 
-    
-    ! (mii <= (size_mpi-1_mik))
+    DO  WHILE (nn <= No_of_domains) 
 
         !------------------------------------------------------------------------------
         ! Skip this DO WHILE cycle if Domain_stat of the domain (nn) > 0 and therefore
         ! marked as "already computed".
         !------------------------------------------------------------------------------
+
         If (Domain_stats(nn) >= 0) then
             nn = nn + 1_ik
             cycle
@@ -853,8 +894,31 @@ If (rank_mpi==0) Then
         ! jj --> Worker
         !------------------------------------------------------------------------------
         Do mjj = mii, mii + parts-1
-            
-            req_list(mjj) = 1_mik
+
+            !------------------------------------------------------------------------------
+            ! After all ranks have their first work package
+            !------------------------------------------------------------------------------
+            IF ((size_mpi-1_mik)/parts >= nn) THEN
+
+                !------------------------------------------------------------------------------
+                ! Only the master worker is allowed to send a 'finished' flag. 
+                ! Otherwise, index mii will screw up.
+                !------------------------------------------------------------------------------
+                CALL MPI_WAITANY(size_mpi-1_mik, req_list, finished, status_mpi, ierr)
+                CALL print_err_stop(std_out, &
+                "MPI_WAITANY on req_list for IRECV of worker_is_active(mii) didn't succeed", ierr)
+
+                mii = finished
+
+                ! Domain_stats(nn) = Domains(nn)
+
+                !------------------------------------------------------------------------------
+                ! Job is finished.Now, write domain number to position of linear domain number.
+                !------------------------------------------------------------------------------
+                ! write(aun, pos=((nn-1) * ik + 1)) INT(Domains(nn), KIND=ik)
+                ! flush(aun)
+            END IF
+
             worker_is_active(mjj) = 1_mik
             workers_assigned_domains(mjj) = nn
 
@@ -886,40 +950,19 @@ If (rank_mpi==0) Then
         ! Log to monitor file. Only for master worker!
         !------------------------------------------------------------------------------
         IF(out_amount == "DEBUG") THEN
-            WRITE(fh_mon, FMT_MSG_xAI0) "Domain ", nn, " at Ranks ", mii, " to ", mii + parts-1
+            WRITE(fh_mon, FMT_MSG_xAI0) "Domain ", Domains(nn), " at Ranks ", mii, " to ", mii + parts-1
             flush(fh_mon)
-        END IF
-
-        !------------------------------------------------------------------------------
-        ! After all ranks have their first work package
-        !------------------------------------------------------------------------------
-        IF ((size_mpi-1_mik)/parts >= nn) THEN
-            !------------------------------------------------------------------------------
-            ! Only the master worker is allowed to send a 'finished' flag. 
-            ! Otherwise, index mii will screw up.
-            !------------------------------------------------------------------------------
-            CALL MPI_WAITANY(size_mpi-1_mik, req_list, finished, status_mpi, ierr)
-            CALL print_err_stop(std_out, &
-            "MPI_WAITANY on req_list for IRECV of worker_is_active(mii) didn't succeed", ierr)
-
-            IF(finished /= MPI_UNDEFINED) THEN
-                mii = finished
-
-                Domain_stats(nn) = Domains(nn)
-
-                !------------------------------------------------------------------------------
-                ! Job is finished.Now, write domain number to position of linear domain number.
-                !------------------------------------------------------------------------------
-                write(aun, pos=((nn-1) * ik + 1)) INT(Domains(nn), KIND=ik)
-                flush(aun)
-            END IF
         END IF
 
         !------------------------------------------------------------------------------
         ! iterate with step with of parts since the DO WHILE acts on all parts
         ! in one iteration with a dedicated loop (jj = mii, mii+parts-1)
         !------------------------------------------------------------------------------
-        mii = mii + Int(parts,mik)
+        IF (mii + INT(parts, mik) <= size_mpi) THEN
+            CONTINUE !mii = mii + Int(parts,mik)
+        ELSE
+            mii = 1_mik
+        END IF
 
         !------------------------------------------------------------------------------
         ! Iterate over domain
@@ -1093,6 +1136,15 @@ Else
             END IF
 
             CALL End_Timer("Write Worker Root Branch")
+
+            !------------------------------------------------------------------------------
+            ! Store activity information
+            !------------------------------------------------------------------------------
+            Call MPI_FILE_WRITE_AT(aun, &
+                INT(((nn-1) * ik), MPI_OFFSET_KIND), &
+                Domain, &
+                1_mik, MPI_INTEGER8, &
+                status_mpi, ierr)
         END IF
 
         !------------------------------------------------------------------------------
@@ -1139,16 +1191,21 @@ IF(rank_mpi == 0) THEN
     CALL meta_signing(binary)
     CALL meta_close(size_mpi)
 
-    If (out_amount == "DEBUG") CALL meta_stop_ascii(fh_log, log_suf)
-
     CALL meta_stop_ascii(fh_mon, mon_suf)
-    CALL meta_stop_ascii(aun   , ".status")
 
-    IF (std_out/=6) CALL meta_stop_ascii(fh=std_out, suf='.std_out')
+    IF (std_out/=6) THEN
+        CALL meta_stop_ascii(fh=std_out, suf='.std_out')
+    ELSE
+        WRITE(std_out, FMT_TXT_SEP)
+        WRITE(std_out, FMT_TXT) "HLRS Direct Tensor Computation finished successfully."
+        WRITE(std_out, FMT_TXT_SEP)
+    END IF 
+
 END IF ! (rank_mpi == 0)
 
 1000 Continue
 
+CALL MPI_FILE_CLOSE(aun, ierr)
 CALL MPI_FINALIZE(ierr)
 CALL print_err_stop(std_out, "MPI_FINALIZE didn't succeed", ierr)
 
