@@ -16,7 +16,7 @@
 * SPACING               0.100000       0.100000       0.100000         ! (mm)
 * ORIGIN_SHIFT_GLBL     0.0            0.0            0.0              ! (mm)
 * ORIGIN                0              0              0                ! (-)
-* FIELD_OF_VIEW         21.0           21.0           21.0             ! (mm)
+* FIELD_OF_VIEW         2.10           2.10           2.10             ! (mm)
 * ENTRIES               9261                                           ! Typically the amount of voxels
 
 ----------------------------------------------------------------------------------------------------------------
@@ -25,7 +25,7 @@ r BINARIZE_LO           0                                              ! Typical
 ----------------------------------------------------------------------------------------------------------------
 
 p TENSOR-COMPUTATION
-r SIZE_DOMAIN           1.0  1.0  1.0                                  ! (mm)
+r SIZE_DOMAIN           0.5  0.5  0.5                                  ! (mm)
 r YOUNG_MODULUS         5600.0                                         ! Monolithical parameter
 r POISSON_RATIO         0.3                                            ! Monolithical parameter
 r RVE_STRAIN            0.000001                                       ! Strain on macro element
@@ -33,8 +33,8 @@ r MACRO_ELMNT_ORDER     1                                              ! 1=linea
 r MICRO_ELMNT_TYPE      HEX08                                          ! Element type  on micro scale
 r MESH_PER_SUB_DMN      2                                              ! Processors/Mesh parts per subdomain. Size_mpi-1! 
 r OUT_FMT               FMPS                                           ! Output Format
-r LO_BNDS_DMN_RANGE     0    0    0                                    ! xa_n - Lower bounds of selected domain range
-r UP_BNDS_DMN_RANGE     0    0    0                                    ! xe_n - Upper bounds of selected domain range
+r LO_BNDS_DMN_RANGE     1    1    1                                    ! xa_n - Lower bounds of selected domain range
+r UP_BNDS_DMN_RANGE     1    1    1                                    ! xe_n - Upper bounds of selected domain range
 r RESTART               N                                              ! Restart a (partly) computed project
 
 r NEW_BSNM_FEATURE      Tensors                                        ! Last segment of basename - NO '_'

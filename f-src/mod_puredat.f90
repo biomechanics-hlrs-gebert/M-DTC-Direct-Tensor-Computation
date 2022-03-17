@@ -75,9 +75,9 @@ Module puredat_precision
 
   Implicit none
   
-  Integer, Parameter :: pd_ik = 8  !* Puredat Integer kind parameter
-  Integer, Parameter :: pd_rk = 8  !* Puredat Real    kind parameter
-  Integer, Parameter :: pd_mik = 4 !* Puredat Integer MPI kind parameter
+  Integer, Parameter :: pd_ik = 8  ! Puredat Integer kind parameter
+  Integer, Parameter :: pd_rk = 8  ! Puredat Real    kind parameter
+  Integer, Parameter :: pd_mik = 4 ! Puredat Integer MPI kind parameter
   
 End Module puredat_precision
 
@@ -251,15 +251,15 @@ contains
        
     else
 
-       Write(pd_umon,*)"!-!-!-!-!-!-!-!-!_!-!-!-!-!-!-!-!-!-!-!-!-!-!_!-!-!-!-!-!-!-!-!-!-!-!"
-       Write(pd_umon,*)"The root pointer is allready assigned to a branch with description !!"
-       Write(pd_umon,*)trim(pd_root%desc)
-       Write(pd_umon,*)"No reassignment is done                                            !!"
-       Write(pd_umon,*)"!-!-!-!-!-!-!-!-!_!-!-!-!-!-!-!-!-!-!-!-!-!-!_!-!-!-!-!-!-!-!-!-!-!-!"
+       Write(pd_umon, *)"!-!-!-!-!-!-!-!-!_!-!-!-!-!-!-!-!-!-!-!-!-!-!_!-!-!-!-!-!-!-!-!-!-!-!"
+       Write(pd_umon, *)"The root pointer is allready assigned to a branch with description !"
+       Write(pd_umon, *)trim(pd_root%desc)
+       Write(pd_umon, *)"No reassignment is done                                            !"
+       Write(pd_umon, *)"!-!-!-!-!-!-!-!-!_!-!-!-!-!-!-!-!-!-!-!-!-!-!_!-!-!-!-!-!-!-!-!-!-!-!"
        
        !Write(pd_umon,*)"This routine can only be used once !"
        !Write(pd_umon,*)"Please check your implementation !"
-       !Write(pd_umon,*)"Program halted !!!!!!!!!!!!!!!!!!!"
+       !Write(pd_umon,*)"Program halted !"
 
     End if
 
@@ -278,11 +278,11 @@ contains
 
     else
 
-       Write(pd_umon,*)"!-!-!-!-!-!-!-!-!_!-!-!-!-!-!-!-!-!-!"
-       Write(pd_umon,*)"The root pointer is not assigned !!"
-       Write(pd_umon,*)"Please check your implementation !!"
-       Write(pd_umon,*)"Program halted                   !!"
-       Write(pd_umon,*)"!-!-!-!-!-!-!-!-!_!-!-!-!-!-!-!-!-!-!"
+       Write(pd_umon, *)"!-!-!-!-!-!-!-!-!_!-!-!-!-!-!-!-!-!-!"
+       Write(pd_umon, *)"! The root pointer is not assigned  !"
+       Write(pd_umon, *)"! Please check your implementation  !"
+       Write(pd_umon, *)"! Program halted                    !"
+       Write(pd_umon, *)"!-!-!-!-!-!-!-!-!_!-!-!-!-!-!-!-!-!-!"
        Stop
 
     End if
@@ -471,7 +471,7 @@ CONTAINS
     
     Call get_environment_Variable("PRD_STDOUT", env_var)
 
-    !* If PRD_STDOUT is set to a value ***************************************
+    ! If PRD_STDOUT is set to a value**
     If (Len_Trim(env_var) > 0) then
 
        Inquire(file=trim(env_var), opened = opened)
@@ -517,7 +517,7 @@ CONTAINS
 
        Write(pd_umon, PDF_E_AI0)"In 'Assign_leaves' size(leavesl) = ",size(leavesl), &
                                 " /= size(leavesr) = ",size(leavesr)
-       Write(pd_umon, PDF_E_A  )"No assignment is done !!"
+       Write(pd_umon, PDF_E_A  )"No assignment is done !"
        Goto 1000
        
     End If
@@ -729,10 +729,10 @@ CONTAINS
   !> The subroutine adds a leaf to a tBranch structure at the end of its leaves
   !> array and fills the attributes of the new leaf desc, dat_ty and dat_no
   !> as given by the input parameters.<br>
-  !> !! There is no data asignment done.<br>
-  !> !! There is no assignment of the lbound and ubound attributes done in the
+  !> ! There is no data asignment done.<br>
+  !> ! There is no assignment of the lbound and ubound attributes done in the
   !> new leaf.<br>
-  !> !! The pstat attribute is set to 0.
+  !> ! The pstat attribute is set to 0.
   Subroutine add_filled_leaf_to_branch(t_b, desc, dat_ty, dat_no )
 
     Type(tBranch), Intent(inout) :: t_b
@@ -785,11 +785,11 @@ CONTAINS
   !> desc and dat_no as given by the input parameters.<br>
   !> The p_int8 data pointer is allocated with size dat_no and the values array
   !> passed in as the last parameter is copied to the allocated memory. <br>
-  !> !! There is no assignment of the lbound and ubound attributes done in the
+  !> ! There is no assignment of the lbound and ubound attributes done in the
   !> new leaf as the data values reside directly in the tLeaf structure and not
   !> in a tStreams structure belonging to one of the Leaf's parent tBranch
   !> structures. <br>
-  !> !! The fourth element of the pstat attribute arrayis set to 1 to indicate,
+  !> ! The fourth element of the pstat attribute arrayis set to 1 to indicate,
   !> that the data resides directly in the leaf.
   Subroutine add_filled_leaf_to_branch_4(t_b, desc, dat_no, values)
 
@@ -853,11 +853,11 @@ CONTAINS
   !> desc and dat_no as given by the input parameters.<br>
   !> The p_int8 data pointer is allocated with size dat_no and the values array
   !> passed in as the last parameter is copied to the allocated memory. <br>
-  !> !! There is no assignment of the lbound and ubound attributes done in the
+  !> ! There is no assignment of the lbound and ubound attributes done in the
   !> new leaf as the data values reside directly in the tLeaf structure and not
   !> in a tStreams structure belonging to one of the Leaf's parent tBranch
   !> structures. <br>
-  !> !! The fifth element of the pstat attribute array is set to 1 to indicate,
+  !> ! The fifth element of the pstat attribute array is set to 1 to indicate,
   !> that the data resides directly in the leaf.
   Subroutine add_filled_leaf_to_branch_5(t_b, desc, dat_no, values)
 
@@ -922,11 +922,11 @@ CONTAINS
   !> desc and dat_no as given by the input parameters.<br>
   !> The p_int8 data pointer is allocated with size dat_no and the values array
   !> passed in as the last parameter is copied to the allocated memory. <br>
-  !> !! There is no assignment of the lbound and ubound attributes done in the
+  !> ! There is no assignment of the lbound and ubound attributes done in the
   !> new leaf as the data values reside directly in the tLeaf structure and not
   !> in a tStreams structure belonging to one of the Leaf's parent tBranch
   !> structures. <br>
-  !> !! The sixth element of the pstat attribute arrayis set to 1 to indicate,
+  !> ! The sixth element of the pstat attribute arrayis set to 1 to indicate,
   !> that the data resides directly in the leaf.
   Subroutine add_filled_leaf_to_branch_6(t_b, desc, dat_no, values)
 
@@ -989,8 +989,8 @@ CONTAINS
   !> the end of its leaves array. Empty means the attributes of the new leaf 
   !> are initialized to the empty string in the case of desc and to 0 in the
   !> case of dat_ty, dat_no, lbound and ubound. <br>
-  !> !! All data pointers are initialized to NULL(). <br>
-  !> !! The pstat attribute is set to 0.
+  !> ! All data pointers are initialized to NULL(). <br>
+  !> ! The pstat attribute is set to 0.
   Subroutine add_empty_leaf_to_branch(t_b,n)
 
     Type(tBranch), Intent(inout) :: t_b
@@ -1046,7 +1046,7 @@ CONTAINS
   !> The subroutines adds a new element at the end of t_b's branches array.
   !> If n_b is present, it points to the newly created last element of t_b's
   !> branches array.<br>
-  !> !! Only the pointer assignment between n_b and the new element is done.
+  !> ! Only the pointer assignment between n_b and the new element is done.
   !> No initialisation is performed. Neither on the new element nor on n_b.
   Subroutine add_branch_to_branch(t_b,n_b)
 
@@ -1078,7 +1078,7 @@ CONTAINS
   !> Subroutine which removes a branch from a tBranch structure
   !>
   !> The Subroutine removes all elements with the given description from a 
-  !> branch's branches list. !! No recursive search is performed for desc !!
+  !> branch's branches list. ! No recursive search is performed for desc !
   !> The branches are recursively deallocted by destroy_tree. No stream size
   !> integrity checks are performed since the parent branch can not be
   !> determined. If correct stream sizes of the parent are needed execution of
@@ -1240,8 +1240,8 @@ CONTAINS
   !> The subroutine recursively deallocates a complete puredat data-location
   !> tree set up by tBranch and tLeaf elements by recursively cycling 
   !> the complete tree structure.<br>
-  !> !! This routine does not take care about the parent branch and stream
-  !> structures !!
+  !> ! This routine does not take care about the parent branch and stream
+  !> structures !
   Recursive Subroutine destroy_tree(branch, no_data)
 
     Type(tBranch), Intent(InOut) :: branch
@@ -1572,10 +1572,10 @@ CONTAINS
                   streams%log_st(branch%leaves(ii)%lbound:branch%leaves(ii)%ubound)
              
           Case default
-             Write(pd_umon,*)'!!!!! Bad data type in leaf descriptor !!!!!!'
-             Write(pd_umon,*)'!! See last leaf descriptor in header file !!'
-             Write(pd_umon,*)'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-             Write(pd_umon,*)'!! ========= PROGRAM TERMINATED ========== !!'
+             Write(pd_umon,*)'! Bad data type in leaf descriptor !'
+             Write(pd_umon,*)'! See last leaf descriptor in header file !'
+             Write(pd_umon,*)'!'
+             Write(pd_umon,*)'! ========= PROGRAM TERMINATED ========== !'
              Stop
           End Select
 
@@ -1596,8 +1596,8 @@ CONTAINS
   !>
   !> The include of the data is done based on files. The include of the branch
   !> structure is done based on pointers. 
-  !> !! If the source branch is destroyed afterwards the included branch is  !!
-  !> !! also lost. No copy of the childs is performed.                       !!
+  !> ! If the source branch is destroyed afterwards the included branch is  !
+  !> ! also lost. No copy of the childs is performed.                       !
   !>
   !> s_b       : Has to be a root branch which holds all data of its childs
   !>
@@ -1607,7 +1607,7 @@ CONTAINS
   !> t_streams : If present t_steams has to be the stream component of t_b's
   !>             parent. Otherwise the storage place gets seperated from its
   !>             tree. Integrity checks of structure and storage place are 
-  !>             not performed !!!
+  !>             not performed !
   !>
   !> \todo Add exception if stream files are not opened
   Subroutine include_branch_into_branch(s_b, t_b, s_streams, t_streams, &
@@ -1634,7 +1634,7 @@ CONTAINS
 
     Integer(kind=pd_ik) :: ii
 
-    !* Handle optional parameters ********************************************
+    ! Handle optional parameters*
 
     if (present(t_streams)) then
 
@@ -1693,7 +1693,7 @@ CONTAINS
        loc_blind=.FALSE.
     End if
 
-    !* Include branch structure **********************************************
+    ! Include branch structure*
 
     branches     => t_b%branches
     t_b%branches => Null()
@@ -1724,34 +1724,34 @@ CONTAINS
        nullify(t_b%branches(t_b%no_branches)%leaves)
     End If
 
-    !* Include data **********************************************************
+    ! Include data*
     If (.not.loc_blind) then
        call read_streams(src_streams)
        Call open_stream_files(trg_streams,"write","old","append")
     End If
 
-    !* Usecase 1 : ***********************************************************
-    !* s_b is a root branch. This means we can copy its streams to trg_streams
+    ! Usecase 1 :**
+    ! s_b is a root branch. This means we can copy its streams to trg_streams
     if (s_root) then
 
        If (.not.loc_blind) then
-          If (src_streams%dim_st(1) > 0) write(trg_streams%units(1))src_streams%int1_st
-          If (src_streams%dim_st(2) > 0) write(trg_streams%units(2))src_streams%int2_st
-          If (src_streams%dim_st(3) > 0) write(trg_streams%units(3))src_streams%int4_st
-          If (src_streams%dim_st(4) > 0) write(trg_streams%units(4))src_streams%int8_st
-          If (src_streams%dim_st(5) > 0) write(trg_streams%units(5))src_streams%real8_st
-          If (src_streams%dim_st(6) > 0) write(trg_streams%units(6))src_streams%char_st
+          If (src_streams%dim_st(1) > 0) write(trg_streams%units(1)) src_streams%int1_st
+          If (src_streams%dim_st(2) > 0) write(trg_streams%units(2)) src_streams%int2_st
+          If (src_streams%dim_st(3) > 0) write(trg_streams%units(3)) src_streams%int4_st
+          If (src_streams%dim_st(4) > 0) write(trg_streams%units(4)) src_streams%int8_st
+          If (src_streams%dim_st(5) > 0) write(trg_streams%units(5)) src_streams%real8_st
+          If (src_streams%dim_st(6) > 0) write(trg_streams%units(6)) src_streams%char_st
        End If
 
        call shift_bounds_in_branch(t_b%branches(t_b%no_branches), trg_streams, src_streams)
 
-       !* Usecase 2 : ***********************************************************
-       !* s_b is not a root branch. This means we have to cycle it recursively 
-       !* and copy its data leaf by leaf
+       ! Usecase 2 :**
+       ! s_b is not a root branch. This means we have to cycle it recursively 
+       ! and copy its data leaf by leaf
     Else
 
-       call connect_pointers(src_streams,s_b)
-       call store_branch(s_b,trg_streams,loc_blind)
+       call connect_pointers(src_streams, s_b)
+       call store_branch    (s_b ,trg_streams, loc_blind)
 
     End if
 
@@ -1766,9 +1766,9 @@ CONTAINS
 
   End Subroutine include_branch_into_branch
 
-  !***************************************************************************
+  !
   !> Subroutine for storing all the data of a branch in memory to stream files
-  Recursive Subroutine store_branch(branch,streams,blind)
+  Recursive Subroutine store_branch(branch, streams, blind)
 
     Type(tBranch) , Intent(InOut) :: branch
     Type(tStreams), Intent(InOut) :: streams
@@ -1784,33 +1784,33 @@ CONTAINS
     End if
 
     Do ii = 1, branch%no_branches
-       Call store_branch(branch%branches(ii),streams,loc_blind)
+       Call store_branch(branch%branches(ii), streams, loc_blind)
     End Do
 
     Do ii = 1, branch%no_leaves
 
        If (branch%leaves(ii)%dat_ty == 1) then
-          call pd_store(streams,branch,trim(branch%leaves(ii)%desc),&
+          call pd_store(streams, branch,trim(branch%leaves(ii)%desc),&
                branch%leaves(ii)%p_int1,loc_blind)
        End If
        If (branch%leaves(ii)%dat_ty == 2) then
-          call pd_store(streams,branch,trim(branch%leaves(ii)%desc),&
+          call pd_store(streams, branch,trim(branch%leaves(ii)%desc),&
                branch%leaves(ii)%p_int2,loc_blind)
        End If
        If (branch%leaves(ii)%dat_ty == 3) then
-          call pd_store(streams,branch,trim(branch%leaves(ii)%desc),&
+          call pd_store(streams, branch,trim(branch%leaves(ii)%desc),&
                branch%leaves(ii)%p_int4,loc_blind)
        End If
        If (branch%leaves(ii)%dat_ty == 4) then
-          call pd_store(streams,branch,trim(branch%leaves(ii)%desc),&
+          call pd_store(streams, branch,trim(branch%leaves(ii)%desc),&
                branch%leaves(ii)%p_int8,loc_blind)
        End If
        If (branch%leaves(ii)%dat_ty == 5) then
-          call pd_store(streams,branch,trim(branch%leaves(ii)%desc),&
+          call pd_store(streams, branch,trim(branch%leaves(ii)%desc),&
                branch%leaves(ii)%p_real8,loc_blind)
        End If
        If (branch%leaves(ii)%dat_ty == 6) then
-          call pd_store(streams,branch,trim(branch%leaves(ii)%desc),&
+          call pd_store(streams, branch,trim(branch%leaves(ii)%desc),&
                branch%leaves(ii)%p_char,loc_blind)
        End If
 
@@ -1818,7 +1818,7 @@ CONTAINS
 
   End Subroutine store_branch
 
-  !***************************************************************************
+  !
   !> Subroutine for setting data chunk bounds
   !>
   !> This subroutine sets the lbound and ubound members of all tLeaf members 
@@ -1848,7 +1848,7 @@ CONTAINS
     
   End subroutine reset_bounds_in_branch
   
-  !***************************************************************************
+  !
   !> Subroutine for setting data chunk bounds
   !>
   !> This subroutine sets the lbound and ubound members of tLeaf members in a
@@ -1886,7 +1886,7 @@ CONTAINS
     
   End subroutine set_bounds_in_branch
 
-  !***************************************************************************
+  !
   !> Subroutine for shifting data chunk bounds
   !>
   !> This subroutine shifts the lbound and ubound members of all tLeaf
@@ -1907,7 +1907,7 @@ CONTAINS
 
   End subroutine shift_bounds_in_branch
 
-  !***************************************************************************
+  !
   !> Subroutine for setting data chunk bounds
   !>
   !> This subroutine sets the lbound and ubound members of all tLeaf
@@ -1939,7 +1939,7 @@ CONTAINS
 
   End subroutine shift_bounds_rec
 
-  !***************************************************************************
+  !
   !> Subroutine for counting the branches and leaves in a tBranch structure
   Recursive Subroutine count_elems(branch, no_branches, no_leaves)
     
@@ -1957,7 +1957,7 @@ CONTAINS
 
   End Subroutine count_elems
 
-  !***************************************************************************
+  !
   !> Subroutine for homogenization of a tBranch structure to streams in memory
   !>
   !> This subroutine copys the leaf local data of a tBranch structure to
@@ -2148,7 +2148,7 @@ CONTAINS
     
   End Subroutine homogenize_branch
   
-  !***************************************************************************
+  !
   !> Subroutine for homogenization of a tBranch structure to streams in memory
   !>
   !> This subroutine copys the leaf local data of a tBranch structure to
@@ -2320,7 +2320,7 @@ CONTAINS
 
     Type(tstreams) :: streams
     
-    ! Init stream files logic ************************************************
+    ! Init stream files logic*
     streams%stream_files(1) = Trim(pro_path)//Trim(pro_name)//'.int1.st'
     streams%stream_files(2) = Trim(pro_path)//Trim(pro_name)//'.int2.st'
     streams%stream_files(3) = Trim(pro_path)//Trim(pro_name)//'.int4.st'
@@ -2369,25 +2369,25 @@ CONTAINS
        Inquire(file=trim(tree%streams%stream_files(ii)), exist=fexist, &
             number=funit, action=faction) 
 
-       !* File exists ********************************************************
+       ! File exists*
        If (fexist) Then
 
-          !* File is connected to a unit *************************************
+          ! File is connected to a unit**
           If (funit > -1) then
 
-             !* Check tree%units integrity ***********************************
+             ! Check tree%units integrity**
              if (tree%streams%units(ii) /= funit) then
 
                 Write(pd_umon,*)"In Subroutine open_stream_files_from_tree'"
                 Write(pd_umon,*)"An inconsistency was detected in tree%units"
                 Write(pd_umon,*)"Expected unit no. is     :",tree%streams%units(ii)
                 write(pd_umon,*)"Inqure returned unit no. :",funit
-                Write(pd_umon,*)"PROGRAM STOPPED !!"
+                Write(pd_umon,*)"PROGRAM STOPPED !"
                 stop
 
              End if
 
-             !* Check whether the file is opened for the desired action ******
+             ! Check whether the file is opened for the desired action*
              if (action /= trim(faction)) then
 
                 close(tree%streams%units(ii))
@@ -2398,7 +2398,7 @@ CONTAINS
 
              End if
 
-             !* File is not connected to a unit *********************************
+             ! File is not connected to a unit**
           Else
 
              tree%streams%units(ii) = pd_give_new_unit()
@@ -2410,7 +2410,7 @@ CONTAINS
 
           End If
 
-          !* File does not exist ************************************************
+          ! File does not exist*
        Else 
 
           If ((status == 'new') .or. (status == 'replace')) then
@@ -2440,24 +2440,24 @@ CONTAINS
              If (action == 'read') then
                 Write(pd_umon,*)"In Subroutine 'open_stream_files_from_tree'"
                 Write(pd_umon,*)"file-open status  ", status," ws used on a    "
-                Write(pd_umon,*)"non existent file so a new one was created !! "
+                Write(pd_umon,*)"non existent file so a new one was created ! "
              End If
 
           Else If ( (status =='old') .AND. (tree%streams%dim_st(ii) > 0) ) then
 
              Write(pd_umon,*)"In Subroutine open_stream_files_from_tree' file-open status ", status
-             Write(pd_umon,*)"is inconsistent with a non existent file and stream dimension > 0 !!"
+             Write(pd_umon,*)"is inconsistent with a non existent file and stream dimension > 0 !"
              Write(pd_umon,*)"Please check whether there's file Number ",ii," missing "
              write(pd_umon,*)trim(tree%streams%stream_files(ii))
-             Write(pd_umon,*)"PROGRAM STOPPED !!"
+             Write(pd_umon,*)"PROGRAM STOPPED !"
              stop
 
           Else if ( (status /= 'new') .and. (status /= 'old') .and. (status /= 'replace') ) then
 
              Write(pd_umon,*)"In Subroutine open_stream_files_from_tree' file-open status ", status
-             Write(pd_umon,*)"is not a valid parameter !!"
+             Write(pd_umon,*)"is not a valid parameter !"
              Write(pd_umon,*)"Only 'new', 'old' and 'replace' are supported"
-             Write(pd_umon,*)"PROGRAM STOPPED !!"
+             Write(pd_umon,*)"PROGRAM STOPPED !"
              stop
 
           End If
@@ -2502,25 +2502,25 @@ CONTAINS
        Inquire(file=trim(streams%stream_files(ii)), exist=fexist, &
             number=funit, action=faction) 
 
-       !* File exists ********************************************************
+       ! File exists*
        If (fexist) Then
 
-          !* File is connected to a unit *************************************
+          ! File is connected to a unit**
           If (funit > -1) then
 
-             !* Check units integrity ***********************************
+             ! Check units integrity**
              if (streams%units(ii) /= funit) then
 
                 Write(pd_umon,*)"In Subroutine open_stream_files_from_streams'"
                 Write(pd_umon,*)"An inconsistency was detected in units"
                 Write(pd_umon,*)"Expected unit no. is     :",streams%units(ii)
                 write(pd_umon,*)"Inqure returned unit no. :",funit
-                Write(pd_umon,*)"PROGRAM STOPPED !!"
+                Write(pd_umon,*)"PROGRAM STOPPED !"
                 stop
 
              End if
 
-             !* Check whether the file is opened for the desired action ******
+             ! Check whether the file is opened for the desired action*
              if (action /= trim(faction)) then
 
                 close(streams%units(ii))
@@ -2531,7 +2531,7 @@ CONTAINS
 
              End if
 
-             !* File is not connected to a unit *********************************
+             ! File is not connected to a unit**
           Else
 
              streams%units(ii) = pd_give_new_unit()
@@ -2543,7 +2543,7 @@ CONTAINS
 
           End If
 
-          !* File does not exist ************************************************
+          ! File does not exist*
        Else 
 
           If ((status == 'new') .or. (status == 'replace')) then
@@ -2557,7 +2557,7 @@ CONTAINS
 
              If (action == 'read') then
                 Write(pd_umon,*)"In Subroutine open_stream_files_from_streams' file-open action ", action
-                Write(pd_umon,*)"is used on an empty file !!"
+                Write(pd_umon,*)"is used on an empty file !"
              End If
 
 
@@ -2573,23 +2573,23 @@ CONTAINS
              If (action == 'read') then
                 Write(pd_umon,*)"In Subroutine 'open_stream_files_from_streams'"
                 Write(pd_umon,*)"file-open status  ", status," ws used on a    "
-                Write(pd_umon,*)"non existent file so a new one was created !! "
+                Write(pd_umon,*)"non existent file so a new one was created ! "
              End If
 
           Else If ( (status =='old') .AND. (streams%dim_st(ii) > 0) ) then
 
              Write(pd_umon,*)"In Subroutine open_stream_files_from_streams' file-open status ", status
-             Write(pd_umon,*)"is inconsistent with a non existent file and stream dimension > 0 !!"
+             Write(pd_umon,*)"is inconsistent with a non existent file and stream dimension > 0 !"
              Write(pd_umon,*)"Please check whether there's file Number ",ii," missing "
-             Write(pd_umon,*)"PROGRAM STOPPED !!"
+             Write(pd_umon,*)"PROGRAM STOPPED !"
              stop
 
           Else if ( (status /= 'new') .and. (status /= 'old') .and. (status /= 'replace') ) then
 
              Write(pd_umon,*)"In Subroutine open_stream_files_from_streams' file-open status ", status
-             Write(pd_umon,*)"is not a valid parameter !!"
+             Write(pd_umon,*)"is not a valid parameter !"
              Write(pd_umon,*)"Only 'new', 'old' and 'replace' are supported"
-             Write(pd_umon,*)"PROGRAM STOPPED !!"
+             Write(pd_umon,*)"PROGRAM STOPPED !"
              stop
 
           End If
@@ -2611,7 +2611,7 @@ CONTAINS
   !> STATUS : "old", "new", "replace" 
   !> They are transformed to the corresponding prameters of the MPI open 
   !> statement
-  !> Remark: Subroutine is in pre alpha state !!!
+  !> Remark: Subroutine is in pre alpha state !
   Subroutine open_stream_files_from_streams_mpi(streams, action, status, fh_mpi, comm, position)
 
     Type(tStreams)  , Intent(InOut) :: streams
@@ -2639,29 +2639,29 @@ CONTAINS
 
     Do ii = 1, no_streams
 
-!!$       Inquire(file=trim(streams%stream_files(ii)), exist=fexist, &
-!!$            number=funit, action=faction) 
+!$       Inquire(file=trim(streams%stream_files(ii)), exist=fexist, &
+!$            number=funit, action=faction) 
        fexist = .FALSE.
        
-       !* File exists ********************************************************
+       ! File exists*
        If (fexist) Then
 
-          !* File is connected to a unit *************************************
+          ! File is connected to a unit**
           If (funit > -1) then
 
-             !* Check units integrity ***********************************
+             ! Check units integrity**
              if (streams%units(ii) /= funit) then
 
                 Write(pd_umon,*)"In Subroutine open_stream_files_from_streams'"
                 Write(pd_umon,*)"An inconsistency was detected in units"
                 Write(pd_umon,*)"Expected unit no. is     :",streams%units(ii)
                 write(pd_umon,*)"Inqure returned unit no. :",funit
-                Write(pd_umon,*)"PROGRAM STOPPED !!"
+                Write(pd_umon,*)"PROGRAM STOPPED !"
                 stop
 
              End if
 
-             !* Check whether the file is opened for the desired action ******
+             ! Check whether the file is opened for the desired action*
              if (action /= trim(faction)) then
 
                 close(streams%units(ii))
@@ -2672,7 +2672,7 @@ CONTAINS
 
              End if
 
-             !* File is not connected to a unit *********************************
+             ! File is not connected to a unit**
           Else
 
              streams%units(ii) = pd_give_new_unit()
@@ -2684,7 +2684,7 @@ CONTAINS
 
           End If
 
-          !* File does not exist ************************************************
+          ! File does not exist*
        Else 
 
           If ((status == 'new') .or. (status == 'replace')) then
@@ -2741,7 +2741,7 @@ CONTAINS
 
              If (action == 'read') then
                 Write(pd_umon,*)"In Subroutine open_stream_files_from_streams' file-open action ", action
-                Write(pd_umon,*)"is used on an empty file !!"
+                Write(pd_umon,*)"is used on an empty file !"
              End If
 
 
@@ -2757,23 +2757,23 @@ CONTAINS
              If (action == 'read') then
                 Write(pd_umon,*)"In Subroutine 'open_stream_files_from_streams'"
                 Write(pd_umon,*)"file-open status  ", status," ws used on a    "
-                Write(pd_umon,*)"non existent file so a new one was created !! "
+                Write(pd_umon,*)"non existent file so a new one was created ! "
              End If
 
           Else If ( (status =='old') .AND. (streams%dim_st(ii) > 0) ) then
 
              Write(pd_umon,*)"In Subroutine open_stream_files_from_streams' file-open status ", status
-             Write(pd_umon,*)"is inconsistent with a non existent file and stream dimension > 0 !!"
+             Write(pd_umon,*)"is inconsistent with a non existent file and stream dimension > 0 !"
              Write(pd_umon,*)"Please check whether there's file Number ",ii," missing "
-             Write(pd_umon,*)"PROGRAM STOPPED !!"
+             Write(pd_umon,*)"PROGRAM STOPPED !"
              stop
 
           Else if ( (status /= 'new') .and. (status /= 'old') .and. (status /= 'replace') ) then
 
              Write(pd_umon,*)"In Subroutine open_stream_files_from_streams' file-open status ", status
-             Write(pd_umon,*)"is not a valid parameter !!"
+             Write(pd_umon,*)"is not a valid parameter !"
              Write(pd_umon,*)"Only 'new', 'old' and 'replace' are supported"
-             Write(pd_umon,*)"PROGRAM STOPPED !!"
+             Write(pd_umon,*)"PROGRAM STOPPED !"
              stop
 
           End If
@@ -2973,12 +2973,12 @@ End Subroutine Write_Streams
        Write(pd_umon,'( A)')trim(desc)
        Write(pd_umon,'(3A)')"In puredat function pd_get_4_scalar(",TRIM(branch%desc),")"
        Write(pd_umon,'( A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'( A)')"PROGRAM STOPED !!!!!!!!!!!!!"
+       Write(pd_umon,'( A)')"PROGRAM STOPED !"
        stop
     End If
 
     If (branch%leaves(no)%dat_no > 1) then
-       Write(pd_umon,'( A)')"WARNING !!!!!!!!!!!!!!!!!!!"
+       Write(pd_umon,'( A)')"WARNING !"
        Write(pd_umon,'(3A)')"In puredat function pd_get_4_scalar(",TRIM(branch%desc),")"
        Write(pd_umon,'( A)')"leaf%dat_no > 1 for scalar retrival of leaf data"
        Write(pd_umon,'( A)')"You will only get the first data element as a scalar"
@@ -3021,12 +3021,12 @@ End Subroutine Write_Streams
        Write(pd_umon,'( A)')trim(desc)
        Write(pd_umon,'(3A)')"In puredat function pd_get_5_scalar(",TRIM(branch%desc),")"
        Write(pd_umon,'( A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'( A)')"PROGRAM STOPED !!!!!!!!!!!!!"
+       Write(pd_umon,'( A)')"PROGRAM STOPED !"
        stop
     End If
 
     If (branch%leaves(no)%dat_no > 1) then
-       Write(pd_umon,'( A)')"WARNING !!!!!!!!!!!!!!!!!!!"
+       Write(pd_umon,'( A)')"WARNING !"
        Write(pd_umon,'(5A)')"In puredat function pd_get_5_scalar(",TRIM(desc)," from ",TRIM(branch%desc),")"
        Write(pd_umon,'( A)')"leaf%dat_no > 1 for scalar retrival of leaf data"
        Write(pd_umon,'( A)')"You will only get the first data element as a scalar"
@@ -3039,7 +3039,7 @@ End Subroutine Write_Streams
    !>
    !> Function which retrieves int 4 leaf data from the corresponding leaf
    !> pointer to a constant array of rank 1 and type int(kind=4). The 
-   !> leaf is searched !!non recursively!! in the given branch by full 
+   !> leaf is searched !non recursively! in the given branch by full 
    !> comparison of trim(branch%leaves(ii)%desc) == trim(desc).
    Subroutine pd_get_3_vector(branch, desc, values, size)
 
@@ -3065,7 +3065,7 @@ End Subroutine Write_Streams
                Write(pd_umon,'(3A)')"In puredat function pd_get_3_vector (",TRIM(branch%desc),")"
                Write(pd_umon,'( A)')"The specified leaf size is not equal to the size        !"
                Write(pd_umon,'( A)')"of the passed actual argument                           !"
-               Write(pd_umon,'( A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!"
+               Write(pd_umon,'( A)')"PROGRAM STOPED !"
                stop
             End If
             
@@ -3082,7 +3082,7 @@ End Subroutine Write_Streams
         Write(pd_umon,'(A)')trim(desc)
         Write(pd_umon,'(A)')"In puredat function pd_get_4(branch,desc)"
         Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-        Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!"
+        Write(pd_umon,'(A)')"PROGRAM STOPED !"
         stop
     End If
 
@@ -3093,7 +3093,7 @@ End Subroutine pd_get_3_vector
 !>
 !> Function which retrieves integer 8 leaf data from the corresponding leaf
 !> pointer to an allocatable array of rank 1 and type Integer(kind=8). The 
-!> leaf is searched !!non recursively!! in the given branch by full 
+!> leaf is searched !non recursively! in the given branch by full 
 !> comparison of trim(branch%leaves(ii)%desc) == trim(desc).
 Subroutine pd_get_4(branch, desc, values)
 
@@ -3126,7 +3126,7 @@ Subroutine pd_get_4(branch, desc, values)
         Write(pd_umon, '(A)')trim(desc)
         Write(pd_umon, '(A)') "In puredat function pd_get_4(branch,desc)"
         Write(pd_umon, '(A)') "The specified leaf was not found in the passed branch" 
-        Write(pd_umon, '(A)') "PROGRAM STOPED !!!!!!!!!!!!!"
+        Write(pd_umon, '(A)') "PROGRAM STOPED !"
         stop
     End If
 
@@ -3137,7 +3137,7 @@ End Subroutine pd_get_4
   !>
   !> Function which retrieves integer 8 leaf data from the corresponding leaf
   !> pointer to a constant array of rank 1 and type Integer(kind=8). The 
-  !> leaf is searched !!non recursively!! in the given branch by full 
+  !> leaf is searched !non recursively! in the given branch by full 
   !> comparison of trim(branch%leaves(ii)%desc) == trim(desc).
   Subroutine pd_get_4_vector(branch, desc, values, size)
 
@@ -3163,7 +3163,7 @@ End Subroutine pd_get_4
              Write(pd_umon,'(3A)')"In puredat function pd_get_4(",TRIM(branch%desc),")"
              Write(pd_umon,'( A)')"The specified leaf size is not equal to the size  !"
              Write(pd_umon,'( A)')"of the passed actual argument                     !"
-             Write(pd_umon,'( A)')"PROGRAM STOPED !!!!!!!!!!!!!"
+             Write(pd_umon,'( A)')"PROGRAM STOPED !"
              stop
           End If
           
@@ -3180,7 +3180,7 @@ End Subroutine pd_get_4
        Write(pd_umon,'(A)')trim(desc)
        Write(pd_umon,'(A)')"In puredat function pd_get_4(branch,desc)"
        Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!"
+       Write(pd_umon,'(A)')"PROGRAM STOPED !"
        stop
     End If
 
@@ -3191,7 +3191,7 @@ End Subroutine pd_get_4
   !>
   !> Function which retrieves real 8 leaf data from the corresponding leaf
   !> pointer to an allocatable array of rank 1 and type Real(kind=8). The leaf
-  !> is searched !!non recursively!! in the given branch by full comparison
+  !> is searched !non recursively! in the given branch by full comparison
   !> of trim(branch%leaves(ii)%desc) == trim(desc).
   Subroutine pd_get_5(branch, desc, values)
 
@@ -3224,7 +3224,7 @@ End Subroutine pd_get_4
        Write(pd_umon,'(A)')trim(desc)
        Write(pd_umon,'(A)')"In puredat function pd_get_5(branch,desc)"
        Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!"
+       Write(pd_umon,'(A)')"PROGRAM STOPED !"
        stop
     End If
 
@@ -3237,7 +3237,7 @@ End Subroutine pd_get_4
   !>
   !> Function which retrieves real 8 leaf data from the corresponding leaf
   !> pointer to a constant array of rank 1 and type real(kind=8). The 
-  !> leaf is searched !!non recursively!! in the given branch by full 
+  !> leaf is searched !non recursively! in the given branch by full 
   !> comparison of trim(branch%leaves(ii)%desc) == trim(desc).
   Subroutine pd_get_5_vector(branch, desc, values, size)
 
@@ -3263,7 +3263,7 @@ End Subroutine pd_get_4
              Write(pd_umon,'(3A)')"In puredat function pd_get_5_vector (",TRIM(branch%desc),")"
              Write(pd_umon,'( A)')"The specified leaf size is not equal to the size        !"
              Write(pd_umon,'( A)')"of the passed actual argument                           !"
-             Write(pd_umon,'( A)')"PROGRAM STOPED !!!!!!!!!!!!!!!!!!!"
+             Write(pd_umon,'( A)')"PROGRAM STOPED !"
              stop
           End If
           
@@ -3280,7 +3280,7 @@ End Subroutine pd_get_4
        Write(pd_umon,'(A)')trim(desc)
        Write(pd_umon,'(A)')"In puredat function pd_get_4(branch,desc)"
        Write(pd_umon,'(A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'(A)')"PROGRAM STOPED !!!!!!!!!!!!!"
+       Write(pd_umon,'(A)')"PROGRAM STOPED !"
        stop
     End If
 
@@ -3293,7 +3293,7 @@ End Subroutine pd_get_4
   !>
   !> Function which retrieves character leaf data from the corresponding leaf
   !> pointer to an allocatable array of rank 1 and type Character. The leaf
-  !> is searched !!non recursively!! in the given branch by full comparison
+  !> is searched !non recursively! in the given branch by full comparison
   !> of trim(branch%leaves(ii)%desc) == trim(desc).
   Subroutine pd_get_6(branch, desc, values)
 
@@ -3327,7 +3327,7 @@ End Subroutine pd_get_4
        Write(pd_umon,'( A)')trim(desc)
        Write(pd_umon,'(3A)')"In puredat function pd_get_6(",TRIM(branch%desc),")"
        Write(pd_umon,'( A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'( A)')"PROGRAM STOPED !!!!!!!!!!!!!"
+       Write(pd_umon,'( A)')"PROGRAM STOPED !"
        stop
     End If
 
@@ -3413,7 +3413,7 @@ End Subroutine pd_get_4
        Write(pd_umon,'( A)')trim(desc)
        Write(pd_umon,'(3A)')"In puredat function pd_get_4_scalar(",TRIM(branch%desc),")"
        Write(pd_umon,'( A)')"The specified leaf was not found in the passed branch" 
-       Write(pd_umon,'( A)')"PROGRAM STOPED !!!!!!!!!!!!!"
+       Write(pd_umon,'( A)')"PROGRAM STOPED !"
        stop
     End If
 
@@ -3519,8 +3519,8 @@ End Subroutine pd_get_4
 
   End Function read_tree
 
-  !********************************************************
-  !* Subroutine for reading a branch from header file *****
+  !*
+  ! Subroutine for reading a branch from header file**
   Recursive Subroutine read_branch(head,branch,size,pos,streams)
 
     character, dimension(:), intent(in) :: head
@@ -3596,8 +3596,8 @@ End Subroutine pd_get_4
 
   End Subroutine read_branch
 
-  !********************************************************
-  !* Subroutine for reading a branch form header file *****
+  !*
+  ! Subroutine for reading a branch form header file**
   Recursive Subroutine read_branch_ws(un_head,branch,success)
 
     Integer      , Intent(in)    :: un_head
@@ -3676,8 +3676,8 @@ End Subroutine pd_get_4
 
   End Subroutine read_branch_ws
 
-  !********************************************************
-  !* Subroutine for reading a leaf form header file *******
+  !*
+  ! Subroutine for reading a leaf form header file**
   Function read_leaf_ws(un_head,success) Result(leaf)
 
     Integer, Intent(in)  :: un_head
@@ -3732,8 +3732,8 @@ End Subroutine pd_get_4
 
   End Function read_leaf_ws
 
-  !********************************************************
-  !* Subroutine for reading a leaf form header file *******
+  !*
+  ! Subroutine for reading a leaf form header file**
   Function read_leaf(head,size,pos) Result(leaf)
 
     Character, Dimension(:), Intent(in) :: head
@@ -3791,7 +3791,7 @@ End Subroutine pd_get_4
 
     CALL OPEN_STREAM_FILES(branch, "read", "old")
 
-    !*************************************************************************
+    !
     If (branch%streams%dim_st(1) > 0) then
 
        If (associated(branch%streams%int1_st)) then
@@ -3806,7 +3806,7 @@ End Subroutine pd_get_4
        Read(branch%streams%units(1))branch%streams%int1_st
 
     End If
-    !*************************************************************************
+    !
     If (branch%streams%dim_st(2) > 0) then
 
        If (associated(branch%streams%int2_st)) then
@@ -3821,7 +3821,7 @@ End Subroutine pd_get_4
        Read(branch%streams%units(2))branch%streams%int2_st
 
     End If
-    !*************************************************************************
+    !
     If (branch%streams%dim_st(3) > 0) then
 
        If (associated(branch%streams%int4_st)) then
@@ -3836,7 +3836,7 @@ End Subroutine pd_get_4
        Read(branch%streams%units(3))branch%streams%int4_st
 
     End If
-    !*************************************************************************
+    !
     If (branch%streams%dim_st(4) > 0) then
 
        If (associated(branch%streams%int8_st)) then
@@ -3851,7 +3851,7 @@ End Subroutine pd_get_4
        Read(branch%streams%units(4))branch%streams%int8_st
 
     End If
-    !*************************************************************************
+    !
     If (branch%streams%dim_st(5) > 0) then
 
        If (associated(branch%streams%real8_st)) then
@@ -3866,7 +3866,7 @@ End Subroutine pd_get_4
        Read(branch%streams%units(5))branch%streams%real8_st
 
     End If
-    !*************************************************************************
+    !
     If (branch%streams%dim_st(6) > 0) then
 
        If (associated(branch%streams%char_st)) then
@@ -3881,7 +3881,7 @@ End Subroutine pd_get_4
        Read(branch%streams%units(6))branch%streams%char_st
 
     End If
-    !*************************************************************************
+    !
     If (branch%streams%dim_st(7) > 0) then
 
        If (associated(branch%streams%log_st)) then
@@ -3910,7 +3910,7 @@ End Subroutine pd_get_4
 
     CALL OPEN_STREAM_FILES(streams, "read", "old")
 
-    !*************************************************************************
+    !
     If (streams%dim_st(1) > 0) then
 
        If (.not.associated(streams%int1_st)) then
@@ -3922,7 +3922,7 @@ End Subroutine pd_get_4
        Read(streams%units(1))streams%int1_st
 
     End If
-    !*************************************************************************
+    !
     If (streams%dim_st(2) > 0) then
 
        If (.not.associated(streams%int2_st)) then
@@ -3934,7 +3934,7 @@ End Subroutine pd_get_4
        Read(streams%units(2))streams%int2_st
 
     End If
-    !*************************************************************************
+    !
     If (streams%dim_st(3) > 0) then
 
        If (.not.associated(streams%int4_st)) then
@@ -3946,7 +3946,7 @@ End Subroutine pd_get_4
        Read(streams%units(3))streams%int4_st
 
     End If
-    !*************************************************************************
+    !
     If (streams%dim_st(4) > 0) then
 
        If (.not.associated(streams%int8_st)) then
@@ -3958,7 +3958,7 @@ End Subroutine pd_get_4
        Read(streams%units(4))streams%int8_st
 
     End If
-    !*************************************************************************
+    !
     If (streams%dim_st(5) > 0) then
 
        If (.not.associated(streams%real8_st)) then
@@ -3970,7 +3970,7 @@ End Subroutine pd_get_4
        Read(streams%units(5))streams%real8_st
 
     End If
-    !*************************************************************************
+    !
     If (streams%dim_st(6) > 0) then
 
        If (.not.associated(streams%char_st)) then
@@ -3982,7 +3982,7 @@ End Subroutine pd_get_4
        Read(streams%units(6))streams%char_st
 
     End If
-    !*************************************************************************
+    !
     If (streams%dim_st(7) > 0) then
 
        If (.not.associated(streams%log_st)) then
@@ -4006,7 +4006,7 @@ End Subroutine pd_get_4
   !> stream file. The stream file has to be allready opened. The out parameter
   !> values is allocated to the correct size and the read is directly performed
   !> on values.<br>
-  !> !! The passed in tBranch structure is NOT cycled recursively.
+  !> ! The passed in tBranch structure is NOT cycled recursively.
 
   Subroutine pd_load_leaf_1(streams,branch,desc, values)
 
@@ -4037,7 +4037,7 @@ End Subroutine pd_get_4
     end Do
 
    IF (.NOT. desc_found) THEN
-      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_load_leaf_1«."
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//" by »subroutine pd_load_leaf_1«."
       CALL print_err_stop(pd_umon, mssg, 1)
    END IF 
   End Subroutine pd_load_leaf_1
@@ -4049,7 +4049,7 @@ End Subroutine pd_get_4
   !> stream file. The stream file has to be allready opened. The out parameter
   !> values is allocated to the correct size and the read is directly performed
   !> on values.<br>
-  !> !! The passed in tBranch structure is NOT cycled recursively.
+  !> ! The passed in tBranch structure is NOT cycled recursively.
   Subroutine pd_load_leaf_2(streams,branch,desc, values)
 
     Type(tStreams)  , Intent(in) :: streams
@@ -4079,7 +4079,7 @@ End Subroutine pd_get_4
     end Do
 
    IF (.NOT. desc_found) THEN
-      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_load_leaf_2«."
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//" by »subroutine pd_load_leaf_2«."
       CALL print_err_stop(pd_umon, mssg, 1)
    END IF 
   End Subroutine pd_load_leaf_2
@@ -4091,7 +4091,7 @@ End Subroutine pd_get_4
   !> stream file. The stream file has to be allready opened. The out parameter
   !> values is allocated to the correct size and the read is directly performed
   !> on values.<br>
-  !> !! The passed in tBranch structure is NOT cycled recursively.
+  !> ! The passed in tBranch structure is NOT cycled recursively.
   Subroutine pd_load_leaf_3(streams,branch,desc, values)
 
     Type(tStreams)  , Intent(in) :: streams
@@ -4121,7 +4121,7 @@ End Subroutine pd_get_4
     end Do
 
    IF (.NOT. desc_found) THEN
-      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_load_leaf_3«."
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//" by »subroutine pd_load_leaf_3«."
       CALL print_err_stop(pd_umon, mssg, 1)
    END IF 
   End Subroutine pd_load_leaf_3
@@ -4133,7 +4133,7 @@ End Subroutine pd_get_4
   !> stream file. The stream file has to be allready opened. The out parameter
   !> values is allocated to the correct size and the read is directly performed
   !> on values.<br>
-  !> !! The passed in tBranch structure is NOT cycled recursively.
+  !> ! The passed in tBranch structure is NOT cycled recursively.
   Subroutine pd_load_leaf_4(streams,branch,desc, values)
 
     Type(tStreams)  , Intent(in) :: streams
@@ -4163,7 +4163,7 @@ End Subroutine pd_get_4
     end Do
 
    IF (.NOT. desc_found) THEN
-      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_load_leaf_4«."
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//" by »subroutine pd_load_leaf_4«."
       CALL print_err_stop(pd_umon, mssg, 1)
    END IF 
   End Subroutine pd_load_leaf_4
@@ -4175,7 +4175,7 @@ End Subroutine pd_get_4
   !> stream file. The stream file has to be allready opened. The out parameter
   !> values is allocated to the correct size and the read is directly performed
   !> on values.<br>
-  !> !! The passed in tBranch structure is NOT cycled recursively.
+  !> ! The passed in tBranch structure is NOT cycled recursively.
   Subroutine pd_load_leaf_5(streams,branch,desc, values)
 
     Type(tStreams)  , Intent(in) :: streams
@@ -4205,7 +4205,7 @@ End Subroutine pd_get_4
     end Do
 
    IF (.NOT. desc_found) THEN
-      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_load_leaf_5«."
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//" by »subroutine pd_load_leaf_5«."
       CALL print_err_stop(pd_umon, mssg, 1)
    END IF 
   End Subroutine pd_load_leaf_5
@@ -4217,7 +4217,7 @@ End Subroutine pd_get_4
   !> stream file. The stream file has to be allready opened. The out parameter
   !> values is allocated to the correct size and the read is directly performed
   !> on values.<br>
-  !> !! The passed in tBranch structure is NOT cycled recursively.  
+  !> ! The passed in tBranch structure is NOT cycled recursively.  
   Subroutine pd_load_leaf_6(streams,branch,desc, values)
 
     Type(tStreams)  , Intent(in) :: streams
@@ -4247,7 +4247,7 @@ End Subroutine pd_get_4
     end Do
 
    IF (.NOT. desc_found) THEN
-      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_load_leaf_6«."
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//" by »subroutine pd_load_leaf_6«."
       CALL print_err_stop(pd_umon, mssg, 1)
    END IF 
   End Subroutine pd_load_leaf_6
@@ -4260,9 +4260,9 @@ End Subroutine pd_get_4
   !> values is of dimension 2 and is allocated to the correct size determined by
   !> branch%leaves(ii)%dat_no/factor. The read is directly performed
   !> on values. <br>
-  !> !! If mod(branch%leaves(ii)%dat_no,factor) is not equal 0 a fatal error is
+  !> ! If mod(branch%leaves(ii)%dat_no,factor) is not equal 0 a fatal error is
   !> issued and the program is halted.<br>
-  !> !! The passed in tBranch structure is NOT cycled recursively.  
+  !> ! The passed in tBranch structure is NOT cycled recursively.  
   Subroutine pd_load_leaf_4_2D(streams,branch,desc, values, factor)
 
     Type(tStreams)  , Intent(in) :: streams
@@ -4303,7 +4303,7 @@ End Subroutine pd_get_4
     end Do
 
    IF (.NOT. desc_found) THEN
-      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_load_leaf_4_2D«."
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//" by »subroutine pd_load_leaf_4_2D«."
       CALL print_err_stop(pd_umon, mssg, 1)
    END IF 
   End Subroutine pd_load_leaf_4_2D
@@ -4316,9 +4316,9 @@ End Subroutine pd_get_4
   !> values is of dimension 2 and is allocated to the correct size determined by
   !> branch%leaves(ii)%dat_no/factor. The read is directly performed
   !> on values. <br>
-  !> !! If mod(branch%leaves(ii)%dat_no,factor) is not equal 0 a fatal error is
+  !> ! If mod(branch%leaves(ii)%dat_no,factor) is not equal 0 a fatal error is
   !> issued and the program is halted.<br>
-  !> !! The passed in tBranch structure is NOT cycled recursively.  
+  !> ! The passed in tBranch structure is NOT cycled recursively.  
   Subroutine pd_load_leaf_5_2D(streams,branch,desc, values, factor)
 
     Type(tStreams)  , Intent(in) :: streams
@@ -4358,7 +4358,7 @@ End Subroutine pd_get_4
     end Do
 
    IF (.NOT. desc_found) THEN
-      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_load_leaf_5_2D«."
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//" by »subroutine pd_load_leaf_5_2D«."
       CALL print_err_stop(pd_umon, mssg, 1)
    END IF 
   End Subroutine pd_load_leaf_5_2D
@@ -4485,7 +4485,7 @@ End Subroutine pd_get_4
 
     Type(tBranch), Intent(In):: tree 
     Integer:: un_head
-    !*********************************************************
+    !
 
     un_head = pd_give_new_unit()
 
@@ -4552,7 +4552,7 @@ End Subroutine pd_get_4
 
   !============================================================================
   !> Function which stores integer 1 leaf data
-  Subroutine  pd_store_1(streams,branch,desc,values,blind)
+  Subroutine  pd_store_1(streams, branch, desc, values, blind)
 
     Type(tStreams)  , Intent(inout)            :: streams
     Type(tBranch)   , Intent(inout)            :: branch
@@ -4597,14 +4597,14 @@ End Subroutine pd_get_4
     end Do
 
    IF (.NOT. desc_found) THEN
-      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_store_1«."
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//" by »subroutine pd_store_1«."
       CALL print_err_stop(pd_umon, mssg, 1)
    END IF 
   End Subroutine pd_store_1
 
   !============================================================================
   !> Function which stores integer 2 leaf data
-  Subroutine  pd_store_2(streams,branch,desc,values,blind)
+  Subroutine  pd_store_2(streams, branch, desc, values, blind)
 
     Type(tStreams)  , Intent(inout) :: streams
     Type(tBranch)   , Intent(inout) :: branch
@@ -4648,14 +4648,14 @@ End Subroutine pd_get_4
     end Do
 
    IF (.NOT. desc_found) THEN
-      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_store_2«."
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//" by »subroutine pd_store_2«."
       CALL print_err_stop(pd_umon, mssg, 1)
    END IF 
   End Subroutine pd_store_2
 
   !============================================================================
   !> Function which stores integer 4 leaf data
-  Subroutine  pd_store_3(streams,branch,desc,values,blind)
+  Subroutine  pd_store_3(streams, branch, desc, values, blind)
 
     Type(tStreams)  , Intent(inout) :: streams
     Type(tBranch)   , Intent(inout) :: branch
@@ -4699,14 +4699,14 @@ End Subroutine pd_get_4
     end Do
 
    IF (.NOT. desc_found) THEN
-      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_store_3«."
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//" by »subroutine pd_store_3«."
       CALL print_err_stop(pd_umon, mssg, 1)
    END IF 
   End Subroutine pd_store_3
 
   !============================================================================
   !> Function which stores integer 8 leaf data
-  Subroutine  pd_store_4(streams,branch,desc,values,blind)
+  Subroutine  pd_store_4(streams, branch, desc, values, blind)
 
     Type(tStreams)  , Intent(inout):: streams
     Type(tBranch)   , Intent(inout):: branch
@@ -4750,14 +4750,14 @@ End Subroutine pd_get_4
     end Do
 
    IF (.NOT. desc_found) THEN
-      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_store_4«."
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//" by »subroutine pd_store_4«."
       CALL print_err_stop(pd_umon, mssg, 1)
    END IF 
   End Subroutine pd_store_4
 
   !============================================================================
   !> Function which stores integer 8 leaf data
-  Subroutine  pd_store_4_2D(streams,branch,desc,values,blind)
+  Subroutine  pd_store_4_2D(streams, branch, desc, values, blind)
 
     Type(tStreams)   , Intent(inout) :: streams
     Type(tBranch)    , Intent(inout) :: branch
@@ -4785,7 +4785,7 @@ End Subroutine pd_get_4
           if ( branch%leaves(ii)%dat_no /= size(values) ) &
                call cons_error("pd_store_4_2D", &
                "In leaf "//trim(desc)//char(10)//&
-               &"branch%leaves(ii)%dat_no /= size(values) this should not happen !!")
+               &"branch%leaves(ii)%dat_no /= size(values) this should not happen !")
 
           If (.not.loc_blind) then
              If ( streams%ifopen(4) ) then
@@ -4806,7 +4806,7 @@ End Subroutine pd_get_4
     end Do
 
    IF (.NOT. desc_found) THEN
-      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_store_4_2D«."
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//" by »subroutine pd_store_4_2D«."
       CALL print_err_stop(pd_umon, mssg, 1)
    END IF 
   End Subroutine pd_store_4_2D
@@ -4857,7 +4857,7 @@ End Subroutine pd_get_4
     end Do
 
    IF (.NOT. desc_found) THEN
-      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_store_5«."
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//" by »subroutine pd_store_5«."
       CALL print_err_stop(pd_umon, mssg, 1)
    END IF 
 
@@ -4865,7 +4865,7 @@ End Subroutine pd_get_4
 
   !============================================================================
   !> Function which stores real 8 leaf data
-  Subroutine  pd_store_5_2D(streams,branch,desc,values,blind)
+  Subroutine  pd_store_5_2D(streams, branch, desc, values, blind)
 
     Type(tStreams)  , Intent(inout) :: streams
     Type(tBranch)   , Intent(inout) :: branch
@@ -4890,7 +4890,7 @@ End Subroutine pd_get_4
           If (branch%leaves(ii)%dat_no /= size(values)) & 
                call cons_error("pd_store_5_2D", &
                "In leaf "//trim(desc)//char(10)//&
-               &"branch%leaves(ii)%dat_no /= size(values) this should not happen !!")
+               &"branch%leaves(ii)%dat_no /= size(values) this should not happen !")
 
           If ( branch%leaves(ii)%dat_ty /= 5 ) call cons_error("pd_store_5",&
                "Storing data other than Type 5 is not allowed with this routine")
@@ -4914,7 +4914,7 @@ End Subroutine pd_get_4
     end Do
 
     IF (.NOT. desc_found) THEN
-      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_store_5_2D«."
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//" by »subroutine pd_store_5_2D«."
       CALL print_err_stop(pd_umon, mssg, 1)
     END IF 
 
@@ -4922,7 +4922,7 @@ End Subroutine pd_get_4
 
   !============================================================================
   !> Function which stores character leaf data
-  Subroutine  pd_store_6(streams,branch,desc,values,blind)
+  Subroutine  pd_store_6(streams, branch, desc, values, blind)
 
     Type(tStreams)  , Intent(inout) :: streams
     Type(tBranch)   , Intent(inout) :: branch
@@ -4968,7 +4968,7 @@ End Subroutine pd_get_4
     end Do
 
     IF (.NOT. desc_found) THEN
-      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_store_6«."
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//" by »subroutine pd_store_6«."
       CALL print_err_stop(pd_umon, mssg, 1)
     END IF 
 
@@ -4976,7 +4976,7 @@ End Subroutine pd_get_4
 
   !============================================================================
   !> Function which stores character leaf data
-  Subroutine  pd_store_6_str(streams,branch,desc,values,blind)
+  Subroutine  pd_store_6_str(streams, branch, desc, values, blind)
 
     Type(tStreams)  , Intent(inout) :: streams
     Type(tBranch)   , Intent(inout) :: branch
@@ -5022,7 +5022,7 @@ End Subroutine pd_get_4
     end Do
 
     IF (.NOT. desc_found) THEN
-      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//"by »subroutine pd_store_6_str«."
+      mssg='Leaf '//TRIM(desc)//' was not found in branch '//TRIM(branch%desc)//" by »subroutine pd_store_6_str«."
       CALL print_err_stop(pd_umon, mssg, 1)
     END IF 
 
@@ -5120,9 +5120,9 @@ End Subroutine store_parallel_branch
     Type(tBranch)         :: tmp_tree
     Integer(kind=pd_ik)   :: ii, wskip
     Character(len=pd_mcl) :: tmp_line
-    !*********************************************************
+    !
 
-    !* Raise temporary tree structure ***
+    ! Raise temporary tree structure
     call raise_tree('',tmp_tree)
     call open_stream_files(tmp_tree%streams, "write", "new")
     
@@ -5132,13 +5132,11 @@ End Subroutine store_parallel_branch
          action='write')
 
     Write(un_head, fmt_bsep)
-    !------------------------12345678901234567890123456789012345678901234567890
     Write(un_head, '(4(A))')'<description> ', "'", Trim(branch%desc), "'"
     Write(un_head, '(A,I15)')'<no_of_branches> ',branch%no_branches
     Write(un_head, '(A,I15)')'<no_of_leaves> ',branch%no_leaves
     
-    !* Initially dump the tstream component of tmp_tree ***
-    !------------------------12345678901234567890123456789012345678901234567890
+    ! Initially dump the tstream component of tmp_tree
     Write(un_head, '(A,L1)')'<streams_allocated> ',.TRUE.
     Write(un_head, '(A,I15)')'<size_int1_stream> ',tmp_tree%streams%dim_st(1)
     Write(un_head, '(A,I15)')'<size_int2_stream> ',tmp_tree%streams%dim_st(2)
@@ -5161,15 +5159,15 @@ End Subroutine store_parallel_branch
     Open(unit=un_head, file=Trim(pro_path)//Trim(pro_name)//'.head', status='old', &
          action='write',access="stream")
 
-    !* Calc skip from begin of file :
-    !* fmt_bsep               = 12 + 1
-    !* branch desc. line      = 16 + len_trim(branch%desc) + 1
-    !* no of branches line    = 17 + 15 + 1
-    !* no of leaves line      = 15 + 15 + 1
-    !* streams allocated line = 20 + 1 + 1
+    ! Calc skip from begin of file :
+    ! fmt_bsep               = 12 + 1
+    ! branch desc. line      = 16 + len_trim(branch%desc) + 1
+    ! no of branches line    = 17 + 15 + 1
+    ! no of leaves line      = 15 + 15 + 1
+    ! streams allocated line = 20 + 1 + 1
     wskip = 13 + 16+len_trim(branch%desc)+1 + 17+15+1 + 15+15+1 + 20+1+1 + 1
     
-    !* Update the sizes of the tstream components of tmp_tree ***
+    ! Update the sizes of the tstream components of tmp_tree
     Write(tmp_line,'(A,I15,A)')'<size_int1_stream> ',tmp_tree%streams%dim_st(1), char(10)
     Write(un_head, pos=wskip)trim(tmp_line)
     wskip = wskip + 35
@@ -5210,7 +5208,7 @@ End Subroutine store_parallel_branch
     Write(un_head, '(A,I0)')'<no_of_branches> ',branch%no_branches
     Write(un_head, '(A,I0)')'<no_of_leaves> ',branch%no_leaves
 
-    !* We do not dump any contained tstream comonents ***
+    ! We do not dump any contained tstream comonents
     Write(un_head, '(A,L1)')'<streams_allocated> ',.FALSE.
     
     Do ii = 1, branch%no_leaves
@@ -5312,7 +5310,7 @@ End Subroutine store_parallel_branch
   !>
   !> Subroutine which recursively  serializes a puredat tree to arrays 
   !> regardless of the branch structures.
-  !> Rule: Leaves first !!
+  !> Rule: Leaves first !
   Subroutine serialize_tree(tree, desc, dat_no, dat_ty, offsets)
     
     type(tBranch), Intent(in) :: tree
@@ -5372,7 +5370,7 @@ End Subroutine store_parallel_branch
   !>
   !> Subroutine which recursively  serializes a puredat tree to arrays 
   !> regardless of the branch structures.
-  !> Rule: Leaves first !!
+  !> Rule: Leaves first !
   Recursive Subroutine serialize_tree_rec(tree, desc, dat_no, dat_ty, offsets, c)
     
     type(tBranch), Intent(in) :: tree
@@ -5417,7 +5415,7 @@ End Subroutine store_parallel_branch
     Integer(kind=pd_ik) :: alloc_stat
     Logical :: loc_sdat
     
-    !*********************************************************
+    !
 
     If ( present(sdat) ) then
        loc_sdat = sdat
@@ -5449,11 +5447,11 @@ End Subroutine store_parallel_branch
 
     size = size - 1
 
-!!$    un_head = pd_give_new_unit()
-!!$    Open(unit=un_head, file=Trim(pro_path)//Trim(pro_name)//'.serialhead', status='replace', &
-!!$         action='write',access="stream")
-!!$    write(un_head)head
-!!$    close(un_head)
+!$    un_head = pd_give_new_unit()
+!$    Open(unit=un_head, file=Trim(pro_path)//Trim(pro_name)//'.serialhead', status='replace', &
+!$         action='write',access="stream")
+!$    write(un_head)head
+!$    close(un_head)
 
   End Subroutine serialize_branch
 
@@ -5467,20 +5465,20 @@ End Subroutine store_parallel_branch
 
     Integer(kind=pd_ik) :: ii
 
-    !* Account for fixed components ***
+    ! Account for fixed components
     size = size + pd_ce + 2 
 
-    !* Account for streams component if allocated ***
+    ! Account for streams component if allocated
     If (allocated(branch%streams)) then
        size = size + 1 + 4*no_streams + no_streams*pd_ce
     Else
        size = size + 1
     End If
 
-    !* Account for leaves if any *************
+    ! Account for leaves if any**
     size = size + branch%no_leaves * (no_streams + 4 + pd_ce)
 
-    !* Account for branches if any ***
+    ! Account for branches if any
     Do ii = 1, branch%no_branches
        Call get_serial_branch_size(branch%branches(ii), size)
     End Do
@@ -5504,22 +5502,22 @@ End Subroutine store_parallel_branch
 
     Integer(kind=pd_ik) :: ii
 
-    !* Account for fixed components ***
+    ! Account for fixed components
     size = size + pd_ce + 2 
 
-    !* Account for streams component if allocated ***
+    ! Account for streams component if allocated
     If (allocated(branch%streams)) then
        size = size + 1 + 4*no_streams + no_streams*pd_ce
     Else
        size = size + 1
     End If
 
-    !* Account for leaves if any ****************
+    ! Account for leaves if any*
     Do ii = 1, branch%no_leaves
 
        size = size + (no_streams + 4 + pd_ce)
 
-       !* Account for leaf data *****************
+       ! Account for leaf data**
        if ( (branch%leaves(ii)%dat_no > 0) .AND. &
             (branch%leaves(ii)%pstat >= 0)        ) then
           
@@ -5548,7 +5546,7 @@ End Subroutine store_parallel_branch
        
     End Do
     
-    !* Account for branches if any ***
+    ! Account for branches if any
     Do ii = 1, branch%no_branches
        Call get_serial_branch_size_with_data(branch%branches(ii), size)
     End Do
@@ -5568,7 +5566,7 @@ End Subroutine store_parallel_branch
 
     Integer(kind=pd_ik) :: ii
 
-    !* Fixed Components ******************************************************
+    ! Fixed Components*
     head(pos:pos+pd_ce-1) = Transfer(branch%desc,char_mold)
     pos = pos+pd_ce
 
@@ -5577,7 +5575,7 @@ End Subroutine store_parallel_branch
     head(pos) = branch%no_leaves
     pos = pos+1
 
-    !* Streams ***************************************************************
+    ! Streams**
     If (allocated(branch%streams)) then
        
        head(pos) = 1
@@ -5611,7 +5609,7 @@ End Subroutine store_parallel_branch
 
     End If
 
-    !* Leaves ****************************************************************
+    ! Leaves*
     Do ii = 1, branch%no_leaves
        
        head(pos:pos+pd_ce-1) = Transfer(branch%leaves(ii)%desc,char_mold)
@@ -5631,7 +5629,7 @@ End Subroutine store_parallel_branch
 
     End Do
 
-    !* Branches **************************************************************
+    ! Branches*
     Do ii = 1, branch%no_branches
        Call serialize_branch_rec(branch%branches(ii),head,pos)
     End Do
@@ -5657,7 +5655,7 @@ End Subroutine store_parallel_branch
 
     Integer(kind=pd_ik) :: ii, no_int8_elems
 
-    !* Fixed Components ******************************************************
+    ! Fixed Components
     head(pos:pos+pd_ce-1) = Transfer(branch%desc,char_mold)
     pos = pos+pd_ce
 
@@ -5666,7 +5664,7 @@ End Subroutine store_parallel_branch
     head(pos) = branch%no_leaves
     pos = pos+1
 
-    !* Streams ***************************************************************
+    ! Streams
     If (allocated(branch%streams)) then
        
        head(pos) = 1
@@ -5700,7 +5698,7 @@ End Subroutine store_parallel_branch
 
     End If
 
-    !* Leaves ****************************************************************
+    ! Leaves
     Do ii = 1, branch%no_leaves
        
        head(pos:pos+pd_ce-1) = Transfer(branch%leaves(ii)%desc,char_mold)
@@ -5718,7 +5716,7 @@ End Subroutine store_parallel_branch
        head(pos) = branch%leaves(ii)%pstat
        pos = pos + 1
 
-       !* Serialize leaf data *****************
+       ! Serialize leaf data
        if ( (branch%leaves(ii)%dat_no > 0) .AND. &
             (branch%leaves(ii)%pstat >= 0)        ) then
           
@@ -5774,7 +5772,7 @@ End Subroutine store_parallel_branch
        
     End Do
 
-    !* Branches **************************************************************
+    ! Branches
     Do ii = 1, branch%no_branches
        Call serialize_branch_with_data_rec(branch%branches(ii),head,pos)
     End Do
@@ -5824,7 +5822,7 @@ End Subroutine store_parallel_branch
     CHARACTER(len=pd_mcl) :: char_mold
     Integer(kind=pd_ik)   :: ii
 
-    !* Fixed Components ******************************************************
+    ! Fixed Components
     branch%desc = Transfer(head(pos:pos+pd_ce-1),branch%desc)
     pos = pos+pd_ce
 
@@ -5833,7 +5831,7 @@ End Subroutine store_parallel_branch
     branch%no_leaves = head(pos)
     pos = pos+1
 
-    !* Streams ***************************************************************
+    ! Streams
     If (head(pos) == 1) then
 
        pos = pos+1       
@@ -5868,7 +5866,7 @@ End Subroutine store_parallel_branch
 
     End If
 
-    !* Leaves ****************************************************************
+    ! Leaves
     If (branch%no_leaves > 0) then
 
        Allocate(branch%leaves(branch%no_leaves))
@@ -5895,7 +5893,7 @@ End Subroutine store_parallel_branch
 
     End If
 
-    !* Branches **************************************************************
+    ! Branches
     If ( branch%no_branches > 0 ) then
        
        Allocate(branch%branches(branch%no_branches))
@@ -5912,7 +5910,7 @@ End Subroutine store_parallel_branch
   !============================================================================
   !> Subroutine which deserializes a tBranch structure recursively
   !>
-  !> !! The deserialization is done directly to the leaf pointers
+  !> ! The deserialization is done directly to the leaf pointers
   !> \TODO Implement deserialisation of the leaf data directly to stream arrays
   Recursive Subroutine deserialize_branch_with_data_rec(branch,head,pos)!,no_l,no_b)
 
@@ -5923,7 +5921,7 @@ End Subroutine store_parallel_branch
     CHARACTER(len=pd_mcl) :: char_mold
     Integer(kind=pd_ik)   :: ii, no_int8_elems
 
-    !* Fixed Components ******************************************************
+    ! Fixed Components
     branch%desc = Transfer(head(pos:pos+pd_ce-1),branch%desc)
     pos = pos+pd_ce
 
@@ -5932,7 +5930,7 @@ End Subroutine store_parallel_branch
     branch%no_leaves = head(pos)
     pos = pos+1
 
-    !* Streams ***************************************************************
+    ! Streams
     If (head(pos) == 1) then
 
        pos = pos+1       
@@ -5967,7 +5965,7 @@ End Subroutine store_parallel_branch
 
     End If
 
-    !* Leaves ****************************************************************
+    ! Leaves
     If (branch%no_leaves > 0) then
 
        Allocate(branch%leaves(branch%no_leaves))
@@ -5990,7 +5988,7 @@ End Subroutine store_parallel_branch
           branch%leaves(ii)%pstat = head(pos)
           pos = pos + 1
 
-          !* DeSerialize leaf data *****************
+          ! DeSerialize leaf data
           if ( (branch%leaves(ii)%dat_no > 0) .AND. &
                (branch%leaves(ii)%pstat >= 0) ) then
                     
@@ -6055,7 +6053,7 @@ End Subroutine store_parallel_branch
 
     End If
 
-    !* Branches **************************************************************
+    ! Branches
     If ( branch%no_branches > 0 ) then
        
        Allocate(branch%branches(branch%no_branches))
@@ -6450,7 +6448,7 @@ End Subroutine store_parallel_branch
   !> \name Puredat logging routines
   !> @{
   !> These routines are intended for debug output of puredat data structures  
-  !> NOT for production output !!             
+  !> NOT for production output !             
 
   !============================================================================
   !> Subroutine for logging a complete puredat tree with all content
@@ -6682,7 +6680,7 @@ End Subroutine store_parallel_branch
 
   contains
 
-    !*************************************************************************
+    !
     !> This subroutine prints out data contained in a tLeaf structure.
     !> It is meant to be called only by log_leaf
     Subroutine Log_Leaf_data(un_lf, leaf, fmt_str)
@@ -6693,18 +6691,18 @@ End Subroutine store_parallel_branch
 
       Integer :: ii, pos, cpos
 
-      !* We have to have data residing in the leaf and we have to have a
-      !* leaf pointer status > 0 which marks process owned data residing
-      !* either directly below the leaf pointer or in a tStreams structure
-      !* pointed to by the leaf pointer
+      ! We have to have data residing in the leaf and we have to have a
+      ! leaf pointer status > 0 which marks process owned data residing
+      ! either directly below the leaf pointer or in a tStreams structure
+      ! pointed to by the leaf pointer
       If ( (leaf%dat_no > 0) .AND. leaf%pstat >= 0) then
          
          Write(un_lf, "('"//fmt_str//"   |')")
-         Write(un_lf, "('"//fmt_str//"   +',170('-'),('+'))")
-         Write(un_lf, "('"//fmt_str//"   |',' Leaf Data ',159(' '),('|'))")
+         Write(un_lf, "('"//fmt_str//"   +',120('-'),('+'))")
+         Write(un_lf, "('"//fmt_str//"   |',' Leaf Data ',109(' '),('|'))")
 
-         !**********************************************************
-         !* dat_no in [0,30] ***************************************
+         !*
+         ! dat_no in [0,30]**
          If (leaf%dat_no <= 30) then
             
             Write(un_lf, "('"//fmt_str//"   |')",ADVANCE='NO')
@@ -6741,8 +6739,8 @@ End Subroutine store_parallel_branch
             End Do
             Write(un_lf, "('|')")
 
-         !**********************************************************
-         !* dat_no in (30,1000] ************************************
+         !
+         ! dat_no in (30,1000]
          Else if ((leaf%dat_no > 30) .AND. (leaf%dat_no <= 1000)) then
 
             Write(un_lf, "('"//fmt_str//"   |')",ADVANCE='NO')
@@ -6818,8 +6816,8 @@ End Subroutine store_parallel_branch
                
             End If
 
-         !**********************************************************
-         !* dat_no > 1000 ******************************************
+         !
+         ! dat_no > 1000
          Else
 
             Write(un_lf, "('"//fmt_str//"   |')",ADVANCE='NO')
