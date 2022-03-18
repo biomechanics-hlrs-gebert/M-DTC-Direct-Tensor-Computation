@@ -104,7 +104,7 @@ TYPE(materialcard) :: bone
 
 !-- MPI Variables
 INTEGER(KIND=mik) :: ierr, rank_mpi, size_mpi, petsc_ierr, mii, mjj
-INTEGER(KIND=mik) :: worker_rank_mpi, worker_size_mpi, aun
+INTEGER(KIND=mik) :: worker_rank_mpi, worker_size_mpi, aun, par_domains
 INTEGER(KIND=mik) :: Active, request, finished = -1, worker_comm, WRITE_ROOT_COMM
 
 INTEGER(KIND=mik), Dimension(no_streams)       :: fh_mpi_root, fh_mpi_worker
@@ -135,9 +135,9 @@ INTEGER(KIND=ik), DIMENSION(:), ALLOCATABLE :: Domains, workers_assigned_domains
 INTEGER(KIND=ik), DIMENSION(:), ALLOCATABLE :: Domain_stats
 INTEGER(KIND=ik), DIMENSION(3) :: xa_d=0, xe_d=0, vdim
 
-INTEGER(KIND=ik) :: nn, ii, jj, kk, dc, stat, computed_domains = 0
+INTEGER(KIND=ik) :: nn, ii, jj, kk, dc, stat, computed_domains = 0, comm_nn = 1
 INTEGER(KIND=ik) :: No_of_domains, path_count, activity_size=0
-INTEGER(KIND=ik) :: alloc_stat, free_file_handle
+INTEGER(KIND=ik) :: alloc_stat, free_file_handle, domains_per_comm
 INTEGER(KIND=ik) :: Domain, llimit, parts, elo_macro
 
 INTEGER(KIND=pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
@@ -213,6 +213,7 @@ If (rank_mpi == 0) THEN
 
     IF(debug >=0) WRITE(std_out, FMT_TXT) "Post mortem info probably in ./datasets/temporary.std_out"
     WRITE(std_out, FMT_TXT) "Program invocation:"//TRIM(cmd_arg_history)          
+    WRITE(std_out, FMT_TXT_SEP)
 
     !------------------------------------------------------------------------------
     ! Set input paths
@@ -253,7 +254,7 @@ If (rank_mpi == 0) THEN
     !------------------------------------------------------------------------------
     ! Standard lock file of MeRaDat not used, because it would interfere with the 
     ! status file of the struct process. 
-    !------------------------------------------------------------------------------
+    !------------------------------------------------------------------------------fh_mon
     ! CALL meta_handle_lock_file(restart, restart_cmd_arg)
     CALL meta_compare_restart(restart, restart_cmd_arg)
 
@@ -308,6 +309,32 @@ If (rank_mpi == 0) THEN
     !------------------------------------------------------------------------------
     No_of_domains = (xe_d(1)-xa_d(1)+1) * (xe_d(2)-xa_d(2)+1) * (xe_d(3)-xa_d(3)+1)
 
+    !------------------------------------------------------------------------------
+    ! Calculate the number of domains computed in parallel
+    ! INTEGER DIVISION! PROGRAM WILL CRASH IF LIMIT TO RESOURCE USE IS cancelled
+    !------------------------------------------------------------------------------
+    par_domains = (size_mpi-1) / parts
+
+    !------------------------------------------------------------------------------
+    ! Number of domains per communicator
+    !
+    ! This parameter is required to calculate the amount of memory to store the 
+    ! results of each rank. However, different wall times, dependent on the 
+    ! number of dof per sub-communicator will lead to race conditions. In effect, 
+    ! some sub-communicators/ranks will compute more domains than others. 
+    ! If only the memory of the avg. number of domains per sub-communicator gets
+    ! allocated, these "underestimated number of domains per sub-communicator" will
+    ! not get stored properly.
+    ! Allocating twice the amount of memory will prevent this issue. 
+    ! Another way might be to balance not by the wall-time of the domain specific
+    ! computations, but by the number of domains per group of ranks/sub-comm.
+    ! However the additional amount of memory is considerered not as problematic 
+    ! as the lost wall/compute time caused by a static distribution of the domains.
+    !------------------------------------------------------------------------------
+    domains_per_comm = CEILING(REAL(No_of_domains, rk) / REAL(par_domains, rk), ik)
+
+    domains_per_comm = domains_per_comm * 2_ik
+    
     !------------------------------------------------------------------------------
     ! Check whether there already is a project header and an worker_is_active tracker
     ! Header-files are PureDat, not MeRaDat. Therefore via pro_path/pro_name
@@ -599,16 +626,16 @@ If (rank_mpi == 0) THEN
     !------------------------------------------------------------------------------
     ! Check whether computation will use resources properly.
     !------------------------------------------------------------------------------
-    ! Check 
+    ! NOT NECESSARY? PLEASE OBSERVE...
     !------------------------------------------------------------------------------
-    IF ( MOD((No_of_domains - computed_domains) * parts, size_mpi - 1) /= 0 ) THEN
-        write(std_out, FMT_DBG_AI0xAI0) "No_of_domains    = ", No_of_domains
-        write(std_out, FMT_DBG_AI0xAI0) "computed_domains = ", computed_domains
-        write(std_out, FMT_DBG_AI0xAI0) "parts            = ", parts
-        write(std_out, FMT_DBG_AI0xAI0) "size_mpi - 1     = ", size_mpi - 1
-        mssg = "MOD((No_of_domains - computed_domains) * parts, size_mpi - 1) /= 0"
-        CALL print_err_stop_slaves(mssg, "warning"); GOTO 1000
-    END IF
+    ! IF ( MOD((No_of_domains - computed_domains) * parts, size_mpi - 1) /= 0 ) THEN
+    !     write(std_out, FMT_DBG_AI0xAI0) "No_of_domains    = ", No_of_domains
+    !     write(std_out, FMT_DBG_AI0xAI0) "computed_domains = ", computed_domains
+    !     write(std_out, FMT_DBG_AI0xAI0) "parts            = ", parts
+    !     write(std_out, FMT_DBG_AI0xAI0) "size_mpi - 1     = ", size_mpi - 1
+    !     mssg = "MOD((No_of_domains - computed_domains) * parts, size_mpi - 1) /= 0"
+    !     CALL print_err_stop_slaves(mssg, "warning"); GOTO 1000
+    ! END IF
     
     IF ( parts > size_mpi - 1 ) THEN
         mssg = "parts > size_mpi - 1"
@@ -622,9 +649,6 @@ If (rank_mpi == 0) THEN
     CALL add_branch_to_branch(root, result_branch)
     CALL raise_branch("Averaged Material Properties", 0_pd_ik, 19_pd_ik, result_branch)
     
-    !------------------------------------------------------------------------------
-    ! To use pd_store, the memory must be allocated by raising the leaves.
-    !------------------------------------------------------------------------------
     CALL raise_leaves(no_leaves = add_leaves, &
         desc = [ &
         "Domain number                                     ", &
@@ -647,13 +671,13 @@ If (rank_mpi == 0) THEN
         "Optimized Effective stiffness CR_2                ", &
         "Effective density                                 "], &
         dat_ty = [4_1,(5_1, ii=2, add_leaves)], &
-        dat_no = [ No_of_domains, &
-        No_of_domains * 24*24, No_of_domains * 24*24, No_of_domains        , &
-        No_of_domains *  6*24, No_of_domains *  6*24, No_of_domains *  6* 6, &
-        No_of_domains        , No_of_domains *  6* 6, No_of_domains        , &
-        No_of_domains        , No_of_domains *     3, No_of_domains *     9, &
-        No_of_domains *  6* 6, No_of_domains        , No_of_domains *     3, &
-        No_of_domains *     9, No_of_domains *  6* 6, No_of_domains       ], &
+        dat_no = [ domains_per_comm, &
+        domains_per_comm * 24*24, domains_per_comm * 24*24, domains_per_comm        , &
+        domains_per_comm *  6*24, domains_per_comm *  6*24, domains_per_comm *  6* 6, &
+        domains_per_comm        , domains_per_comm *  6* 6, domains_per_comm        , &
+        domains_per_comm        , domains_per_comm *     3, domains_per_comm *     9, &
+        domains_per_comm *  6* 6, domains_per_comm        , domains_per_comm *     3, &
+        domains_per_comm *     9, domains_per_comm *  6* 6, domains_per_comm       ], &
         branch = result_branch)
     
     result_branch%leaves(:)%pstat = -1
@@ -778,7 +802,7 @@ Else
 
     CALL deserialize_branch(root, serial_root, .TRUE.)
     CALL assign_pd_root(root)
-    CALL set_bounds_in_branch(root,root%streams)
+    CALL set_bounds_in_branch(root, root%streams)
 
     !------------------------------------------------------------------------------
     ! Commented out since out_amount is a parametrized global variable 
@@ -887,8 +911,6 @@ If (rank_mpi==0) Then
             cycle
         End If
 
-        ! act_domains(ii) = nn
-
         Do mjj = mii, mii + parts-1
             !------------------------------------------------------------------------------
             ! Start worker
@@ -903,21 +925,20 @@ If (rank_mpi==0) Then
             CALL print_err_stop(std_out, "MPI_SEND of Domain number didn't succeed", ierr)
             
             if (out_amount /= "PRODUCTION") then
-                CALL mpi_send(domain_path(nn), Int(4*mcl,mik), MPI_CHARACTER, mjj, mjj, MPI_COMM_WORLD,ierr)
+                CALL mpi_send(domain_path(nn), Int(4*mcl,mik), MPI_CHARACTER, mjj, mjj, MPI_COMM_WORLD, ierr)
                 CALL print_err_stop(std_out, "MPI_SEND of Domain path didn't succeed", ierr)
             End if
         End Do
 
-         !** Log to global stdout **********************************************
-        IF(out_amount == "DEBUG") THEN
-            WRITE(fh_mon, FMT_MSG_xAI0) "Domain ", Domains(nn), " at Ranks ", mii, " to ", mii + parts-1
-            flush(fh_mon)
-        END IF
+        !------------------------------------------------------------------------------
+        ! Log to Monitor file
+        !------------------------------------------------------------------------------
+        WRITE(fh_mon, FMT_MSG_xAI0) "Domain ", Domains(nn), " at Ranks ", mii, " to ", mii + parts-1
+        flush(fh_mon)
 
         nn = nn + 1_mik
         
-        Call MPI_IRECV(worker_is_active(mii), 1_mik, MPI_INTEGER4, mii, mii, &
-            MPI_COMM_WORLD, REQ_LIST(mii), IERR)
+        Call MPI_IRECV(worker_is_active(mii), 1_mik, MPI_INTEGER4, mii, mii, MPI_COMM_WORLD, req_list(mii), ierr)
         CALL print_err_stop(std_out, "MPI_IRECV of worker_is_active(mii) didn't succeed", INT(ierr, KIND=ik))
 
         mii = mii + Int(parts,mik)
@@ -926,10 +947,9 @@ If (rank_mpi==0) Then
 
     Call MPI_WAITANY(size_mpi-1_mik, req_list, finished, status_mpi, ierr)
     CALL print_err_stop(std_out, &
-    "MPI_WAITANY on req_list for IRECV of Activity(mii) didn't succeed", INT(ierr, KIND=ik))
+        "MPI_WAITANY on req_list for IRECV of Activity(mii) didn't succeed", INT(ierr, KIND=ik))
 
     IF(finished /= MPI_UNDEFINED) mii = finished
-
 
     !------------------------------------------------------------------------------
     ! mii is incremented by mii = mii + parts
@@ -941,12 +961,10 @@ If (rank_mpi==0) Then
         ! Skip this DO WHILE cycle if Domain_stat of the domain (nn) > 0 and therefore
         ! marked as "already computed".
         !------------------------------------------------------------------------------
-
         If (Domain_stats(nn) >= 0) then
             nn = nn + 1_ik
             cycle
         End If
-
 
         !------------------------------------------------------------------------------
         ! Send information for all parts to the corresponding ranks.
@@ -957,22 +975,6 @@ If (rank_mpi==0) Then
         !------------------------------------------------------------------------------
         Do mjj = mii, mii + parts-1
 
-
-
-write(*,*) "mii: ", mii, "MJJ: ", mjj !, "parts: ", parts
-                                                                            ! ! !------------------------------------------------------------------------------
-                                                                            ! ! ! Master worker
-                                                                            ! ! !------------------------------------------------------------------------------
-                                                                            ! ! IF (MOD(mii+parts-1, parts) == 0) THEN
-
-                                                                            ! ! END IF 
-
-
-                                                                            ! !------------------------------------------------------------------------------
-                                                                            ! ! After all ranks have their first work package
-                                                                            ! !------------------------------------------------------------------------------
-                                                                            ! IF ((size_mpi-1_mik)/parts >= nn) THEN
-                
             worker_is_active(mjj) = 1_mik
             !------------------------------------------------------------------------------
             ! Start worker
@@ -991,12 +993,17 @@ write(*,*) "mii: ", mii, "MJJ: ", mjj !, "parts: ", parts
                 CALL print_err_stop(std_out, "MPI_SEND of Domain path didn't succeed", ierr)
             End if
         End Do
+        
+        !------------------------------------------------------------------------------
+        ! Log to Monitor file
+        !------------------------------------------------------------------------------
+        WRITE(fh_mon, FMT_MSG_xAI0) "Domain ", Domains(nn), " at Ranks ", mii, " to ", mii + parts-1
+        flush(fh_mon)
 
         !------------------------------------------------------------------------------
         ! Iterate over domain
         !------------------------------------------------------------------------------
         nn = nn + 1_mik
-
 
         !------------------------------------------------------------------------------
         ! Worker has finished
@@ -1013,62 +1020,6 @@ write(*,*) "mii: ", mii, "MJJ: ", mjj !, "parts: ", parts
         "MPI_WAITANY on req_list for IRECV of worker_is_active(mii) didn't succeed", ierr)
 
         IF(finished /= MPI_UNDEFINED) mii = finished
-        ! ELSE 
-        !     EXIT
-        ! END IF 
-
-
-        !                 ! mii = finished
-        ! write(*,*) "finished: ", finished
-        !                 ! Domain_stats(nn) = Domains(nn)
-
-        !                 !------------------------------------------------------------------------------
-        !                 ! Job is finished.Now, write domain number to position of linear domain number.
-        !                 !------------------------------------------------------------------------------
-        !                 ! write(aun, pos=((nn-1) * ik + 1)) INT(Domains(nn), KIND=ik)
-        !                 ! flush(aun)
-        !             END IF
-
-        !             worker_is_active(mjj) = 1_mik
-        !             workers_assigned_domains(mjj) = nn
-
-        !             !------------------------------------------------------------------------------
-        !             ! Start worker
-        !             !------------------------------------------------------------------------------
-        !             CALL mpi_send(worker_is_active(mjj), 1_mik, MPI_INTEGER4, mjj, mjj, MPI_COMM_WORLD, ierr)
-        !             CALL print_err_stop(std_out, "MPI_SEND of worker_is_active didn't succeed", ierr)
-
-        !             !------------------------------------------------------------------------------
-        !             ! Send Domain number
-        !             !------------------------------------------------------------------------------
-        !             CALL mpi_send(nn, 1_mik, MPI_INTEGER8, mjj, mjj, MPI_COMM_WORLD,ierr)
-        !             CALL print_err_stop(std_out, "MPI_SEND of Domain number didn't succeed", ierr)
-                    
-        !             if (out_amount /= "PRODUCTION") then
-        !                CALL mpi_send(domain_path(nn), Int(4*mcl,mik), MPI_CHARACTER, mjj, mjj, MPI_COMM_WORLD,ierr)
-        !                CALL print_err_stop(std_out, "MPI_SEND of Domain path didn't succeed", ierr)
-        !             End if
-
-
-            
-        !------------------------------------------------------------------------------
-        ! Log to monitor file. Only for master worker!
-        !------------------------------------------------------------------------------
-        IF(out_amount == "DEBUG") THEN
-            WRITE(fh_mon, FMT_MSG_xAI0) "Domain ", Domains(nn), " at Ranks ", mii, " to ", mii + parts-1
-            flush(fh_mon)
-        END IF
-
-        ! !------------------------------------------------------------------------------
-        ! ! iterate with step with of parts since the DO WHILE acts on all parts
-        ! ! in one iteration with a dedicated loop (jj = mii, mii+parts-1)
-        ! !------------------------------------------------------------------------------
-        ! IF (mii + INT(parts, mik) <= size_mpi) THEN
-        !     CONTINUE !mii = mii + Int(parts,mik)
-        ! ELSE
-        !     mii = 1_mik
-        ! END IF
-! 7 dann bis 4
 
     End Do
     
@@ -1150,6 +1101,7 @@ Else
         END IF
 
         CALL link_start(link_name, .True., .True.)
+
     END IF 
 
     !------------------------------------------------------------------------------
@@ -1158,7 +1110,9 @@ Else
     ! Root dir was send via broadcast, because the worker masters are not 
     ! determined at the beginning of the program.
     !------------------------------------------------------------------------------
+    CALL MPI_BCAST(comm_nn,      1_mik    , MPI_INTEGER8, 0_mik, WORKER_COMM, ierr)
     CALL MPI_BCAST(outpath,      INT(mcl, mik), MPI_CHAR, 0_mik, WORKER_COMM, ierr)
+    CALL MPI_BCAST(project_name, INT(mcl, mik), MPI_CHAR, 0_mik, WORKER_COMM, ierr)
     CALL MPI_BCAST(project_name, INT(mcl, mik), MPI_CHAR, 0_mik, WORKER_COMM, ierr)
 
     !------------------------------------------------------------------------------
@@ -1206,7 +1160,7 @@ Else
         IF (job_dir(len(job_dir):len(job_dir)) /= "/") job_dir = trim(job_dir)//"/"
 
         !======================================================================
-        CALL exec_single_domain(root, nn, Domain, job_dir, Active, fh_mpi_worker, &
+        CALL exec_single_domain(root, nn, comm_nn, Domain, job_dir, Active, fh_mpi_worker, &
              worker_rank_mpi, worker_size_mpi, worker_comm)
         !======================================================================
 
@@ -1247,6 +1201,12 @@ Else
                 Domain, &
                 1_mik, MPI_INTEGER8, &
                 status_mpi, ierr)
+
+            !------------------------------------------------------------------------------
+            ! Increment linear domain counter of the PETSc sub_comm instances
+            !------------------------------------------------------------------------------
+            comm_nn = comm_nn + 1_ik
+
         END IF
 
         !------------------------------------------------------------------------------

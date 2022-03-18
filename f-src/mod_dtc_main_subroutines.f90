@@ -46,7 +46,7 @@ CONTAINS
 !> @param[in]    size_mpi
 !> @param[in]    comm_mpi
 !------------------------------------------------------------------------------
-Subroutine exec_single_domain(root, lin_domain, domain, job_dir, active, fh_mpi_worker, &
+Subroutine exec_single_domain(root, lin_domain, comm_nn, domain, job_dir, active, fh_mpi_worker, &
     rank_mpi, size_mpi, comm_mpi)
 
 TYPE(materialcard) :: bone
@@ -54,6 +54,7 @@ INTEGER(kind=mik), Intent(INOUT), Dimension(no_streams) :: fh_mpi_worker
 
 Character(LEN=*) , Intent(in)  :: job_dir
 INTEGER(kind=mik), Intent(In)  :: rank_mpi, size_mpi, comm_mpi
+INTEGER(kind=ik) , intent(in)  :: comm_nn
 INTEGER(kind=mik), intent(out) :: active
 Type(tBranch)    , Intent(inOut) :: root
 
@@ -124,23 +125,7 @@ CALL pd_get(meta_para, "Poisson_s ratio" , bone%nu)
 ! Rank = 0 -- Local master of comm_mpi
 !------------------------------------------------------------------------------
 If (rank_mpi == 0) then
-
-    !------------------------------------------------------------------------------
-    ! Create local tree
-    !------------------------------------------------------------------------------
-    ! CALL raise_tree(Trim(project_name), domain_tree)
-    ! CALL include_branch_into_branch(s_b=meta_para, t_b=root, blind=.TRUE.)
-
-    !------------------------------------------------------------------------------
-    ! Add part branch to domain_tree
-    !------------------------------------------------------------------------------
-    ! part_desc=''
-    ! Write(part_desc,'(A,I0)')'Part_', parts
-
-    ! CALL add_branch_to_branch(domain_tree, domain_branch)
-
-    ! CALL raise_branch(trim(part_desc), 0_pd_ik, 0_pd_ik, domain_branch)
-    
+   
     !------------------------------------------------------------------------------
     ! Create job directory in case of non-production run
     !------------------------------------------------------------------------------
@@ -955,7 +940,7 @@ if (rank_mpi == 0) then
     End SELECT
 
     CALL start_timer(trim(timer_name), .FALSE.)
-    CALL calc_effective_material_parameters(root, lin_domain, domain, fh_mpi_worker)
+    CALL calc_effective_material_parameters(root, comm_nn, domain, fh_mpi_worker)
     CALL end_timer(trim(timer_name))
 
 End if
