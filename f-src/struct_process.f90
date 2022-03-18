@@ -602,6 +602,10 @@ If (rank_mpi == 0) THEN
     ! Check 
     !------------------------------------------------------------------------------
     IF ( MOD((No_of_domains - computed_domains) * parts, size_mpi - 1) /= 0 ) THEN
+        write(std_out, FMT_DBG_AI0xAI0) "No_of_domains    = ", No_of_domains
+        write(std_out, FMT_DBG_AI0xAI0) "computed_domains = ", computed_domains
+        write(std_out, FMT_DBG_AI0xAI0) "parts            = ", parts
+        write(std_out, FMT_DBG_AI0xAI0) "size_mpi - 1     = ", size_mpi - 1
         mssg = "MOD((No_of_domains - computed_domains) * parts, size_mpi - 1) /= 0"
         CALL print_err_stop_slaves(mssg, "warning"); GOTO 1000
     END IF
@@ -851,7 +855,7 @@ Call Open_Stream_Files(root%streams, "write", "replace", fh_mpi_root, WRITE_ROOT
 !------------------------------------------------------------------------------
 Allocate(req_list(size_mpi-1), stat=alloc_stat)
 CALL alloc_err("req_list", alloc_stat)
-req_list=1 
+req_list=0
 
 Allocate(statuses_mpi(MPI_STATUS_SIZE, size_mpi-1), stat=alloc_stat)
 CALL alloc_err("statuses_mpi", alloc_stat)
@@ -860,6 +864,7 @@ CALL alloc_err("statuses_mpi", alloc_stat)
 ! Global Rank 0 -- Process master Start working process
 !------------------------------------------------------------------------------
 If (rank_mpi==0) Then
+
     !------------------------------------------------------------------------------
     ! Only global rank 0 -- Init MPI IO-System
     !------------------------------------------------------------------------------
@@ -868,7 +873,63 @@ If (rank_mpi==0) Then
     If (out_amount == "DEBUG") &
         write(fh_mon,FMT_MSG_AxI0) "On rank zero, stream sizes: ", dsize
     
+    !------------------------------------------------------------------------------
+    ! Supply all worker masters  with their first work package
+    ! ii is incremented by ii = ii + parts_per_subdomain
+    !------------------------------------------------------------------------------
     nn = 1_ik; mii = 1_mik
+    Do While (mii <= (size_mpi-1_mik))
+
+        if (nn > No_of_domains) exit
+
+        If (Domain_stats(nn) >= 0) then
+            nn = nn + 1_ik
+            cycle
+        End If
+
+        ! act_domains(ii) = nn
+
+        Do mjj = mii, mii + parts-1
+            !------------------------------------------------------------------------------
+            ! Start worker
+            !------------------------------------------------------------------------------
+            CALL mpi_send(worker_is_active(mjj), 1_mik, MPI_INTEGER4, mjj, mjj, MPI_COMM_WORLD, ierr)
+            CALL print_err_stop(std_out, "MPI_SEND of worker_is_active didn't succeed", ierr)
+
+            !------------------------------------------------------------------------------
+            ! Send Domain number
+            !------------------------------------------------------------------------------
+            CALL mpi_send(nn, 1_mik, MPI_INTEGER8, mjj, mjj, MPI_COMM_WORLD,ierr)
+            CALL print_err_stop(std_out, "MPI_SEND of Domain number didn't succeed", ierr)
+            
+            if (out_amount /= "PRODUCTION") then
+                CALL mpi_send(domain_path(nn), Int(4*mcl,mik), MPI_CHARACTER, mjj, mjj, MPI_COMM_WORLD,ierr)
+                CALL print_err_stop(std_out, "MPI_SEND of Domain path didn't succeed", ierr)
+            End if
+        End Do
+
+         !** Log to global stdout **********************************************
+        IF(out_amount == "DEBUG") THEN
+            WRITE(fh_mon, FMT_MSG_xAI0) "Domain ", Domains(nn), " at Ranks ", mii, " to ", mii + parts-1
+            flush(fh_mon)
+        END IF
+
+        nn = nn + 1_mik
+        
+        Call MPI_IRECV(worker_is_active(mii), 1_mik, MPI_INTEGER4, mii, mii, &
+            MPI_COMM_WORLD, REQ_LIST(mii), IERR)
+        CALL print_err_stop(std_out, "MPI_IRECV of worker_is_active(mii) didn't succeed", INT(ierr, KIND=ik))
+
+        mii = mii + Int(parts,mik)
+
+    End Do
+
+    Call MPI_WAITANY(size_mpi-1_mik, req_list, finished, status_mpi, ierr)
+    CALL print_err_stop(std_out, &
+    "MPI_WAITANY on req_list for IRECV of Activity(mii) didn't succeed", INT(ierr, KIND=ik))
+
+    IF(finished /= MPI_UNDEFINED) mii = finished
+
 
     !------------------------------------------------------------------------------
     ! mii is incremented by mii = mii + parts
@@ -886,6 +947,7 @@ If (rank_mpi==0) Then
             cycle
         End If
 
+
         !------------------------------------------------------------------------------
         ! Send information for all parts to the corresponding ranks.
         ! From global "first worker rank of specific domain" to "global last worker 
@@ -895,33 +957,23 @@ If (rank_mpi==0) Then
         !------------------------------------------------------------------------------
         Do mjj = mii, mii + parts-1
 
-            !------------------------------------------------------------------------------
-            ! After all ranks have their first work package
-            !------------------------------------------------------------------------------
-            IF ((size_mpi-1_mik)/parts >= nn) THEN
 
-                !------------------------------------------------------------------------------
-                ! Only the master worker is allowed to send a 'finished' flag. 
-                ! Otherwise, index mii will screw up.
-                !------------------------------------------------------------------------------
-                CALL MPI_WAITANY(size_mpi-1_mik, req_list, finished, status_mpi, ierr)
-                CALL print_err_stop(std_out, &
-                "MPI_WAITANY on req_list for IRECV of worker_is_active(mii) didn't succeed", ierr)
 
-                mii = finished
+write(*,*) "mii: ", mii, "MJJ: ", mjj !, "parts: ", parts
+                                                                            ! ! !------------------------------------------------------------------------------
+                                                                            ! ! ! Master worker
+                                                                            ! ! !------------------------------------------------------------------------------
+                                                                            ! ! IF (MOD(mii+parts-1, parts) == 0) THEN
 
-                ! Domain_stats(nn) = Domains(nn)
+                                                                            ! ! END IF 
 
-                !------------------------------------------------------------------------------
-                ! Job is finished.Now, write domain number to position of linear domain number.
-                !------------------------------------------------------------------------------
-                ! write(aun, pos=((nn-1) * ik + 1)) INT(Domains(nn), KIND=ik)
-                ! flush(aun)
-            END IF
 
+                                                                            ! !------------------------------------------------------------------------------
+                                                                            ! ! After all ranks have their first work package
+                                                                            ! !------------------------------------------------------------------------------
+                                                                            ! IF ((size_mpi-1_mik)/parts >= nn) THEN
+                
             worker_is_active(mjj) = 1_mik
-            workers_assigned_domains(mjj) = nn
-
             !------------------------------------------------------------------------------
             ! Start worker
             !------------------------------------------------------------------------------
@@ -935,17 +987,70 @@ If (rank_mpi==0) Then
             CALL print_err_stop(std_out, "MPI_SEND of Domain number didn't succeed", ierr)
             
             if (out_amount /= "PRODUCTION") then
-               CALL mpi_send(domain_path(nn), Int(4*mcl,mik), MPI_CHARACTER, mjj, mjj, MPI_COMM_WORLD,ierr)
-               CALL print_err_stop(std_out, "MPI_SEND of Domain path didn't succeed", ierr)
+                CALL mpi_send(domain_path(nn), Int(4*mcl,mik), MPI_CHARACTER, mjj, mjj, MPI_COMM_WORLD,ierr)
+                CALL print_err_stop(std_out, "MPI_SEND of Domain path didn't succeed", ierr)
             End if
-
-            !------------------------------------------------------------------------------
-            ! Worker has finished
-            !------------------------------------------------------------------------------
-            CALL MPI_IRECV(worker_is_active(mjj), 1_mik, MPI_INTEGER4, mjj, mjj, MPI_COMM_WORLD, req_list(mjj), ierr)
-            CALL print_err_stop(std_out, "MPI_IRECV of worker_is_active(mjj) didn't succeed", ierr)
         End Do
-         
+
+        !------------------------------------------------------------------------------
+        ! Iterate over domain
+        !------------------------------------------------------------------------------
+        nn = nn + 1_mik
+
+
+        !------------------------------------------------------------------------------
+        ! Worker has finished
+        !------------------------------------------------------------------------------
+        CALL MPI_IRECV(worker_is_active(mii), 1_mik, MPI_INTEGER4, mii, mii, MPI_COMM_WORLD, req_list(mii), ierr)
+        CALL print_err_stop(std_out, "MPI_IRECV of worker_is_active(mii) didn't succeed", ierr)
+
+        !------------------------------------------------------------------------------
+        ! Only the master worker is allowed to send a 'finished' flag. 
+        ! Otherwise, index mii will screw up.
+        !------------------------------------------------------------------------------
+        CALL MPI_WAITANY(size_mpi-1_mik, req_list, finished, status_mpi, ierr)
+        CALL print_err_stop(std_out, &
+        "MPI_WAITANY on req_list for IRECV of worker_is_active(mii) didn't succeed", ierr)
+
+        IF(finished /= MPI_UNDEFINED) mii = finished
+        ! ELSE 
+        !     EXIT
+        ! END IF 
+
+
+        !                 ! mii = finished
+        ! write(*,*) "finished: ", finished
+        !                 ! Domain_stats(nn) = Domains(nn)
+
+        !                 !------------------------------------------------------------------------------
+        !                 ! Job is finished.Now, write domain number to position of linear domain number.
+        !                 !------------------------------------------------------------------------------
+        !                 ! write(aun, pos=((nn-1) * ik + 1)) INT(Domains(nn), KIND=ik)
+        !                 ! flush(aun)
+        !             END IF
+
+        !             worker_is_active(mjj) = 1_mik
+        !             workers_assigned_domains(mjj) = nn
+
+        !             !------------------------------------------------------------------------------
+        !             ! Start worker
+        !             !------------------------------------------------------------------------------
+        !             CALL mpi_send(worker_is_active(mjj), 1_mik, MPI_INTEGER4, mjj, mjj, MPI_COMM_WORLD, ierr)
+        !             CALL print_err_stop(std_out, "MPI_SEND of worker_is_active didn't succeed", ierr)
+
+        !             !------------------------------------------------------------------------------
+        !             ! Send Domain number
+        !             !------------------------------------------------------------------------------
+        !             CALL mpi_send(nn, 1_mik, MPI_INTEGER8, mjj, mjj, MPI_COMM_WORLD,ierr)
+        !             CALL print_err_stop(std_out, "MPI_SEND of Domain number didn't succeed", ierr)
+                    
+        !             if (out_amount /= "PRODUCTION") then
+        !                CALL mpi_send(domain_path(nn), Int(4*mcl,mik), MPI_CHARACTER, mjj, mjj, MPI_COMM_WORLD,ierr)
+        !                CALL print_err_stop(std_out, "MPI_SEND of Domain path didn't succeed", ierr)
+        !             End if
+
+
+            
         !------------------------------------------------------------------------------
         ! Log to monitor file. Only for master worker!
         !------------------------------------------------------------------------------
@@ -954,20 +1059,17 @@ If (rank_mpi==0) Then
             flush(fh_mon)
         END IF
 
-        !------------------------------------------------------------------------------
-        ! iterate with step with of parts since the DO WHILE acts on all parts
-        ! in one iteration with a dedicated loop (jj = mii, mii+parts-1)
-        !------------------------------------------------------------------------------
-        IF (mii + INT(parts, mik) <= size_mpi) THEN
-            CONTINUE !mii = mii + Int(parts,mik)
-        ELSE
-            mii = 1_mik
-        END IF
+        ! !------------------------------------------------------------------------------
+        ! ! iterate with step with of parts since the DO WHILE acts on all parts
+        ! ! in one iteration with a dedicated loop (jj = mii, mii+parts-1)
+        ! !------------------------------------------------------------------------------
+        ! IF (mii + INT(parts, mik) <= size_mpi) THEN
+        !     CONTINUE !mii = mii + Int(parts,mik)
+        ! ELSE
+        !     mii = 1_mik
+        ! END IF
+! 7 dann bis 4
 
-        !------------------------------------------------------------------------------
-        ! Iterate over domain
-        !------------------------------------------------------------------------------
-        nn = nn + 1_mik
     End Do
     
     !------------------------------------------------------------------------------
