@@ -145,41 +145,41 @@ Module puredat_types
   !> the stream arrays.
   Type tLeaf
 
-     !> ASCII description of what the data are
-     Character(Len=pd_mcl) :: desc
-     !> Number of data
-     Integer(Kind=pd_ik) :: dat_no
-     !> Data Type
-     !>
-     !> Currently the reference is <br>
-     !> 1: 1 Byte Integer data <BR>
-     !> 2: 2 Byte Integer data <BR>
-     !> 3: 4 Byte Integer data <BR>
-     !> 4: 8 Byte Integer data <BR>
-     !> 5: 8 Byte Floating point data <BR>
-     !> 6: 1 Byte Character data <BR>
-     !> 7: Logical data <BR>
-     Integer(Kind=1) :: dat_ty
+    !> ASCII description of what the data are
+    Character(Len=pd_mcl) :: desc
+    !> Number of data
+    Integer(Kind=pd_ik) :: dat_no
+    !> Data Type
+    !>
+    !> Currently the reference is <br>
+    !> 1: 1 Byte Integer data <BR>
+    !> 2: 2 Byte Integer data <BR>
+    !> 3: 4 Byte Integer data <BR>
+    !> 4: 8 Byte Integer data <BR>
+    !> 5: 8 Byte Floating point data <BR>
+    !> 6: 1 Byte Character data <BR>
+    !> 7: Logical data <BR>
+    Integer(Kind=1) :: dat_ty
 
-     !> Lower bound index in stream array
-     Integer(Kind=pd_ik) :: lbound
+    !> Lower bound index in stream array
+    Integer(Kind=pd_ik) :: lbound
 
-     !> Upper bound index in stream array
-     Integer(Kind=pd_ik) :: ubound
+    !> Upper bound index in stream array
+    Integer(Kind=pd_ik) :: ubound
 
-     Integer(kind=pd_ik)  :: pstat = 0
+    Integer(kind=pd_ik)  :: pstat = 0
 
-     !> Data chunk pointer to x Byte y data
-     Integer(Kind=1), Dimension(:),Pointer :: p_int1  => null()
-     Integer(Kind=2), Dimension(:),Pointer :: p_int2  => null()
-     Integer(Kind=4), Dimension(:),Pointer :: p_int4  => null()
-     Integer(Kind=8), Dimension(:),Pointer :: p_int8  => null()
+    !> Data chunk pointer to x Byte y data
+    Integer(Kind=1), Dimension(:), Pointer :: p_int1  => null()
+    Integer(Kind=2), Dimension(:), Pointer :: p_int2  => null()
+    Integer(Kind=4), Dimension(:), Pointer :: p_int4  => null()
+    Integer(Kind=8), Dimension(:), Pointer :: p_int8  => null()
 
-     Real   (Kind=8), Dimension(:),Pointer :: p_real8 => null()
-     
-     Character      , Dimension(:),Pointer :: p_char  => null()
-     
-     Logical(Kind=1), Dimension(:),Pointer :: p_log   => null()
+    Real   (Kind=8), Dimension(:), Pointer :: p_real8 => null()
+    
+    Character      , Dimension(:), Pointer :: p_char  => null()
+    
+    Logical(Kind=1), Dimension(:), Pointer :: p_log   => null()
 
   End Type tLeaf
 

@@ -20,8 +20,10 @@ else
 	rev = NO_GIT_REPOSITORY
 	trgt_vrsn = $(shell cat VERSION)
 endif
+#
 # -----------------------------------------------------------------------------
 # Check for environment
+# -----------------------------------------------------------------------------
 check-env:
 ifeq ($(SYS_ENV),)
 	@echo "-----------------------------------------------"
@@ -33,24 +35,24 @@ else
 	@echo "-----------------------------------------------"
 	$(MAKE) all
 endif
+#
 # ------------------------------------------------------------------------------
-
 # C include paths for external libraries
 inc_path_flag = -I$(METIS_INCPATH)
 #
-# ------------------------------------------------------------------------------
-
+# -----------------------------------------------------------------------------
 # Fortran include paths for external libraries
+# -----------------------------------------------------------------------------
 mod_path_flag = -I$(PETSC_INCPATH)
 #
 # ------------------------------------------------------------------------------
-
 # Library paths for external libraries 
+# -----------------------------------------------------------------------------
 lib_path_flag = -L$(LAPACK_LIBPATH) -L$(METIS_LIBPATH) -L$(PETSC_LIBPATH)
 #
 # ------------------------------------------------------------------------------
-
 # Link level extra libraries 
+# -----------------------------------------------------------------------------
 lll_extra = -lmetis -lpetsc -llapack -lblas -ldl
 #
 # ------------------------------------------------------------------------------
@@ -66,6 +68,7 @@ export build_path
 #
 # All directories are given as relative paths. Preprend "$buildpath" instead 
 # of "." to change that situation.
+# -----------------------------------------------------------------------------
 st_path= $(build_path)/geb-lib
 #
 st_obj_dir = $(st_path)/obj/
@@ -79,38 +82,48 @@ linpack_src_dir = $(build_path)/linpack/
 bin_dir         = $(build_path)/bin/
 c_src_dir       = $(build_path)/c-src/
 f_src_dir       = $(build_path)/f-src/
-ext_f-src       = $(build_path)/f-src/ext-src_
+f-src_main      = $(build_path)/f-src_main/
 #
+# -----------------------------------------------------------------------------
 # Directory for documentation
+# -----------------------------------------------------------------------------
 doc_dir  = $(build_path)/doc/
 html_dir = $(build_path)/html/
 tex_dir  = $(build_path)/latex/
+#
 # ------------------------------------------------------------------------------
-
 # file extensions
+# -----------------------------------------------------------------------------
 mod_ext = .mod
 obj_ext = .o
 sho_ext = .so
 c_ext   = .c
 f90_ext = .f90
 bin_suf = _x86_64
+#
 # ------------------------------------------------------------------------------
-
 # Clean command 
 clean_cmd = rm -rf
 # ------------------------------------------------------------------------------
-
+#
+# -----------------------------------------------------------------------------
 # Compilers
+# -----------------------------------------------------------------------------
 compiler   = mpif90
 export compiler
 c_compiler = mpicc
 export c_compiler
+#
 # ------------------------------------------------------------------------------
 # Programming Environment - gnu, LLVM
+# -----------------------------------------------------------------------------
 PE = gnu
+#
 # ------------------------------------------------------------------------------
 # Compile mode - dev, prod
+# -----------------------------------------------------------------------------
 compile_MODE = dev
+#
 # ------------------------------------------------------------------------------
 # Compile flags GNU Compiler
 # The subtree structure requires two directories containing modules. 
@@ -133,18 +146,22 @@ ifeq ($(PE),gnu)
 		c_flags_f90 =  $(f90_std_IJ) $(f90_dev_flags)
 	endif
 #
+# -----------------------------------------------------------------------------
 # Linker flags for chain links
+# -----------------------------------------------------------------------------
 	link_flags = $(lib_path_flag) -L$(lib_dir) -g # -fopenmp -g # -pg 
 	export glb_link_flags
 endif
-# ------------------------------------------------------------------------------
-
-# Generate objects
 #
+# ------------------------------------------------------------------------------
+# Generate objects
+# -----------------------------------------------------------------------------
 c-objects =  $(obj_dir)OS$(obj_ext) \
              $(obj_dir)metis_interface$(obj_ext) 
 #
-# For linking and cleaning
+# -----------------------------------------------------------------------------
+# Fortran objects
+# -----------------------------------------------------------------------------
 f-objects = $(st_obj_dir)mod_global_std$(obj_ext) \
             $(st_obj_dir)mod_strings$(obj_ext) \
 			$(st_obj_dir)mod_user_interaction$(obj_ext) \
@@ -176,35 +193,47 @@ f-objects = $(st_obj_dir)mod_global_std$(obj_ext) \
             $(obj_dir)mod_dtc_main_subroutines$(obj_ext) \
             $(obj_dir)struct_process$(obj_ext)
 #
+# -----------------------------------------------------------------------------
 # For linking
+# -----------------------------------------------------------------------------
 pd-ld-objects = $(st_obj_dir)mod_global_std$(obj_ext) \
 				$(st_obj_dir)mod_strings$(obj_ext) \
 				$(st_obj_dir)mod_user_interaction$(obj_ext) \
 				$(obj_dir)mod_auxiliaries$(obj_ext) \
-				$(obj_dir)mod_puredat$(obj_ext) \
+				$(obj_dir)mod_puredat$(obj_ext)
 #
-# For cleaning
-pd-objects = $(obj_dir)pd_dump_leaf$(obj_ext) \
-             $(obj_dir)pd_dump_tree$(obj_ext) \
-             $(obj_dir)pd_leaf_diff$(obj_ext) \
-             $(obj_dir)pd_leaf_to_file$(obj_ext) \
-             $(obj_dir)pd_merge_branch_to_tree$(obj_ext)
-
+# -----------------------------------------------------------------------------
+# MeRaDat objects
+# -----------------------------------------------------------------------------
+meradat-ld-objects = $(st_obj_dir)mod_global_std$(obj_ext) \
+					$(st_obj_dir)mod_meta$(obj_ext) \
+					$(st_obj_dir)mod_strings$(obj_ext) \
+					$(st_obj_dir)mod_user_interaction$(obj_ext) \
+					$(st_obj_dir)mod_formatted_plain$(obj_ext) \
+		            $(st_obj_dir)mod_math$(obj_ext) \
+		            $(obj_dir)mod_tensor_opt$(obj_ext) \
+					$(obj_dir)mod_puredat$(obj_ext)
+#
 # -----------------------------------------------------------------------------
 # Executable
+# -----------------------------------------------------------------------------
 main_bin = $(bin_dir)$(bin_name)_$(trgt_vrsn)$(bin_suf)
 #
 # ------------------------------------------------------------------------------
 # Build the st directory first
+# -----------------------------------------------------------------------------
 st: 
 	$(MAKE) all -C $(st_path)
 	@echo 
+#
 # ------------------------------------------------------------------------------
 # Begin Building
+# -----------------------------------------------------------------------------
 all: st $(main_bin) 
 #
 # -----------------------------------------------------------------------------
 # PureDat auxiliary executables 
+# -----------------------------------------------------------------------------
 pd_dump_leaf_bin            = $(bin_dir)pd_dump_leaf$(bin_suf)
 pd_dump_tree_bin            = $(bin_dir)pd_dump_tree$(bin_suf)
 pd_leaf_diff_bin            = $(bin_dir)pd_leaf_diff$(bin_suf)
@@ -214,6 +243,11 @@ pd_merge_branch_to_tree_bin = $(bin_dir)pd_merge_branch_to_tree$(bin_suf)
 pd_aux_execs = $(pd_dump_leaf_bin) $(pd_dump_tree_bin) $(pd_leaf_diff_bin) \
                $(pd_leaf_to_file_bin) $(pd_merge_branch_to_tree_bin)
 #
+# ------------------------------------------------------------------------------
+# MeRaDat executable
+# -----------------------------------------------------------------------------
+meradat_crawl_tensors = $(bin_dir)meRaDat_Crawl_Tensors$(bin_suf)
+#
 # -----------------------------------------------------------------------------
 # Object and module dependency tree
 #
@@ -221,32 +255,36 @@ pd_aux_execs = $(pd_dump_leaf_bin) $(pd_dump_tree_bin) $(pd_leaf_diff_bin) \
 # -----------------------------------------------------------------------------
 .PHONY: all
 #
-all: $(main_bin) $(pd_aux_execs) end_all
+all: $(main_bin) $(pd_aux_execs) $(meradat_crawl_tensors) end_all
 #
 # -----------------------------------------------------------------------------
 # C targets
+# -----------------------------------------------------------------------------
 $(obj_dir)%$(obj_ext):$(c_src_dir)%$(c_ext)
 	@echo "----- Compiling " $< " -----"
 	$(c_compiler) $(c_flags_c) -c $< -o $@
 	@echo 
-
+#
 # -----------------------------------------------------------------------------
 # Timer Module
+# -----------------------------------------------------------------------------
 $(obj_dir)mod_times$(obj_ext):$(f_src_dir)mod_times$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_times$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_times$(f90_ext) -o $@
 	@echo 
-
+#
 # -----------------------------------------------------------------------------
 # Auxiliaries Module
+# -----------------------------------------------------------------------------
 $(obj_dir)mod_auxiliaries$(obj_ext):$(st_mod_dir)global_std$(mod_ext) \
 									$(f_src_dir)mod_auxiliaries$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_auxiliaries$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_auxiliaries$(f90_ext) -o $@
 	@echo 
-	
+#	
 # -----------------------------------------------------------------------------
 # Chain modules
+# -----------------------------------------------------------------------------
 $(obj_dir)mod_chain$(obj_ext):$(st_mod_dir)global_std$(mod_ext) \
 							$(st_obj_dir)mod_meta$(obj_ext) \
 							$(mod_dir)auxiliaries$(mod_ext) \
@@ -261,59 +299,67 @@ $(mod_dir)chain_routines$(mod_ext):$(mod_dir)chain_variables$(mod_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_chain$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_chain$(f90_ext) -o $@
 	@echo 
-
+#
 # -----------------------------------------------------------------------------
 # PureDat
+# -----------------------------------------------------------------------------
 $(obj_dir)mod_puredat$(obj_ext): $(st_mod_dir)user_interaction$(mod_ext) $(f_src_dir)mod_puredat$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_puredat$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_puredat$(f90_ext) -o $@
 	@echo 
-
+#
 # -----------------------------------------------------------------------------
 # EisPack
+# -----------------------------------------------------------------------------
 $(obj_dir)mod_eispack$(obj_ext):$(f_src_dir)mod_eispack$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_eispack$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_eispack$(f90_ext) -o $@
 	@echo 
-
+#
 # -----------------------------------------------------------------------------
 # Tensor transformations
+# -----------------------------------------------------------------------------
 $(obj_dir)mod_tensors$(obj_ext):$(f_src_dir)mod_tensors$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_tensors$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_tensors$(f90_ext) -o $@
 	@echo 
-
+#
 # -----------------------------------------------------------------------------
 # Metis
+# -----------------------------------------------------------------------------
 $(obj_dir)mod_metis$(obj_ext):$(obj_dir)metis_interface$(obj_ext) $(f_src_dir)mod_metis$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_metis$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_metis$(f90_ext) -o $@
 	@echo 
-
+#
 # -----------------------------------------------------------------------------
 # VTK-I/O
+# -----------------------------------------------------------------------------
 $(obj_dir)mod_vtkio$(obj_ext):$(mod_dir)auxiliaries$(mod_ext) $(f_src_dir)mod_vtkio$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_vtkio$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_vtkio$(f90_ext) -o $@
 	@echo 
-
+#
 # -----------------------------------------------------------------------------
 # Paramter Modules
+# -----------------------------------------------------------------------------
 $(obj_dir)mod_parameters$(obj_ext):$(st_mod_dir)global_std$(mod_ext) $(f_src_dir)mod_parameters$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_parameters$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_parameters$(f90_ext) -o $@
 	@echo 
-
+#
 # -----------------------------------------------------------------------------
 # Operating System C-call wrappers
+# -----------------------------------------------------------------------------
 $(obj_dir)mod_OS$(obj_ext): $(st_mod_dir)global_std$(mod_ext) \
                             $(obj_dir)OS$(obj_ext) $(f_src_dir)mod_OS$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_OS$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_OS$(f90_ext) -o $@
 	@echo 
-
+#
 # -----------------------------------------------------------------------------
 # Finite Element Routines
+# -----------------------------------------------------------------------------
 $(obj_dir)mod_linfe$(obj_ext):$(st_mod_dir)global_std$(mod_ext) \
 								$(st_mod_dir)mechanical$(mod_ext) \
 								$(mod_dir)puredat$(mod_ext) \
@@ -321,9 +367,10 @@ $(obj_dir)mod_linfe$(obj_ext):$(st_mod_dir)global_std$(mod_ext) \
 	@echo "----- Compiling " $(f_src_dir)mod_linfe$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_linfe$(f90_ext) -o $@
 	@echo 
-
+#
 # -----------------------------------------------------------------------------
 # LinPack Objects (Blas 1 and LinPack)
+# -----------------------------------------------------------------------------
 $(obj_dir)mod_blas_1$(obj_ext):$(st_mod_dir)global_std$(mod_ext) $(linpack_src_dir)mod_blas_1$(f90_ext)
 	@echo "----- Compiling " $(linpack_src_dir)mod_blas_1$(f90_ext) " -----"
 	$(compiler) $(c_flags_linpack) -c $(linpack_src_dir)mod_blas_1$(f90_ext) -o $@
@@ -334,17 +381,19 @@ $(obj_dir)mod_linpack$(obj_ext):$(st_mod_dir)global_std$(mod_ext) $(mod_dir)blas
 	@echo "----- Compiling " $(linpack_src_dir)mod_linpack$(f90_ext) " -----"
 	$(compiler) $(c_flags_linpack) -c $(linpack_src_dir)mod_linpack$(f90_ext) -o $@
 	@echo 
-
+#
 # -----------------------------------------------------------------------------
 # tensor_opt module
+# -----------------------------------------------------------------------------
 $(obj_dir)mod_tensor_opt$(obj_ext):$(st_mod_dir)global_std$(mod_ext)   $(mod_dir)timer$(mod_ext) \
 									$(mod_dir)chain_routines$(mod_ext) $(f_src_dir)mod_tensor_opt$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_tensor_opt$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_tensor_opt$(f90_ext) -o $@
 	@echo 
-
+#
 # -----------------------------------------------------------------------------
 # Material matrices
+# -----------------------------------------------------------------------------
 $(obj_dir)mod_mat_matrices$(obj_ext):$(st_mod_dir)global_std$(mod_ext)  $(mod_dir)timer$(mod_ext) \
                                      $(mod_dir)chain_routines$(mod_ext) $(mod_dir)tensor_opt$(mod_ext) \
                                      $(mod_dir)blas_1$(mod_ext)         $(mod_dir)linpack$(mod_ext) \
@@ -352,17 +401,19 @@ $(obj_dir)mod_mat_matrices$(obj_ext):$(st_mod_dir)global_std$(mod_ext)  $(mod_di
 	@echo "----- Compiling " $(f_src_dir)mod_mat_matrices$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_mat_matrices$(f90_ext) -o $@
 	@echo 
-
+#
 # -----------------------------------------------------------------------------
 # Domain decomposition module
+# -----------------------------------------------------------------------------
 $(obj_dir)mod_decomp$(obj_ext):$(st_mod_dir)global_std$(mod_ext)  $(mod_dir)puredat$(mod_ext) \
                                $(f_src_dir)mod_decomp$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_decomp$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_decomp$(f90_ext) -o $@
 	@echo 
-
+#
 # -----------------------------------------------------------------------------
 # Mesh Partitioning
+# -----------------------------------------------------------------------------
 $(obj_dir)mod_mesh_partitioning$(obj_ext):$(st_mod_dir)global_std$(mod_ext)   $(mod_dir)puredat$(mod_ext) \
                                           $(mod_dir)decomp$(mod_ext)          $(mod_dir)timer$(mod_ext) \
                                           $(mod_dir)chain_routines$(mod_ext)  $(mod_dir)vtkio$(mod_ext) \
@@ -371,9 +422,10 @@ $(obj_dir)mod_mesh_partitioning$(obj_ext):$(st_mod_dir)global_std$(mod_ext)   $(
 	@echo "----- Compiling " $(f_src_dir)mod_mesh_partitioning$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_mesh_partitioning$(f90_ext) -o $@
 	@echo 
-
+#
 # -----------------------------------------------------------------------------
 # Deck output
+# -----------------------------------------------------------------------------
 $(obj_dir)mod_write_deck$(obj_ext):$(st_mod_dir)global_std$(mod_ext)   $(mod_dir)puredat$(mod_ext) \
                                    $(mod_dir)decomp$(mod_ext)          $(mod_dir)timer$(mod_ext) \
                                    $(mod_dir)chain_routines$(mod_ext)  $(mod_dir)vtkio$(mod_ext) \
@@ -383,18 +435,20 @@ $(obj_dir)mod_write_deck$(obj_ext):$(st_mod_dir)global_std$(mod_ext)   $(mod_dir
 	@echo "----- Compiling " $(f_src_dir)mod_write_deck$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_write_deck$(f90_ext) -o $@
 	@echo 
-
+#
 # -----------------------------------------------------------------------------
 # Mesh generation 
+# -----------------------------------------------------------------------------
 $(obj_dir)mod_gen_quadmesh$(obj_ext):$(st_mod_dir)global_std$(mod_ext)  $(mod_dir)puredat$(mod_ext) \
                                      $(mod_dir)decomp$(mod_ext)         $(mod_dir)timer$(mod_ext) \
                                      $(mod_dir)chain_routines$(mod_ext) $(f_src_dir)mod_gen_quadmesh$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_gen_quadmesh$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_gen_quadmesh$(f90_ext) -o $@
 	@echo 
-
+#
 # -----------------------------------------------------------------------------
 # Geometry and loadcase setup 
+# -----------------------------------------------------------------------------
 $(obj_dir)mod_struct_preprocess$(obj_ext):$(st_mod_dir)global_std$(mod_ext)     $(st_mod_dir)strings$(mod_ext) \
                                           $(mod_dir)decomp$(mod_ext)            $(mod_dir)timer$(mod_ext) \
                                           $(mod_dir)chain_routines$(mod_ext)    $(mod_dir)vtkio$(mod_ext) \
@@ -405,9 +459,10 @@ $(obj_dir)mod_struct_preprocess$(obj_ext):$(st_mod_dir)global_std$(mod_ext)     
 	@echo "----- Compiling " $(f_src_dir)mod_struct_preprocess$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_struct_preprocess$(f90_ext) -o $@
 	@echo 
-
+#
 # -----------------------------------------------------------------------------
 # Calculate effective stiffness parameters 
+# -----------------------------------------------------------------------------
 $(obj_dir)mod_struct_calcmat$(obj_ext):$(st_mod_dir)global_std$(mod_ext)   $(st_mod_dir)formatted_plain$(mod_ext) \
 										$(st_mod_dir)mechanical$(mod_ext)  $(mod_dir)tensors$(mod_ext)\
                                         $(mod_dir)puredat$(mod_ext)        $(mod_dir)timer$(mod_ext) \
@@ -417,9 +472,10 @@ $(obj_dir)mod_struct_calcmat$(obj_ext):$(st_mod_dir)global_std$(mod_ext)   $(st_
 	@echo "----- Compiling " $(f_src_dir)mod_struct_calcmat$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_struct_calcmat$(f90_ext) -o $@
 	@echo 
-
+#
 # -----------------------------------------------------------------------------
 # Execution chain for the treatment of a single MVE
+# -----------------------------------------------------------------------------
 $(obj_dir)mod_dtc_main_subroutines$(obj_ext):$(st_mod_dir)global_std$(mod_ext) $(mod_dir)operating_system$(mod_ext) \
                                         $(mod_dir)puredat_com$(mod_ext)        $(mod_dir)chain_routines$(mod_ext) \
                                         $(mod_dir)linfe$(mod_ext)              $(mod_dir)gen_geometry$(mod_ext) \
@@ -427,9 +483,10 @@ $(obj_dir)mod_dtc_main_subroutines$(obj_ext):$(st_mod_dir)global_std$(mod_ext) $
 	@echo "----- Compiling " $(f_src_dir)mod_dtc_main_subroutines$(f90_ext) " -----"
 	$(compiler) $(c_flags_f90) -c $(f_src_dir)mod_dtc_main_subroutines$(f90_ext) -o $@
 	@echo 
-
+#
 # -----------------------------------------------------------------------------
 # main Object 
+# -----------------------------------------------------------------------------
 $(obj_dir)struct_process$(obj_ext):$(st_mod_dir)global_std$(mod_ext)     $(st_mod_dir)mechanical$(mod_ext) \
                                    $(st_mod_dir)meta$(mod_ext) 			 $(st_mod_dir)meta_puredat_interface$(mod_ext) \
                                    $(st_mod_dir)strings$(mod_ext)        $(mod_dir)gen_quadmesh$(mod_ext) \
@@ -443,54 +500,69 @@ $(obj_dir)struct_process$(obj_ext):$(st_mod_dir)global_std$(mod_ext)     $(st_mo
                                    $(mod_dir)tensors$(mod_ext)           $(mod_dir)mat_matrices$(mod_ext) \
                                    $(mod_dir)calcmat$(mod_ext)           $(mod_dir)puredat_com$(mod_ext) \
                                    $(mod_dir)petsc_opt$(mod_ext)         $(mod_dir)dtc_main_subroutines$(mod_ext) \
-								   $(f_src_dir)struct_process$(f90_ext)
-	@echo "----- Compiling " $(f_src_dir)struct_process$(f90_ext) " -----"
-	$(compiler) $(c_flags_f90) -c $(f_src_dir)struct_process$(f90_ext) -o $@
+								   $(f-src_main)struct_process$(f90_ext)
+	@echo "----- Compiling " $(f-src_main)struct_process$(f90_ext) " -----"
+	$(compiler) $(c_flags_f90) -c $(f-src_main)struct_process$(f90_ext) -o $@
 	@echo 
-
+#
 # -----------------------------------------------------------------------------
 # PureDat auxiliary executables 
+# -----------------------------------------------------------------------------
 $(obj_dir)pd_dump_leaf$(obj_ext):$(mod_dir)puredat$(mod_ext) $(mod_dir)puredat_com$(mod_ext) \
-                                $(f_src_dir)pd_dump_leaf$(f90_ext)
+                                $(f-src_main)pd_dump_leaf$(f90_ext)
 	@echo "----- Compiling " pd_dump_leaf$(f90_ext) " -----"
-	$(compiler) $(c_flags_f90) -c $(f_src_dir)pd_dump_leaf$(f90_ext) -o $@
+	$(compiler) $(c_flags_f90) -c $(f-src_main)pd_dump_leaf$(f90_ext) -o $@
 	@echo 
 
 $(obj_dir)pd_dump_tree$(obj_ext):$(mod_dir)puredat$(mod_ext) $(mod_dir)puredat_com$(mod_ext) \
-                                 $(f_src_dir)pd_dump_tree$(f90_ext)
+                                 $(f-src_main)pd_dump_tree$(f90_ext)
 	@echo "----- Compiling " pd_dump_tree$(f90_ext) " -----"
-	$(compiler) $(c_flags_f90) -c $(f_src_dir)pd_dump_tree$(f90_ext) -o $@
+	$(compiler) $(c_flags_f90) -c $(f-src_main)pd_dump_tree$(f90_ext) -o $@
 	@echo 
 
 $(obj_dir)pd_leaf_diff$(obj_ext):$(mod_dir)puredat$(mod_ext) $(mod_dir)puredat_com$(mod_ext) \
-                                 $(f_src_dir)pd_leaf_diff$(f90_ext)
+                                 $(f-src_main)pd_leaf_diff$(f90_ext)
 	@echo "----- Compiling " pd_leaf_diff$(f90_ext) " -----"
-	$(compiler) $(c_flags_f90) -c $(f_src_dir)pd_leaf_diff$(f90_ext) -o $@
+	$(compiler) $(c_flags_f90) -c $(f-src_main)pd_leaf_diff$(f90_ext) -o $@
 	@echo 
 
 $(obj_dir)pd_leaf_to_file$(obj_ext):$(mod_dir)puredat$(mod_ext) $(mod_dir)puredat_com$(mod_ext) \
-                                 $(f_src_dir)pd_leaf_to_file$(f90_ext)
+                                 $(f-src_main)pd_leaf_to_file$(f90_ext)
 	@echo "----- Compiling " pd_leaf_to_file$(f90_ext) " -----"
-	$(compiler) $(c_flags_f90) -c $(f_src_dir)pd_leaf_to_file$(f90_ext) -o $@
+	$(compiler) $(c_flags_f90) -c $(f-src_main)pd_leaf_to_file$(f90_ext) -o $@
 	@echo 
 
 $(obj_dir)pd_merge_branch_to_tree$(obj_ext):$(mod_dir)puredat$(mod_ext) $(mod_dir)puredat_com$(mod_ext) \
-                                 $(f_src_dir)pd_merge_branch_to_tree$(f90_ext)
+                                 $(f-src_main)pd_merge_branch_to_tree$(f90_ext)
 	@echo "----- Compiling " pd_merge_branch_to_tree$(f90_ext) " -----"
-	$(compiler) $(c_flags_f90) -c $(f_src_dir)pd_merge_branch_to_tree$(f90_ext) -o $@
+	$(compiler) $(c_flags_f90) -c $(f-src_main)pd_merge_branch_to_tree$(f90_ext) -o $@
 	@echo 
-
+#
+# -----------------------------------------------------------------------------
+# MeRaDat executables 
+# -----------------------------------------------------------------------------
+$(obj_dir)mrd_crawl_tensors$(obj_ext):$(st_mod_dir)global_std$(mod_ext)  $(st_mod_dir)meta$(mod_ext) \
+                                      $(st_mod_dir)strings$(mod_ext)     $(mod_dir)puredat$(mod_ext) \
+									  $(st_obj_dir)mod_user_interaction$(obj_ext) \
+									  $(st_mod_dir)formatted_plain$(mod_ext) \
+                                 	  $(f-src_main)mrd_crawl_tensors$(f90_ext)
+	@echo "----- Compiling " mrd_crawl_tensors$(f90_ext) " -----"
+	$(compiler) $(c_flags_f90) -c $(f-src_main)mrd_crawl_tensors$(f90_ext) -o $@
+	@echo 
+#
 # -----------------------------------------------------------------------------
 # Final Link step of main 
+# -----------------------------------------------------------------------------
 $(main_bin): export_revision $(c-objects) $(f-objects)
 	@echo "----------------------------------------------------------------------------------"
 	@echo '-- Final link step of $(long_name) executable'
 	@echo "----------------------------------------------------------------------------------"
 	$(compiler) $(link_flags) $(c-objects) $(f-objects) $(lll_extra) -o $(main_bin)
 	@echo
-	
+#	
 # -----------------------------------------------------------------------------
 # Final Link step of PureDat auxiliary executables 
+# -----------------------------------------------------------------------------
 $(pd_dump_leaf_bin): $(pd-ld-objects) $(obj_dir)pd_dump_leaf$(obj_ext)
 	@echo "----------------------------------------------------------------------------------"
 	@echo '-- Linking PureDat auxiliary pd_dump_leaf'
@@ -526,16 +598,27 @@ $(pd_merge_branch_to_tree_bin): $(pd-ld-objects) $(obj_dir)pd_merge_branch_to_tr
 	@echo "----------------------------------------------------------------------------------"
 	$(compiler) $(link_flags) $(pd-ld-objects) $(obj_dir)pd_merge_branch_to_tree$(obj_ext) -o $@
 	@echo 
-
+#	
+# -----------------------------------------------------------------------------
+# Final Link step of MeRaDat executables 
+# -----------------------------------------------------------------------------
+$(meradat_crawl_tensors): $(meradat-ld-objects) $(obj_dir)mrd_crawl_tensors$(obj_ext)
+	@echo "----------------------------------------------------------------------------------"
+	@echo '-- Linking MeRaDat executable'
+	@echo "----------------------------------------------------------------------------------"
+	$(compiler) $(link_flags) $(meradat-ld-objects) $(obj_dir)mrd_crawl_tensors$(obj_ext) -o $@
+	@echo 
+#
 # --------------------------------------------------------------------------------------------------
 # Export revision
+# -----------------------------------------------------------------------------
 export_revision:
 	@echo "----------------------------------------------------------------------------------"
 	@echo '-- Write revision and git info'
 	@echo "CHARACTER(LEN=scl), PARAMETER :: longname = '$(long_name)'" > $(st_f_src_dir)include_f90/revision_meta$(f90_ext)
 	@echo "CHARACTER(LEN=scl), PARAMETER :: hash = '$(rev)'" >> $(st_f_src_dir)include_f90/revision_meta$(f90_ext)
 	@echo "----------------------------------------------------------------------------------"
-
+#
 help:
 	@echo "----------------------------------------------------------------------------------"
 	@echo "-- $(long_name) make targets"
@@ -544,7 +627,7 @@ help:
 	@echo "-- Cleaning: »make cleanall« - Remove all build files."
 	@echo "-- Docs:     »make docs      - Build the html and the tex documentation."
 	@echo "----------------------------------------------------------------------------------"
-
+#
 docs: 
 	@echo "----------------------------------------------------------------------------------"
 	@echo "-- Beginn buiding the documentation of the $(long_name)."
@@ -554,7 +637,7 @@ docs:
 	@echo "----------------------------------------------------------------------------------"
 	@echo "-- Successfully build the documentation of the $(long_name)."
 	@echo "----------------------------------------------------------------------------------"
-
+#
 cleandocs:
 	@echo "----------------------------------------------------------------------------------"
 	@echo "-- Cleaning html documentation"
@@ -567,7 +650,7 @@ cleandocs:
 	@echo "----------------------------------------------------------------------------------"
 	@echo "-- Documentation removed."
 	@echo "----------------------------------------------------------------------------------"
-	
+#	
 clean:
 	@echo "----------------------------------------------------------------------------------"
 	@echo "-- Cleaning module directory"
@@ -581,13 +664,13 @@ clean:
 	@echo "-- Cleaning MAIN binary"
 	@echo "----------------------------------------------------------------------------------"
 	$(clean_cmd) $(main_bin)
-	
+#	
 cleanall: clean
 	@echo "----------------------------------------------------------------------------------"
 	@echo "-- Cleaning geb-lib st"
 	@echo "----------------------------------------------------------------------------------"
 	$(MAKE) clean -C $(st_path)
-
+#
 end_all: 
 	@echo "----------------------------------------------------------------------------------"
 	@echo "-- Successfully built all executables."

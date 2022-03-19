@@ -1716,7 +1716,7 @@ EE_Orig = EE
     CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
         Int(root%branches(3)%leaves(19)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
         eff_density, &
-        Int(1,pd_mik), MPI_Real8, &
+        Int(1, pd_mik), MPI_REAL8, &
         status_mpi, ierr)
 
 deallocate(nodes,uu,edat,cref_cnodes,rforces)

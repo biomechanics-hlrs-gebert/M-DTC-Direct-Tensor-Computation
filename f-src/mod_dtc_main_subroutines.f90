@@ -1011,9 +1011,10 @@ END SELECT
 
 WRITE(std_out, FMT_TXT_SEP)
 
-CALL print_trimmed_text(TRIM(instring), frmt)
-
+! TODO: Repair this routine :-)
+! CALL print_trimmed_text(std_out, TRIM(instring), frmt)
 WRITE(std_out, frmt_stp)
+WRITE(std_out, frmt) TRIM(instring)
 WRITE(std_out, FMT_TXT_SEP)
 
 !------------------------------------------------------------------------------  
