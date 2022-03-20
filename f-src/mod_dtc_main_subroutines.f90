@@ -54,7 +54,7 @@ INTEGER(kind=mik), Intent(INOUT), Dimension(no_streams) :: fh_mpi_worker
 
 Character(LEN=*) , Intent(in)  :: job_dir
 INTEGER(kind=mik), Intent(In)  :: rank_mpi, size_mpi, comm_mpi
-INTEGER(kind=ik) , intent(in)  :: comm_nn
+INTEGER(kind=ik) , intent(in)  :: comm_nn, domain, lin_domain
 INTEGER(kind=mik), intent(out) :: active
 Type(tBranch)    , Intent(inOut) :: root
 
@@ -68,8 +68,8 @@ INTEGER(kind=mik) :: ierr, petsc_ierr
 INTEGER(kind=pd_ik), Dimension(:), Allocatable :: serial_pb
 INTEGER(kind=pd_ik)                            :: serial_pb_size
 
-INTEGER(Kind=ik) :: preallo, domain_elems, ii, jj, kk, id, stat, umon
-INTEGER(Kind=ik) :: Istart,Iend, parts, IVstart, IVend, m_size, domain, lin_domain
+INTEGER(Kind=ik) :: preallo, domain_elems, ii, jj, kk, id, stat
+INTEGER(Kind=ik) :: Istart,Iend, parts, IVstart, IVend, m_size
 
 INTEGER(Kind=ik), Dimension(:)  , Allocatable :: nodes_in_mesh
 INTEGER(kind=ik), Dimension(:)  , Allocatable :: gnid_cref
@@ -154,8 +154,8 @@ If (rank_mpi == 0) then
     !------------------------------------------------------------------------------
     ! Write log and monitor file
     !------------------------------------------------------------------------------
-    Write(un_lf,FMT_MSG_xAI0) "Domain No. : ", domain
-    Write(un_lf,FMT_MSG)      "Job_dir    : "//Trim(job_dir)
+    Write(un_lf, FMT_MSG_xAI0) "Domain No. : ", domain
+    Write(un_lf, FMT_MSG)      "Job_dir    : "//Trim(job_dir)
 
     CALL DATE_AND_TIME(DATE=date, TIME=time, ZONE=timezone)
 
@@ -168,14 +168,6 @@ If (rank_mpi == 0) then
 
     CALL get_environment_Variable("HOSTNAME", env_var)
     Write(un_lf,FMT_MSG) "Host       : "//Trim(env_var)
-
-    umon = give_new_unit()
-
-    Open(unit=umon, file=Trim(job_dir)//Trim(project_name)//".mon",action="write", &
-            status="replace")
-
-    Write(umon,FMT_MSG_SEP)
-    Write(umon,FMT_MSG_xAI0) "Domain No. : ", domain
 
     !------------------------------------------------------------------------------
     ! Generate Geometry
@@ -205,8 +197,6 @@ If (rank_mpi == 0) then
     str = TRIM(str)//' '//timezone
     
     WRITE(un_lf, '(2A)') 'End time: ', TRIM(str)
-
-    close(umon)
 
     !------------------------------------------------------------------------------
     ! Look for the Domain branch

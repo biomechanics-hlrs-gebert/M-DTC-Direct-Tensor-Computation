@@ -201,7 +201,9 @@ Contains
     elt_micro = char_to_str(char_arr)
     deallocate(char_arr)
 
+    !------------------------------------------------------------------------------
     ! Get global DDC parameters from root
+    !------------------------------------------------------------------------------
     Call Search_branch("Global domain decomposition", root, ddc, success)
 
     call gen_quadmesh_from_phi(phi, delta, ddc, loc_ddc, llimit, elt_micro, &
@@ -215,31 +217,21 @@ Contains
     END If
 
     !------------------------------------------------------------------------------
-    ! Write number of elements to result file
-    !------------------------------------------------------------------------------
-    Call Search_branch("Averaged Material Properties", root, res_b, success)
-    
-    Call MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-         Int(res_b%leaves(18)%lbound-1+(lin_nn-1), MPI_OFFSET_KIND), &
-         Real(no_elems, pd_rk), &
-         Int(1,pd_mik), MPI_Real8, &
-         status_mpi, ierr)
-
-    ! call add_leaf_to_branch(res_b, "Number of elements in domain", 1_ik, [no_elems])
-
-    !------------------------------------------------------------------------------
     ! Store PHI as vtk structured points
     !------------------------------------------------------------------------------
     if (out_amount == "DEBUG") then
 
        filename=''
        write(filename,'(A,I0,A)')trim(job_dir)//trim(project_name)//"_",ddc_nn,"_phi.vtk"
+       !------------------------------------------------------------------------------
        ! Write structured points 
+       !------------------------------------------------------------------------------
         call write_vtk_structured_points(filename = trim(filename),  &
             extend = x_D, spacing = delta, &
             origin = (Real(xa_n,rk)-[0.5_rk,0.5_rk,0.5_rk])*delta)
+       !------------------------------------------------------------------------------
        ! Write data to vtk file 
-
+       !------------------------------------------------------------------------------
        call write_vtk_data_int4_scalar_1D(&
             matrix = reshape(phi,[x_D(1)*x_D(2)*x_D(3)]), &
             filename = trim(filename),  &
