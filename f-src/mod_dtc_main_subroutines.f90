@@ -46,7 +46,7 @@ CONTAINS
 !> @param[in]    size_mpi
 !> @param[in]    comm_mpi
 !------------------------------------------------------------------------------
-Subroutine exec_single_domain(root, lin_domain, comm_nn, domain, job_dir, active, fh_mpi_worker, &
+Subroutine exec_single_domain(root, comm_nn, domain, job_dir, active, fh_mpi_worker, &
     rank_mpi, size_mpi, comm_mpi)
 
 TYPE(materialcard) :: bone
@@ -54,7 +54,7 @@ INTEGER(kind=mik), Intent(INOUT), Dimension(no_streams) :: fh_mpi_worker
 
 Character(LEN=*) , Intent(in)  :: job_dir
 INTEGER(kind=mik), Intent(In)  :: rank_mpi, size_mpi, comm_mpi
-INTEGER(kind=ik) , intent(in)  :: comm_nn, domain, lin_domain
+INTEGER(kind=ik) , intent(in)  :: comm_nn, domain
 INTEGER(kind=mik), intent(out) :: active
 Type(tBranch)    , Intent(inOut) :: root
 
@@ -181,7 +181,7 @@ If (rank_mpi == 0) then
 
     CALL start_timer(trim(timer_name), .FALSE.)
 
-    CALL generate_geometry(root, lin_domain, domain, job_dir, fh_mpi_worker, success)
+    CALL generate_geometry(root, domain, job_dir, success)
 
     if (.not.success) then
         write(*,FMT_WRN)"generate_geometry() returned .FALSE."

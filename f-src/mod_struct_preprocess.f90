@@ -1,69 +1,63 @@
-!****************************************************************************
-!>  Program for generating a Hexaedra mesh from a 3D scalar field            **
-!                                                                          **
-! ------------ **
+!------------------------------------------------------------------------------
+!>  Program for generating a Hexaedra mesh from a 3D scalar field
+!------------------------------------------------------------------------------
 !>  \section written Written by:
 !>  Ralf Schneider
 !>
 !>  \section modified Last modified:
 !>  by: Johannes Gebert \n
-!>  on : 22.11.2021
-! ------------ *
+!>  on : 20.03.2022
+!------------------------------------------------------------------------------
 Module gen_geometry
 
-  Use vtkio             
-  Use gen_quadmesh
-  Use write_deck
-  
-  Implicit None
+Use vtkio             
+Use gen_quadmesh
+Use write_deck
+
+Implicit None
 
 Contains
 
-  Subroutine generate_geometry(root, lin_nn, ddc_nn, job_dir, fh_mpi_worker, glob_success)
+Subroutine generate_geometry(root, ddc_nn, job_dir, glob_success)
 
-    Type(tBranch), Intent(InOut) :: root
-    Character(LEN=*), Intent(in) :: job_dir
-    integer(Kind=ik), Intent(in) :: ddc_nn, lin_nn
-    Integer(kind=mik), Dimension(no_streams), Intent(in) :: fh_mpi_worker
-    Logical, Intent(Out) :: glob_success
+Type(tBranch), Intent(InOut) :: root
+Character(LEN=*), Intent(in) :: job_dir
+integer(Kind=ik), Intent(in) :: ddc_nn
+Logical, Intent(Out) :: glob_success
+    
+! Chain Variables
+Character(Len=*), Parameter :: link_name = 'gen_quadmesh'
 
-    ! MPI Variables
-    Integer(kind=mik) :: ierr
-    Integer(kind=mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
-        
-    ! Chain Variables
-    Character(Len=*), Parameter :: link_name = 'gen_quadmesh'
+! Puredat Variables
+Type(tBranch) :: phi_desc
 
-    ! Puredat Variables
-    Type(tBranch) :: phi_desc
+! Decomp Variables 
+Type(tBranch), Pointer :: loc_ddc, ddc, bounds_b
 
-    ! Decomp Variables 
-    Type(tBranch), Pointer :: loc_ddc, ddc, bounds_b
+! Branch pointers
+Type(tBranch), Pointer :: meta_para, domain_branch
 
-    ! Branch pointers
-    Type(tBranch), Pointer :: meta_para, res_b, domain_branch
+! Mesh Variables 
+Real(Kind=rk)    , Dimension(:,:) , Allocatable :: nodes, displ
+Integer(Kind=ik) , Dimension(:)   , Allocatable :: elem_col,node_col, cref
+Integer(Kind=ik) , Dimension(:,:) , Allocatable :: elems
+Character(Len=mcl) :: elt_micro, desc, filename
+Integer(Kind=ik)   :: elo_macro,alloc_stat
+! Parted Mesh -
+Type(tBranch), Pointer :: PMesh
+INTEGER(kind=ik)       :: parts
 
-    ! Mesh Variables 
-    Real(Kind=rk)    , Dimension(:,:) , Allocatable :: nodes, displ
-    Integer(Kind=ik) , Dimension(:)   , Allocatable :: elem_col,node_col, cref
-    Integer(Kind=ik) , Dimension(:,:) , Allocatable :: elems
-    Character(Len=mcl) :: elt_micro, desc, filename
-    Integer(Kind=ik)   :: elo_macro,alloc_stat
-    ! Parted Mesh -
-    Type(tBranch), Pointer :: PMesh
-    INTEGER(kind=ik)       :: parts
+!------------------------------------------------------------------------
+Integer(Kind=4)  , Dimension(:,:,:), Allocatable :: Phi
 
-    !------------------------------------------------------------------------
-    Integer(Kind=4)  , Dimension(:,:,:), Allocatable :: Phi
+Integer(Kind=ik) :: llimit, no_nodes=0, no_elems=0
 
-    Integer(Kind=ik) :: llimit, no_nodes=0, no_elems=0
+Character(len=*), Parameter :: inpsep = "('#',79('='))"
 
-    Character(len=*), Parameter :: inpsep = "('#',79('='))"
-
-    Character      , Dimension(:), Allocatable :: char_arr
-    Real(Kind=rk)  , Dimension(:), Allocatable :: delta
-    Integer(kind=4), Dimension(:), Allocatable :: vdim
-    Integer(kind=8), Dimension(:), Allocatable :: bpoints,x_D,nn_D
+Character      , Dimension(:), Allocatable :: char_arr
+Real(Kind=rk)  , Dimension(:), Allocatable :: delta
+Integer(kind=4), Dimension(:), Allocatable :: vdim
+Integer(kind=8), Dimension(:), Allocatable :: bpoints,x_D,nn_D
     Integer(kind=8), Dimension(3) :: xa_n, xe_n, xa_n_ext, xe_n_ext
     Integer(kind=8) :: nn_1,nn_2,nn_3, ii,jj
     Integer(kind=8) :: pos_f
