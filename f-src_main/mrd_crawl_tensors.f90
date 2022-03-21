@@ -92,25 +92,17 @@ IF(std_out/=6) CALL meta_start_ascii(std_out, '.std_out')
 CALL show_title(["Johannes Gebert, M.Sc. (HLRS, NUM) "], "Crawl Tensors of DTC")
 
 !------------------------------------------------------------------------------
-! Open the file to store the tensors positioned in their global coordinates
-!------------------------------------------------------------------------------
-fh_covo = give_new_unit(); CALL meta_start_ascii(fh_covo, covo_suf)
-fh_cr1  = give_new_unit(); CALL meta_start_ascii(fh_cr1, cr1_suf)
-fh_cr2  = give_new_unit(); CALL meta_start_ascii(fh_cr2, cr2_suf)
-
-CALL write_tensor_2nd_rank_R66_header(fh_covo)
-CALL write_tensor_2nd_rank_R66_header(fh_cr1)
-CALL write_tensor_2nd_rank_R66_header(fh_cr2)
-
-!------------------------------------------------------------------------------
 ! Parse input
 !------------------------------------------------------------------------------
 CALL meta_check_contains_program ('TENSOR-COMPUTATION', m_rry, success)
 
 IF (.NOT. success) THEN
-    mssg = "The program 'TENSOR-COMPUTATION' apparently did not run successfully. &
-        &Please check its meta file and computation."
-    CALL print_err_stop(std_out, mssg, 1)
+    CALL print_trimmed_text(std_out, &
+        "The program 'TENSOR-COMPUTATION' apparently did not run successfully. &
+        &Maybe it crashed or was stopped by purpose. However, it can also point &
+        &to an incorrect implementation.", &
+        FMT_WRN)    
+    WRITE(std_out, FMT_WRN_SEP)
 END IF
 
 CALL meta_read('LO_BNDS_DMN_RANGE' , m_rry, xa_d)
@@ -120,6 +112,17 @@ CALL meta_read('PROCESSORS'        , m_rry, size_mpi)
 
 INQUIRE(UNIT=fhmei, OPENED=opened)
 IF(opened) CLOSE (fhmei)
+
+!------------------------------------------------------------------------------
+! Open the file to store the tensors positioned in their global coordinates
+!------------------------------------------------------------------------------
+fh_covo = give_new_unit(); CALL meta_start_ascii(fh_covo, covo_suf)
+fh_cr1  = give_new_unit(); CALL meta_start_ascii(fh_cr1, cr1_suf)
+fh_cr2  = give_new_unit(); CALL meta_start_ascii(fh_cr2, cr2_suf)
+
+CALL write_tensor_2nd_rank_R66_header(fh_covo)
+CALL write_tensor_2nd_rank_R66_header(fh_cr1)
+CALL write_tensor_2nd_rank_R66_header(fh_cr2)
 
 !------------------------------------------------------------------------------
 ! Calculate the number of domains per communicator of the DTC

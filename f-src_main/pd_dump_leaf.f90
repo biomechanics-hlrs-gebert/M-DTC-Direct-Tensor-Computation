@@ -149,7 +149,7 @@ Program pd_dump_leaf
               STOP
            End If
 
-           call pd_read_leaf(tree%streams,leaf,dat_int8)
+           call pd_read_leaf(tree%streams, leaf, dat_int8)
 
            write(*,'(5I16)')dat_int8
            write(*,*)

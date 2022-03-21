@@ -143,7 +143,8 @@ INTEGER(KIND=pd_ik), DIMENSION(no_streams) :: dsize
 
 INTEGER(KIND=pd_ik) :: serial_root_size, add_leaves
 
-LOGICAL :: success, stat_exists, heaxist, stp = .FALSE., create_new_header = .FALSE.
+LOGICAL :: success, stat_exists, heaxist, stp = .FALSE.
+LOGICAL :: create_new_header = .FALSE.
 
 !----------------------------------------------------------------------------
 CALL mpi_init(ierr)
@@ -194,7 +195,7 @@ If (rank_mpi == 0) THEN
     !------------------------------------------------------------------------------
     global_meta_prgrm_mstr_app = 'dtc' 
     global_meta_program_keyword = 'TENSOR_COMPUTATION'
-    CALL meta_append(m_rry)
+    CALL meta_append(m_rry, size_mpi)
         
     !------------------------------------------------------------------------------
     ! Redirect std_out into a file in case std_out is not useful by environment.
@@ -424,30 +425,31 @@ If (rank_mpi == 0) THEN
         mssg = "Something went wrong during link_start"
         CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF
-        
-    !------------------------------------------------------------------------------
-    ! Allocate and init field for selected domain range
-    ! Required for the worker_is_active tracking
-    ! Required for steering the allocation of memory for writing data into 
-    ! the stream files (raise leaves etc.)
-    !------------------------------------------------------------------------------
-    Allocate(Domains(No_of_domains), stat=alloc_stat)
-    CALL alloc_err("Domains", alloc_stat)
-
-    Allocate(Domain_stats(No_of_domains), stat=alloc_stat)
-    CALL alloc_err("Domain_stats", alloc_stat)
-    Domain_stats = -9999999_ik
-
-    Allocate(domain_path(0:No_of_domains))
-    domain_path = ''
 
 END IF
 
 !------------------------------------------------------------------------------
 ! Send information about file
 !------------------------------------------------------------------------------
-CALL MPI_BCAST(stat_exists, 1_mik, MPI_LOGICAL, 0_mik, MPI_COMM_WORLD, ierr)
-CALL MPI_BCAST(activity_file , INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(stat_exists  , 1_mik, MPI_LOGICAL    , 0_mik, MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(No_of_domains, 1_mik, MPI_INTEGER8   , 0_mik, MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(activity_file, INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
+
+!------------------------------------------------------------------------------
+! Allocate and init field for selected domain range
+! Required for the worker_is_active tracking
+! Required for steering the allocation of memory for writing data into 
+! the stream files (raise leaves etc.)
+!------------------------------------------------------------------------------
+Allocate(Domains(No_of_domains), stat=alloc_stat)
+CALL alloc_err("Domains", alloc_stat)
+
+Allocate(Domain_stats(No_of_domains), stat=alloc_stat)
+CALL alloc_err("Domain_stats", alloc_stat)
+Domain_stats = -9999999_ik
+
+Allocate(domain_path(0:No_of_domains))
+domain_path = ''
 
 !------------------------------------------------------------------------------
 ! Initial setup of the worker_is_active tracker
@@ -462,12 +464,20 @@ CALL MPI_BCAST(activity_file , INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ie
 IF (stat_exists) THEN
     Call MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(activity_file), &
         MPI_MODE_RDWR, MPI_INFO_NULL, aun, ierr)
+
+    !------------------------------------------------------------------------------
+    ! Read the Domain stats list
+    !------------------------------------------------------------------------------
+    CALL MPI_FILE_READ(aun, Domain_stats, INT(SIZE(Domain_stats), mik), &
+        MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
 ELSE
     Call MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(activity_file), &
         MPI_MODE_CREATE+MPI_MODE_RDWR, MPI_INFO_NULL, aun, ierr)
 END IF ! (stat_exists)
 
+
 If (rank_mpi == 0) THEN
+
     IF (stat_exists) THEN
         !------------------------------------------------------------------------------
         ! Read the Domain stats list
@@ -640,6 +650,7 @@ If (rank_mpi == 0) THEN
         mssg = "parts > size_mpi - 1"
         CALL print_err_stop_slaves(mssg, "warning"); GOTO 1000
     END IF
+
     !------------------------------------------------------------------------------
     ! Ensure to update the number of leaves and the indices of these in every
     ! line of code! Also update dat_ty and dat_no in "CALL raise_leaves"
@@ -827,11 +838,6 @@ Else
     CALL pd_get(root%branches(1), "Lower bounds of selected domain range", xa_d, 3)
     CALL pd_get(root%branches(1), "Upper bounds of selected domain range", xe_d, 3)
     
-    No_of_domains = (xe_d(1)-xa_d(1)+1) * (xe_d(2)-xa_d(2)+1) * (xe_d(3)-xa_d(3)+1)
-    
-    Allocate(Domains(No_of_domains),stat=alloc_stat)
-    CALL alloc_err("Domains",alloc_stat)
-
     CALL pd_get(root%branches(2),"nn_D", nn_D)
     
     !------------------------------------------------------------------------------
@@ -878,7 +884,7 @@ WRITE_ROOT_COMM = MPI_COMM_WORLD
 !------------------------------------------------------------------------------
 ! Open stream files
 !------------------------------------------------------------------------------
-Call Open_Stream_Files(root%streams, "write", "replace", fh_mpi_root, WRITE_ROOT_COMM)
+Call Open_Stream_Files(root%streams, "write", "new", fh_mpi_root, WRITE_ROOT_COMM)
 
 !------------------------------------------------------------------------------
 ! All Ranks -- Init MPI request and status lists
@@ -911,11 +917,6 @@ If (rank_mpi==0) Then
     Do While (mii <= (size_mpi-1_mik))
 
         if (nn > No_of_domains) exit
-
-        If (Domain_stats(nn) >= 0) then
-            nn = nn + 1_ik
-            cycle
-        End If
 
         Do mjj = mii, mii + parts-1
             !------------------------------------------------------------------------------
@@ -962,15 +963,6 @@ If (rank_mpi==0) Then
     ! mii --> Worker master
     !------------------------------------------------------------------------------
     DO  WHILE (nn <= No_of_domains) 
-
-        !------------------------------------------------------------------------------
-        ! Skip this DO WHILE cycle if Domain_stat of the domain (nn) > 0 and therefore
-        ! marked as "already computed".
-        !------------------------------------------------------------------------------
-        If (Domain_stats(nn) >= 0) then
-            nn = nn + 1_ik
-            cycle
-        End If
 
         !------------------------------------------------------------------------------
         ! Send information for all parts to the corresponding ranks.
@@ -1040,8 +1032,8 @@ If (rank_mpi==0) Then
     !------------------------------------------------------------------------------
     CALL Start_Timer("Write Root Branch")
 
-    CALL store_parallel_branch(root%branches(1), fh_mpi_root)
-    CALL store_parallel_branch(root%branches(2), fh_mpi_root)
+    CALL store_branch(root%branches(1), root%streams, .TRUE. )
+    CALL store_branch(root%branches(2), root%streams, .TRUE. )
     CALL Write_Tree(root%branches(1))
     CALL Write_Tree(root%branches(2))
 
@@ -1099,6 +1091,7 @@ Else
         END IF
 
         CALL link_start(link_name, .True., .True.)
+        
     END IF 
 
     !------------------------------------------------------------------------------
@@ -1107,10 +1100,10 @@ Else
     ! Root dir was send via broadcast, because the worker masters are not 
     ! determined at the beginning of the program.
     !------------------------------------------------------------------------------
-    CALL MPI_BCAST(comm_nn,          1_mik    , MPI_INTEGER8, 0_mik, WORKER_COMM, ierr)
-    CALL MPI_BCAST(outpath,          INT(mcl, mik), MPI_CHAR, 0_mik, WORKER_COMM, ierr)
-    CALL MPI_BCAST(project_name,     INT(mcl, mik), MPI_CHAR, 0_mik, WORKER_COMM, ierr)
-    CALL MPI_BCAST(project_name,     INT(mcl, mik), MPI_CHAR, 0_mik, WORKER_COMM, ierr)
+    CALL MPI_BCAST(comm_nn,      1_mik    , MPI_INTEGER8, 0_mik, WORKER_COMM, ierr)
+    CALL MPI_BCAST(outpath,      INT(mcl, mik), MPI_CHAR, 0_mik, WORKER_COMM, ierr)
+    CALL MPI_BCAST(project_name, INT(mcl, mik), MPI_CHAR, 0_mik, WORKER_COMM, ierr)
+    CALL MPI_BCAST(project_name, INT(mcl, mik), MPI_CHAR, 0_mik, WORKER_COMM, ierr)
 
     !------------------------------------------------------------------------------
     ! Open Stream files to write data to master-worker rank directories
@@ -1119,98 +1112,14 @@ Else
     pro_name = project_name     
 
     CALL set_stream_filenames(root%streams)
-    CALL open_stream_files(root%streams, "write", "replace", fh_mpi_worker, WORKER_COMM)
+    Call Open_Stream_Files(root%streams, "write", "new", fh_mpi_worker, WORKER_COMM)
 
     !------------------------------------------------------------------------------
     ! Worker Loop
     !------------------------------------------------------------------------------
     Do
         !------------------------------------------------------------------------------
-        ! Start workers
-        !------------------------------------------------------------------------------
-        CALL MPI_RECV(active, 1_mik, MPI_INTEGER4, 0_mik, rank_mpi, MPI_COMM_WORLD, status_mpi, ierr)
-        CALL print_err_stop(std_out, "MPI_RECV on Active didn't succseed", ierr)
-
-        !------------------------------------------------------------------------------
-        ! Stop workers
-        !------------------------------------------------------------------------------
-        IF (active == -1) EXIT
-
-        !------------------------------------------------------------------------------
-        ! Receive domain numbers
-        !------------------------------------------------------------------------------
-        CALL mpi_recv(nn, 1_mik, MPI_INTEGER8, 0_mik, rank_mpi, MPI_COMM_WORLD, status_mpi, ierr)
-        CALL print_err_stop(std_out, "MPI_RECV on Domain didn't succeed", ierr)
-
-        Domain = Domains(nn)
-
-        IF (out_amount /= "PRODUCTION") THEN
-           !------------------------------------------------------------------------------
-           ! Receive Job_Dir
-           !------------------------------------------------------------------------------
-           CALL mpi_recv(job_dir, 4_mik*int(mcl,mik), mpi_character, 0_mik, rank_mpi, MPI_COMM_WORLD, status_mpi, ierr)
-           CALL print_err_stop(std_out, "MPI_RECV on Domain path didn't succeed", ierr)
-        ELSE
-           job_dir = outpath
-        End if
-        
-        IF (job_dir(len(job_dir):len(job_dir)) /= "/") job_dir = trim(job_dir)//"/"
-
-        !======================================================================
-        CALL exec_single_domain(root, comm_nn, Domain, job_dir, Active, fh_mpi_worker, &
-             worker_rank_mpi, worker_size_mpi, worker_comm)
-        !======================================================================
-
-        !------------------------------------------------------------------------------
-        ! Organize Results
-        !------------------------------------------------------------------------------
-        IF (worker_rank_mpi==0) THEN
-            CALL Start_Timer("Write Worker Root Branch")
-
-            !------------------------------------------------------------------------------
-            ! Set these variables again...
-            !------------------------------------------------------------------------------
-            pro_path = outpath
-            pro_name = project_name     
-                                   
-            !------------------------------------------------------------------------------
-            ! Store header file
-            !------------------------------------------------------------------------------
-            CALL Write_Tree(root%branches(3)) ! Branch with 'Averaged Material Properties'
-            ! ../../../bin/pd_dump_leaf_x86_64 $PWD/ results_0000001 7
-        
-            IF (out_amount == "ALEXANDRIA") THEN
-                DO ii = 1, SIZE(root%branches)
-                    write(*, '(A, I0, 2A, T80, I0, T84, A)') &
-                        "Branch(", ii, ") of the tree: ", &
-                        TRIM(root%branches(ii)%desc), &
-                        SIZE(root%branches(ii)%leaves), " leaves."
-                END DO
-            END IF
-
-            CALL End_Timer("Write Worker Root Branch")
-
-            !------------------------------------------------------------------------------
-            ! Store activity information
-            !------------------------------------------------------------------------------
-            Call MPI_FILE_WRITE_AT(aun, &
-                INT(((nn-1) * ik), MPI_OFFSET_KIND), &
-                Domain, &
-                1_mik, MPI_INTEGER8, status_mpi, ierr)
-
-            !------------------------------------------------------------------------------
-            ! Increment linear domain counter of the PETSc sub_comm instances
-            !------------------------------------------------------------------------------
-            comm_nn = comm_nn + 1_ik
-
-        END IF
-
-        !------------------------------------------------------------------------------
-        ! Store stream files. MPI-Parallel. All must work together.
-        !------------------------------------------------------------------------------
-        CALL store_parallel_branch(root%branches(3), fh_mpi_worker) ! Branch with 'Averaged Material Properties'
-        ! ../../../bin/pd_dump_Eleaf_x86_64 $PWD/ results_0000001 7
-        
+        ! Basically "mark end of file
         !------------------------------------------------------------------------------
         ! Write last segments to streams. 
         ! Required if a sub-comm will not write as many numbers into the stream as 
@@ -1230,6 +1139,92 @@ Else
         CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
             Int(root%branches(3)%leaves(19)%lbound-1+(domains_per_comm-1), MPI_OFFSET_KIND), &
             1_rk, 1_pd_mik, MPI_REAL8, status_mpi, ierr)
+
+        !------------------------------------------------------------------------------
+        ! Start workers
+        !------------------------------------------------------------------------------
+        CALL MPI_RECV(active, 1_mik, MPI_INTEGER4, 0_mik, rank_mpi, MPI_COMM_WORLD, status_mpi, ierr)
+        CALL print_err_stop(std_out, "MPI_RECV on Active didn't succseed", ierr)
+
+        !------------------------------------------------------------------------------
+        ! Stop workers
+        !------------------------------------------------------------------------------
+        IF (active == -1) EXIT
+
+        !------------------------------------------------------------------------------
+        ! Receive domain numbers
+        !------------------------------------------------------------------------------
+        CALL mpi_recv(nn, 1_mik, MPI_INTEGER8, 0_mik, rank_mpi, MPI_COMM_WORLD, status_mpi, ierr)
+        CALL print_err_stop(std_out, "MPI_RECV on Domain didn't succeed", ierr)
+
+        Domain = Domains(nn)
+
+        !------------------------------------------------------------------------------
+        ! Only compute the domain if it was not yet (entry in status file = -9999999)
+        !------------------------------------------------------------------------------
+        IF (Domain_stats(nn) < 0) THEN
+
+            IF (out_amount /= "PRODUCTION") THEN
+            !------------------------------------------------------------------------------
+            ! Receive Job_Dir
+            !------------------------------------------------------------------------------
+            CALL mpi_recv(job_dir, 4_mik*int(mcl,mik), mpi_character, 0_mik, rank_mpi, MPI_COMM_WORLD, status_mpi, ierr)
+            CALL print_err_stop(std_out, "MPI_RECV on Domain path didn't succeed", ierr)
+            ELSE
+            job_dir = outpath
+            End if
+            
+            IF (job_dir(len(job_dir):len(job_dir)) /= "/") job_dir = trim(job_dir)//"/"
+
+            !======================================================================
+            CALL exec_single_domain(root, comm_nn, Domain, job_dir, Active, fh_mpi_worker, &
+                worker_rank_mpi, worker_size_mpi, worker_comm)
+            !======================================================================
+
+            !------------------------------------------------------------------------------
+            ! Organize Results
+            !------------------------------------------------------------------------------
+            IF (worker_rank_mpi==0) THEN
+                CALL Start_Timer("Write Worker Root Branch")
+
+                !------------------------------------------------------------------------------
+                ! Set these variables again...
+                !------------------------------------------------------------------------------
+                pro_path = outpath
+                pro_name = project_name     
+                                    
+                !------------------------------------------------------------------------------
+                ! Store header file
+                !------------------------------------------------------------------------------
+                CALL Write_Tree(root%branches(3)) ! Branch with 'Averaged Material Properties'
+                ! ../../../bin/pd_dump_leaf_x86_64 $PWD/ results_0000001 7
+            
+                IF (out_amount == "ALEXANDRIA") THEN
+                    DO ii = 1, SIZE(root%branches)
+                        write(*, '(A, I0, 2A, T80, I0, T84, A)') &
+                            "Branch(", ii, ") of the tree: ", &
+                            TRIM(root%branches(ii)%desc), &
+                            SIZE(root%branches(ii)%leaves), " leaves."
+                    END DO
+                END IF
+
+                CALL End_Timer("Write Worker Root Branch")
+
+                !------------------------------------------------------------------------------
+                ! Store activity information
+                !------------------------------------------------------------------------------
+                Call MPI_FILE_WRITE_AT(aun, INT(((nn-1) * ik), MPI_OFFSET_KIND), &
+                    Domain, 1_mik, MPI_INTEGER8, status_mpi, ierr)
+            END IF
+        END IF 
+
+        !------------------------------------------------------------------------------
+        ! Increment linear domain counter of the PETSc sub_comm instances
+        ! It is important (!) to increment this variable after the check
+        ! IF (Domain_stats(nn) <= 0) THEN. Otherwise, the program will write into 
+        ! slots that are used by previous domains.
+        !------------------------------------------------------------------------------
+        comm_nn = comm_nn + 1_ik
 
         !------------------------------------------------------------------------------
         ! "Deactivate" communicator
@@ -1270,7 +1265,7 @@ IF(rank_mpi == 0) THEN
     CALL link_end(link_name,.True.)
 
     CALL meta_signing(binary)
-    CALL meta_close(size_mpi)
+    CALL meta_close()
 
     CALL meta_stop_ascii(fh_mon, mon_suf)
 
