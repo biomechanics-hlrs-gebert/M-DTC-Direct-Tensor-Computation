@@ -18,7 +18,7 @@
 cd "$PBS_O_WORKDIR" || exit
 #
 # shellcheck source=/dev/null
-source "./environment.soure" vulcan --no-output 
+source "./environment.source" vulcan --no-output 
 #
 # Launch the parallel mpi application
 mpirun -np 40 ./bin/dtc_v1.0.0_x86_64 "$PBS_O_WORKDIR" ./datasets/datasets/FH01-2_mu_dev_cbi_32766-65536.meta

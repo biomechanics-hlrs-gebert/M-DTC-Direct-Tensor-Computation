@@ -37,11 +37,13 @@ bsnmout="$bsnmP1""_""$bsnmP2""_""$bsnmP3""_""$bsnmP4""_""$bsnmP5"
 # echo "$bsnmout"
 #------------------------------------------------------------------------------
 #
-#
-if [ -f "$bsnmin.int4.st" ]; then
-    mv "$bsnmin".int4.st "$bsnmin".raw
-    echo " $bsnmin.int4.st resetted."
-fi
+#------------------------------------------------------------------------------
+# NOT used anymore. Will alter data!!
+#------------------------------------------------------------------------------
+# if [ -f "$bsnmin.int4.st" ]; then
+#     mv "$bsnmin".int4.st "$bsnmin".raw
+#     echo " $bsnmin.int4.st resetted."
+# fi
 #
 fls=( ".real8.st" ".char.st" ".memlog" ".head" )
 #

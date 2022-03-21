@@ -17,8 +17,10 @@
 # Change to the direcotry that the job was submitted from
 cd "$PBS_O_WORKDIR" || exit
 #
+./datasets/memlog.sh datasets/FH01-2_mu_dev_cbi_32766-65536.memlog
+#
 # shellcheck source=/dev/null
-source "./environment.soure" hawk --no-output 
+source "./environment.source" hawk --no-output 
 #
 # Launch the parallel mpi application
 mpirun -np 128 ./bin/dtc_v1.0.0_x86_64 "$PBS_O_WORKDIR" ./datasets/FH01-2_mu_dev_cbi_32766-65536.meta

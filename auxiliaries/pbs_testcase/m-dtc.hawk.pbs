@@ -18,7 +18,7 @@
 cd "$PBS_O_WORKDIR" || exit
 #
 # shellcheck source=/dev/null
-source "./environment.soure" hawk --no-output 
+source "./environment.source" hawk --no-output 
 #
 # Launch the parallel mpi application
 mpirun -np 3 ./bin/dtc_v1.0.0_x86_64 "$PBS_O_WORKDIR" ./datasets/testcase_solid_cube/SC00-0_tc_Dev_BinDecomp_isotropic-HEX08.meta
