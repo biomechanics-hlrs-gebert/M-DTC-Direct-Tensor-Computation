@@ -10,17 +10,25 @@
 # https://kb.hlrs.de/platforms/index.php/Batch_System_PBSPro_(Hawk)
 # ------------------------------------------------------------------------------
 #PBS -N dtc
-#PBS -l select=1:node_type=rome:mpiprocs=128:node_type_mem=256gb
-#PBS -l walltime=24:00:00
-##PBS -q test
+#PBS -l select=32:node_type=rome:mpiprocs=128:node_type_mem=256gb
+#PBS -l walltime=00:25:00
+#PBS -q test
+#
+# ------------------------------------------------------------------------------
+date
+echo "############################################################"
+echo -e "Job identifier:\t${PBS_JOBID}"
+#
+echo -e "Job name:\t${PBS_JOBNAME}"
+echo "running on ${HOST}"
 #
 # Change to the direcotry that the job was submitted from
 cd "$PBS_O_WORKDIR" || exit
 #
-./datasets/memlog.sh datasets/FH01-2_mu_dev_cbi_32766-65536.memlog
+/zhome/academic/HLRS/hlrs/hpcgeber/hpcgeber-dtc_hawk/M-DTC-Direct-Tensor-Computation-major_output_restructuring/datasets/memlog.sh /zhome/academic/HLRS/hlrs/hpcgeber/hpcgeber-dtc_hawk/M-DTC-Direct-Tensor-Computation-major_output_restructuring/datasets/FH01-2_mu_Dev_dtc_06-DR4-10-p255-N2-32N.memlog > /dev/null 2> /dev/null &
 #
 # shellcheck source=/dev/null
-source "./environment.source" hawk --no-output 
+source "./environment.source" hawk --no-output
 #
 # Launch the parallel mpi application
-mpirun -np 128 ./bin/dtc_v1.0.0_x86_64 "$PBS_O_WORKDIR" ./datasets/FH01-2_mu_dev_cbi_32766-65536.meta
+mpirun -np 4081 --report-bindings ./bin/dtc_V1.0.0_x86_64 "$PBS_O_WORKDIR" ./datasets/FH01-2_mu_Dev_cbi_32767-65000.meta

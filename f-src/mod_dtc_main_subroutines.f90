@@ -24,7 +24,7 @@ USE PETSC
 USE calcmat
 
 IMPLICIT NONE 
-  
+
 CONTAINS
 
 !------------------------------------------------------------------------------
@@ -47,7 +47,7 @@ CONTAINS
 !> @param[in]    comm_mpi
 !------------------------------------------------------------------------------
 Subroutine exec_single_domain(root, comm_nn, domain, job_dir, active, fh_mpi_worker, &
-    rank_mpi, size_mpi, comm_mpi)
+rank_mpi, size_mpi, comm_mpi)
 
 TYPE(materialcard) :: bone
 INTEGER(kind=mik), Intent(INOUT), Dimension(no_streams) :: fh_mpi_worker
@@ -66,6 +66,7 @@ INTEGER(kind=mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
 INTEGER(kind=mik) :: ierr, petsc_ierr
 
 INTEGER(kind=pd_ik), Dimension(:), Allocatable :: serial_pb
+INTEGER(kind=pd_ik), Dimension(no_streams)     ::  dsize
 INTEGER(kind=pd_ik)                            :: serial_pb_size
 
 INTEGER(Kind=ik) :: preallo, domain_elems, ii, jj, kk, id, stat
@@ -120,12 +121,12 @@ CALL pd_get(meta_para, "Physical domain size" , bone%phdsize, 3)
 CALL pd_get(meta_para, "Grid spacings" , bone%delta, 3)
 CALL pd_get(meta_para, "Young_s modulus" , bone%E)
 CALL pd_get(meta_para, "Poisson_s ratio" , bone%nu)
-    
+
 !------------------------------------------------------------------------------
 ! Rank = 0 -- Local master of comm_mpi
 !------------------------------------------------------------------------------
 If (rank_mpi == 0) then
-   
+
     !------------------------------------------------------------------------------
     ! Create job directory in case of non-production run
     !------------------------------------------------------------------------------
@@ -183,8 +184,8 @@ If (rank_mpi == 0) then
 
     CALL generate_geometry(root, domain, job_dir, success)
 
-    if (.not.success) then
-        write(*,FMT_WRN)"generate_geometry() returned .FALSE."
+    if (.not. success) then
+        write(std_out, FMT_WRN)"generate_geometry() failed."
     End if
 
     CALL end_timer(trim(timer_name))
@@ -804,7 +805,7 @@ IF (rank_mpi == 0) THEN
     ! Allocate local bounds for global result
     Allocate(res_sizes(2,size_mpi-1))
     
-End If
+End If ! (rank_mpi == 0) THEN
 
 Do jj = 1,24
     
@@ -921,6 +922,7 @@ if (rank_mpi == 0) then
     CALL end_timer(TRIM(timer_name))
 
     Deallocate(glob_displ, res_sizes, glob_force)
+    DEALLOCATE(nodes_in_mesh, zeros_R8)
 
     SELECT CASE (timer_level)
     CASE (1)
@@ -933,6 +935,8 @@ if (rank_mpi == 0) then
     CALL calc_effective_material_parameters(root, comm_nn, domain, fh_mpi_worker)
     CALL end_timer(trim(timer_name))
 
+ELSE
+    DEALLOCATE(part_branch)
 End if
 
 !------------------------------------------------------------------------------
@@ -945,6 +949,8 @@ CALL VecDestroy(XX,     petsc_ierr)
 Do ii = 1, 24
     CALL VecDestroy(FF(ii), petsc_ierr)
 End Do
+
+
 
 End Subroutine exec_single_domain
 
