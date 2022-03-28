@@ -47,7 +47,7 @@ CONTAINS
 !> @param[in]    comm_mpi
 !------------------------------------------------------------------------------
 Subroutine exec_single_domain(root, comm_nn, domain, job_dir, active, fh_mpi_worker, &
-rank_mpi, size_mpi, comm_mpi)
+    AA, AA_org, XX, FF, rank_mpi, size_mpi, comm_mpi)
 
 TYPE(materialcard) :: bone
 INTEGER(kind=mik), Intent(INOUT), Dimension(no_streams) :: fh_mpi_worker
@@ -89,14 +89,14 @@ Character, Dimension(4*mcl) :: c_char_array
 Character, Dimension(:), Allocatable :: char_arr
 
 LOGICAL, PARAMETER :: DEBUG = .TRUE.
-logical :: success
+logical :: success, firstalloc = .FALSE.
 
 Type(tBranch), pointer :: boundary_branch, domain_branch, part_branch
 Type(tBranch), pointer :: mesh_branch, meta_para, esd_result_branch
 
-Type(tMat)                :: AA, AA_org
-Type(tVec)                :: XX
-Type(tVec), Dimension(24) :: FF
+Type(tMat), Intent(INOUT)                :: AA, AA_org
+Type(tVec), Intent(INOUT)                :: XX
+Type(tVec), Intent(INOUT), Dimension(24) :: FF
 TYPE(tPETScViewer)        :: PetscViewer
 Type(tKSP)                :: KSP
 
@@ -320,28 +320,34 @@ END IF
 ! Calculate amount of memory to allocate.
 !------------------------------------------------------------------------------
 preallo = (part_branch%leaves(5)%dat_no * 3) / parts + 1
+! preallo = ((part_branch%leaves(5)%dat_no * 3) / parts) * 2 
 
 !------------------------------------------------------------------------------
-! Create Stiffness matrix
-! Preallocation avoids dynamic allocations during matassembly.
+! MatCreate is part of the main program. Otherwise, PETSc is loosing the scope
+! of the Arrays.
 !------------------------------------------------------------------------------
-CALL MatCreate(COMM_MPI, AA    , petsc_ierr)
-CALL MatCreate(COMM_MPI, AA_org, petsc_ierr)
+IF(.NOT. firstalloc) THEN
+    CALL MatSetSizes(AA    , PETSC_DECIDE, PETSC_DECIDE, m_size, m_size, petsc_ierr)
+    CALL MatSetSizes(AA_org, PETSC_DECIDE, PETSC_DECIDE, m_size, m_size, petsc_ierr)
 
-CALL MatSetFromOptions(AA,     petsc_ierr)
-CALL MatSetFromOptions(AA_org, petsc_ierr)
+    CALL MatSeqAIJSetPreallocation(AA, preallo, PETSC_NULL_INTEGER, petsc_ierr)
+    CALL MatMPIAIJSetPreallocation(AA, preallo, PETSC_NULL_INTEGER, preallo, PETSC_NULL_INTEGER, petsc_ierr)
 
-CALL MatSetSizes(AA,PETSC_DECIDE,PETSC_DECIDE,m_size,m_size,petsc_ierr)
-CALL MatSetSizes(AA_org,PETSC_DECIDE,PETSC_DECIDE,m_size,m_size,petsc_ierr)
+    CALL MatSeqAIJSetPreallocation(AA_org, preallo, PETSC_NULL_INTEGER, petsc_ierr)
+    CALL MatMPIAIJSetPreallocation(AA_org, preallo, PETSC_NULL_INTEGER, preallo, PETSC_NULL_INTEGER, petsc_ierr)
 
-CALL MatSeqAIJSetPreallocation(AA, preallo, PETSC_NULL_INTEGER, petsc_ierr)
-CALL MatMPIAIJSetPreallocation(AA, preallo, PETSC_NULL_INTEGER, preallo, PETSC_NULL_INTEGER, petsc_ierr)
+    CALL MatSetOption(AA    , MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE, petsc_ierr)
+    CALL MatSetOption(AA_org, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE, petsc_ierr)
+END IF 
 
-CALL MatSeqAIJSetPreallocation(AA_org, preallo, PETSC_NULL_INTEGER, petsc_ierr)
-CALL MatMPIAIJSetPreallocation(AA_org, preallo, PETSC_NULL_INTEGER, preallo, PETSC_NULL_INTEGER, petsc_ierr)
+CALL MatZeroEntries(AA    , petsc_ierr)
+CALL MatZeroEntries(AA_org, petsc_ierr)
 
-CALL MatSetOption(AA    ,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
-CALL MatSetOption(AA_org,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
+!------------------------------------------------------------------------------
+! DO NOT reset the preallocation as it will lead to leaking memory
+!------------------------------------------------------------------------------
+! CALL MatResetPreallocation(AA    ,petsc_ierr)
+! CALL MatResetPreallocation(AA_org,petsc_ierr)
 
 !------------------------------------------------------------------------------
 ! End timer
@@ -497,10 +503,15 @@ Do ii = 1, 24
     !------------------------------------------------------------------------------
     ! Create load vectors
     !------------------------------------------------------------------------------
-    CALL VecCreate(COMM_MPI, FF(ii), petsc_ierr)
-    CALL VecSetSizes(FF(ii), PETSC_DECIDE, m_size, petsc_ierr)
-    CALL VecSetFromOptions(FF(ii), petsc_ierr)
-    CALL VecSet(FF(ii), 0._rk,petsc_ierr)
+    ! CALL VecCreate(COMM_MPI, FF(ii), petsc_ierr)
+
+    IF(.NOT. firstalloc) THEN
+        CALL VecSetSizes(FF(ii), PETSC_DECIDE, m_size, petsc_ierr)
+        CALL VecSetFromOptions(FF(ii), petsc_ierr)
+    END IF 
+   
+    CALL VecZeroEntries(FF(ii), petsc_ierr)
+    ! CALL VecSet(FF(ii), 0._rk,petsc_ierr)
     
     CALL VecGetOwnershipRange(FF(ii), IVstart, IVend, petsc_ierr)
 
@@ -544,10 +555,16 @@ End Do
 !------------------------------------------------------------------------------ 
 ! Create solution vector
 !------------------------------------------------------------------------------ 
-CALL VecCreate(COMM_MPI, XX, petsc_ierr)
-CALL VecSetSizes(XX, PETSC_DECIDE, m_size, petsc_ierr)
-CALL VecSetFromOptions(XX, petsc_ierr)
-CALL VecSet(XX, 0._rk,petsc_ierr)
+! CALL VecCreate(COMM_MPI, XX, petsc_ierr)
+IF(.NOT. firstalloc) THEN
+    CALL VecSetSizes(XX, PETSC_DECIDE, m_size, petsc_ierr)
+    CALL VecSetFromOptions(XX, petsc_ierr)
+    firstalloc = .TRUE.
+END IF
+
+! CALL VecSet(XX, 0._rk,petsc_ierr)
+CALL VecZeroEntries(XX    , petsc_ierr)
+
 
 !------------------------------------------------------------------------------
 ! Only set prescribed displacements if there are boundary nodes available.
@@ -938,19 +955,6 @@ if (rank_mpi == 0) then
 ELSE
     DEALLOCATE(part_branch)
 End if
-
-!------------------------------------------------------------------------------
-! Remove matrices
-!------------------------------------------------------------------------------
-CALL MatDestroy(AA,     petsc_ierr)
-CALL MatDestroy(AA_org, petsc_ierr)
-CALL VecDestroy(XX,     petsc_ierr)
-
-Do ii = 1, 24
-    CALL VecDestroy(FF(ii), petsc_ierr)
-End Do
-
-
 
 End Subroutine exec_single_domain
 

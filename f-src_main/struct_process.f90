@@ -147,6 +147,10 @@ INTEGER(KIND=pd_ik) :: serial_root_size, add_leaves
 LOGICAL :: success, stat_exists, heaxist, stp = .FALSE.
 LOGICAL :: create_new_header = .FALSE.
 
+Type(tMat)                :: AA, AA_org
+Type(tVec)                :: XX
+Type(tVec), Dimension(24) :: FF
+
 !----------------------------------------------------------------------------
 CALL mpi_init(ierr)
 CALL print_err_stop(std_out, "MPI_INIT didn't succeed", ierr)
@@ -1140,6 +1144,21 @@ Else
     CALL MPI_BCAST(comm_nn, 1_mik , MPI_INTEGER8, 0_mik, WORKER_COMM, ierr)
 
     !------------------------------------------------------------------------------
+    ! Create Stiffness matrix
+    ! Preallocation avoids dynamic allocations during matassembly.
+    !------------------------------------------------------------------------------
+    CALL MatCreate(WORKER_COMM, AA    , petsc_ierr)
+    CALL MatCreate(WORKER_COMM, AA_org, petsc_ierr)
+    CALL MatSetFromOptions(AA,     petsc_ierr)
+    CALL MatSetFromOptions(AA_org, petsc_ierr)
+
+    DO ii=1,24
+        CALL VecCreate(WORKER_COMM, FF(ii), petsc_ierr)
+    END DO
+
+    CALL VecCreate(WORKER_COMM, XX, petsc_ierr)
+
+    !------------------------------------------------------------------------------
     ! Worker Loop
     !------------------------------------------------------------------------------
     Do
@@ -1204,7 +1223,7 @@ Else
 
             !======================================================================
             CALL exec_single_domain(root, comm_nn, Domain, job_dir, Active, fh_mpi_worker, &
-                worker_rank_mpi, worker_size_mpi, worker_comm)
+                AA, AA_org, XX, FF, worker_rank_mpi, worker_size_mpi, worker_comm)
             !======================================================================
 
             !------------------------------------------------------------------------------
@@ -1296,9 +1315,17 @@ Else
         CALL MPI_File_close(fh_mpi_worker(ii), ierr)
     END DO 
 
+    CALL MatDestroy(AA,     petsc_ierr)
+    CALL MatDestroy(AA_org, petsc_ierr)
+    CALL VecDestroy(XX,     petsc_ierr)
+
+    DO ii = 1, 24
+        CALL VecDestroy(FF(ii), petsc_ierr)
+    END DO
+
     CALL PetscFinalize(petsc_ierr) 
     
-End If
+END If
 
 IF(rank_mpi == 0) THEN
 
