@@ -9,7 +9,7 @@
 !>
 !>  \section modified Last modified:
 !>  by: Johannes Gebert \n
-!>  on: 17.03.2022
+!>  on: 29.03.2022
 !------------------------------------------------------------------------------
 MODULE dtc_main_subroutines
 
@@ -140,7 +140,7 @@ If (rank_mpi == 0) then
 
             CALL execute_command_line("mkdir -p "//trim(job_dir), CMDSTAT=stat)
 
-            IF(stat /= 0) CALL print_err_stop(std_out, "Couldn't execute syscall mkpir -p "//TRIM(job_dir), 1)
+            IF(stat /= 0) CALL print_err_stop(std_out, "Couldn't execute syscall mkdir -p "//TRIM(job_dir), 1)
 
             CALL Stat_Dir(c_char_array, stat_c_int)
 
@@ -942,6 +942,7 @@ End if
 !------------------------------------------------------------------------------
 ! Remove matrices
 !------------------------------------------------------------------------------
+CALL KSPDestroy(ksp,    petsc_ierr)
 CALL MatDestroy(AA,     petsc_ierr)
 CALL MatDestroy(AA_org, petsc_ierr)
 CALL VecDestroy(XX,     petsc_ierr)
@@ -949,8 +950,6 @@ CALL VecDestroy(XX,     petsc_ierr)
 Do ii = 1, 24
     CALL VecDestroy(FF(ii), petsc_ierr)
 End Do
-
-
 
 End Subroutine exec_single_domain
 
