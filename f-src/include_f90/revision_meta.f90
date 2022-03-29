@@ -1,2 +1,2 @@
 CHARACTER(LEN=scl), PARAMETER :: longname = 'Direct Tensor Computation'
-CHARACTER(LEN=scl), PARAMETER :: hash = '05c4a8009f9000419e1e89fbd61665ec58d0aa09'
+CHARACTER(LEN=scl), PARAMETER :: hash = '0499aabadc80b36fc1a78ad336d4a1e3ae84be6e'

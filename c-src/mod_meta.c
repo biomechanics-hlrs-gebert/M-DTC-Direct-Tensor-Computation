@@ -8,13 +8,39 @@
 #include "mod_meta.h"
 #include "include_c/revision_meta.h"
 
+//global variable definitions (declared in header)
+/*global*/ basename in = {
+    .full_name[0] = '\0',
+    .path[0] = '\0',
+    .path_and_basename[0] = '\0',
+    .basename[0] = '\0',
+    .dataset[0] = '\0',
+    .type[0] = '\0',
+    .purpose[0] = '\0',
+    .app[0] = '\0',
+    .features[0] = '\0'
+};
+/*global*/ basename out = {
+    .full_name[0] = '\0',
+    .path[0] = '\0',
+    .path_and_basename[0] = '\0',
+    .basename[0] = '\0',
+    .dataset[0] = '\0',
+    .type[0] = '\0',
+    .purpose[0] = '\0',
+    .app[0] = '\0',
+    .features[0] = '\0'
+};
+/*global*/ char * global_meta_program_keyword = NULL;
+/*global*/ char * global_meta_prgrm_mstr_app = NULL;
+
 // ---- DECLARATIONS ----
 static ssize_t __meta_get_filesize(char *);
-static char *__meta_get_file_suffix(char *);
 static char *__meta_get_metafile_string_reference(metafile *, unsigned int);
 static char *__meta_fast_strcat(char *, char *);
 static void __meta_zero_basename_struct(basename *);
 static void __meta_zero_array(size_t array_size, void *array);
+static int __meta_get_file_suffix(char *filename_with_suffix, char *buffer);
 static int __meta_fill_basename_struct(basename *);
 static int __meta_replace_char(char *, char, char);
 static int __meta_get_metafile_string_copy(metafile *, unsigned int, char *);
@@ -296,12 +322,12 @@ int meta_write_string(char *keyword, char *value){
 int meta_handle_lock_file(char *restart, char *restart_cmdarg){
     if(restart == NULL)
         return 1;
-    if(META_LOCK_SUFFIX == NULL)
+    if(LOCK_SUFFIX == NULL)
         return 1;
     
     bool exist = false;
     int error;
-    char lockname[2 * META_MCL + strlen(META_LOCK_SUFFIX) + 1], command[META_MCL + 3], *ptr;
+    char lockname[2 * META_MCL + strlen(LOCK_SUFFIX) + 1], command[META_MCL + 3], *ptr;
     char *message;
     
     if(restart_cmdarg != NULL){
@@ -324,7 +350,7 @@ int meta_handle_lock_file(char *restart, char *restart_cmdarg){
     ptr = __meta_fast_strcat(ptr, /*global*/ in.path);
     ptr = __meta_fast_strcat(ptr, ".");
     ptr = __meta_fast_strcat(ptr, /*global*/ in.basename);
-    ptr = __meta_fast_strcat(ptr, META_LOCK_SUFFIX);
+    ptr = __meta_fast_strcat(ptr, LOCK_SUFFIX);
 
     if(ptr == NULL)
         return 1;
@@ -408,7 +434,7 @@ int meta_extract_keyword_data(char *keyword, int dims, metafile *m_in, char res_
         }
 
         //handle new keyword
-        else if(!strcmp(token, META_KEYWORD_DECLARATOR)){
+        else if(!strcmp(token, META_KEYWORD_READ_DECLARATOR) || !strcmp(token, META_KEYWORD_WRITE_DECLARATOR)){
             token = strtok(NULL, META_KEYWORD_SEPARATOR);
             if(token == NULL) 
                 return 1; //Error: no keyword specified
@@ -425,9 +451,10 @@ int meta_extract_keyword_data(char *keyword, int dims, metafile *m_in, char res_
                 }
             }
         }
-        else 
-            return 1;
+        else
+            continue; //skip the uninterpretable line
     }
+    
     if(!keyword_found) 
         return 1; //the whole file does not contain the required keyword.
     for(i = 0; i < dims; i++){
@@ -468,7 +495,7 @@ int meta_write_keyword(char *keyword, char *stdspcfill, char *unit){
     if(strnlen(stdspcfill, META_STDSPC) == META_STDSPC) 
         return 1;
 
-    char metafile_line[META_MCL], time_buffer[META_MCL], *ptr;
+    char metafile_line[META_MCL], time_buffer[META_MCL], *ptr, *max;
     time_t now_time;
     struct tm *time_struct;
 
@@ -478,18 +505,18 @@ int meta_write_keyword(char *keyword, char *stdspcfill, char *unit){
         return 1;
     
     ptr = metafile_line;
-    ptr = __meta_fast_strcat(ptr, META_KEYWORD_DECLARATOR);
+    ptr = __meta_fast_strcat(ptr, META_KEYWORD_WRITE_DECLARATOR);
     ptr = __meta_fast_strcat(ptr, META_KEYWORD_SEPARATOR);
     ptr = __meta_fast_strcat(ptr, keyword);
-    for(; ptr < (ptr + META_KCL); ptr += strlen(META_KEYWORD_SEPARATOR))
+    for(max = ptr + META_KCL - strlen(keyword); ptr < max; ptr += strlen(META_KEYWORD_SEPARATOR) - 1)
         ptr = __meta_fast_strcat(ptr, META_KEYWORD_SEPARATOR);
     ptr = __meta_fast_strcat(ptr, META_KEYWORD_SEPARATOR);
     ptr = __meta_fast_strcat(ptr, stdspcfill);
-    for(; ptr < (ptr + META_STDSPC); ptr += strlen(META_KEYWORD_SEPARATOR))
+    for(max = ptr + META_STDSPC - strlen(stdspcfill); ptr < max; ptr += strlen(META_KEYWORD_SEPARATOR) - 1)
         ptr = __meta_fast_strcat(ptr, META_KEYWORD_SEPARATOR);
     ptr = __meta_fast_strcat(ptr, META_KEYWORD_SEPARATOR);
     ptr = __meta_fast_strcat(ptr, unit);
-    for(; ptr < (ptr + META_UCL); ptr += strlen(META_KEYWORD_SEPARATOR))
+    for(max = ptr + META_UCL - strlen(unit); ptr < max; ptr += strlen(META_KEYWORD_SEPARATOR) -1)
         ptr = __meta_fast_strcat(ptr, META_KEYWORD_SEPARATOR);
     ptr = __meta_fast_strcat(ptr, META_KEYWORD_SEPARATOR);
     ptr = __meta_fast_strcat(ptr, time_buffer);
@@ -508,6 +535,7 @@ int meta_write_keyword(char *keyword, char *stdspcfill, char *unit){
 * \brief Method to open a meta file to append data / keywords.
 * 
 * \param[out] metafile A pointer to a metafile structure.
+* \param[in] size_mpi The number of processors invloved in the computation.
 * \return 0 on success, 1 on error.
 */
 /*
@@ -520,13 +548,13 @@ int meta_write_keyword(char *keyword, char *stdspcfill, char *unit){
 * ADD  INPUT SANITIZER:   |  done
 * MAKE PRETTY:            |  done
 */
-int meta_append(metafile *metafile){
+int meta_append(metafile *metafile, int size_mpi){
     if(metafile == NULL)
         return 1;
 
     if(meta_invoke(metafile)) 
         return 1;
-    if(meta_continue(metafile)) 
+    if(meta_continue(metafile, size_mpi)) 
         return 1;
     if(meta_write_string("META_PARSED/INVOKED", "Now - Date/Time on the right."))
         return 1;
@@ -562,6 +590,7 @@ int meta_create_new(char *filename_with_suffix){
     size_t meta_suffix_length = strlen(META_SUFFIX);
     size_t meta_out_length = strlen(/*global*/ out.full_name);
     char buffer[filename_length + meta_suffix_length + 1], *ptr;
+    char extension_buffer[filename_length];
     char errormessage[
         filename_length >= meta_out_length + meta_suffix_length ?
         filename_length + 26 :
@@ -574,8 +603,10 @@ int meta_create_new(char *filename_with_suffix){
         __meta_fast_strcat(ptr, " does not exist.");
         return __meta_print_error(stdout, errormessage, 1);
     }
-
-    if(meta_parse_basename(filename_with_suffix, __meta_get_file_suffix(filename_with_suffix))) 
+    
+    if(__meta_get_file_suffix(filename_with_suffix, extension_buffer))
+        return 1;
+    if(meta_parse_basename(filename_with_suffix, extension_buffer)) 
         return 1;
 
     ptr = __meta_fast_strcat(buffer, /*global*/ in.path_and_basename);
@@ -618,10 +649,12 @@ int meta_invoke(metafile *metafile){
     if(__meta_get_filesize(/*global*/ in.full_name) == -1)
         return 1;
 
-    size_t buffer_size;
-    char *meta_suffix = __meta_get_file_suffix(/*global*/ in.full_name);
-    char filename_buffer[strlen(meta_suffix) + strlen(META_SUFFIX_DECLARATOR) + 1], **line_buffer;
+    size_t buffer_size = 0;
+    char meta_suffix[META_MCL];
+    char filename_buffer[strlen(meta_suffix) + strlen(META_SUFFIX_DECLARATOR) + 1], *line_buffer = NULL;
     
+    if(__meta_get_file_suffix(/*global*/ in.full_name, meta_suffix))
+        return 1;
     strcpy(filename_buffer, META_SUFFIX_DECLARATOR);
     strcat(filename_buffer, meta_suffix);
     if(strcmp(filename_buffer, META_SUFFIX) != 0)
@@ -634,22 +667,26 @@ int meta_invoke(metafile *metafile){
     lines = meta_count_lines(/*global*/ fh_meta_in);
     if(lines == -1)
         return 1;
+    
+    //allocate large enough buffer to hold all lines
+    metafile -> content = (char *) calloc(lines * META_MCL, sizeof(char));
 
     for(int i = 0; i < lines; i++){
-        if(getline(line_buffer, &buffer_size, /*global*/ fh_meta_in) == -1){
-            free(*line_buffer);
-            return 1; //internal getline error
+        if(getline(&line_buffer, &buffer_size, /*global*/ fh_meta_in) == -1){
+            free(line_buffer);
+            return 1; 
         }
         if(buffer_size >= META_MCL){
-            free(*line_buffer);
-            return 1; //line too long
+            free(line_buffer);
+            return 1;
         }
-        if(__meta_set_metafile_string(metafile, i, *line_buffer)){
-            free(*line_buffer);
-            return 1; //setting of string doesn't work
+        if(__meta_set_metafile_string(metafile, i, line_buffer)){
+            free(line_buffer);
+            return 1;
         }
     }
-    free(*line_buffer);
+    free(line_buffer);
+    metafile -> number_of_lines = lines;
     return 0;
 }
 
@@ -659,6 +696,7 @@ int meta_invoke(metafile *metafile){
 * \brief Method to invoke the meta output file.
 *
 * \param[inout] metafile Pointer to a metafile structure.
+* \param[in] size_mpi The number of processors involved in the computation.
 * \return 0 on success, 1 otherwise.
 */
 /*
@@ -671,8 +709,10 @@ int meta_invoke(metafile *metafile){
 * ADD  INPUT SANITIZER:   |  done
 * MAKE PRETTY:            |  done
 */
-int meta_continue(metafile *metafile){
+int meta_continue(metafile *metafile, int size_mpi){
     if(metafile == NULL) 
+        return 1;
+    if(size_mpi < 1)
         return 1;
 
     int error;
@@ -723,7 +763,6 @@ int meta_continue(metafile *metafile){
         return 1;
 
     char command[strlen(/*global*/ in.full_name) + strlen(/*global*/ out.full_name) + 5];
-    ssize_t beginning_offset;
     strcpy(command, "cp ");
     strcat(command, /*global*/ in.full_name);
     strcat(command, " ");
@@ -731,13 +770,18 @@ int meta_continue(metafile *metafile){
     if(error = system(command))
         return __meta_print_error(stdout, "The update of the meta filename went wrong.", error);
     
+    if(/*global*/ fh_meta_out != NULL) 
+        return 1;
+    /*global*/ fh_meta_out = fopen(out.full_name, "a");
     if(/*global*/ fh_meta_out == NULL) 
-        return 1; 
-    beginning_offset = ftell(/*global*/ fh_meta_out);
-    if(beginning_offset < 0) 
         return 1;
-    if(fseek(/*global*/ fh_meta_out, 0, SEEK_END)) 
+
+    if(fseek(/*global*/ fh_meta_out, 0, SEEK_END))
         return 1;
+
+    if(meta_write_int_0D("PROCESSORS", NULL, size_mpi))
+        return 1;
+
     return 0;
 }
 
@@ -984,12 +1028,11 @@ int meta_signing(char *binary){
 *
 * \brief Method to close a meta file.
 *
-* \param[in] size_mpi The number of processors used in computation. For serial, use 1.
 * \return 0 on success, 1 otherwise.
 */
 /*
 * UNIFY HEAD:             |  done
-* UNIFY DOC:              |  fortran error(wrong,missing=param::size_mpi)
+* UNIFY DOC:              |  c error(missing=description)
 * FUNCTIONAL (THEORY):    |  done
 * FUNCTIONAL (PRACTICE):  | 
 * UNIT TESTING:           | 
@@ -997,16 +1040,11 @@ int meta_signing(char *binary){
 * ADD  INPUT SANITIZER:   |  done
 * MAKE PRETTY:            |  done
 */
-int meta_close(int size_mpi){
-    if(size_mpi < 1)
-        return 1;
+int meta_close(){
 
-    if(meta_write_int_0D("PROCESSORS", NULL, size_mpi))
-        return 1;
-    
     /*global*/ meta_end = clock();
-    double differential_time = (meta_end - meta_start) / CLOCKS_PER_SEC;
-    char endstring[101];
+    double differential_time = (/*global*/ meta_end - /*global*/ meta_start) / CLOCKS_PER_SEC;
+    char endstring[102];
 
     if(meta_write_int_0D("FINISHED_WALLTIME", NULL, differential_time))
         return 1;
@@ -1015,10 +1053,12 @@ int meta_close(int size_mpi){
         endstring[i] = '-';
     endstring[101] = '\0';
 
-    fprintf(/*global*/ fh_meta_out, endstring);
+    fprintf(/*global*/ fh_meta_out, "%s\n", endstring);
 
-    fclose(/*global*/ fh_meta_in);
-    fclose(/*global*/ fh_meta_out);
+    if(/*global*/ fh_meta_in != NULL)
+        fclose(/*global*/ fh_meta_in);
+    if(/*global*/ fh_meta_out != NULL)
+        fclose(/*global*/ fh_meta_out);
 
     return 0;
 }
@@ -1082,40 +1122,34 @@ int meta_parse_basename(char *filename, char *suf){
 
     size_t number_of_lines, counter = 0, errortext_length = strlen(/*global*/ in.full_name) + 72;
     char *filename_part, *basename_end, buffer[META_MCL], *ptr;
-    char errortext[errortext_length];
+    char errortext[errortext_length], full_name_buffer[META_MCL];
+    bool error = false;
+    int err_number;
 
     if(strnlen(filename, META_MCL) == META_MCL) 
         return 1;
-
+    strcpy(full_name_buffer, filename);
     __meta_zero_basename_struct((void *) /*global*/ &in);
-    strcpy(/*global*/ in.full_name, filename);
+    strcpy(/*global*/ in.full_name, full_name_buffer);
     
-    filename_part = strtok(filename, "/");
+    filename_part = strtok(full_name_buffer, "/");
     if(filename_part == NULL) 
         return 1;
     
+    ptr = /*global*/ in.path;
     while(filename_part != NULL){
         if(strstr(filename_part, suf) != NULL)
             break;
         else{
-            ptr = __meta_fast_strcat(/*global*/ in.path, "/");
+            ptr = __meta_fast_strcat(ptr, "/");
             ptr = __meta_fast_strcat(ptr, filename_part);
             if(ptr == NULL)
                 return 1;
             filename_part = strtok(NULL, "/");
         }
-        counter++;
     }
     if(filename_part == NULL) 
         return 1;
-    if(counter != 5){
-        snprintf(
-            errortext, errortext_length, 
-            "Basename with %zu segments given, which is invalid: %s", 
-            counter, /*global*/ in.path_and_basename
-        );
-        return __meta_print_error(stdout, errortext, 1);
-    }
 
     strcpy(/*global*/ in.basename, filename_part);
     basename_end = strstr(/*global*/ in.basename, suf);
@@ -1126,25 +1160,65 @@ int meta_parse_basename(char *filename, char *suf){
     
     strcpy(buffer, /*global*/ in.basename);
     filename_part = strtok(buffer, META_BASENAME_SEPARATOR);
-    if(filename_part == NULL) 
-        return 1;
-    strcpy(/*global*/ in.dataset, filename_part);
+    if(filename_part == NULL){
+        err_number = 0;
+        error = true;
+    }
+    if(!error)
+        strcpy(/*global*/ in.dataset, filename_part);
     filename_part = strtok(NULL, META_BASENAME_SEPARATOR);
-    if(filename_part == NULL) 
-        return 1;
-    strcpy(/*global*/ in.type, filename_part);
+    if(filename_part == NULL){
+        if(!error)
+            err_number = 1;
+        error = true;
+    }
+    if(!error)
+        strcpy(/*global*/ in.type, filename_part);
     filename_part = strtok(NULL, META_BASENAME_SEPARATOR);
-    if(filename_part == NULL) 
-        return 1;
-    strcpy(/*global*/ in.purpose, filename_part);
+    if(filename_part == NULL){
+        if(!error)
+            err_number = 2;
+        error = true;
+    }
+    if(!error)
+        strcpy(/*global*/ in.purpose, filename_part);
     filename_part = strtok(NULL, META_BASENAME_SEPARATOR);
-    if(filename_part == NULL) 
-        return 1;
-    strcpy(/*global*/ in.app, filename_part);
+    if(filename_part == NULL){
+        if(!error)
+            err_number = 3;
+        error = true;
+    }
+    if(!error)
+        strcpy(/*global*/ in.app, filename_part);
     filename_part = strtok(NULL, META_BASENAME_SEPARATOR);
-    if(filename_part == NULL) 
-        return 1;
-    strcpy(/*global*/ in.features, filename_part);
+    if(filename_part == NULL){
+        if(!error)
+            err_number = 4;
+        error = true;
+    }
+    if(!error)
+        strcpy(/*global*/ in.features, filename_part);
+    
+    filename_part = strtok(NULL, META_BASENAME_SEPARATOR);
+    
+    if(filename_part != NULL || error){
+        if(error)
+            counter = err_number;
+        else if(filename_part != NULL){
+            counter = 5;
+            while(filename_part != NULL){
+                counter++;
+                filename_part = strtok(NULL, META_BASENAME_SEPARATOR);
+            }
+        }
+        snprintf(
+            errortext, errortext_length, 
+            "Basename with %zu segments given, which is invalid: %s", 
+            counter, /*global*/ in.path_and_basename
+        );
+        return __meta_print_error(stdout, errortext, 1);
+    }
+        
     
     strcpy(/*global*/ out.full_name, /*global*/ in.full_name);
     strcpy(/*global*/ out.path, /*global*/ in.path);
@@ -1331,7 +1405,7 @@ int meta_delete_empty_file(char *filename){
     ptr = __meta_fast_strcat(command, "rm -r ");
     ptr = __meta_fast_strcat(ptr, filename);
     if(ptr == NULL)
-        return 1;
+        return -1;
 
     if(system(command)) 
         return -1;
@@ -1522,7 +1596,8 @@ static ssize_t __meta_get_filesize(char *filename){
 * \private
 *
 * \param[in] filename The filename to be parsed.
-* \return NULL on error, on success pointer to a copy of the file extension.
+* \param[out] buffer The buffer to store the filename extension without META_SUFFIX_DECLARATOR.
+* \return 1 on error, on success 0.
 */
 /*
 * UNIFY HEAD:             |  private function / c internal
@@ -1534,20 +1609,26 @@ static ssize_t __meta_get_filesize(char *filename){
 * ADD  INPUT SANITIZER:   |  done
 * MAKE PRETTY:            |  done
 */
-static char *__meta_get_file_suffix(char *filename_with_suffix){
+static int __meta_get_file_suffix(char *filename_with_suffix, char *buffer){
     if(filename_with_suffix == NULL) 
-        return NULL;
+        return 1;
+    if(buffer == NULL)
+        return 1;
 
     size_t filename_length = strlen(filename_with_suffix);
-    char *old_token, *token;
-    token = strtok(filename_with_suffix, META_SUFFIX_DECLARATOR);
+    char *old_token, *token, internal_buffer[filename_length + 1];
+
+    strcpy(internal_buffer, filename_with_suffix);
+    
+    token = strtok(internal_buffer, META_SUFFIX_DECLARATOR);
     if(token == NULL) 
-        return NULL;
+        return 1;
     while(token != NULL){
         old_token = token;
         token = strtok(NULL, META_SUFFIX_DECLARATOR);
     }
-    return old_token;
+    strcpy(buffer, old_token);
+    return 0;
 }
 
 /**
@@ -1667,3 +1748,4 @@ static int __meta_print_error(FILE *fh, char *message, int error){
     fprintf(fh, "%s with errorcode %d\n", errormessage, error);
     return error;
 }
+
