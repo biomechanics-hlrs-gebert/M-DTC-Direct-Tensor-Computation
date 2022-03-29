@@ -66,7 +66,7 @@ contains
 
     Logical :: Change, next_exists
 
-    Integer(kind=ik), Allocatable, Dimension(:) :: bpoints, xa_n, xe_n
+    Integer(kind=ik), Allocatable, Dimension(:) :: xa_n, xe_n
     Integer(kind=ik), Allocatable, Dimension(:) :: x_VD, x_D
     Character(len=9) :: nn_char
     Integer(kind=ik) :: ddc_nn
@@ -90,7 +90,6 @@ contains
        Write(un_lf,*)
     End If
     
-    call pd_get(ddc,"bpoints",bpoints)
     call pd_get(loc_ddc,"xa_n",xa_n)
     call pd_get(loc_ddc,"xe_n",xe_n)
     call pd_get(ddc,"x_VD",x_VD)
@@ -625,7 +624,7 @@ contains
 
     Logical                                     :: Change, next_exists
 
-    Integer(kind=ik), Allocatable, Dimension(:) :: bpoints, xa_n, xe_n
+    Integer(kind=ik), Allocatable, Dimension(:) :: xa_n, xe_n
     Integer(kind=ik), Allocatable, Dimension(:) :: x_VD, x_D
 
     !--------------------------------------------------------------------------
@@ -637,7 +636,6 @@ contains
     Write(un_lf,FMT_MSG)    'Generating Quadmesh'
     Write(un_lf,*)
     GOTO 1000
-    call pd_get(ddc,"bpoints",bpoints)
     call pd_get(ddc,"xa_n",xa_n)
     call pd_get(ddc,"xe_n",xe_n)
     call pd_get(ddc,"x_VD",x_VD)

@@ -33,9 +33,9 @@ TYPE(tensor_2nd_rank_R66), DIMENSION(3) :: tensor
 INTEGER(KIND=ik), DIMENSION(:,:), ALLOCATABLE :: Domain_stats
 INTEGER(KIND=ik), DIMENSION(3)                :: xa_d=0, xe_d=0
 
-INTEGER(KIND=ik) :: alloc_stat, parts, fh_covo, fh_cr1, fh_cr2, fh_tens
+INTEGER(KIND=ik) :: alloc_stat, parts, fh_covo, fh_cr1, fh_cr2, fh_crdiag, fh_tens
 INTEGER(KIND=ik) :: domains_crawled = 0_ik, nn_comm, par_domains, activity_size, size_mpi
-INTEGER(KIND=ik) :: ii, jj, kk, ll, mm, tt
+INTEGER(KIND=ik) :: ii, jj, kk, ll, mm, tt, handle
 INTEGER(KIND=ik) :: aun, domains_per_comm, rank_mpi, No_of_domains, local_domain_no, last_domain_rank
 
 REAL(KIND=rk) :: local_domain_density, sym, start, end
@@ -48,11 +48,13 @@ REAL   (KIND=8), DIMENSION(:), ALLOCATABLE :: dat_densities, dat_tensors, dat_po
 CHARACTER(LEN=mcl), DIMENSION(:), ALLOCATABLE :: m_rry      
 CHARACTER(LEN=mcl) :: cmd_arg_history='', target_path, file_head, binary, activity_file
 CHARACTER(LEN=20)  :: dmn_char
+CHARACTER(LEN=7)   :: crdiag_suf = ".crdiag"
 CHARACTER(LEN=5)   :: covo_suf = ".covo"
 CHARACTER(LEN=4)   :: cr1_suf = ".cr1", cr2_suf = ".cr2"
 CHARACTER(LEN=1)   :: tt_char, restart_cmd_arg='U' ! U = 'undefined'
 
 LOGICAL :: success=.FALSE., stp=.FALSE., stat_exists=.FALSE., opened=.FALSE., last_domain=.FALSE.
+LOGICAL :: write_to_diag = .FALSE.
 
 CALL CPU_TIME(start)
 
@@ -82,7 +84,7 @@ CALL meta_invoke(m_rry)
 !------------------------------------------------------------------------------
 ! Redirect std_out into a file in case std_out is not useful by environment.
 !------------------------------------------------------------------------------
-std_out = determine_stout()
+std_out = 6 ! determine_stout()
 
 !------------------------------------------------------------------------------
 ! Spawn standard out after(!) the basename is known
@@ -116,13 +118,15 @@ IF(opened) CLOSE (fhmei)
 !------------------------------------------------------------------------------
 ! Open the file to store the tensors positioned in their global coordinates
 !------------------------------------------------------------------------------
-fh_covo = give_new_unit(); CALL meta_start_ascii(fh_covo, covo_suf)
-fh_cr1  = give_new_unit(); CALL meta_start_ascii(fh_cr1, cr1_suf)
-fh_cr2  = give_new_unit(); CALL meta_start_ascii(fh_cr2, cr2_suf)
+fh_covo   = give_new_unit(); CALL meta_start_ascii(fh_covo, covo_suf)
+fh_cr1    = give_new_unit(); CALL meta_start_ascii(fh_cr1, cr1_suf)
+fh_cr2    = give_new_unit(); CALL meta_start_ascii(fh_cr2, cr2_suf)
+fh_crdiag = give_new_unit(); CALL meta_start_ascii(fh_crdiag, crdiag_suf)
 
 CALL write_tensor_2nd_rank_R66_header(fh_covo)
 CALL write_tensor_2nd_rank_R66_header(fh_cr1)
 CALL write_tensor_2nd_rank_R66_header(fh_cr2)
+CALL write_tensor_2nd_rank_R66_header(fh_crdiag)
 
 !------------------------------------------------------------------------------
 ! Calculate the number of domains per communicator of the DTC
@@ -244,6 +248,12 @@ DO rank_mpi = 1, size_mpi-1, parts
                 fh_tens = fh_cr2
         END SELECT
 
+        !------------------------------------------------------------------------------
+        ! Required for distinction between regular domains and domains which appear
+        ! twice in the dataset.
+        !------------------------------------------------------------------------------
+        handle = fh_tens
+
         IF(ALLOCATED(dat_tensors)) DEALLOCATE(dat_tensors)
         ALLOCATE(dat_tensors(leaf_tensors%dat_no), stat=alloc_stat)
     
@@ -292,6 +302,7 @@ DO rank_mpi = 1, size_mpi-1, parts
                 tensor(tt)%sym        = 0._rk
                 tensor(tt)%mat        = 0._rk
                 tensor(tt)%pos        = 0._rk
+                tensor(tt)%crit       = ""
 
                 IF(Domain_stats(jj, 1) == dat_domains(ii)) THEN
 
@@ -301,13 +312,25 @@ DO rank_mpi = 1, size_mpi-1, parts
                     IF((Domain_stats(jj, 2) == 0_ik) .OR. (last_domain)) THEN
                         Domain_stats(jj, 2) = 1_ik
                     ELSE
-                        WRITE(std_out, FMT_MSG_AI0AxI0) "Domain_stats(:): ", Domain_stats(:,1)                      
+                        WRITE(std_out, FMT_DBG_AxI0) "Domain_stats(:): ", Domain_stats(:,1)   
+                        WRITE(std_out, FMT_DBG_AxI0) "Domain_stats(:): ", Domain_stats(:,2)   
+
+                        WRITE(std_out, FMT_DBG_xAL)  "last_domain: ", last_domain
+                        WRITE(std_out, FMT_DBG_AxI0) "Domain_stats(jj, 1)", Domain_stats(jj, 1) 
+                        WRITE(std_out, FMT_DBG_AxI0) "Domain_stats(jj, 2)", Domain_stats(jj, 2) 
+                        WRITE(std_out, FMT_DBG_AxI0) "last_domain_rank", last_domain_rank
+
                         mssg = "The domain was already found. The second appearance of a domain &
                             &number in a 'valid' state is a hint for a corrupted data set. &
                             &One would expect to find domain numbers only once in all leafs of &
                             &domain numbers, scattered in the rank-directories, as long as the &
                             &first entries are monotonously increasing."
-                        CALL print_err_stop(std_out, mssg, 1_ik)
+                        ! CALL print_err_stop(std_out, mssg, 1_ik)
+                        CALL print_trimmed_text(std_out, TRIM(mssg), FMT_WRN)
+                        
+                        WRITE(std_out, FMT_WRN_SEP)
+
+                        write_to_diag = .TRUE.
                     END IF
 
                     !------------------------------------------------------------------------------
@@ -361,7 +384,21 @@ DO rank_mpi = 1, size_mpi-1, parts
                     tensor(tt)%mat        = local_domain_tensor
                     tensor(tt)%pos        = local_domain_opt_pos
 
-                    CALL write_tensor_2nd_rank_R66_row(fh_tens, tensor(tt))
+                    SELECT CASE (tt)
+                        CASE(1); tensor(tt)%crit = "covo" 
+                        CASE(2); tensor(tt)%crit = "cr1" 
+                        CASE(3); tensor(tt)%crit = "cr2" 
+                    END SELECT
+
+                    IF(write_to_diag) handle = fh_crdiag
+
+                    CALL write_tensor_2nd_rank_R66_row(handle, tensor(tt))
+
+                    !------------------------------------------------------------------------------
+                    ! Reset diagnostic stuff
+                    !------------------------------------------------------------------------------
+                    write_to_diag = .FALSE.
+                    handle = fh_tens
 
                 END IF ! (Domain_stats(jj, 1) == leaf_domain_no%p_int8(ii)) THEN
             END DO
@@ -392,6 +429,7 @@ CALL CPU_TIME(end)
 CALL meta_stop_ascii(fh_covo, covo_suf)
 CALL meta_stop_ascii(fh_cr1, cr1_suf)
 CALL meta_stop_ascii(fh_cr2, cr2_suf)
+CALL meta_stop_ascii(fh_crdiag, crdiag_suf)
 
 WRITE(std_out, FMT_TXT_xAF0) "Program finished successfully in ", end-start, " seconds."
 WRITE(std_out, FMT_TXT_SEP)

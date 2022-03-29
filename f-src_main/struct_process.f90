@@ -122,15 +122,15 @@ CHARACTER(LEN=mcl)  , DIMENSION(:), ALLOCATABLE :: m_rry
 
 CHARACTER(LEN=4*mcl) :: job_dir
 CHARACTER(LEN=mcl)   :: cmd_arg_history='', link_name = 'struct process'
-CHARACTER(LEN=mcl)   :: muCT_pd_path, muCT_pd_name, binary, activity_file
+CHARACTER(LEN=mcl)   :: muCT_pd_path, muCT_pd_name, binary, activity_file, desc=""
 CHARACTER(LEN=8)     :: elt_micro, output
 CHARACTER(LEN=1)     :: restart='N', restart_cmd_arg='U' ! U = 'undefined'
 
 REAL(KIND=rk), DIMENSION(3) :: delta
 REAL(KIND=rk) :: strain
 
-INTEGER(KIND=ik), DIMENSION(:), ALLOCATABLE :: Domains, workers_assigned_domains, nn_D
-INTEGER(KIND=ik), DIMENSION(:), ALLOCATABLE :: Domain_stats
+INTEGER(KIND=ik), DIMENSION(:), ALLOCATABLE :: Domains, nn_D
+INTEGER(KIND=ik), DIMENSION(:), ALLOCATABLE :: Domain_stats, local_stat_index
 INTEGER(KIND=ik), DIMENSION(3) :: xa_d=0, xe_d=0, vdim
 
 INTEGER(KIND=ik) :: nn, ii, jj, kk, dc, stat, computed_domains = 0, comm_nn = 1
@@ -140,6 +140,7 @@ INTEGER(KIND=ik) :: Domain, llimit, parts, elo_macro
 
 INTEGER(KIND=pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
 INTEGER(KIND=pd_ik), DIMENSION(no_streams) :: dsize
+Integer(kind=pd_mik), Dimension(no_streams) :: fh_mpi
 
 INTEGER(KIND=pd_ik) :: serial_root_size, add_leaves
 
@@ -357,6 +358,11 @@ If (rank_mpi == 0) THEN
     ! This dependency is checked after the restart handling again.
     !------------------------------------------------------------------------------
     IF (MOD(size_mpi-1, parts) /= 0) THEN
+        WRITE(std_out, FMT_DBG_AI0xAI0) "size_mpi: ", size_mpi
+        WRITE(std_out, FMT_DBG_AI0xAI0) "parts: ", parts
+        WRITE(std_out, FMT_DBG_AI0xAI0) "MOD(size_mpi-1, parts): ", MOD(size_mpi-1, parts)
+        
+
         mssg = 'mod(size_mpi-1,parts) /= 0 ! This case is not supported.'
         CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF 
@@ -446,7 +452,7 @@ CALL alloc_err("Domains", alloc_stat)
 
 Allocate(Domain_stats(No_of_domains), stat=alloc_stat)
 CALL alloc_err("Domain_stats", alloc_stat)
-Domain_stats = -9999999_ik
+Domain_stats = -999_ik
 
 Allocate(domain_path(0:No_of_domains))
 domain_path = ''
@@ -748,10 +754,6 @@ If (rank_mpi == 0) THEN
 
     worker_is_active=0
 
-    Allocate(workers_assigned_domains(size_mpi-1), stat=alloc_stat)
-    CALL alloc_err("workers_assigned_domains",alloc_stat)
-
-    workers_assigned_domains = 0
     CALL End_Timer("Init Process")
 
     !------------------------------------------------------------------------------
@@ -766,6 +768,7 @@ If (rank_mpi == 0) THEN
     CALL mpi_bcast(serial_root , INT(serial_root_size, mik), MPI_INTEGER8, 0_mik,&
         MPI_COMM_WORLD, ierr)
 
+    deallocate(serial_root)
     CALL End_Timer("Broadcast Init meta_para")
 
     !------------------------------------------------------------------------------
@@ -779,6 +782,7 @@ If (rank_mpi == 0) THEN
         mssg = "MPI_COMM_SPLIT couldn't split MPI_COMM_WORLD"
         CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF 
+
 
 !------------------------------------------------------------------------------
 ! Ranks > 0 -- Worker slaves
@@ -819,6 +823,7 @@ Else
     CALL deserialize_branch(root, serial_root, .TRUE.)
     CALL assign_pd_root(root)
     CALL set_bounds_in_branch(root, root%streams)
+    deallocate(serial_root)
 
     !------------------------------------------------------------------------------
     ! Commented out since out_amount is a parametrized global variable 
@@ -879,12 +884,12 @@ Else
     CALL PetscInitialize(PETSC_NULL_CHARACTER, petsc_ierr)
 End If
 
-WRITE_ROOT_COMM = MPI_COMM_WORLD
+! WRITE_ROOT_COMM = MPI_COMM_WORLD
 
 !------------------------------------------------------------------------------
 ! Open stream files
 !------------------------------------------------------------------------------
-Call Open_Stream_Files(root%streams, "write", "new", fh_mpi_root, WRITE_ROOT_COMM)
+! Call Open_Stream_Files(root%streams, "write", "new", fh_mpi_root, WRITE_ROOT_COMM)
 
 !------------------------------------------------------------------------------
 ! All Ranks -- Init MPI request and status lists
@@ -1030,14 +1035,21 @@ If (rank_mpi==0) Then
     ! subsequently crash. With a proper implementation, the bondaries of the 
     ! streaming files are recognized. 
     !------------------------------------------------------------------------------
-    CALL Start_Timer("Write Root Branch")
+    ! OPTIONAL. 
+    ! Turned off at the moment, because the data is stored via the meta file 
+    ! format, which is much more accesible by human beings.
+    !------------------------------------------------------------------------------
+    ! CALL Start_Timer("Write Root Branch")
 
-    CALL store_branch(root%branches(1), root%streams, .TRUE. )
-    CALL store_branch(root%branches(2), root%streams, .TRUE. )
-    CALL Write_Tree(root%branches(1))
-    CALL Write_Tree(root%branches(2))
+    ! CALL store_branch(root%branches(1), root%streams, .TRUE. )
+    ! CALL store_branch(root%branches(2), root%streams, .TRUE. )
+    ! CALL Write_Tree(root%branches(1))
+    ! CALL Write_Tree(root%branches(2))
 
-    CALL End_Timer("Write Root Branch")
+    ! CALL End_Timer("Write Root Branch")
+    !------------------------------------------------------------------------------
+    ! OPTIONAL. 
+    !------------------------------------------------------------------------------
 
     !------------------------------------------------------------------------------
     ! Wait for all workers to return
@@ -1091,16 +1103,14 @@ Else
         END IF
 
         CALL link_start(link_name, .True., .True.)
-        
     END IF 
-
+        
     !------------------------------------------------------------------------------
     ! Send new directory/filename
     ! It is the Rank_ and not the root directory! Do not delete this sequence!
     ! Root dir was send via broadcast, because the worker masters are not 
     ! determined at the beginning of the program.
     !------------------------------------------------------------------------------
-    CALL MPI_BCAST(comm_nn,      1_mik    , MPI_INTEGER8, 0_mik, WORKER_COMM, ierr)
     CALL MPI_BCAST(outpath,      INT(mcl, mik), MPI_CHAR, 0_mik, WORKER_COMM, ierr)
     CALL MPI_BCAST(project_name, INT(mcl, mik), MPI_CHAR, 0_mik, WORKER_COMM, ierr)
     CALL MPI_BCAST(project_name, INT(mcl, mik), MPI_CHAR, 0_mik, WORKER_COMM, ierr)
@@ -1112,7 +1122,22 @@ Else
     pro_name = project_name     
 
     CALL set_stream_filenames(root%streams)
-    Call Open_Stream_Files(root%streams, "write", "new", fh_mpi_worker, WORKER_COMM)
+    CALL Open_Stream_Files(root%streams, "write", "new", fh_mpi_worker, WORKER_COMM)
+
+    IF ((worker_rank_mpi == 0) .AND. (restart == 'Y')) THEN
+        !------------------------------------------------------------------------------
+        ! Read and check the Local domain number list in case of a restart
+        ! restart =  'Y' is given by user and may be given without any domain computed
+        ! so far. Therefore, only increment comm_nn if this entry no 0
+        !------------------------------------------------------------------------------
+        CALL MPI_FILE_READ_AT(fh_mpi_worker(4), & 
+            Int(root%branches(3)%leaves(1)%lbound-1+(domains_per_comm-1-1), MPI_OFFSET_KIND), &
+            comm_nn, 1_mik, & 
+            MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
+
+    END IF 
+
+    CALL MPI_BCAST(comm_nn, 1_mik , MPI_INTEGER8, 0_mik, WORKER_COMM, ierr)
 
     !------------------------------------------------------------------------------
     ! Worker Loop
@@ -1154,24 +1179,25 @@ Else
         !------------------------------------------------------------------------------
         ! Receive domain numbers
         !------------------------------------------------------------------------------
+
         CALL mpi_recv(nn, 1_mik, MPI_INTEGER8, 0_mik, rank_mpi, MPI_COMM_WORLD, status_mpi, ierr)
         CALL print_err_stop(std_out, "MPI_RECV on Domain didn't succeed", ierr)
 
         Domain = Domains(nn)
 
         !------------------------------------------------------------------------------
-        ! Only compute the domain if it was not yet (entry in status file = -9999999)
+        ! Only compute the domain if it was not yet (entry in status file = -999)
         !------------------------------------------------------------------------------
         IF (Domain_stats(nn) < 0) THEN
 
             IF (out_amount /= "PRODUCTION") THEN
-            !------------------------------------------------------------------------------
-            ! Receive Job_Dir
-            !------------------------------------------------------------------------------
-            CALL mpi_recv(job_dir, 4_mik*int(mcl,mik), mpi_character, 0_mik, rank_mpi, MPI_COMM_WORLD, status_mpi, ierr)
-            CALL print_err_stop(std_out, "MPI_RECV on Domain path didn't succeed", ierr)
+                !------------------------------------------------------------------------------
+                ! Receive Job_Dir
+                !------------------------------------------------------------------------------
+                CALL mpi_recv(job_dir, 4_mik*int(mcl,mik), mpi_character, 0_mik, rank_mpi, MPI_COMM_WORLD, status_mpi, ierr)
+                CALL print_err_stop(std_out, "MPI_RECV on Domain path didn't succeed", ierr)
             ELSE
-            job_dir = outpath
+                job_dir = outpath
             End if
             
             IF (job_dir(len(job_dir):len(job_dir)) /= "/") job_dir = trim(job_dir)//"/"
@@ -1185,6 +1211,19 @@ Else
             ! Organize Results
             !------------------------------------------------------------------------------
             IF (worker_rank_mpi==0) THEN
+            
+                IF(out_amount=="DEBUG") THEN
+                    !------------------------------------------------------------------------------
+                    ! Log memory consumption (in a trivial way)
+                    !------------------------------------------------------------------------------
+                    CALL execute_command_line("free -h | grep 'Mem' | tr -d '\n' >> "&
+                        //TRIM(outpath)//TRIM(project_name)//".memlog", CMDSTAT=stat)
+
+                    CALL execute_command_line("date >> "&
+                        //TRIM(outpath)//TRIM(project_name)//".memlog", CMDSTAT=stat)
+                END IF
+                
+            
                 CALL Start_Timer("Write Worker Root Branch")
 
                 !------------------------------------------------------------------------------
@@ -1215,16 +1254,30 @@ Else
                 !------------------------------------------------------------------------------
                 Call MPI_FILE_WRITE_AT(aun, INT(((nn-1) * ik), MPI_OFFSET_KIND), &
                     Domain, 1_mik, MPI_INTEGER8, status_mpi, ierr)
-            END IF
-        END IF 
 
-        !------------------------------------------------------------------------------
-        ! Increment linear domain counter of the PETSc sub_comm instances
-        ! It is important (!) to increment this variable after the check
-        ! IF (Domain_stats(nn) <= 0) THEN. Otherwise, the program will write into 
-        ! slots that are used by previous domains.
-        !------------------------------------------------------------------------------
-        comm_nn = comm_nn + 1_ik
+                !------------------------------------------------------------------------------
+                ! Deallocate results of this domain. Potential memory leak.
+                !------------------------------------------------------------------------------
+                WRITE(desc,'(A,I0)')"Domain ", Domain
+                CALL delete_branch_from_branch(TRIM(desc), root, dsize)
+            END IF
+
+            !------------------------------------------------------------------------------
+            ! Mark the current position within the stream.
+            !------------------------------------------------------------------------------
+            CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
+                INT(root%branches(3)%leaves(1)%lbound-1+(domains_per_comm-1-1), MPI_OFFSET_KIND), &
+                INT(comm_nn, KIND=ik), 1_mik, MPI_INTEGER8, status_mpi, ierr)
+
+            !------------------------------------------------------------------------------
+            ! Increment linear domain counter of the PETSc sub_comm instances
+            ! It is important (!) to increment this variable after the check
+            ! IF (Domain_stats(nn) <= 0) THEN. Otherwise, the program will write into 
+            ! slots that are used by previous domains.
+            !------------------------------------------------------------------------------
+            comm_nn = comm_nn + 1_ik
+
+        END IF 
 
         !------------------------------------------------------------------------------
         ! "Deactivate" communicator
@@ -1238,6 +1291,10 @@ Else
         CALL print_err_stop(std_out, "MPI_WAIT on request for ISEND Active didn't succeed", ierr)
 
     End Do
+
+    DO ii = 1, no_streams
+        CALL MPI_File_close(fh_mpi_worker(ii), ierr)
+    END DO 
 
     CALL PetscFinalize(petsc_ierr) 
     

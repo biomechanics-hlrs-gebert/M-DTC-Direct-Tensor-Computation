@@ -28,8 +28,8 @@ Integer(kind=mik), Dimension(no_streams), Intent(in) :: fh_mpi_worker
 Real(kind=rk) :: div_10_exp_jj, eff_density, n12, n13, n23, alpha, phi, eta
 Real(kind=rk) :: cos_alpha, sin_alpha, One_Minus_cos_alpha, sym
 
-Real(kind=rk), Dimension(:)  , allocatable :: tmp_nn, delta, x_D_phy
-Real(kind=rk), Dimension(:,:), allocatable :: nodes, vv, ff, stiffness
+Real(kind=rk), Dimension(:)    , allocatable :: tmp_nn, delta, x_D_phy
+Real(kind=rk), Dimension(:,:)  , allocatable :: nodes, vv, ff, stiffness
 Real(kind=rk), Dimension(:,:,:), allocatable :: calc_rforces, uu, rforces, edat, crit_1, crit_2
 Real(kind=rk), Dimension(1)    :: tmp_real_fd1
 Real(Kind=rk), Dimension(3)    :: min_c, max_c, n
@@ -49,7 +49,7 @@ integer(Kind=ik) :: ii, jj, kk, ll, no_elem_nodes, micro_elem_nodes, no_lc, num_
 Integer(Kind=ik) :: no_elems, no_nodes, no_cnodes, macro_order, ii_phi, ii_eta, kk_phi, kk_eta
 
 Integer(kind=ik), Dimension(:,:,:,:), Allocatable :: ang
-Integer(Kind=ik), Dimension(:), Allocatable        :: xa_n, xe_n, no_cnodes_pp, cref_cnodes
+Integer(Kind=ik), Dimension(:)      , Allocatable :: xa_n, xe_n, no_cnodes_pp, cref_cnodes
 Integer(kind=ik), Dimension(3)                    :: s_loop,e_loop, mlc
 
 Logical :: success
@@ -350,15 +350,6 @@ End Do
 If (out_amount /= "PRODUCTION" ) then
     Call Write_matrix(un_lf, "ff by summation of single force formula", ff, fmti='std', unit='N')
 End If
-
-!------------------------------------------------------------------------------
-! Domain number
-!------------------------------------------------------------------------------
-CALL add_leaf_to_branch(result_branch, "Domain number", 1_ik, [ddc_nn])
-CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
-    Int(root%branches(3)%leaves(1)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
-    ddc_nn, &
-    1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
 
 !------------------------------------------------------------------------------
 ! Domain forces
@@ -1696,6 +1687,20 @@ EE_Orig = EE
         reshape(EE,[36_pd_ik]), &
         36_pd_mik, MPI_REAL8, status_mpi, ierr)
 
+     !------------------------------------------------------------------------------
+     ! Domain number
+     ! In some sense, the List of domain numbers represents a status file tailored
+     ! to the PETSc sub comm.
+     !------------------------------------------------------------------------------
+     ! Last piece of information written to file. If it is the first entry, 
+     ! data is more likely to get corrupted. For example, the domain number gets
+     ! written to file while some computations within this module is still pending.
+     !------------------------------------------------------------------------------
+     CALL add_leaf_to_branch(result_branch, "Domain number", 1_ik, [ddc_nn])
+     CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
+          Int(root%branches(3)%leaves(1)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
+          ddc_nn, 1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
+
      If (out_amount /= "PRODUCTION" ) then
           Call Write_matrix(std_out, "Optimized Effective stiffness CR_2", EE, fmti='std')
      End If
@@ -1713,9 +1718,10 @@ EE_Orig = EE
     ! Effective density
     !------------------------------------------------------------------------------
     eff_density = 0._rk
-    eff_density = ( ANINT(x_D_phy(1)/delta(1)) * &
-                    ANINT(x_D_phy(2)/delta(2)) * &
-                    ANINT(x_D_phy(3)/delta(3)) ) / REAL(no_elems, KIND=rk)
+    eff_density = REAL(no_elems, KIND=rk) / &
+                REAL(ANINT(x_D_phy(1)/delta(1)) * &
+                     ANINT(x_D_phy(2)/delta(2)) * &
+                     ANINT(x_D_phy(3)/delta(3)), KIND=rk)
 
     CALL add_leaf_to_branch(result_branch, "Effective density", 1_pd_ik, [eff_density])
     CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
@@ -1723,7 +1729,11 @@ EE_Orig = EE
         eff_density, &
         1_pd_mik, MPI_REAL8, status_mpi, ierr)
 
-deallocate(nodes,uu,edat,cref_cnodes,rforces)
+    DEALLOCATE(tmp_nn, delta, x_D_phy)
+    DEALLOCATE(nodes, vv, ff, stiffness)
+    DEALLOCATE(calc_rforces, uu, rforces, edat, crit_1, crit_2)
+    DEALLOCATE(ang)
+    DEALLOCATE(no_cnodes_pp, cref_cnodes)
 
 End subroutine calc_effective_material_parameters
 
