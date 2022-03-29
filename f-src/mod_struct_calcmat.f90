@@ -1701,8 +1701,6 @@ EE_Orig = EE
           Int(root%branches(3)%leaves(1)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
           ddc_nn, 1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
 
-
-
      If (out_amount /= "PRODUCTION" ) then
           Call Write_matrix(std_out, "Optimized Effective stiffness CR_2", EE, fmti='std')
      End If
@@ -1720,9 +1718,10 @@ EE_Orig = EE
     ! Effective density
     !------------------------------------------------------------------------------
     eff_density = 0._rk
-    eff_density = ( ANINT(x_D_phy(1)/delta(1)) * &
-                    ANINT(x_D_phy(2)/delta(2)) * &
-                    ANINT(x_D_phy(3)/delta(3)) ) / REAL(no_elems, KIND=rk)
+    eff_density = REAL(no_elems, KIND=rk) / &
+                REAL(ANINT(x_D_phy(1)/delta(1)) * &
+                     ANINT(x_D_phy(2)/delta(2)) * &
+                     ANINT(x_D_phy(3)/delta(3)), KIND=rk)
 
     CALL add_leaf_to_branch(result_branch, "Effective density", 1_pd_ik, [eff_density])
     CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
@@ -1730,11 +1729,11 @@ EE_Orig = EE
         eff_density, &
         1_pd_mik, MPI_REAL8, status_mpi, ierr)
 
-deallocate(tmp_nn, delta, x_D_phy)
-deallocate(nodes, vv, ff, stiffness)
-deallocate(calc_rforces, uu, rforces, edat, crit_1, crit_2)
-deallocate(ang)
-deallocate(no_cnodes_pp, cref_cnodes)
+    DEALLOCATE(tmp_nn, delta, x_D_phy)
+    DEALLOCATE(nodes, vv, ff, stiffness)
+    DEALLOCATE(calc_rforces, uu, rforces, edat, crit_1, crit_2)
+    DEALLOCATE(ang)
+    DEALLOCATE(no_cnodes_pp, cref_cnodes)
 
 End subroutine calc_effective_material_parameters
 
