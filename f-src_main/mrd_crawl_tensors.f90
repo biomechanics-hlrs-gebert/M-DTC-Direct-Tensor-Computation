@@ -312,8 +312,8 @@ DO rank_mpi = 1, size_mpi-1, parts
                     IF((Domain_stats(jj, 2) == 0_ik) .OR. (last_domain)) THEN
                         Domain_stats(jj, 2) = 1_ik
                     ELSE
-                        WRITE(std_out, FMT_DBG_AxI0) "Domain_stats(:): ", Domain_stats(:,1)   
-                        WRITE(std_out, FMT_DBG_AxI0) "Domain_stats(:): ", Domain_stats(:,2)   
+!                       WRITE(std_out, FMT_DBG_AxI0) "Domain_stats(:): ", Domain_stats(:,1)   
+!                       WRITE(std_out, FMT_DBG_AxI0) "Domain_stats(:): ", Domain_stats(:,2)   
 
                         WRITE(std_out, FMT_DBG_xAL)  "last_domain: ", last_domain
                         WRITE(std_out, FMT_DBG_AxI0) "Domain_stats(jj, 1)", Domain_stats(jj, 1) 
@@ -347,7 +347,7 @@ DO rank_mpi = 1, size_mpi-1, parts
                     ! Local tensor
                     !------------------------------------------------------------------------------
                     local_domain_tensor = 0._rk
-                    mm = (ii-1) *36 + 1
+                    mm = (ii-1) * 36 + 1
                     DO kk = 1, 6
                     DO ll = 1, 6
                         local_domain_tensor(kk, ll) = dat_tensors(mm)

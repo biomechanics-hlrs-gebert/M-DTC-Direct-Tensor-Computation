@@ -1134,6 +1134,12 @@ Else
             Int(root%branches(3)%leaves(1)%lbound-1+(domains_per_comm-1-1), MPI_OFFSET_KIND), &
             comm_nn, 1_mik, & 
             MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
+        
+        !------------------------------------------------------------------------------
+        ! Experimental
+        ! May help computing domains which may be skipped3
+        !------------------------------------------------------------------------------
+        IF(comm_nn > 1) comm_nn = comm_nn - 1_ik
 
     END IF 
 
