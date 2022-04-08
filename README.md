@@ -27,6 +27,15 @@ Testing on a local machine with short turnaround times is recommended with up to
 
 In general, the tool is capable of running on more than 100.000 x86_64 cores with virtually no limit in wall time. Please be aware that computations on large datasets will need computational power of this magnitude.
 
+### Tracking of the status of the computation
+To show the current status of the computation, dump the integer 8 data of the status file with the input basename of the computation.  
+```hexdump   -v -e '10/8 "%d " "\n"' datasets/SC00-0_tc_Pro_dtc_Tensors.status```
+
+### Retrieving basic results out of the software
+To crawl the results of the DTC-computation, invoke the MeRaDat-crawler with the output meta file of the (ongoing) computation.  
+```./bin/meRaDat_Crawl_Tensors_x86_64 datasets/SC00-0_tc_Pro_dtc_Tensors.meta```
+
+
 ## Datasets
 ... are transferred via file exchange and are not pushed into the repository. 
 
