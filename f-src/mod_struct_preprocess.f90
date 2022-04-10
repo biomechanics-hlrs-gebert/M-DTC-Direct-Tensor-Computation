@@ -121,6 +121,12 @@ Integer(kind=8), Dimension(:), Allocatable :: bpoints,x_D,nn_D
     call add_leaf_to_branch(loc_ddc, "xa_n_ext", 3_pd_ik, xa_n_ext)
     call add_leaf_to_branch(loc_ddc, "xe_n_ext", 3_pd_ik, xe_n_ext)
     
+    IF (out_amount == "DEBUG") THEN
+        WRITE(un_lf, "('DD ', A, 3(' ', I0), A, 3(' ', I0))") "xa_n:     ", xa_n,     "     xe_n:     ", xe_n
+        WRITE(un_lf, "('DD ', A, 3(' ', I0), A, 3(' ', I0))") "xa_n_ext: ", xa_n_ext, "     xe_n_ext: ", xe_n_ext
+        WRITE(un_lf, FMT_DBG)
+    END IF
+
     !----------------------------------------------------------------------------
     Select Case (timer_level)
       Case (3)
@@ -159,7 +165,7 @@ Integer(kind=8), Dimension(:), Allocatable :: bpoints,x_D,nn_D
     call alloc_err("phi", alloc_stat)
 
     !----------------------------------------------------------------------------
-    !* Read PHI (scalar binary values) from file
+    ! Read PHI (scalar binary values) from file
     !----------------------------------------------------------------------------
     Do jj = xa_n(3), xe_n(3)
        Do ii = xa_n(2), xe_n(2)
@@ -176,8 +182,8 @@ Integer(kind=8), Dimension(:), Allocatable :: bpoints,x_D,nn_D
 
     call close_stream_files(phi_desc)
 
-    !phi = 15000.
-    
+    ! phi = 15000.
+   
     Select Case (timer_level)
     Case (3)
        call end_timer("  +-- Initialisation of Phi "//trim(nn_char))
