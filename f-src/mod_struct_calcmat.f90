@@ -22,41 +22,41 @@ contains
 subroutine calc_effective_material_parameters(root, comm_nn, ddc_nn, fh_mpi_worker) 
 
 Type(tBranch)                           , Intent(InOut) :: root
-integer(Kind=ik)                        , Intent(in) :: ddc_nn, comm_nn
-Integer(kind=mik), Dimension(no_streams), Intent(in) :: fh_mpi_worker
+integer(ik)                        , Intent(in) :: ddc_nn, comm_nn
+Integer(mik), Dimension(no_streams), Intent(in) :: fh_mpi_worker
 
-Real(kind=rk) :: div_10_exp_jj, eff_density, n12, n13, n23, alpha, phi, eta
-Real(kind=rk) :: cos_alpha, sin_alpha, One_Minus_cos_alpha, sym
+Real(rk) :: div_10_exp_jj, eff_density, n12, n13, n23, alpha, phi, eta
+Real(rk) :: cos_alpha, sin_alpha, One_Minus_cos_alpha, sym
 
-Real(kind=rk), Dimension(:)    , allocatable :: tmp_nn, delta, x_D_phy
-Real(kind=rk), Dimension(:,:)  , allocatable :: nodes, vv, ff, stiffness
-Real(kind=rk), Dimension(:,:,:), allocatable :: calc_rforces, uu, rforces, edat, crit_1, crit_2
-Real(kind=rk), Dimension(1)    :: tmp_real_fd1
-Real(Kind=rk), Dimension(3)    :: min_c, max_c, n
-Real(kind=rk), Dimension(6)    :: ro_stress
-Real(kind=rk), Dimension(8)    :: tmp_r8 
-Real(kind=rk), Dimension(12)   :: tmp_r12
-Real(kind=rk), Dimension(3,3)  :: aa
-Real(kind=rk), Dimension(6,6)  :: ee_orig, BB, CC, cc_mean, EE, fv,meps
-Real(kind=rk), Dimension(0:16) :: crit_min
-Real(Kind=rk), Dimension(6,24) :: int_strain, int_stress
-Real(kind=rk):: E_Modul, nu, rve_strain, v_elem, v_cube
+Real(rk), Dimension(:)    , allocatable :: tmp_nn, delta, x_D_phy
+Real(rk), Dimension(:,:)  , allocatable :: nodes, vv, ff, stiffness
+Real(rk), Dimension(:,:,:), allocatable :: calc_rforces, uu, rforces, edat, crit_1, crit_2
+Real(rk), Dimension(1)    :: tmp_real_fd1
+Real(rk), Dimension(3)    :: min_c, max_c, n
+Real(rk), Dimension(6)    :: ro_stress
+Real(rk), Dimension(8)    :: tmp_r8 
+Real(rk), Dimension(12)   :: tmp_r12
+Real(rk), Dimension(3,3)  :: aa
+Real(rk), Dimension(6,6)  :: ee_orig, BB, CC, cc_mean, EE, fv,meps
+Real(rk), Dimension(0:16) :: crit_min
+Real(rk), Dimension(6,24) :: int_strain, int_stress
+Real(rk):: E_Modul, nu, rve_strain, v_elem, v_cube
 
-Integer(kind=mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
-Integer(kind=mik) :: ierr
+Integer(mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
+Integer(mik) :: ierr
 
-integer(Kind=ik) :: ii, jj, kk, ll, no_elem_nodes, micro_elem_nodes, no_lc, num_leaves, alloc_stat
-Integer(Kind=ik) :: no_elems, no_nodes, no_cnodes, macro_order, ii_phi, ii_eta, kk_phi, kk_eta
+integer(ik) :: ii, jj, kk, ll, no_elem_nodes, micro_elem_nodes, no_lc, num_leaves, alloc_stat
+Integer(ik) :: no_elems, no_nodes, no_cnodes, macro_order, ii_phi, ii_eta, kk_phi, kk_eta
 
-Integer(kind=ik), Dimension(:,:,:,:), Allocatable :: ang
-Integer(Kind=ik), Dimension(:)      , Allocatable :: xa_n, xe_n, no_cnodes_pp, cref_cnodes
-Integer(kind=ik), Dimension(3)                    :: s_loop,e_loop, mlc
+Integer(ik), Dimension(:,:,:,:), Allocatable :: ang
+Integer(ik), Dimension(:)      , Allocatable :: xa_n, xe_n, no_cnodes_pp, cref_cnodes
+Integer(ik), Dimension(3)                    :: s_loop,e_loop, mlc
 
 Logical :: success
 
-Character(len=*), Parameter :: link_name="struct_calcmat_fmps"
-Character(len=9)   :: nn_char
-Character(Len=mcl) :: desc
+Character(*), Parameter :: link_name="struct_calcmat_fmps"
+Character(9)   :: nn_char
+Character(mcl) :: desc
 
 Type(tBranch), Pointer :: ddc, loc_ddc, meta_para, domain_branch, mesh_branch, result_branch
 
@@ -330,7 +330,7 @@ Do ii = 1, no_lc            ! Cycle through all load cases
     Do jj = 1, no_nodes      ! Cycle through all boundary nodes
 
         ! t_geom_xi transforms coordinates from geometry to xi space 
-        ! Result(phi_nn) :  Real(kind=rk), dimension(8)
+        ! Result(phi_nn) :  Real(rk), dimension(8)
         tmp_nn = phi_nn(t_geom_xi(nodes(:,jj),min_c,max_c))
 
         Do kk = 1,3
@@ -1718,10 +1718,10 @@ EE_Orig = EE
     ! Effective density
     !------------------------------------------------------------------------------
     eff_density = 0._rk
-    eff_density = REAL(no_elems, KIND=rk) / &
+    eff_density = REAL(no_elems, rk) / &
                 REAL(ANINT(x_D_phy(1)/delta(1)) * &
                      ANINT(x_D_phy(2)/delta(2)) * &
-                     ANINT(x_D_phy(3)/delta(3)), KIND=rk)
+                     ANINT(x_D_phy(3)/delta(3)), rk)
 
     CALL add_leaf_to_branch(result_branch, "Effective density", 1_pd_ik, [eff_density])
     CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
@@ -1740,10 +1740,10 @@ End subroutine calc_effective_material_parameters
 
 subroutine init_loadcase(eps,vv)
 
-    Real(Kind=rk), intent(in)     :: eps
-    Real(Kind=rk), Dimension(:,:) :: vv
+    Real(rk), intent(in)     :: eps
+    Real(rk), Dimension(:,:) :: vv
 
-    Real(Kind=rk)                 :: eps2,eps3,eps4
+    Real(rk)                 :: eps2,eps3,eps4
 
     eps2 = eps*2._rk
     eps3 = eps*3._rk
