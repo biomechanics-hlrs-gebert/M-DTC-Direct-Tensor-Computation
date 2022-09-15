@@ -94,6 +94,8 @@ tex_dir  = $(build_path)/latex/
 # ------------------------------------------------------------------------------
 # file extensions
 # -----------------------------------------------------------------------------
+inc_ext = .inc
+mpi_ext = .mpi
 mod_ext = .mod
 obj_ext = .o
 sho_ext = .so
@@ -165,6 +167,10 @@ c-objects =  $(obj_dir)OS$(obj_ext) \
 f-objects = $(st_obj_dir)mod_global_std$(obj_ext) \
             $(st_obj_dir)mod_strings$(obj_ext) \
 			$(st_obj_dir)mod_user_interaction$(obj_ext) \
+			$(st_obj_dir)mod_user_interaction$(mpi_ext)$(obj_ext) \
+			$(st_obj_dir)mod_ser_binary$(obj_ext)\
+			$(st_obj_dir)mod_par_binary$(mpi_ext)$(obj_ext)\
+			$(st_obj_dir)mod_vtk$(obj_ext) \
 			$(st_obj_dir)mod_formatted_plain$(obj_ext) \
             $(st_obj_dir)mod_math$(obj_ext) \
             $(st_obj_dir)mod_mechanical$(obj_ext) \
@@ -205,10 +211,11 @@ pd-ld-objects = $(st_obj_dir)mod_global_std$(obj_ext) \
 # -----------------------------------------------------------------------------
 # MeRaDat objects
 # -----------------------------------------------------------------------------
-meradat-ld-objects = $(st_obj_dir)mod_global_std$(obj_ext) \
+geb-lib-ld-objects = $(st_obj_dir)mod_global_std$(obj_ext) \
 					$(st_obj_dir)mod_meta$(obj_ext) \
 					$(st_obj_dir)mod_strings$(obj_ext) \
 					$(st_obj_dir)mod_user_interaction$(obj_ext) \
+					$(st_obj_dir)mod_user_interaction$(mpi_ext)$(obj_ext) \
 					$(st_obj_dir)mod_formatted_plain$(obj_ext) \
 		            $(st_obj_dir)mod_math$(obj_ext) \
 		            $(st_obj_dir)mod_mechanical$(obj_ext) \
@@ -494,7 +501,8 @@ $(obj_dir)struct_process$(obj_ext):$(st_mod_dir)global_std$(mod_ext)     $(st_mo
                                    $(mod_dir)auxiliaries$(mod_ext)       $(obj_dir)OS$(obj_ext) \
                                    $(mod_dir)operating_system$(mod_ext)  $(mod_dir)puredat$(mod_ext) \
                                    $(mod_dir)decomp$(mod_ext)            $(mod_dir)timer$(mod_ext) \
-                                   $(mod_dir)chain_routines$(mod_ext)    $(mod_dir)vtkio$(mod_ext) \
+                                   $(mod_dir)chain_routines$(mod_ext)    $(st_mod_dir)ser_binary$(mod_ext)\
+								   $(st_mod_dir)mpi_binary$(mod_ext)\
                                    $(obj_dir)metis_interface$(obj_ext)   $(mod_dir)metis$(mod_ext) \
                                    $(mod_dir)linfe$(mod_ext)             $(mod_dir)mesh_partitioning$(mod_ext) \
                                    $(mod_dir)write_deck$(mod_ext)        $(mod_dir)gen_geometry$(mod_ext) \
@@ -603,11 +611,11 @@ $(pd_merge_branch_to_tree_bin): $(pd-ld-objects) $(obj_dir)pd_merge_branch_to_tr
 # -----------------------------------------------------------------------------
 # Final Link step of MeRaDat executables 
 # -----------------------------------------------------------------------------
-$(meradat_crawl_tensors): $(meradat-ld-objects) $(obj_dir)mrd_crawl_tensors$(obj_ext)
+$(meradat_crawl_tensors): $(geb-lib-ld-objects) $(obj_dir)mrd_crawl_tensors$(obj_ext)
 	@echo "----------------------------------------------------------------------------------"
 	@echo '-- Linking MeRaDat executable'
 	@echo "----------------------------------------------------------------------------------"
-	$(compiler) $(link_flags) $(meradat-ld-objects) $(obj_dir)mrd_crawl_tensors$(obj_ext) -o $@
+	$(compiler) $(link_flags) $(geb-lib-ld-objects) $(obj_dir)mrd_crawl_tensors$(obj_ext) -o $@
 	@echo 
 #
 # --------------------------------------------------------------------------------------------------

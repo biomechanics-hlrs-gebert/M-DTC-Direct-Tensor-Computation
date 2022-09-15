@@ -19,50 +19,50 @@ USE global_std
 USE puredat
 USE meta
 USE user_interaction
+USE mpi_user_interaction
 USE formatted_plain
 USE mechanical
 
 IMPLICIT NONE
 
-CHARACTER(LEN=*), PARAMETER :: mrd_dbg_lvl = "PRODUCTION" ! "DEBUG"
+CHARACTER(*), PARAMETER :: mrd_dbg_lvl = "PRODUCTION" ! "DEBUG"
 
 TYPE(tLeaf), POINTER :: leaf_domain_no, leaf_density, leaf_tensors, leaf_pos
 TYPE(tBranch)        :: rank_data
 TYPE(tensor_2nd_rank_R66), DIMENSION(3) :: tensor
 
-INTEGER(KIND=ik), DIMENSION(:,:), ALLOCATABLE :: Domain_stats
-INTEGER(KIND=ik), DIMENSION(3)                :: xa_d=0, xe_d=0
+INTEGER(ik), DIMENSION(:,:), ALLOCATABLE :: Domain_stats
+INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0
 
-INTEGER(KIND=ik) :: alloc_stat, parts, fh_covo, fh_cr1, fh_cr2, fh_crdiag, fh_tens
-INTEGER(KIND=ik) :: domains_crawled = 0_ik, nn_comm, par_domains, activity_size, size_mpi
-INTEGER(KIND=ik) :: ii, jj, kk, ll, mm, tt, handle
-INTEGER(KIND=ik) :: aun, domains_per_comm, rank_mpi, No_of_domains, local_domain_no, last_domain_rank
+INTEGER(ik) :: alloc_stat, parts, fh_covo, fh_cr1, fh_cr2, fh_crdiag, fh_tens, &
+    domains_crawled = 0_ik, nn_comm, par_domains, activity_size, size_mpi, &
+    ii, jj, kk, ll, mm, tt, handle, &
+    aun, domains_per_comm, rank_mpi, No_of_domains, local_domain_no, last_domain_rank
 
-REAL(KIND=rk) :: local_domain_density, sym, start, end
-REAL(KIND=rk), DIMENSION(3)   :: local_domain_opt_pos
-REAL(KIND=rk), DIMENSION(6,6) :: local_domain_tensor
+REAL(rk) :: local_domain_density, sym, start, end
+REAL(rk), DIMENSION(3)   :: local_domain_opt_pos
+REAL(rk), DIMENSION(6,6) :: local_domain_tensor
 
-INTEGER(KIND=8), DIMENSION(:), ALLOCATABLE :: dat_domains
-REAL   (KIND=8), DIMENSION(:), ALLOCATABLE :: dat_densities, dat_tensors, dat_pos
+INTEGER(8), DIMENSION(:), ALLOCATABLE :: dat_domains
+REAL   (8), DIMENSION(:), ALLOCATABLE :: dat_densities, dat_tensors, dat_pos
 
-CHARACTER(LEN=mcl), DIMENSION(:), ALLOCATABLE :: m_rry      
-CHARACTER(LEN=mcl) :: cmd_arg_history='', target_path, file_head, binary, activity_file
-CHARACTER(LEN=20)  :: dmn_char
-CHARACTER(LEN=7)   :: crdiag_suf = ".crdiag"
-CHARACTER(LEN=5)   :: covo_suf = ".covo"
-CHARACTER(LEN=4)   :: cr1_suf = ".cr1", cr2_suf = ".cr2"
-CHARACTER(LEN=1)   :: tt_char, restart_cmd_arg='U' ! U = 'undefined'
+CHARACTER(mcl), DIMENSION(:), ALLOCATABLE :: m_rry      
+CHARACTER(mcl) :: cmd_arg_history='', target_path, file_head, binary, activity_file, stat=""
+CHARACTER(20)  :: dmn_char
+CHARACTER(7)   :: crdiag_suf = ".crdiag"
+CHARACTER(5)   :: covo_suf = ".covo"
+CHARACTER(4)   :: cr1_suf = ".cr1", cr2_suf = ".cr2"
+CHARACTER(1)   :: tt_char, restart_cmd_arg='U' ! U = 'undefined'
 
-LOGICAL :: success=.FALSE., stp=.FALSE., stat_exists=.FALSE., opened=.FALSE., last_domain=.FALSE.
-LOGICAL :: write_to_diag = .FALSE.
+LOGICAL :: success=.FALSE., stat_exists=.FALSE., opened=.FALSE., last_domain=.FALSE.
+LOGICAL :: write_to_diag = .FALSE., abrt = .FALSE.
 
 CALL CPU_TIME(start)
 
 !------------------------------------------------------------------------------
 ! Parse the command arguments
 !------------------------------------------------------------------------------
-CALL get_cmd_args(binary, in%full, stp, restart_cmd_arg, cmd_arg_history)
-IF(stp) GOTO 1000
+CALL get_cmd_args(binary, in%full, restart_cmd_arg, cmd_arg_history)
 
 IF (in%full=='') THEN
     CALL usage(binary, [ &
@@ -99,7 +99,7 @@ CALL show_title(["Johannes Gebert, M.Sc. (HLRS, NUM) "], "Crawl Tensors of DTC")
 CALL meta_check_contains_program ('TENSOR-COMPUTATION', m_rry, success)
 
 IF (.NOT. success) THEN
-    CALL print_trimmed_text(std_out, &
+    CALL print_trimmed(std_out, &
         "The program 'TENSOR-COMPUTATION' apparently did not run successfully. &
         &Maybe it crashed or was stopped by purpose. However, it can also point &
         &to an incorrect implementation.", &
@@ -107,10 +107,10 @@ IF (.NOT. success) THEN
     WRITE(std_out, FMT_WRN_SEP)
 END IF
 
-CALL meta_read('LO_BNDS_DMN_RANGE' , m_rry, xa_d)
-CALL meta_read('UP_BNDS_DMN_RANGE' , m_rry, xe_d)
-CALL meta_read('MESH_PER_SUB_DMN'  , m_rry, parts)
-CALL meta_read('PROCESSORS'        , m_rry, size_mpi)
+CALL meta_read('LO_BNDS_DMN_RANGE' , m_rry, xa_d, stat); CALL mest(stat, abrt)
+CALL meta_read('UP_BNDS_DMN_RANGE' , m_rry, xe_d, stat); CALL mest(stat, abrt)
+CALL meta_read('MESH_PER_SUB_DMN'  , m_rry, parts, stat); CALL mest(stat, abrt)
+CALL meta_read('PROCESSORS'        , m_rry, size_mpi, stat); CALL mest(stat, abrt)
 
 INQUIRE(UNIT=fhmei, OPENED=opened)
 IF(opened) CLOSE (fhmei)
@@ -167,7 +167,7 @@ END IF
 IF(activity_size /= No_of_domains * ik) THEN
     mssg = "File size and number of computed domains does not match. &
         &Please check the boundaries, hexdump the status file and have a look, &
-        &if the kind of the integers of this file is correct (KIND=INT64/8)."
+        &if the kind of the integers of this file is correct (INT64/8)."
     CALL print_err_stop(std_out, mssg, 1_ik)
 END IF
 
@@ -326,7 +326,7 @@ DO rank_mpi = 1, size_mpi-1, parts
                             &domain numbers, scattered in the rank-directories, as long as the &
                             &first entries are monotonously increasing."
                         ! CALL print_err_stop(std_out, mssg, 1_ik)
-                        CALL print_trimmed_text(std_out, TRIM(mssg), FMT_WRN)
+                        CALL print_trimmed(std_out, TRIM(mssg), FMT_WRN)
                         
                         WRITE(std_out, FMT_WRN_SEP)
 
@@ -418,8 +418,6 @@ DO rank_mpi = 1, size_mpi-1, parts
     !------------------------------------------------------------------------------
     nn_comm = nn_comm + 1_ik 
 END DO
-
-1000 CONTINUE
 
 CALL CPU_TIME(end)
 
