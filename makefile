@@ -155,6 +155,16 @@ ifeq ($(PE),gnu)
 	export glb_link_flags
 endif
 #
+# -----------------------------------------------------------------------------
+# Choose Lapack
+# -----------------------------------------------------------------------------
+ifeq ($(SYS_ENV),julius)
+	libs=-llapack
+else
+	libs=-L${MKLROOT}/lib/intel64 -Wl,--no-as-needed -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl
+endif
+#
+#
 # ------------------------------------------------------------------------------
 # Generate objects
 # -----------------------------------------------------------------------------

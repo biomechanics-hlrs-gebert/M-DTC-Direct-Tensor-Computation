@@ -104,9 +104,9 @@ TYPE(materialcard) :: bone
 
 INTEGER(mik) :: ierr, rank_mpi, size_mpi, petsc_ierr, mii, mjj, &
     worker_rank_mpi, worker_size_mpi, aun, par_domains, &
-    Active, request, finished = -1, worker_comm, WRITE_ROOT_COMM
+    Active, request, finished = -1, worker_comm ! , WRITE_ROOT_COMM
 
-INTEGER(mik), Dimension(no_streams)       :: fh_mpi_root, fh_mpi_worker
+INTEGER(mik), Dimension(no_streams)       :: fh_mpi_worker
 INTEGER(mik), Dimension(MPI_STATUS_SIZE)  :: stintus_mpi
 INTEGER(mik), Dimension(:,:), Allocatable :: stintuses_mpi
 INTEGER(mik), Dimension(:)  , Allocatable :: worker_is_active, req_list
@@ -130,7 +130,7 @@ CHARACTER(scl)     :: restart='N', restart_cmd_arg='U' ! U = 'undefined'
 REAL(rk), DIMENSION(3) :: delta
 REAL(rk) :: strain
 
-INTEGER(ik), DIMENSION(:), ALLOCATABLE :: Domains, nn_D, Domain_stints, local_stint_index
+INTEGER(ik), DIMENSION(:), ALLOCATABLE :: Domains, nn_D, Domain_stints
 INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0, vdim
 
 INTEGER(ik) :: nn, ii, jj, kk, dc, stint, computed_domains = 0, comm_nn = 1, &
@@ -140,11 +140,10 @@ INTEGER(ik) :: nn, ii, jj, kk, dc, stint, computed_domains = 0, comm_nn = 1, &
 
 INTEGER(pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
 INTEGER(pd_ik), DIMENSION(no_streams) :: dsize
-Integer(pd_mik), Dimension(no_streams) :: fh_mpi
 
 INTEGER(pd_ik) :: serial_root_size, add_leaves
 
-LOGICAL :: success, stint_exists, heaxist, stp = .FALSE., abrt = .FALSE.
+LOGICAL :: success, stint_exists, heaxist, abrt = .FALSE.
 LOGICAL :: create_new_header = .FALSE.
 
 !----------------------------------------------------------------------------

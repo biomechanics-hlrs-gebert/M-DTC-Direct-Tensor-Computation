@@ -295,14 +295,6 @@ DO rank_mpi = 1, size_mpi-1, parts
                 !------------------------------------------------------------------------------
                 ! Reset the information stored before proceeding to the next one.
                 !------------------------------------------------------------------------------
-                tensor(tt)%dmn        = 0_ik
-                tensor(tt)%density    = 0._rk
-                tensor(tt)%doa_zener  = 0._rk
-                tensor(tt)%doa_gebert = 0._rk
-                tensor(tt)%sym        = 0._rk
-                tensor(tt)%mat        = 0._rk
-                tensor(tt)%pos        = 0._rk
-                tensor(tt)%crit       = ""
 
                 IF(Domain_stats(jj, 1) == dat_domains(ii)) THEN
 
@@ -371,23 +363,21 @@ DO rank_mpi = 1, size_mpi-1, parts
                     !------------------------------------------------------------------------------
                     ! Check symmetry of the tensor
                     !------------------------------------------------------------------------------
-                    CALL check_sym (local_domain_tensor, sym)
+                    sym = check_sym (local_domain_tensor)
 
                     !------------------------------------------------------------------------------
                     ! Write the data to the file.
                     !------------------------------------------------------------------------------
-                    tensor(tt)%dmn        = dat_domains(ii)
-                    tensor(tt)%density    = dat_densities(ii)
-                    tensor(tt)%doa_zener  = doa_zener (local_domain_tensor)
-                    tensor(tt)%doa_gebert = doa_gebert(local_domain_tensor)
-                    tensor(tt)%sym        = sym
-                    tensor(tt)%mat        = local_domain_tensor
-                    tensor(tt)%pos        = local_domain_opt_pos
+                    tensor(tt)%dmn  = dat_domains(ii)
+                    tensor(tt)%bvtv = dat_densities(ii)
+                    tensor(tt)%sym  = sym
+                    tensor(tt)%mat  = local_domain_tensor
+                    tensor(tt)%pos  = local_domain_opt_pos
 
                     SELECT CASE (tt)
-                        CASE(1); tensor(tt)%crit = "covo" 
-                        CASE(2); tensor(tt)%crit = "cr1" 
-                        CASE(3); tensor(tt)%crit = "cr2" 
+                        CASE(1); tensor(tt)%opt_crit = "covo" 
+                        CASE(2); tensor(tt)%opt_crit = "cr1" 
+                        CASE(3); tensor(tt)%opt_crit = "cr2" 
                     END SELECT
 
                     IF(write_to_diag) handle = fh_crdiag

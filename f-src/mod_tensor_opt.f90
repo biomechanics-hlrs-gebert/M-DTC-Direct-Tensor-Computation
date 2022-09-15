@@ -592,7 +592,7 @@ Module tensor_opt
        Call write_matrix(un_lf, "Final coordinate system CR_1", mat=aa, fmti='std')
 
        Call write_matrix(un_lf, "Inlined anisotropic stiffness CR_1", EE, fmti='std', unit='MPa')
-       CALL check_sym(EE, sym)
+       sym = check_sym(EE)
        WRITE (un_lf, FMT_TXT_AxF0) "Inlined anisotropic stiffness CR_1, symmetry: ", sym
     End If
 

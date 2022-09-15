@@ -386,7 +386,7 @@ End If
 !------------------------------------------------------------------------------
 ! Calc Symmetry deviation - effective numerical stiffness
 !------------------------------------------------------------------------------
-CALL check_sym(stiffness, sym)
+sym = check_sym(stiffness)
 tmp_real_fd1 = sym
 
 CALL add_leaf_to_branch(result_branch, &
@@ -529,7 +529,7 @@ CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
 !------------------------------------------------------------------------------
 ! Symmetry deviation - effective stiffness
 !------------------------------------------------------------------------------
-CALL check_sym(cc_mean, sym)
+sym = check_sym(cc_mean)
 tmp_real_fd1 = sym
 
 CALL add_leaf_to_branch(result_branch, "Symmetry deviation - effective stiffness",  1_pd_ik, tmp_real_fd1)
@@ -572,8 +572,7 @@ CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
 !------------------------------------------------------------------------------
 ! Symmetry deviation - effective stiffness
 !------------------------------------------------------------------------------
-CALL check_sym(ee, sym)
-tmp_real_fd1 = sym
+tmp_real_fd1 = check_sym(ee)
 
 CALL add_leaf_to_branch(result_branch, &
     "Symmetry deviation - Averaged effective stiffness",  1_pd_ik, tmp_real_fd1)
