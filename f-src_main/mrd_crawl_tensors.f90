@@ -19,7 +19,6 @@ USE global_std
 USE puredat
 USE meta
 USE user_interaction
-USE mpi_user_interaction
 USE formatted_plain
 USE mechanical
 
@@ -107,10 +106,10 @@ IF (.NOT. success) THEN
     WRITE(std_out, FMT_WRN_SEP)
 END IF
 
-CALL meta_read('LO_BNDS_DMN_RANGE' , m_rry, xa_d, stat); CALL mest(stat, abrt)
-CALL meta_read('UP_BNDS_DMN_RANGE' , m_rry, xe_d, stat); CALL mest(stat, abrt)
-CALL meta_read('MESH_PER_SUB_DMN'  , m_rry, parts, stat); CALL mest(stat, abrt)
-CALL meta_read('PROCESSORS'        , m_rry, size_mpi, stat); CALL mest(stat, abrt)
+CALL meta_read('LO_BNDS_DMN_RANGE' , m_rry, xa_d, stat); IF(stat/="") STOP
+CALL meta_read('UP_BNDS_DMN_RANGE' , m_rry, xe_d, stat); IF(stat/="") STOP
+CALL meta_read('MESH_PER_SUB_DMN'  , m_rry, parts, stat); IF(stat/="") STOP
+CALL meta_read('PROCESSORS'        , m_rry, size_mpi, stat); IF(stat/="") STOP
 
 INQUIRE(UNIT=fhmei, OPENED=opened)
 IF(opened) CLOSE (fhmei)
@@ -156,7 +155,7 @@ Domain_stats(:,:) = 0_ik
 !------------------------------------------------------------------------------
 aun = give_new_unit()
 
-activity_file = TRIM(in%p_n_bsnm)//".status"
+activity_file = TRIM(in%p_n_bsnm)//".stat"
 INQUIRE(FILE = TRIM(activity_file), EXIST=stat_exists, SIZE=activity_size)
 
 IF(.NOT. stat_exists) THEN
