@@ -50,10 +50,19 @@ mod_path_flag = -I$(PETSC_INCPATH)
 # -----------------------------------------------------------------------------
 lib_path_flag = -L$(LAPACK_LIBPATH) -L$(METIS_LIBPATH) -L$(PETSC_LIBPATH)
 #
+# -----------------------------------------------------------------------------
+# Choose Lapack
+# -----------------------------------------------------------------------------
+ifeq ($(SYS_ENV),julius)
+	lapacklib=-llapack
+else
+	lapacklib=-L${MKLROOT}/lib/intel64 -Wl,--no-as-needed -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl
+endif
+#
 # ------------------------------------------------------------------------------
 # Link level extra libraries 
 # -----------------------------------------------------------------------------
-lll_extra = -lmetis -lpetsc -llapack -lblas -ldl
+lll_extra = -lmetis -lpetsc  -ldl $(lapacklib)
 #
 # ------------------------------------------------------------------------------
 # Build path - choose relative or absolute paths by commenting them in/out.
@@ -153,15 +162,6 @@ ifeq ($(PE),gnu)
 # -----------------------------------------------------------------------------
 	link_flags = $(lib_path_flag) -L$(lib_dir) -g # -fopenmp -g # -pg 
 	export glb_link_flags
-endif
-#
-# -----------------------------------------------------------------------------
-# Choose Lapack
-# -----------------------------------------------------------------------------
-ifeq ($(SYS_ENV),julius)
-	libs=-llapack
-else
-	libs=-L${MKLROOT}/lib/intel64 -Wl,--no-as-needed -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl
 endif
 #
 #
@@ -634,8 +634,8 @@ $(meradat_crawl_tensors): $(geb-lib-ld-objects) $(obj_dir)mrd_crawl_tensors$(obj
 export_revision:
 	@echo "----------------------------------------------------------------------------------"
 	@echo '-- Write revision and git info'
-	@echo "CHARACTER(LEN=scl), PARAMETER :: longname = '$(long_name)'" > $(st_f_src_dir)include_f90/revision_meta$(f90_ext)
-	@echo "CHARACTER(LEN=scl), PARAMETER :: hash = '$(rev)'" >> $(st_f_src_dir)include_f90/revision_meta$(f90_ext)
+	@echo "CHARACTER(LEN=scl), PARAMETER :: longname = '$(long_name)'" > $(st_f_src_dir)include_f90/revision_meta$(inc_ext)
+	@echo "CHARACTER(LEN=scl), PARAMETER :: hash = '$(rev)'" >> $(st_f_src_dir)include_f90/revision_meta$(inc_ext)
 	@echo "----------------------------------------------------------------------------------"
 #
 help:

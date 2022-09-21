@@ -107,8 +107,8 @@ INTEGER(mik) :: ierr, rank_mpi, size_mpi, petsc_ierr, mii, mjj, &
     Active, request, finished = -1, worker_comm ! , WRITE_ROOT_COMM
 
 INTEGER(mik), Dimension(no_streams)       :: fh_mpi_worker
-INTEGER(mik), Dimension(MPI_STATUS_SIZE)  :: stintus_mpi
-INTEGER(mik), Dimension(:,:), Allocatable :: stintuses_mpi
+INTEGER(mik), Dimension(MPI_STATUS_SIZE)  :: stat_mpi
+INTEGER(mik), Dimension(:,:), Allocatable :: states_mpi
 INTEGER(mik), Dimension(:)  , Allocatable :: worker_is_active, req_list
 
 INTEGER(c_int) :: stint_c_int
@@ -124,24 +124,24 @@ CHARACTER(mcl)  , DIMENSION(:), ALLOCATABLE :: m_rry
 CHARACTER(4*mcl) :: job_dir
 CHARACTER(mcl)   :: cmd_arg_history='', link_name = 'struct process', stat="", &
     muCT_pd_path, muCT_pd_name, binary, activity_file, desc=""
-CHARACTER(8)     :: elt_micro, output
-CHARACTER(scl)     :: restart='N', restart_cmd_arg='U' ! U = 'undefined'
+CHARACTER(8)   :: elt_micro, output
+CHARACTER(scl) :: typeraw="", restart='N', restart_cmd_arg='U' ! U = 'undefined'
 
 REAL(rk), DIMENSION(3) :: delta
 REAL(rk) :: strain
 
 INTEGER(ik), DIMENSION(:), ALLOCATABLE :: Domains, nn_D, Domain_stints
-INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0, vdim
+INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0
 
 INTEGER(ik) :: nn, ii, jj, kk, dc, stint, computed_domains = 0, comm_nn = 1, &
     No_of_domains, path_count, activity_size=0, &
     alloc_stint, free_file_handle, domains_per_comm, &
-    Domain, llimit, parts, elo_macro
+    Domain, llimit, parts, elo_macro, raw_data_stream
 
 INTEGER(pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
 INTEGER(pd_ik), DIMENSION(no_streams) :: dsize
 
-INTEGER(pd_ik) :: serial_root_size, add_leaves
+INTEGER(pd_ik) :: serial_root_size, add_leaves, vdim(3)
 
 LOGICAL :: success, stint_exists, heaxist, abrt = .FALSE.
 LOGICAL :: create_new_header = .FALSE.
@@ -209,7 +209,8 @@ If (rank_mpi == 0) THEN
     !------------------------------------------------------------------------------
     IF(std_out/=6) CALL meta_start_ascii(std_out, '.std_out')
 
-    CALL show_title(["Dr.-Ing. Ralf Schneider (HLRS, NUM)", "Johannes Gebert, M.Sc. (HLRS, NUM) "])
+    CALL show_title(["Dr.-Ing. Ralf Schneider (HLRS, NUM)", &
+        "Johannes Gebert, M.Sc. (HLRS, NUM) "])
 
     IF(debug >=0) WRITE(std_out, FMT_TXT) "Post mortem info probably in ./datasets/temporary.std_out"
     WRITE(std_out, FMT_TXT) "Program invocation:"//TRIM(cmd_arg_history)          
@@ -248,14 +249,15 @@ If (rank_mpi == 0) THEN
     CALL meta_read('YOUNG_MODULUS'    , m_rry, bone%E, stat); CALL mest(stat, abrt)
     CALL meta_read('POISSON_RATIO'    , m_rry, bone%nu, stat); CALL mest(stat, abrt)
     CALL meta_read('MACRO_ELMNT_ORDER', m_rry, elo_macro, stat); CALL mest(stat, abrt)
-
+    CALL meta_read('TYPE_RAW'         , m_rry, typeraw, stat); CALL mest(stat, abrt)
+    
     IF(abrt) CALL print_err_stop(std_out, "A keyword error occured.", 1)
 
     !------------------------------------------------------------------------------
     ! Restart handling
     !------------------------------------------------------------------------------
     ! Standard lock file of MeRaDat not used, because it would interfere with the 
-    ! stintus file of the struct process. 
+    ! stat file of the struct process. 
     !------------------------------------------------------------------------------
     CALL meta_compare_restart(restart, restart_cmd_arg)
 
@@ -340,11 +342,11 @@ If (rank_mpi == 0) THEN
     ! Check whether there already is a project header and an worker_is_active tracker
     ! Header-files are PureDat, not MeRaDat. Therefore via pro_path/pro_name
     !------------------------------------------------------------------------------
-    activity_file = TRIM(out%p_n_bsnm)//".stintus"
+    activity_file = TRIM(out%p_n_bsnm)//".stat"
     INQUIRE(FILE = TRIM(activity_file), EXIST=stint_exists, SIZE=activity_size)
 
     IF ((No_of_domains*ik /= activity_size ) .AND. (stint_exists)) THEN
-        mssg = 'Size of the stintus file and the number of requested domains do &
+        mssg = 'Size of the stat file and the number of requested domains do &
         &not match. It is very likely that the domain ranges were modified and a &
         &restart requested. This approach is not supported, as the stream sizes and &
         &boundaries will get corrupted. Please set up a completely new job.'
@@ -389,16 +391,24 @@ If (rank_mpi == 0) THEN
     CALL add_leaf_to_branch(meta_para, "No of mesh parts per subdomain", 1_ik           , [parts]) 
     CALL add_leaf_to_branch(meta_para, "Output Format"                 , len(output)    , str_to_char(output)) 
     
-    CALL add_leaf_to_branch(meta_para, "Average strain on RVE"         , 1_ik           , [strain])    
-    CALL add_leaf_to_branch(meta_para, "Young_s modulus"               , 1_ik           , [bone%E]) 
-    CALL add_leaf_to_branch(meta_para, "Poisson_s ratio"               , 1_ik           , [bone%nu]) 
-    CALL add_leaf_to_branch(meta_para, "Element order on macro scale"  , 1_ik           , [elo_macro]) 
+    CALL add_leaf_to_branch(meta_para, "Average strain on RVE"         , 1_ik, [strain])    
+    CALL add_leaf_to_branch(meta_para, "Young_s modulus"               , 1_ik, [bone%E]) 
+    CALL add_leaf_to_branch(meta_para, "Poisson_s ratio"               , 1_ik, [bone%nu]) 
+    CALL add_leaf_to_branch(meta_para, "Element order on macro scale"  , 1_ik, [elo_macro]) 
     CALL add_leaf_to_branch(meta_para, "Output amount"                 , len(out_amount), str_to_char(out_amount)) 
     
-    CALL add_leaf_to_branch(meta_para, "Restart"                       , 1_ik           , str_to_char(restart)) 
-    CALL add_leaf_to_branch(meta_para, "Number of voxels per direction", 3_ik           , vdim) 
+    CALL add_leaf_to_branch(meta_para, "Restart"                       , len(restart) , str_to_char(restart)) 
+    CALL add_leaf_to_branch(meta_para, "Number of voxels per direction", 3_ik , vdim) 
 
     CALL add_leaf_to_branch(meta_para, "Domains per communicator", 1_ik, [domains_per_comm]) 
+
+    ! SELECT CASE(typeraw)
+    !     CASE('ik1'); raw_data_stream = 1_ik
+    !     CASE('ik2'); raw_data_stream = 2_ik
+    !     CASE('ik4'); raw_data_stream = 4_ik
+    ! END SELECT
+
+    CALL add_leaf_to_branch(meta_para, "Raw data stream" , len(typeraw), str_to_char(typeraw)) 
 
     !------------------------------------------------------------------------------
     ! Prepare output directory via CALLing the c function.
@@ -539,7 +549,7 @@ If (rank_mpi == 0) THEN
         !------------------------------------------------------------------------------
         IF ((stint_exists) .AND. (.NOT. create_new_header)) THEN
             mssg = "No restart requested, but the file '"&
-                //TRIM(out%p_n_bsnm)//".stintus' already exists."
+                //TRIM(out%p_n_bsnm)//".stat' already exists."
             CALL print_err_stop_slaves(mssg, "warning"); GOTO 1000
         END IF 
 
@@ -894,14 +904,14 @@ End If
 ! Call Open_Stream_Files(root%streams, "write", "new", fh_mpi_root, WRITE_ROOT_COMM)
 
 !------------------------------------------------------------------------------
-! All Ranks -- Init MPI request and stintus lists
+! All Ranks -- Init MPI request and stat lists
 !------------------------------------------------------------------------------
 Allocate(req_list(size_mpi-1), stat=alloc_stint)
 CALL alloc_err("req_list", alloc_stint)
 req_list=0
 
-Allocate(stintuses_mpi(MPI_STATUS_SIZE, size_mpi-1), stat=alloc_stint)
-CALL alloc_err("stintuses_mpi", alloc_stint)
+Allocate(states_mpi(MPI_STATUS_SIZE, size_mpi-1), stat=alloc_stint)
+CALL alloc_err("states_mpi", alloc_stint)
 
 !------------------------------------------------------------------------------
 ! Global Rank 0 -- Process master Start working process
@@ -959,7 +969,7 @@ If (rank_mpi==0) Then
 
     End Do
 
-    Call MPI_WAITANY(size_mpi-1_mik, req_list, finished, stintus_mpi, ierr)
+    Call MPI_WAITANY(size_mpi-1_mik, req_list, finished, stat_mpi, ierr)
     CALL print_err_stop(std_out, &
         "MPI_WAITANY on req_list for IRECV of Activity(mii) didn't succeed", INT(ierr, ik))
 
@@ -1020,7 +1030,7 @@ If (rank_mpi==0) Then
         ! Only the master worker is allowed to send a 'finished' flag. 
         ! Otherwise, index mii will screw up.
         !------------------------------------------------------------------------------
-        CALL MPI_WAITANY(size_mpi-1_mik, req_list, finished, stintus_mpi, ierr)
+        CALL MPI_WAITANY(size_mpi-1_mik, req_list, finished, stat_mpi, ierr)
         CALL print_err_stop(std_out, &
         "MPI_WAITANY on req_list for IRECV of worker_is_active(mii) didn't succeed", ierr)
 
@@ -1056,7 +1066,7 @@ If (rank_mpi==0) Then
     !------------------------------------------------------------------------------
     ! Wait for all workers to return
     !------------------------------------------------------------------------------
-    CALL MPI_WAITALL(size_mpi-1_mik, req_list, stintuses_mpi, ierr)
+    CALL MPI_WAITALL(size_mpi-1_mik, req_list, states_mpi, ierr)
     CALL print_err_stop(std_out, &
         "MPI_WAITALL on req_list for IRECV of worker_is_active(ii) didn't succeed", ierr)
 
@@ -1168,15 +1178,15 @@ Else
         !------------------------------------------------------------------------------
         CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
             Int(root%branches(3)%leaves(1)%lbound-1+(domains_per_comm-1), MPI_OFFSET_KIND), &
-            INT(Domain, ik), 1_pd_mik, MPI_INTEGER8, stintus_mpi, ierr)
+            INT(Domain, ik), 1_pd_mik, MPI_INTEGER8, stat_mpi, ierr)
         CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
             Int(root%branches(3)%leaves(19)%lbound-1+(domains_per_comm-1), MPI_OFFSET_KIND), &
-            1_rk, 1_pd_mik, MPI_REAL8, stintus_mpi, ierr)
+            1_rk, 1_pd_mik, MPI_REAL8, stat_mpi, ierr)
 
         !------------------------------------------------------------------------------
         ! Start workers
         !------------------------------------------------------------------------------
-        CALL MPI_RECV(active, 1_mik, MPI_INTEGER4, 0_mik, rank_mpi, MPI_COMM_WORLD, stintus_mpi, ierr)
+        CALL MPI_RECV(active, 1_mik, MPI_INTEGER4, 0_mik, rank_mpi, MPI_COMM_WORLD, stat_mpi, ierr)
         CALL print_err_stop(std_out, "MPI_RECV on Active didn't succseed", ierr)
 
         !------------------------------------------------------------------------------
@@ -1188,13 +1198,13 @@ Else
         ! Receive domain numbers
         !------------------------------------------------------------------------------
 
-        CALL mpi_recv(nn, 1_mik, MPI_INTEGER8, 0_mik, rank_mpi, MPI_COMM_WORLD, stintus_mpi, ierr)
+        CALL mpi_recv(nn, 1_mik, MPI_INTEGER8, 0_mik, rank_mpi, MPI_COMM_WORLD, stat_mpi, ierr)
         CALL print_err_stop(std_out, "MPI_RECV on Domain didn't succeed", ierr)
 
         Domain = Domains(nn)
 
         !------------------------------------------------------------------------------
-        ! Only compute the domain if it was not yet (entry in stintus file = -999)
+        ! Only compute the domain if it was not yet (entry in stat file = -999)
         !------------------------------------------------------------------------------
         IF (Domain_stints(nn) < 0) THEN
 
@@ -1202,7 +1212,7 @@ Else
                 !------------------------------------------------------------------------------
                 ! Receive Job_Dir
                 !------------------------------------------------------------------------------
-                CALL mpi_recv(job_dir, 4_mik*int(mcl,mik), mpi_character, 0_mik, rank_mpi, MPI_COMM_WORLD, stintus_mpi, ierr)
+                CALL mpi_recv(job_dir, 4_mik*int(mcl,mik), mpi_character, 0_mik, rank_mpi, MPI_COMM_WORLD, stat_mpi, ierr)
                 CALL print_err_stop(std_out, "MPI_RECV on Domain path didn't succeed", ierr)
             ELSE
                 job_dir = outpath
@@ -1261,7 +1271,7 @@ Else
                 ! Store activity information
                 !------------------------------------------------------------------------------
                 Call MPI_FILE_WRITE_AT(aun, INT(((nn-1) * ik), MPI_OFFSET_KIND), &
-                    Domain, 1_mik, MPI_INTEGER8, stintus_mpi, ierr)
+                    Domain, 1_mik, MPI_INTEGER8, stat_mpi, ierr)
 
                 !------------------------------------------------------------------------------
                 ! Deallocate results of this domain. Potential memory leak.
@@ -1275,7 +1285,7 @@ Else
             !------------------------------------------------------------------------------
             CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
                 INT(root%branches(3)%leaves(1)%lbound-1+(domains_per_comm-1-1), MPI_OFFSET_KIND), &
-                INT(comm_nn, ik), 1_mik, MPI_INTEGER8, stintus_mpi, ierr)
+                INT(comm_nn, ik), 1_mik, MPI_INTEGER8, stat_mpi, ierr)
 
             !------------------------------------------------------------------------------
             ! Increment linear domain counter of the PETSc sub_comm instances
@@ -1295,7 +1305,7 @@ Else
         CALL MPI_ISEND(active, 1_mik, MPI_INTEGER4, 0_mik, rank_mpi, MPI_COMM_WORLD, request, ierr)
         CALL print_err_stop(std_out, "MPI_ISEND on Active didn't succeed", ierr)
 
-        CALL MPI_WAIT(request, stintus_mpi, ierr)
+        CALL MPI_WAIT(request, stat_mpi, ierr)
         CALL print_err_stop(std_out, "MPI_WAIT on request for ISEND Active didn't succeed", ierr)
 
     End Do

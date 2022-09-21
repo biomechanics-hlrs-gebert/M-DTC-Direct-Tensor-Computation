@@ -12,6 +12,8 @@ Module gen_geometry
 
 Use vtkio             
 Use gen_quadmesh
+Use vtk_meta_data
+Use ser_binary
 Use write_deck
 
 Implicit None
@@ -20,47 +22,49 @@ Contains
 
 Subroutine generate_geometry(root, ddc_nn, job_dir, glob_success)
 
-Type(tBranch), Intent(InOut) :: root
-Character(LEN=*), Intent(in) :: job_dir
-integer(Kind=ik), Intent(in) :: ddc_nn
-Logical, Intent(Out) :: glob_success
-    
-! Chain Variables
-Character(Len=*), Parameter :: link_name = 'gen_quadmesh'
+    Type(tBranch), Intent(InOut) :: root
+    Character(LEN=*), Intent(in) :: job_dir
+    integer(Kind=ik), Intent(in) :: ddc_nn
+    Logical, Intent(Out) :: glob_success
+        
+    ! Chain Variables
+    Character(Len=*), Parameter :: link_name = 'gen_quadmesh'
 
-! Puredat Variables
-Type(tBranch) :: phi_desc
+    ! Puredat Variables
+    Type(tBranch) :: phi_desc
 
-! Decomp Variables 
-Type(tBranch), Pointer :: loc_ddc, ddc, bounds_b
+    ! Decomp Variables 
+    Type(tBranch), Pointer :: loc_ddc, ddc, bounds_b
 
-! Branch pointers
-Type(tBranch), Pointer :: meta_para, domain_branch
+    ! Branch pointers
+    Type(tBranch), Pointer :: meta_para, domain_branch
 
-! Mesh Variables 
-Real(Kind=rk)    , Dimension(:,:) , Allocatable :: nodes, displ
-Integer(Kind=ik) , Dimension(:)   , Allocatable :: elem_col,node_col, cref
-Integer(Kind=ik) , Dimension(:,:) , Allocatable :: elems
-Character(Len=mcl) :: elt_micro, desc, filename
-Integer(Kind=ik)   :: elo_macro,alloc_stat
-! Parted Mesh -
-Type(tBranch), Pointer :: PMesh
-INTEGER(kind=ik)       :: parts
+    ! Mesh Variables 
+    Real(Kind=rk)    , Dimension(:,:) , Allocatable :: nodes, displ
+    Integer(Kind=ik) , Dimension(:)   , Allocatable :: elem_col,node_col, cref
+    Integer(Kind=ik) , Dimension(:,:) , Allocatable :: elems
+    Character(Len=mcl) :: elt_micro, desc, filename
+    Character(Len=scl) :: typeraw
+    Integer(Kind=ik)   :: elo_macro,alloc_stat
+    ! Parted Mesh -
+    Type(tBranch), Pointer :: PMesh
+    INTEGER(kind=ik):: parts, multiplier
 
-!------------------------------------------------------------------------
-Integer(Kind=4)  , Dimension(:,:,:), Allocatable :: Phi
+    !------------------------------------------------------------------------
+    Integer(Kind=1), Dimension(:,:,:), Allocatable :: Phi_ik1
+    Integer(Kind=2), Dimension(:,:,:), Allocatable :: Phi_ik2
+    Integer(Kind=4), Dimension(:,:,:), Allocatable :: Phi_ik4
 
-Integer(Kind=ik) :: llimit, no_nodes=0, no_elems=0
+    Integer(Kind=ik) :: llimit, no_nodes=0, no_elems=0
 
-Character(len=*), Parameter :: inpsep = "('#',79('='))"
+    Character(len=*), Parameter :: inpsep = "('#',79('='))"
 
-Character      , Dimension(:), Allocatable :: char_arr
-Real(Kind=rk)  , Dimension(:), Allocatable :: delta
-Integer(kind=4), Dimension(:), Allocatable :: vdim
-Integer(kind=8), Dimension(:), Allocatable :: bpoints,x_D,nn_D
+    Character      , Dimension(:), Allocatable :: char_arr
+    Real(Kind=rk)  , Dimension(:), Allocatable :: delta
+    Integer(kind=8), Dimension(:), Allocatable :: bpoints,x_D,nn_D, vdim
     Integer(kind=8), Dimension(3) :: xa_n, xe_n, xa_n_ext, xe_n_ext
     Integer(kind=8) :: nn_1,nn_2,nn_3, ii,jj
-    Integer(kind=8) :: pos_f
+    Integer(kind=8) :: pos_f, first_bytes
 
     Logical :: success
     
@@ -85,13 +89,13 @@ Integer(kind=8), Dimension(:), Allocatable :: bpoints,x_D,nn_D
     nn_2 = INT(( ddc_nn - nn_D(1)*nn_D(2)*nn_3 ) / ( nn_D(1) ))
     nn_1 = ( ddc_nn - nn_D(1)*nn_D(2)*nn_3 - nn_D(1)*nn_2 )
 
-    xa_n = [x_D(1) * nn_1 + bpoints(1) + 1, &
-            x_D(2) * nn_2 + bpoints(2) + 1, &
-            x_D(3) * nn_3 + bpoints(3) + 1  ]
+    xa_n = [x_D(1) * nn_1 + 1, &
+            x_D(2) * nn_2 + 1, &
+            x_D(3) * nn_3 + 1  ]
 
-    xe_n = [x_D(1) * (nn_1 + 1) + bpoints(1), &
-            x_D(2) * (nn_2 + 1) + bpoints(2), & 
-            x_D(3) * (nn_3 + 1) + bpoints(3)  ] 
+    xe_n = [x_D(1) * (nn_1 + 1), &
+            x_D(2) * (nn_2 + 1), & 
+            x_D(3) * (nn_3 + 1)  ] 
 
     xa_n_ext = xa_n - bpoints
     xe_n_ext = xe_n + bpoints
@@ -138,51 +142,93 @@ Integer(kind=8), Dimension(:), Allocatable :: bpoints,x_D,nn_D
     End Select
 
     !----------------------------------------------------------------------------
-    Call pd_get(root%branches(1),"muCT puredat pro_path",char_arr)
+    ! Load branch
+    !----------------------------------------------------------------------------
+    Call Search_branch("Input parameters", root, meta_para, success)
+
+    Call pd_get(meta_para,"muCT puredat pro_path",char_arr)
 
     pro_path = char_to_str(char_arr)
     deallocate(char_arr)
     
-    Call pd_get(root%branches(1),"muCT puredat pro_name",char_arr)
+    Call pd_get(meta_para,"muCT puredat pro_name",char_arr)
 
     pro_name = char_to_str(char_arr)
     deallocate(char_arr)
 
-    phi_desc = read_tree()
 
-    call open_stream_files(phi_desc, "read" , "old")
 
-    call pd_load_leaf(phi_desc%streams, phi_desc, "Grid spacings", delta)  
-    call pd_load_leaf(phi_desc%streams, phi_desc, "Number of voxels per direction", vdim)
+    call pd_get(meta_para, "Grid spacings", delta)  
+    Call pd_get(meta_para,"Number of voxels per direction",vdim)
+
+    Call pd_get(root%branches(1),"Raw data stream",char_arr)
+! 
+    typeraw = char_to_str(char_arr)
+    deallocate(char_arr)
 
     if ( out_amount /= "PRODUCTION" ) then
        write(un_lf,FMT_MSG_AxF0) "Grid spacings", delta
        write(un_lf,FMT_MSG_AxI0) "Number of voxels per direction", vdim
     End if
-    
-    allocate(Phi(xa_n(1):xe_n(1), xa_n(2):xe_n(2), xa_n(3):xe_n(3)), stat=alloc_stat)
 
-    call alloc_err("phi", alloc_stat)
+    
+    !----------------------------------------------------------------------------
+    ! Open raw data streams
+    !----------------------------------------------------------------------------
+    phi_desc = read_tree()
+
+    call open_stream_files(phi_desc, "read" , "old")
 
     !----------------------------------------------------------------------------
     ! Read PHI (scalar binary values) from file
     !----------------------------------------------------------------------------
+    SELECT CASE(TRIM(ADJUSTL(typeraw)))
+    CASE('ik1')
+        multiplier = 1_ik
+        allocate(Phi_ik1(xa_n(1):xe_n(1), xa_n(2):xe_n(2), xa_n(3):xe_n(3)), stat=alloc_stat)
+    CASE('ik2')
+        multiplier = 2_ik
+        allocate(Phi_ik2(xa_n(1):xe_n(1), xa_n(2):xe_n(2), xa_n(3):xe_n(3)), stat=alloc_stat)
+    CASE('ik4')
+        multiplier = 4_ik
+        allocate(Phi_ik4(xa_n(1):xe_n(1), xa_n(2):xe_n(2), xa_n(3):xe_n(3)), stat=alloc_stat)
+    END SELECT
+
+
+    call alloc_err("phi", alloc_stat)
+
+    DO ii=1, phi_desc%no_leaves
+        IF (TRIM(phi_desc%leaves(ii)%desc) == "Scalar data") THEN
+            first_bytes = INT(phi_desc%leaves(ii)%lbound, 8)
+            EXIT
+        END IF 
+    END DO 
+
     Do jj = xa_n(3), xe_n(3)
        Do ii = xa_n(2), xe_n(2)
 
-          pos_f=INT((INT(vdim(1)*vdim(2)*(jj - 1_8), 8) + &
-               INT(vdim(1)*        (ii       - 1_8), 8) + &
-               INT(                (xa_n(1)  - 1_8), 8) + &
-               INT(phi_desc%leaves(6)%lbound,8)         - &
-               1_8) * 4_8 + 1_8, 8)
+            pos_f = INT((INT(vdim(1)*vdim(2)*(jj         - 1_8), 8) + &
+                         INT(vdim(1)*        (ii         - 1_8), 8) + &
+                         INT(                (xa_n(1)    - 1_8), 8) + &
+                         first_bytes - 1_8) * multiplier + 1_8 , 8)
 
-          Read(phi_desc%streams%units(3),pos=pos_f) Phi(:,ii,jj)
-       End Do
+
+            !----------------------------------------------------------------------------
+            ! 'filehandles' is a pretty dumb workaround. But ...Intent(inout) :: tree
+            ! in open_stream_files did (21.09.2022) not work. The units of the files
+            ! of the streams were missing.
+            !----------------------------------------------------------------------------
+            SELECT CASE(TRIM(ADJUSTL(typeraw)))
+                CASE('ik1'); Read(filehandles(1), pos=pos_f) Phi_ik1(:,ii,jj)
+                CASE('ik2'); Read(filehandles(2), pos=pos_f) Phi_ik2(:,ii,jj)
+                CASE('ik4'); Read(filehandles(3), pos=pos_f) Phi_ik4(:,ii,jj)
+            END SELECT
+
+        End Do
     End Do
 
     call close_stream_files(phi_desc)
-
-    ! phi = 15000.
+ 
    
     Select Case (timer_level)
     Case (3)
@@ -205,9 +251,21 @@ Integer(kind=8), Dimension(:), Allocatable :: bpoints,x_D,nn_D
     ! Get global DDC parameters from root
     !------------------------------------------------------------------------------
     Call Search_branch("Global domain decomposition", root, ddc, success)
+    
+    SELECT CASE(TRIM(ADJUSTL(typeraw)))
+        CASE('ik1')
+            call gen_quadmesh_from_phi(delta, ddc, loc_ddc, llimit, elt_micro, &
+             nodes, elems, node_col, elem_col, no_nodes, no_elems, typeraw, phi_ik1=Phi_ik1)
 
-    call gen_quadmesh_from_phi(phi, delta, ddc, loc_ddc, llimit, elt_micro, &
-         nodes, elems, node_col, elem_col, no_nodes, no_elems)
+        CASE('ik2')
+            call gen_quadmesh_from_phi(delta, ddc, loc_ddc, llimit, elt_micro, &
+             nodes, elems, node_col, elem_col, no_nodes, no_elems, typeraw, phi_ik2=Phi_ik2)
+
+        CASE('ik4')
+            call gen_quadmesh_from_phi(delta, ddc, loc_ddc, llimit, elt_micro, &
+             nodes, elems, node_col, elem_col, no_nodes, no_elems, typeraw, phi_ik4=Phi_ik4)
+
+    END SELECT
 
     If (out_amount == "DEBUG") THEN
        Write(un_lf, fmt_dbg_sep)
@@ -226,20 +284,36 @@ Integer(kind=8), Dimension(:), Allocatable :: bpoints,x_D,nn_D
        !------------------------------------------------------------------------------
        ! Write structured points 
        !------------------------------------------------------------------------------
-        call write_vtk_structured_points(filename = trim(filename),  &
-            extend = x_D, spacing = delta, &
-            origin = (Real(xa_n,rk)-[0.5_rk,0.5_rk,0.5_rk])*delta)
-       !------------------------------------------------------------------------------
-       ! Write data to vtk file 
-       !------------------------------------------------------------------------------
-       call write_vtk_data_int4_scalar_1D(&
-            matrix = reshape(phi,[x_D(1)*x_D(2)*x_D(3)]), &
-            filename = trim(filename),  &
-            desc = "PHI", head = .TRUE.)
+        SELECT CASE(TRIM(ADJUSTL(typeraw)))
+            CASE('ik1')
+                CALL write_ser_vtk(filename, typeraw, delta, x_D, &
+                    (Real(xa_n,rk)-[0.5_rk,0.5_rk,0.5_rk])*delta, Phi_ik1)
+            CASE('ik2')
+                CALL write_ser_vtk(filename, typeraw, delta, x_D, &
+                    (Real(xa_n,rk)-[0.5_rk,0.5_rk,0.5_rk])*delta, Phi_ik2)
+            CASE('ik4')
+                CALL write_ser_vtk(filename, typeraw, delta, x_D, &
+                    (Real(xa_n,rk)-[0.5_rk,0.5_rk,0.5_rk])*delta, Phi_ik4)
+        END SELECT
+
+
+    !     call write_vtk_structured_points(filename = trim(filename),  &
+    !         extend = x_D, spacing = delta, &
+    !         origin = (Real(xa_n,rk)-[0.5_rk,0.5_rk,0.5_rk])*delta)
+    !    !------------------------------------------------------------------------------
+    !    ! Write data to vtk file 
+    !    !------------------------------------------------------------------------------
+    !    call write_vtk_data_int4_scalar_1D(&
+    !         matrix = reshape(phi,[x_D(1)*x_D(2)*x_D(3)]), &
+    !         filename = trim(filename),  &
+    !         desc = "PHI", head = .TRUE.)
     End if
 
-    Deallocate(Phi,stat=alloc_stat)
-    call alloc_err("phi",alloc_stat)
+    SELECT CASE(TRIM(ADJUSTL(typeraw)))
+        CASE('ik1'); Deallocate(Phi_ik1)
+        CASE('ik2'); Deallocate(Phi_ik2)
+        CASE('ik4'); Deallocate(Phi_ik4)
+    END SELECT
 
     !------------------------------------------------------------------------------
     ! Break if no structure is generated
@@ -288,7 +362,6 @@ Integer(kind=8), Dimension(:), Allocatable :: bpoints,x_D,nn_D
        !close(un_abq)
     End if
     
-    Call Search_branch("Input parameters", root, meta_para, success)
     call pd_get(meta_para,"No of mesh parts per subdomain", parts)
     Call pd_get(meta_para,'Element order on macro scale', elo_macro)
     

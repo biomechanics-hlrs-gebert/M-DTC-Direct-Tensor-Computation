@@ -279,9 +279,9 @@ contains
   subroutine write_vtk_structured_points(filename, &
        extend, spacing, origin)
 
-    character(len=*)                  , intent(in) :: filename
-    Real(kind=rk)   , Dimension(3)    , intent(in) :: spacing,origin
-    integer(kind=ik), Dimension(3)    , intent(in) :: extend
+    character(len=*)              , intent(in) :: filename
+    Real(kind=rk)   , Dimension(3), intent(in) :: spacing,origin
+    integer(kind=ik), Dimension(3), intent(in) :: extend
 
     integer(kind=4)                  :: un_out
 
@@ -302,7 +302,7 @@ contains
   !> Subroutine which writes a head for a vtk binary file
   subroutine write_vtk_head(un_out)
 
-    integer(kind=4)                           , intent(in) :: un_out
+    integer(kind=4), intent(in) :: un_out
 
     write(un_out) '# vtk DataFile Version 3.0',achar(10)
     write(un_out) 'vtk output',achar(10)
@@ -314,13 +314,13 @@ contains
   !> Subroutine which writes a head for vtk binary data output
   subroutine write_data_head(filename, size_matrix, location)
 
-    character(len=*)          , intent(in) :: filename
-    integer(kind=ik)          , intent(in) :: size_matrix
+    character(len=*), intent(in) :: filename
+    integer(kind=ik), intent(in) :: size_matrix
     character(len=*), optional, intent(in) :: location
         
-    integer(kind=4)                        :: un_out
-    character(len=hcl)                     :: tmp_pointdata
-    character(len=10)                      :: loc_location
+    integer(kind=4)    :: un_out
+    character(len=hcl) :: tmp_pointdata
+    character(len=10)  :: loc_location
     
     if (present(location)) then
        loc_location = trim(location)
@@ -355,9 +355,9 @@ contains
   subroutine write_vtk_structured_points_head(un_out,  extend, &
        spacing, origin   ) 
 
-    integer(kind=4)                   , intent(in) :: un_out
-    Real(kind=rk)   , Dimension(3)    , intent(in) :: spacing,origin
-    integer(kind=ik), Dimension(3)    , intent(in) :: extend
+    integer(kind=4), intent(in) :: un_out
+    Real(kind=rk)   , Dimension(3), intent(in) :: spacing,origin
+    integer(kind=ik), Dimension(3), intent(in) :: extend
 
     character(len=hcl)               :: tmp_line, tmp_origin,tmp_real
 
@@ -411,17 +411,17 @@ contains
   !> Subroutine which writes vtk scalar data from a 1D int4 matrix
   subroutine write_vtk_data_int4_scalar_1D (matrix, filename, desc, head, location)
 
-    Integer(kind=4) , Dimension(:)            , intent(in) :: matrix
-    character(len=*)                          , intent(in) :: filename
-    character(len=*), optional                , intent(in) :: desc
-    Logical         , optional                , intent(in) :: head
-    character(len=*), optional                , intent(in) :: location
+    Integer(kind=4) , Dimension(:), intent(in) :: matrix
+    character(len=*)              , intent(in) :: filename
+    character(len=*), optional    , intent(in) :: desc
+    Logical         , optional    , intent(in) :: head
+    character(len=*), optional    , intent(in) :: location
 
-    character(len=hcl)               :: tmp_pointdata
-    character(len=12)                :: loc_desc
-    integer(kind=4)                  :: un_out
-    logical                          :: loc_head
-    character(len=10)                :: loc_location
+    character(len=hcl) :: tmp_pointdata
+    character(len=12)  :: loc_desc
+    integer(kind=4)    :: un_out
+    logical            :: loc_head
+    character(len=10)  :: loc_location
 
     if (present(head)) then
        loc_head = head
@@ -481,17 +481,17 @@ contains
   !> Subroutine which writes vtk scalar data from a 1D int4 matrix
   subroutine write_vtk_data_int8_scalar_1D (matrix, filename, desc, head,location)
 
-    Integer(kind=8) , Dimension(:)            , intent(in) :: matrix
-    character(len=*)                          , intent(in) :: filename
-    character(len=*), optional                , intent(in) :: desc
-    Logical         , optional                , intent(in) :: head
-    character(len=*), optional                , intent(in) :: location
+    Integer(kind=8) , Dimension(:), intent(in) :: matrix
+    character(len=*)              , intent(in) :: filename
+    character(len=*), optional    , intent(in) :: desc
+    Logical         , optional    , intent(in) :: head
+    character(len=*), optional    , intent(in) :: location
 
-    character(len=hcl)               :: tmp_pointdata
-    character(len=12)                :: loc_desc
-    integer(kind=4)                  :: un_out
-    logical                          :: loc_head
-    character(len=10)                :: loc_location
+    character(len=hcl) :: tmp_pointdata
+    character(len=12)  :: loc_desc
+    integer(kind=4)    :: un_out
+    logical            :: loc_head
+    character(len=10)  :: loc_location
 
     if (present(head)) then
        loc_head = head

@@ -91,7 +91,7 @@ std_out = 6 ! determine_stout()
 !------------------------------------------------------------------------------
 IF(std_out/=6) CALL meta_start_ascii(std_out, '.std_out')
 
-CALL show_title(["Johannes Gebert, M.Sc. (HLRS, NUM) "], "Crawl Tensors of DTC")
+CALL show_title(["Johannes Gebert, M.Sc. (HLRS, NUM) "])
 
 !------------------------------------------------------------------------------
 ! Parse input
