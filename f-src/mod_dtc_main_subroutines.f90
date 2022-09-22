@@ -93,11 +93,11 @@ logical :: success
 Type(tBranch), pointer :: boundary_branch, domain_branch, part_branch
 Type(tBranch), pointer :: mesh_branch, meta_para, esd_result_branch
 
-Type(tMat)                :: AA, AA_org
-Type(tVec)                :: XX
 Type(tVec), Dimension(24) :: FF
 TYPE(tPETScViewer)        :: PetscViewer
-Type(tKSP)                :: KSP
+Type(tMat) :: AA, AA_org
+Type(tVec) :: XX
+Type(tKSP) :: KSP
 
 INTEGER(ik), Dimension(60)    :: idxm_20, idxn_20
 Real(rk),    Dimension(60,60) :: K_loc_20
@@ -108,7 +108,7 @@ Real(rk),    Dimension(24,24) :: K_loc_08
 ! Init worker_is_active status
 Active = 0_mik
 
-write(domain_char,'(I0)') domain
+write(domain_char,'(I12)') domain
 
 !--------------------------------------------------------------------------
 ! Get basic infos 
