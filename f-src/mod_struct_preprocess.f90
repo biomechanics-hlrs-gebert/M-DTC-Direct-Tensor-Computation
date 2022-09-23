@@ -23,12 +23,12 @@ Contains
 Subroutine generate_geometry(root, ddc_nn, job_dir, glob_success)
 
     Type(tBranch), Intent(InOut) :: root
-    Character(LEN=*), Intent(in) :: job_dir
-    integer(Kind=ik), Intent(in) :: ddc_nn
+    Character(*), Intent(in) :: job_dir
+    integer(ik), Intent(in) :: ddc_nn
     Logical, Intent(Out) :: glob_success
         
     ! Chain Variables
-    Character(Len=*), Parameter :: link_name = 'gen_quadmesh'
+    Character(*), Parameter :: link_name = 'gen_quadmesh'
 
     ! Puredat Variables
     Type(tBranch) :: phi_desc
@@ -40,35 +40,32 @@ Subroutine generate_geometry(root, ddc_nn, job_dir, glob_success)
     Type(tBranch), Pointer :: meta_para, domain_branch
 
     ! Mesh Variables 
-    Real(Kind=rk)    , Dimension(:,:) , Allocatable :: nodes, displ
-    Integer(Kind=ik) , Dimension(:)   , Allocatable :: elem_col,node_col, cref
-    Integer(Kind=ik) , Dimension(:,:) , Allocatable :: elems
-    Character(Len=mcl) :: elt_micro, desc, filename
-    Character(Len=scl) :: typeraw
-    Integer(Kind=ik)   :: elo_macro,alloc_stat
+    Real(rk)    , Dimension(:,:) , Allocatable :: nodes, displ
+    Integer(ik) , Dimension(:)   , Allocatable :: elem_col,node_col, cref
+    Integer(ik) , Dimension(:,:) , Allocatable :: elems
+    Character(mcl) :: elt_micro, desc, filename
+    Character(scl) :: typeraw, restart
+    Integer(ik)   :: elo_macro,alloc_stat
+    
     ! Parted Mesh -
     Type(tBranch), Pointer :: PMesh
-    INTEGER(kind=ik):: parts, multiplier
+    INTEGER(ik):: parts, multiplier
 
-    !------------------------------------------------------------------------
-    Integer(Kind=1), Dimension(:,:,:), Allocatable :: Phi_ik1
-    Integer(Kind=2), Dimension(:,:,:), Allocatable :: Phi_ik2
-    Integer(Kind=4), Dimension(:,:,:), Allocatable :: Phi_ik4
+    Integer(1), Dimension(:,:,:), Allocatable :: Phi_ik1
+    Integer(2), Dimension(:,:,:), Allocatable :: Phi_ik2
+    Integer(4), Dimension(:,:,:), Allocatable :: Phi_ik4
 
-    Integer(Kind=ik) :: llimit, no_nodes=0, no_elems=0
+    Character(*), Parameter :: inpsep = "('#',79('='))"
 
-    Character(len=*), Parameter :: inpsep = "('#',79('='))"
+    Character, Dimension(:), Allocatable :: char_arr
+    Real(rk) , Dimension(:), Allocatable :: delta
+    Integer(ik), Dimension(:), Allocatable :: bpoints,x_D,nn_D, vdim
+    Integer(ik), Dimension(3) :: xa_n, xe_n, xa_n_ext, xe_n_ext
+    Integer(ik) :: nn_1,nn_2,nn_3, ii,jj, pos_f, first_bytes, llimit, no_nodes=0, no_elems=0
 
-    Character      , Dimension(:), Allocatable :: char_arr
-    Real(Kind=rk)  , Dimension(:), Allocatable :: delta
-    Integer(kind=8), Dimension(:), Allocatable :: bpoints,x_D,nn_D, vdim
-    Integer(kind=8), Dimension(3) :: xa_n, xe_n, xa_n_ext, xe_n_ext
-    Integer(kind=8) :: nn_1,nn_2,nn_3, ii,jj
-    Integer(kind=8) :: pos_f, first_bytes
-
-    Logical :: success
+    Logical :: success, fex
     
-    Character(len=9) :: nn_char
+    Character(9) :: nn_char
 
     write(nn_char,'(I0)')ddc_nn
     glob_success = .TRUE.
@@ -89,13 +86,22 @@ Subroutine generate_geometry(root, ddc_nn, job_dir, glob_success)
     nn_2 = INT(( ddc_nn - nn_D(1)*nn_D(2)*nn_3 ) / ( nn_D(1) ))
     nn_1 = ( ddc_nn - nn_D(1)*nn_D(2)*nn_3 - nn_D(1)*nn_2 )
 
-    xa_n = [x_D(1) * nn_1 + 1, &
-            x_D(2) * nn_2 + 1, &
-            x_D(3) * nn_3 + 1  ]
+    ! xa_n = [x_D(1) * nn_1 + 1, &
+    !         x_D(2) * nn_2 + 1, &
+    !         x_D(3) * nn_3 + 1  ]
 
-    xe_n = [x_D(1) * (nn_1 + 1), &
-            x_D(2) * (nn_2 + 1), & 
-            x_D(3) * (nn_3 + 1)  ] 
+    ! xe_n = [x_D(1) * (nn_1 + 1), &
+    !         x_D(2) * (nn_2 + 1), & 
+    !         x_D(3) * (nn_3 + 1)  ] 
+
+
+    xa_n = [x_D(1) * nn_1 + bpoints(1) + 1, &
+            x_D(2) * nn_2 + bpoints(2) + 1, &
+            x_D(3) * nn_3 + bpoints(3) + 1  ]
+
+    xe_n = [x_D(1) * (nn_1 + 1) + bpoints(1), &
+            x_D(2) * (nn_2 + 1) + bpoints(2), & 
+            x_D(3) * (nn_3 + 1) + bpoints(3)  ] 
 
     xa_n_ext = xa_n - bpoints
     xe_n_ext = xe_n + bpoints
@@ -155,8 +161,6 @@ Subroutine generate_geometry(root, ddc_nn, job_dir, glob_success)
 
     pro_name = char_to_str(char_arr)
     deallocate(char_arr)
-
-
 
     call pd_get(meta_para, "Grid spacings", delta)  
     Call pd_get(meta_para,"Number of voxels per direction",vdim)
@@ -281,6 +285,25 @@ Subroutine generate_geometry(root, ddc_nn, job_dir, glob_success)
 
        filename=''
        write(filename,'(A,I0,A)')trim(job_dir)//trim(project_name)//"_",ddc_nn,"_phi.vtk"
+
+
+       !------------------------------------------------------------------------------
+       ! Check existance of vtk file 
+       !------------------------------------------------------------------------------
+       Call pd_get(root%branches(1), 'Restart', char_arr)
+       restart = char_to_str(char_arr)
+       deallocate(char_arr)
+
+
+       INQUIRE(FILE=TRIM(filename), EXIST=fex)
+
+        IF((fex) .AND. ((restart=="Y") .OR. (restart=="YES"))) THEN
+            CALL execute_command_line("rm -r "//TRIM(filename))
+        ELSE IF ((fex).AND. ((restart=="N") .OR. (restart=="NO"))) THEN
+            CALL print_err_stop(std_out, TRIM(filename)//" already exists and &
+                &restart -> No", 1)
+        END IF 
+
        !------------------------------------------------------------------------------
        ! Write structured points 
        !------------------------------------------------------------------------------
@@ -400,7 +423,7 @@ Subroutine generate_geometry(root, ddc_nn, job_dir, glob_success)
        
        Do ii = 1, parts
 
-          Call Search_branch("Boundaries_"//trim(nn_char)//"_1",&
+          Call Search_branch("Boundaries_"//trim(adjustl(nn_char))//"_1",&
              PMesh%branches(ii),bounds_b, success)
 
           allocate(cref( &
@@ -465,21 +488,17 @@ Subroutine generate_geometry(root, ddc_nn, job_dir, glob_success)
 
     Type(tBranch), Pointer             :: part_b, bounds_b
     
-    Real(Kind=rk)     , Dimension(:), Allocatable :: dim_c, delta
-    Integer(Kind=ik)  , Dimension(:), Allocatable :: xa_n, xe_n
-    Real(Kind=rk)     , Dimension(3)              :: min_c, max_c, coor
-    Integer(kind=ik) :: parts, ddc_nn
-    Integer(kind=ik) :: no_nodes_macro
-    Integer(kind=ik) :: no_elem_nodes
+    Real(rk)     , Dimension(:), Allocatable :: dim_c, delta
+    Integer(ik)  , Dimension(:), Allocatable :: xa_n, xe_n
+    Real(rk)     , Dimension(3)              :: min_c, max_c, coor
+    Integer(ik) :: parts, ddc_nn, no_nodes_macro, no_elem_nodes
     
-    integer(Kind=ik) :: ii, jj, no_bnodes, b_items, nnodes
+    integer(ik) :: ii, jj, no_bnodes, b_items, nnodes
 
-    Integer(Kind=ik), Dimension(:), Allocatable :: no_nodes_all
-    Integer(Kind=ik), Dimension(:), Allocatable :: no_elems_all
-    Integer(Kind=ik), Dimension(:), Allocatable :: no_cdofs_all
+    Integer(ik), Dimension(:), Allocatable :: no_nodes_all, no_elems_all, no_cdofs_all
     
-    Integer(Kind=ik), Dimension(:)  , Allocatable :: bnode_ids
-    Real(Kind=rk)   , Dimension(:,:), Allocatable :: bnode_vals
+    Integer(ik), Dimension(:)  , Allocatable :: bnode_ids
+    Real(rk)   , Dimension(:,:), Allocatable :: bnode_vals
 
     !------------------------------------------------------------------------------
     ! Get Parameters of domain decomposition

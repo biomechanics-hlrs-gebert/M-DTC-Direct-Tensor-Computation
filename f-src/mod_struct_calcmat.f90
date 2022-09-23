@@ -257,8 +257,9 @@ End Select
 !------------------------------------------------------------------------------
 ! Search effective results branch
 !------------------------------------------------------------------------------
-Call Search_branch("Results of domain "//nn_char, root, result_branch, success)
 
+! Call Search_branch("Results of domain "//trim(nn_char), root, result_branch, success)
+result_branch = root%branches(3)
 !------------------------------------------------------------------------------
 ! Init C
 !------------------------------------------------------------------------------

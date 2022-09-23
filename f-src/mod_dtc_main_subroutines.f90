@@ -56,23 +56,22 @@ Character(*) , Intent(in)  :: job_dir
 INTEGER(mik), Intent(In)  :: rank_mpi, size_mpi, comm_mpi
 INTEGER(ik) , intent(in)  :: comm_nn, domain
 INTEGER(mik), intent(out) :: active
-Type(tBranch)    , Intent(inOut) :: root
+Type(tBranch), Intent(inOut) :: root
 
 REAL(rk), DIMENSION(:), Pointer     :: displ, force
-REAL(rk), DIMENSION(:), Allocatable :: glob_displ, glob_force
-REAL(rk), DIMENSION(:), Allocatable :: zeros_R8
+REAL(rk), DIMENSION(:), Allocatable :: glob_displ, glob_force, zeros_R8
 
 INTEGER(mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
 INTEGER(mik) :: ierr, petsc_ierr
 
 INTEGER(pd_ik), Dimension(:), Allocatable :: serial_pb
-INTEGER(pd_ik)                            :: serial_pb_size
+INTEGER(pd_ik), Dimension(no_streams)     ::  dsize
+INTEGER(pd_ik) :: serial_pb_size
 
-INTEGER(ik) :: preallo, domain_elems, ii, jj, kk, id, stat
-INTEGER(ik) :: Istart,Iend, parts, IVstart, IVend, m_size
+INTEGER(ik) :: preallo, domain_elems, ii, jj, kk, id, stat, & 
+    Istart,Iend, parts, IVstart, IVend, m_size
 
-INTEGER(ik), Dimension(:)  , Allocatable :: nodes_in_mesh
-INTEGER(ik), Dimension(:)  , Allocatable :: gnid_cref
+INTEGER(ik), Dimension(:)  , Allocatable :: nodes_in_mesh, gnid_cref
 INTEGER(ik), Dimension(:,:), Allocatable :: res_sizes
 
 INTEGER(c_int) :: stat_c_int
@@ -81,8 +80,8 @@ CHARACTER(5)   :: timezone
 CHARACTER(8)   :: date
 CHARACTER(9)   :: domain_char
 CHARACTER(10)  :: time
-CHARACTER(mcl) :: str, timer_name, domain_desc, part_desc, env_var
-Character(mcl) :: desc, mesh_desc, filename, elt_micro
+CHARACTER(mcl) :: str, timer_name, domain_desc, part_desc, env_var, &
+    desc, mesh_desc, filename, elt_micro
 
 Character, Dimension(4*mcl) :: c_char_array
 Character, Dimension(:), Allocatable :: char_arr
@@ -90,8 +89,8 @@ Character, Dimension(:), Allocatable :: char_arr
 LOGICAL, PARAMETER :: DEBUG = .TRUE.
 logical :: success
 
-Type(tBranch), pointer :: boundary_branch, domain_branch, part_branch
-Type(tBranch), pointer :: mesh_branch, meta_para, esd_result_branch
+Type(tBranch), pointer :: boundary_branch, domain_branch, part_branch, &
+    mesh_branch, meta_para, esd_result_branch
 
 Type(tVec), Dimension(24) :: FF
 TYPE(tPETScViewer)        :: PetscViewer
@@ -108,7 +107,7 @@ Real(rk),    Dimension(24,24) :: K_loc_08
 ! Init worker_is_active status
 Active = 0_mik
 
-write(domain_char,'(I12)') domain
+write(domain_char,'(I0)') domain
 
 !--------------------------------------------------------------------------
 ! Get basic infos 
@@ -174,7 +173,7 @@ If (rank_mpi == 0) then
     !------------------------------------------------------------------------------
     Select Case (timer_level)
     Case (1)
-        timer_name = "+-- generate_geometry "//trim(domain_char)
+        timer_name = "+-- generate_geometry "//trim(adjustl(domain_char))
     Case default
         timer_name = "generate_geometry"
     End Select
@@ -307,7 +306,7 @@ IF (rank_mpi == 0) THEN   ! Sub Comm Master
 
     SELECT CASE (timer_level)
         CASE (1)
-            timer_name = "+-- create_Stiffness_matrix "//TRIM(domain_char)
+            timer_name = "+-- create_Stiffness_matrix "//trim(adjustl(domain_char))
         CASE default
             timer_name = "create_Stiffness_matrix"
     End SELECT
@@ -408,7 +407,7 @@ if (TRIM(elt_micro) == "HEX08") then
 
 else if (elt_micro == "HEX20") then
     
-    K_loc_20 = Hexe20()
+    K_loc_20 = Hexe20(bone)
 
     domain_elems = part_branch%leaves(5)%dat_no / 20
 
@@ -443,7 +442,7 @@ end if
 IF (rank_mpi == 0) THEN   ! Sub Comm Master
     SELECT CASE (timer_level)
     CASE (1)
-        timer_name = "+-- MatAssemblyBegin "//TRIM(domain_char)
+        timer_name = "+-- MatAssemblyBegin "//trim(adjustl(domain_char))
     CASE default
         timer_name = "MatAssemblyBegin"
     End SELECT
@@ -483,7 +482,7 @@ IF (rank_mpi == 0) CALL end_timer(TRIM(timer_name))
 IF (rank_mpi == 0) THEN   ! Sub Comm Master
     SELECT CASE (timer_level)
     CASE (1)
-        timer_name = "+-- create_rh_solution_vetors "//TRIM(domain_char)
+        timer_name = "+-- create_rh_solution_vetors "//trim(adjustl(domain_char))
     CASE default
         timer_name = "create_rh_solution_vetors"
     End SELECT
@@ -522,7 +521,7 @@ End Do
 ! boundary_branch%leaves(1)%p_int8  : Boundary displacement node global ids
 ! boundary_branch%leaves(2)%p_real8 : Boundary displacement values
 !------------------------------------------------------------------------------ 
-write(desc,'(A,I0)') "Boundaries_"//trim(domain_char)//"_",1
+write(desc,'(A,I0)') "Boundaries_"//trim(adjustl(domain_char))//"_",1
 CALL search_branch(trim(desc), part_branch, boundary_branch, success, out_amount)
 
 !------------------------------------------------------------------------------ 
@@ -591,7 +590,7 @@ End If
 IF (rank_mpi == 0) THEN   ! Sub Comm Master
     SELECT CASE (timer_level)
     CASE (1)
-        timer_name = "+-- compute_bndry_conditions "//TRIM(domain_char)
+        timer_name = "+-- compute_bndry_conditions "//trim(adjustl(domain_char))
     CASE default
         timer_name = "compute_bndry_conditions"
     End SELECT
@@ -626,7 +625,7 @@ Do ii = 2, 23
     ! boundary_branch%leaves(1)%p_int8  : Boundary displacement node global ids
     ! boundary_branch%leaves(2)%p_real8 : Boundary displacement values
     !------------------------------------------------------------------------------
-    write(desc,'(A,I0)') "Boundaries_"//trim(domain_char)//"_",ii
+    write(desc,'(A,I0)') "Boundaries_"//trim(adjustl(domain_char))//"_",ii
     CALL search_branch(trim(desc), part_branch, boundary_branch, success, out_amount)
 
     IF(boundary_branch%leaves(2)%dat_no /= 0_ik) THEN
@@ -659,7 +658,7 @@ End Do
 ! boundary_branch%leaves(1)%p_int8  : Boundary displacement node global ids
 ! boundary_branch%leaves(2)%p_real8 : Boundary displacement values
 !------------------------------------------------------------------------------
-write(desc,'(A,I0)') "Boundaries_"//trim(domain_char)//"_",24
+write(desc,'(A,I0)') "Boundaries_"//trim(adjustl(domain_char))//"_",24
 CALL search_branch(trim(desc), part_branch, boundary_branch, success, out_amount)
 
 !------------------------------------------------------------------------------
@@ -719,7 +718,7 @@ End If
 IF (rank_mpi == 0) THEN   ! Sub Comm Master
     SELECT CASE (timer_level)
     CASE (1)
-        timer_name = "+-- solve_system "//TRIM(domain_char)
+        timer_name = "+-- solve_system "//trim(adjustl(domain_char))
     CASE default
         timer_name = "solve_system"
     End SELECT
@@ -815,7 +814,7 @@ Do jj = 1,24
     ! boundary_branch%leaves(1)%p_int8  : Boundary displacement node global ids
     ! boundary_branch%leaves(2)%p_real8 : Boundary displacement values
     !------------------------------------------------------------------------------
-    write(desc,'(A,I0)') "Boundaries_"//trim(domain_char)//"_",jj
+    write(desc,'(A,I0)') "Boundaries_"//trim(adjustl(domain_char))//"_",jj
     CALL search_branch(trim(desc), part_branch, boundary_branch, success, out_amount)
     
     !------------------------------------------------------------------------------
@@ -925,7 +924,7 @@ if (rank_mpi == 0) then
 
     SELECT CASE (timer_level)
     CASE (1)
-        timer_name = "+-- calc_eff_stiffness "//TRIM(domain_char)
+        timer_name = "+-- calc_eff_stiffness "//trim(adjustl(domain_char))
     CASE default
         timer_name = "calc_eff_stiffness"
     End SELECT
@@ -938,7 +937,7 @@ ELSE
     DEALLOCATE(part_branch)
 End if
 
-!------------------------------------------------------------------------------
+!------------------------------------------------1------------------------------
 ! Remove matrices
 !------------------------------------------------------------------------------
 CALL KSPDestroy(ksp,    petsc_ierr)

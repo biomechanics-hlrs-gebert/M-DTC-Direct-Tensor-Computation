@@ -9,7 +9,7 @@ Module gen_quadmesh
   !-- Types -------------------------------------------------------------------
   Type tconreg
  
-     Integer(kind=ik) :: color
+     Integer(ik) :: color
      Logical :: tb   = .FALSE.
      
      Type(tconreg), Pointer    :: next => null()
@@ -26,56 +26,56 @@ contains
 
     !** Iso Field *************************************************************
                                
-    Integer(Kind=1), Intent(In), optional, Dimension(1:,1:,1:) :: phi_ik1
-    Integer(Kind=2), Intent(In), optional, Dimension(1:,1:,1:) :: phi_ik2
-    Integer(Kind=4), Intent(In), optional, Dimension(1:,1:,1:) :: phi_ik4
+    Integer(1), Intent(In), optional, Dimension(1:,1:,1:) :: phi_ik1
+    Integer(2), Intent(In), optional, Dimension(1:,1:,1:) :: phi_ik2
+    Integer(4), Intent(In), optional, Dimension(1:,1:,1:) :: phi_ik4
     Character(Len=scl) :: typeraw
 
 
-    Real(Kind=rk)  , Intent(in), Dimension(3) :: delta
+    Real(rk)  , Intent(in), Dimension(3) :: delta
 
     !** Domain decomposition **************************************************
     Type(tBranch), Intent(In) :: ddc
     Type(tBranch), Intent(In) :: loc_ddc
     
     !** Iso Value limit *******************************************************
-    Integer(Kind=ik)   , Intent(In) :: llimit
+    Integer(ik), Intent(In) :: llimit
 
     !** Type of elements in micro mesh ****************************************
     Character(len=*)   , Intent(In) :: elt_micro
 
     !** Fiels which are generated and passed out ******************************
-    Real(Kind=rk)   , Dimension(:,:), Allocatable, Intent(Out) :: nodes
-    Integer(Kind=ik), Dimension(:,:), Allocatable, Intent(Out) :: elems
-    Integer(Kind=ik), Dimension(:)  , Allocatable, Intent(Out) :: elem_col
-    Integer(Kind=ik), Dimension(:)  , Allocatable, Intent(Out) :: node_col
+    Real(rk)   , Dimension(:,:), Allocatable, Intent(Out) :: nodes
+    Integer(ik), Dimension(:,:), Allocatable, Intent(Out) :: elems
+    Integer(ik), Dimension(:)  , Allocatable, Intent(Out) :: elem_col
+    Integer(ik), Dimension(:)  , Allocatable, Intent(Out) :: node_col
 
     !** Sizes *****************************************************************
-    Integer(Kind=ik), Intent(Out) :: no_nodes
-    Integer(Kind=ik), Intent(Out) :: no_elems
+    Integer(ik), Intent(Out) :: no_nodes
+    Integer(ik), Intent(Out) :: no_elems
 
     !--------------------------------------------------------------------------
-    Integer(Kind=ik), Dimension(:), Allocatable :: nodes_no, node_cref
+    Integer(ik), Dimension(:), Allocatable :: nodes_no, node_cref
 
     Type(tconreg), Pointer :: cregs, start_cregs, tmp_creg
 
-    Integer(kind=ik) :: ii, jj, kk, ll
-    Integer(kind=ik) :: lb_nodes_no, ub_nodes_no
-    Integer(kind=ik) :: min_col, max_col
+    Integer(ik) :: ii, jj, kk, ll
+    Integer(ik) :: lb_nodes_no, ub_nodes_no
+    Integer(ik) :: min_col, max_col
 
-    Integer                         :: min_val_phi, max_val_phi, val_phi
-    Integer(Kind=ik), Dimension(3)  :: x_D_nodes
-    Real(Kind=rk)   , Dimension(3)  :: x_min, x_max
+    Integer(ik) :: min_val_phi, max_val_phi, val_phi
+    Integer(ik), Dimension(3)  :: x_D_nodes
+    Real(rk)   , Dimension(3)  :: x_min, x_max
     Integer         , Dimension(27) :: el_nn
 
     integer :: no_elem_nodes, alloc_stat, phi_stat
 
     Logical :: Change, next_exists
 
-    Integer(kind=ik), Allocatable, Dimension(:) :: xa_n, xe_n
-    Integer(kind=ik), Allocatable, Dimension(:) :: x_VD, x_D
+    Integer(ik), Allocatable, Dimension(:) :: xa_n, xe_n
+    Integer(ik), Allocatable, Dimension(:) :: x_VD, x_D
     Character(len=9) :: nn_char
-    Integer(kind=ik) :: ddc_nn
+    Integer(ik) :: ddc_nn
 
     phi_stat=0_ik
     SELECT CASE(TRIM(ADJUSTL(typeraw)))
@@ -116,14 +116,14 @@ contains
     
     SELECT CASE(TRIM(ADJUSTL(typeraw)))
         CASE('ik1')
-            min_val_phi = minval(phi_ik1)
-            max_val_phi = maxval(phi_ik1)            
+            min_val_phi = INT(minval(phi_ik1), ik)
+            max_val_phi = INT(maxval(phi_ik1), ik)            
         CASE('ik2')
-            min_val_phi = minval(phi_ik2)
-            max_val_phi = maxval(phi_ik2)
+            min_val_phi = INT(minval(phi_ik2), ik)
+            max_val_phi = INT(maxval(phi_ik2), ik)
         CASE('ik4')
-            min_val_phi = minval(phi_ik4)
-            max_val_phi = maxval(phi_ik4)
+            min_val_phi = INT(minval(phi_ik4), ik)
+            max_val_phi = INT(maxval(phi_ik4), ik)
     END SELECT
 
     !** Check the domain for iso value inclusion ******************************
@@ -214,11 +214,11 @@ contains
                 !** Transform voxel at position ii,jj,kk to Hexa element ***********
                 SELECT CASE(TRIM(ADJUSTL(typeraw)))
                     CASE('ik1')
-                        val_phi = INT(phi_ik1(ii,jj,kk))
+                        val_phi = INT(phi_ik1(ii,jj,kk), ik)
                     CASE('ik2')
-                        val_phi = INT(phi_ik2(ii,jj,kk))
+                        val_phi = INT(phi_ik2(ii,jj,kk), ik)
                     CASE('ik4')
-                        val_phi = phi_ik4(ii,jj,kk)
+                        val_phi = INT(phi_ik4(ii,jj,kk), ik)
                 END SELECT
 
                 If (val_phi >= llimit) Then
@@ -265,12 +265,12 @@ contains
                 
                 !** Transform voxel at position ii,jj,kk to Hexa element ***********
                 SELECT CASE(TRIM(ADJUSTL(typeraw)))
-                    CASE('ik1')
-                        val_phi = INT(phi_ik1(ii,jj,kk))
-                    CASE('ik2')
-                        val_phi = INT(phi_ik2(ii,jj,kk))
-                    CASE('ik4')
-                        val_phi = phi_ik4(ii,jj,kk)
+                  CASE('ik1')
+                     val_phi = INT(phi_ik1(ii,jj,kk), ik)
+                  CASE('ik2')
+                     val_phi = INT(phi_ik2(ii,jj,kk), ik)
+                  CASE('ik4')
+                     val_phi = INT(phi_ik4(ii,jj,kk), ik)
                 END SELECT
 
                 If (val_phi >= llimit) Then
@@ -630,48 +630,48 @@ contains
 !     !-- Parameters ------------------------------------------------------------
 
 !     !** Iso Field *************************************************************
-!     Integer(Kind=4)    , Intent(In), Dimension(1:,1:,1:) :: Phi
-!     Real(Kind=rk)      , Intent(in), Dimension(3)        :: delta
+!     Integer(4)    , Intent(In), Dimension(1:,1:,1:) :: Phi
+!     Real(rk)      , Intent(in), Dimension(3)        :: delta
 
 !     !** Domain decomposition **************************************************
 !     Type(tBranch)      , Intent(In)                   :: ddc
     
 !     !** Iso Value limit *******************************************************
-!     Integer(Kind=ik)   , Intent(In)                 :: llimit
+!     Integer(ik)   , Intent(In)                 :: llimit
 
 !     !** Type of elements in micro mesh ****************************************
 !     Character(len=*)   , Intent(In)                 :: elt_micro
 
 !     !** Fiels which are generated and passed out ******************************
-!     Real(Kind=rk)   , Dimension(:,:), Allocatable, Intent(Out) :: nodes
-!     Integer(Kind=ik), Dimension(:,:), Allocatable, Intent(Out) :: elems
-!     Integer(Kind=ik), Dimension(:)  , Allocatable, Intent(Out) :: elem_col
-!     Integer(Kind=ik), Dimension(:)  , Allocatable, Intent(Out) :: node_col
+!     Real(rk)   , Dimension(:,:), Allocatable, Intent(Out) :: nodes
+!     Integer(ik), Dimension(:,:), Allocatable, Intent(Out) :: elems
+!     Integer(ik), Dimension(:)  , Allocatable, Intent(Out) :: elem_col
+!     Integer(ik), Dimension(:)  , Allocatable, Intent(Out) :: node_col
 
 !     !** Sizes *****************************************************************
-!     Integer(Kind=ik)                             , Intent(Out) :: no_nodes
-!     Integer(Kind=ik)                             , Intent(Out) :: no_elems
+!     Integer(ik)                             , Intent(Out) :: no_nodes
+!     Integer(ik)                             , Intent(Out) :: no_elems
 
 !     !--------------------------------------------------------------------------
-!     Integer(Kind=ik), Dimension(:), Allocatable :: nodes_no, node_cref
+!     Integer(ik), Dimension(:), Allocatable :: nodes_no, node_cref
 
 !     Type(tconreg), Pointer                      :: cregs, start_cregs, tmp_creg
 
-!     Integer(kind=ik)                            :: ii, jj, kk, ll
-!     Integer(kind=ik)                            :: lb_nodes_no, ub_nodes_no
-!     Integer(kind=ik)                            :: min_col, max_col
+!     Integer(ik)                            :: ii, jj, kk, ll
+!     Integer(ik)                            :: lb_nodes_no, ub_nodes_no
+!     Integer(ik)                            :: min_col, max_col
 
 !     Integer                                     :: min_val_phi, max_val_phi
-!     Integer(Kind=ik), Dimension(3)              :: x_D_nodes
-!     Real(Kind=rk)   , Dimension(3)              :: x_min, x_max
+!     Integer(ik), Dimension(3)              :: x_D_nodes
+!     Real(rk)   , Dimension(3)              :: x_min, x_max
 !     Integer         , Dimension(27)             :: el_nn
 
 !     integer                                     :: no_elem_nodes, alloc_stat
 
 !     Logical                                     :: Change, next_exists
 
-!     Integer(kind=ik), Allocatable, Dimension(:) :: xa_n, xe_n
-!     Integer(kind=ik), Allocatable, Dimension(:) :: x_VD, x_D
+!     Integer(ik), Allocatable, Dimension(:) :: xa_n, xe_n
+!     Integer(ik), Allocatable, Dimension(:) :: x_VD, x_D
 
 !     !--------------------------------------------------------------------------
 

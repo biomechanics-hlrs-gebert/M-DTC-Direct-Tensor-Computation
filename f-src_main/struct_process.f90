@@ -107,11 +107,11 @@ INTEGER(mik) :: ierr, rank_mpi, size_mpi, petsc_ierr, mii, mjj, &
     Active, request, finished = -1, worker_comm ! , WRITE_ROOT_COMM
 
 INTEGER(mik), Dimension(no_streams)       :: fh_mpi_worker
-INTEGER(mik), Dimension(MPI_STATUS_SIZE)  :: stat_mpi
-INTEGER(mik), Dimension(:,:), Allocatable :: states_mpi
+INTEGER(mik), Dimension(MPI_STATUS_SIZE)  :: status_mpi
+INTEGER(mik), Dimension(:,:), Allocatable :: statuses_mpi
 INTEGER(mik), Dimension(:)  , Allocatable :: worker_is_active, req_list
 
-INTEGER(c_int) :: stint_c_int
+INTEGER(c_int) :: stat_c_int
 
 Type(tBranch)          :: root, phi_tree
 Type(tBranch), pointer :: ddc, meta_para, result_branch
@@ -122,28 +122,29 @@ CHARACTER(4*mcl), DIMENSION(:), ALLOCATABLE :: domain_path
 CHARACTER(mcl)  , DIMENSION(:), ALLOCATABLE :: m_rry      
 
 CHARACTER(4*mcl) :: job_dir
-CHARACTER(mcl)   :: cmd_arg_history='', link_name = 'struct process', stat="", &
+CHARACTER(mcl)   :: cmd_arg_history='', link_name = 'struct process', stat_char="", &
     muCT_pd_path, muCT_pd_name, binary, activity_file, desc=""
 CHARACTER(8)   :: elt_micro, output
-CHARACTER(scl) :: typeraw="", restart='N', restart_cmd_arg='U' ! U = 'undefined'
+CHARACTER(mcl) :: typeraw="", restart='N', restart_cmd_arg='U',ios="" ! U = 'undefined'
 
 REAL(rk), DIMENSION(3) :: delta
 REAL(rk) :: strain
 
-INTEGER(ik), DIMENSION(:), ALLOCATABLE :: Domains, nn_D, Domain_stints
+INTEGER(ik), DIMENSION(:), ALLOCATABLE :: Domains, nn_D, Domain_stats
 INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0
 
 INTEGER(ik) :: nn, ii, jj, kk, dc, stint, computed_domains = 0, comm_nn = 1, &
-    No_of_domains, path_count, activity_size=0, &
-    alloc_stint, free_file_handle, domains_per_comm, &
-    Domain, llimit, parts, elo_macro, raw_data_stream
+    No_of_domains, path_count, activity_size=0, alloc_stat, &
+    alloc_stint, free_file_handle, domains_per_comm, stat, &
+    Domain, llimit, parts, elo_macro, raw_data_stream, vdim(3)
 
 INTEGER(pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
 INTEGER(pd_ik), DIMENSION(no_streams) :: dsize
+Integer(kind=pd_mik), Dimension(no_streams) :: fh_mpi
 
-INTEGER(pd_ik) :: serial_root_size, add_leaves, vdim(3)
+INTEGER(pd_ik) :: serial_root_size, add_leaves
 
-LOGICAL :: success, stint_exists, heaxist, abrt = .FALSE.
+LOGICAL :: success, stat_exists, heaxist, abrt = .FALSE.
 LOGICAL :: create_new_header = .FALSE.
 
 !----------------------------------------------------------------------------
@@ -194,9 +195,9 @@ If (rank_mpi == 0) THEN
     !------------------------------------------------------------------------------
     global_meta_prgrm_mstr_app = 'dtc' 
     global_meta_program_keyword = 'TENSOR_COMPUTATION'
-    CALL meta_append(m_rry, size_mpi, stat)
+    CALL meta_append(m_rry, size_mpi, ios)
         
-    IF(stat /= "") CALL print_err_stop(6, stat, 1)
+    IF(ios /= "") CALL print_err_stop(6, ios, 1)
 
     !------------------------------------------------------------------------------
     ! Redirect std_out into a file in case std_out is not useful by environment.
@@ -235,21 +236,21 @@ If (rank_mpi == 0) THEN
     pro_path = outpath
     pro_name = project_name
 
-    CALL meta_read('MICRO_ELMNT_TYPE' , m_rry, elt_micro, stat); CALL mest(stat, abrt)
-    CALL meta_read('OUT_FMT'          , m_rry, output, stat); CALL mest(stat, abrt)
-    CALL meta_read('RESTART'          , m_rry, restart, stat); CALL mest(stat, abrt)
-    CALL meta_read('SIZE_DOMAIN'      , m_rry, bone%phdsize, stat); CALL mest(stat, abrt)
-    CALL meta_read('SPACING'          , m_rry, bone%delta, stat); CALL mest(stat, abrt)
-    CALL meta_read('DIMENSIONS'       , m_rry, vdim, stat); CALL mest(stat, abrt)
-    CALL meta_read('LO_BNDS_DMN_RANGE', m_rry, xa_d, stat); CALL mest(stat, abrt)
-    CALL meta_read('UP_BNDS_DMN_RANGE', m_rry, xe_d, stat); CALL mest(stat, abrt)
-    CALL meta_read('BINARIZE_LO'      , m_rry, llimit, stat); CALL mest(stat, abrt)
-    CALL meta_read('MESH_PER_SUB_DMN' , m_rry, parts, stat); CALL mest(stat, abrt)
-    CALL meta_read('RVE_STRAIN'       , m_rry, strain, stat); CALL mest(stat, abrt)
-    CALL meta_read('YOUNG_MODULUS'    , m_rry, bone%E, stat); CALL mest(stat, abrt)
-    CALL meta_read('POISSON_RATIO'    , m_rry, bone%nu, stat); CALL mest(stat, abrt)
-    CALL meta_read('MACRO_ELMNT_ORDER', m_rry, elo_macro, stat); CALL mest(stat, abrt)
-    CALL meta_read('TYPE_RAW'         , m_rry, typeraw, stat); CALL mest(stat, abrt)
+    CALL meta_read('MICRO_ELMNT_TYPE' , m_rry, elt_micro, ios); CALL mest(ios, abrt)
+    CALL meta_read('OUT_FMT'          , m_rry, output, ios); CALL mest(ios, abrt)
+    CALL meta_read('RESTART'          , m_rry, restart, ios); CALL mest(ios, abrt)
+    CALL meta_read('SIZE_DOMAIN'      , m_rry, bone%phdsize, ios); CALL mest(ios, abrt)
+    CALL meta_read('SPACING'          , m_rry, bone%delta, ios); CALL mest(ios, abrt)
+    CALL meta_read('DIMENSIONS'       , m_rry, vdim, ios); CALL mest(ios, abrt)
+    CALL meta_read('LO_BNDS_DMN_RANGE', m_rry, xa_d, ios); CALL mest(ios, abrt)
+    CALL meta_read('UP_BNDS_DMN_RANGE', m_rry, xe_d, ios); CALL mest(ios, abrt)
+    CALL meta_read('BINARIZE_LO'      , m_rry, llimit, ios); CALL mest(ios, abrt)
+    CALL meta_read('MESH_PER_SUB_DMN' , m_rry, parts, ios); CALL mest(ios, abrt)
+    CALL meta_read('RVE_STRAIN'       , m_rry, strain, ios); CALL mest(ios, abrt)
+    CALL meta_read('YOUNG_MODULUS'    , m_rry, bone%E, ios); CALL mest(ios, abrt)
+    CALL meta_read('POISSON_RATIO'    , m_rry, bone%nu, ios); CALL mest(ios, abrt)
+    CALL meta_read('MACRO_ELMNT_ORDER', m_rry, elo_macro, ios); CALL mest(ios, abrt)
+    CALL meta_read('TYPE_RAW'         , m_rry, typeraw, ios); CALL mest(ios, abrt)
     
     IF(abrt) CALL print_err_stop(std_out, "A keyword error occured.", 1)
 
@@ -257,7 +258,7 @@ If (rank_mpi == 0) THEN
     ! Restart handling
     !------------------------------------------------------------------------------
     ! Standard lock file of MeRaDat not used, because it would interfere with the 
-    ! stat file of the struct process. 
+    ! status file of the struct process. 
     !------------------------------------------------------------------------------
     CALL meta_compare_restart(restart, restart_cmd_arg)
 
@@ -332,7 +333,7 @@ If (rank_mpi == 0) THEN
     ! Another way might be to balance not by the wall-time of the domain specific
     ! computations, but by the number of domains per group of ranks/sub-comm.
     ! However the additional amount of memory is considerered not as problematic 
-    ! as the lost wall/compute time caused by a stintic distribution of the domains.
+    ! as the lost wall/compute time caused by a static distribution of the domains.
     !------------------------------------------------------------------------------
     domains_per_comm = CEILING(REAL(No_of_domains, rk) / REAL(par_domains, rk), ik)
 
@@ -342,11 +343,11 @@ If (rank_mpi == 0) THEN
     ! Check whether there already is a project header and an worker_is_active tracker
     ! Header-files are PureDat, not MeRaDat. Therefore via pro_path/pro_name
     !------------------------------------------------------------------------------
-    activity_file = TRIM(out%p_n_bsnm)//".stat"
-    INQUIRE(FILE = TRIM(activity_file), EXIST=stint_exists, SIZE=activity_size)
+    activity_file = TRIM(out%p_n_bsnm)//".status"
+    INQUIRE(FILE = TRIM(activity_file), EXIST=stat_exists, SIZE=activity_size)
 
-    IF ((No_of_domains*ik /= activity_size ) .AND. (stint_exists)) THEN
-        mssg = 'Size of the stat file and the number of requested domains do &
+    IF ((No_of_domains*ik /= activity_size ) .AND. (stat_exists)) THEN
+        mssg = 'Size of the status file and the number of requested domains do &
         &not match. It is very likely that the domain ranges were modified and a &
         &restart requested. This approach is not supported, as the stream sizes and &
         &boundaries will get corrupted. Please set up a completely new job.'
@@ -385,7 +386,7 @@ If (rank_mpi == 0) THEN
     CALL add_leaf_to_branch(meta_para, "Lower bounds of selected domain range", 3_ik, xa_d) 
     CALL add_leaf_to_branch(meta_para, "Upper bounds of selected domain range", 3_ik, xe_d)      
     
-    CALL add_leaf_to_branch(meta_para, "Grid spacings"                        , 3_rk, bone%delta) 
+    CALL add_leaf_to_branch(meta_para, "Grid spacings"                 , 3_ik, bone%delta) 
     CALL add_leaf_to_branch(meta_para, "Lower limit of iso value"      , 1_ik, [llimit])      
     CALL add_leaf_to_branch(meta_para, "Element type  on micro scale"  , len(elt_micro) , str_to_char(elt_micro))      
     CALL add_leaf_to_branch(meta_para, "No of mesh parts per subdomain", 1_ik           , [parts]) 
@@ -401,35 +402,28 @@ If (rank_mpi == 0) THEN
     CALL add_leaf_to_branch(meta_para, "Number of voxels per direction", 3_ik , vdim) 
 
     CALL add_leaf_to_branch(meta_para, "Domains per communicator", 1_ik, [domains_per_comm]) 
-
-    ! SELECT CASE(typeraw)
-    !     CASE('ik1'); raw_data_stream = 1_ik
-    !     CASE('ik2'); raw_data_stream = 2_ik
-    !     CASE('ik4'); raw_data_stream = 4_ik
-    ! END SELECT
-
     CALL add_leaf_to_branch(meta_para, "Raw data stream" , len(typeraw), str_to_char(typeraw)) 
 
     !------------------------------------------------------------------------------
     ! Prepare output directory via CALLing the c function.
     ! Required, because INQUIRE only acts on files, not on directories.
-    ! File exists if stint_c_int = 0 
+    ! File exists if stat_c_int = 0 
     !------------------------------------------------------------------------------
     c_char_array(1:LEN(TRIM(outpath)//CHAR(0))) = str_to_char(TRIM(outpath)//CHAR(0))
-    CALL Stat_Dir(c_char_array, stint_c_int)
+    CALL Stat_Dir(c_char_array, stat_c_int)
 
-    IF(stint_c_int /= 0) THEN
+    IF(stat_c_int /= 0) THEN
 
-        CALL execute_command_line("mkdir -p "//TRIM(outpath),CMDSTAT=stint)
+        CALL execute_command_line("mkdir -p "//TRIM(outpath),CMDSTAT=stat)
 
-        IF(stint /= 0) THEN
+        IF(stat /= 0) THEN
             mssg = 'Could not execute syscall »mkdir -p '//trim(outpath)//'«.'
             CALL print_err_stop_slaves(mssg); GOTO 1000
         END IF
         
-        CALL Stat_Dir(c_char_array, stint_c_int)
+        CALL Stat_Dir(c_char_array, stat_c_int)
 
-        IF(stint_c_int /= 0) THEN
+        IF(stat_c_int /= 0) THEN
             mssg = 'Could not create the output directory »'//TRIM(outpath)//'«.'
             CALL print_err_stop_slaves(mssg); GOTO 1000
         END IF
@@ -449,7 +443,7 @@ END IF
 !------------------------------------------------------------------------------
 ! Send information about file
 !------------------------------------------------------------------------------
-CALL MPI_BCAST(stint_exists  , 1_mik, MPI_LOGICAL    , 0_mik, MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(stat_exists  , 1_mik, MPI_LOGICAL    , 0_mik, MPI_COMM_WORLD, ierr)
 CALL MPI_BCAST(No_of_domains, 1_mik, MPI_INTEGER8   , 0_mik, MPI_COMM_WORLD, ierr)
 CALL MPI_BCAST(activity_file, INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
 
@@ -459,12 +453,12 @@ CALL MPI_BCAST(activity_file, INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ier
 ! Required for steering the allocation of memory for writing data into 
 ! the stream files (raise leaves etc.)
 !------------------------------------------------------------------------------
-Allocate(Domains(No_of_domains), stat=alloc_stint)
-CALL alloc_err("Domains", alloc_stint)
+Allocate(Domains(No_of_domains), stat=alloc_stat)
+CALL alloc_err("Domains", alloc_stat)
 
-Allocate(Domain_stints(No_of_domains), stat=alloc_stint)
-CALL alloc_err("Domain_stints", alloc_stint)
-Domain_stints = -999_ik
+Allocate(Domain_stats(No_of_domains), stat=alloc_stat)
+CALL alloc_err("Domain_stats", alloc_stat)
+Domain_stats = -999_ik
 
 Allocate(domain_path(0:No_of_domains))
 domain_path = ''
@@ -479,35 +473,35 @@ domain_path = ''
 ! domain number, changes to the domain range before restart will crash the 
 ! computations (!)
 !------------------------------------------------------------------------------
-IF (stint_exists) THEN
+IF (stat_exists) THEN
     Call MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(activity_file), &
         MPI_MODE_RDWR, MPI_INFO_NULL, aun, ierr)
 
     !------------------------------------------------------------------------------
-    ! Read the Domain stints list
+    ! Read the Domain stats list
     !------------------------------------------------------------------------------
-    CALL MPI_FILE_READ(aun, Domain_stints, INT(SIZE(Domain_stints), mik), &
+    CALL MPI_FILE_READ(aun, Domain_stats, INT(SIZE(Domain_stats), mik), &
         MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
 ELSE
     Call MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(activity_file), &
         MPI_MODE_CREATE+MPI_MODE_RDWR, MPI_INFO_NULL, aun, ierr)
-END IF ! (stint_exists)
+END IF ! (stat_exists)
 
 
 If (rank_mpi == 0) THEN
 
-    IF (stint_exists) THEN
+    IF (stat_exists) THEN
         !------------------------------------------------------------------------------
-        ! Read the Domain stints list
+        ! Read the Domain stats list
         !------------------------------------------------------------------------------
-        CALL MPI_FILE_READ(aun, Domain_stints, INT(SIZE(Domain_stints), mik), &
+        CALL MPI_FILE_READ(aun, Domain_stats, INT(SIZE(Domain_stats), mik), &
             MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
 
         !------------------------------------------------------------------------------
         ! Check whether computation will use resources properly.
         !------------------------------------------------------------------------------
-        DO ii=1, SIZE(domain_stints)
-            IF (domain_stints(ii) >= 0) computed_domains = computed_domains + 1 
+        DO ii=1, SIZE(domain_stats)
+            IF (domain_stats(ii) >= 0) computed_domains = computed_domains + 1 
         END DO
 
         IF (No_of_domains == computed_domains) THEN 
@@ -516,7 +510,7 @@ If (rank_mpi == 0) THEN
         END IF 
 
     ELSE
-        CALL MPI_FILE_WRITE(aun, Domain_stints, INT(SIZE(Domain_stints), mik), &
+        CALL MPI_FILE_WRITE(aun, Domain_stats, INT(SIZE(Domain_stats), mik), &
             MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
     END IF
 
@@ -547,9 +541,9 @@ If (rank_mpi == 0) THEN
         !------------------------------------------------------------------------------
         ! project_name --> out%p_n_bsnm/bsnm --> subdirectory with file name = bsnm.suf
         !------------------------------------------------------------------------------
-        IF ((stint_exists) .AND. (.NOT. create_new_header)) THEN
+        IF ((stat_exists) .AND. (.NOT. create_new_header)) THEN
             mssg = "No restart requested, but the file '"&
-                //TRIM(out%p_n_bsnm)//".stat' already exists."
+                //TRIM(out%p_n_bsnm)//".status' already exists."
             CALL print_err_stop_slaves(mssg, "warning"); GOTO 1000
         END IF 
 
@@ -583,7 +577,7 @@ If (rank_mpi == 0) THEN
         pro_name = project_name
 
         allocate(ddc)
-        ddc = calc_general_ddc_params(bone%phdsize, phi_tree)
+        ddc = calc_general_ddc_params(bone%phdsize, meta_para)
         
         CALL include_branch_into_branch(s_b=ddc, t_b=root, blind=.TRUE.)
         
@@ -753,7 +747,7 @@ If (rank_mpi == 0) THEN
 
         Domains(nn) = ii + jj * nn_D(1) + kk * nn_D(1)*nn_D(2)
 
-        nn = nn + 1_mik
+        nn = nn + 1_ik
     End Do
     End Do
     End Do
@@ -761,8 +755,8 @@ If (rank_mpi == 0) THEN
     !------------------------------------------------------------------------------
     ! Generate worker_is_active_List
     !------------------------------------------------------------------------------
-    Allocate(worker_is_active(size_mpi-1), stat=alloc_stint)
-    CALL alloc_err("worker_is_active_List", alloc_stint)
+    Allocate(worker_is_active(size_mpi-1), stat=alloc_stat)
+    CALL alloc_err("worker_is_active_List", alloc_stat)
 
     worker_is_active=0
 
@@ -838,12 +832,18 @@ Else
     deallocate(serial_root)
 
     !------------------------------------------------------------------------------
+    ! Extract input parameters
+    !------------------------------------------------------------------------------
+    Call Search_branch("Input parameters", root, meta_para, success)
+    CALL search_branch("Global domain decomposition", root, ddc, success)
+
+    !------------------------------------------------------------------------------
     ! Commented out since out_amount is a parametrized global variable 
     ! CALL pd_get(root%branches(1),"Output amount", char_arr)
     ! out_amount = char_to_str(char_arr)
     ! deallocate(char_arr)
     !------------------------------------------------------------------------------
-    CALL pd_get(root%branches(1),"Restart", char_arr)
+    CALL pd_get(meta_para,"Restart", char_arr)
     restart = char_to_str(char_arr)
     deallocate(char_arr)
 
@@ -852,20 +852,23 @@ Else
     !------------------------------------------------------------------------------
     ! Init Domain Cross Reference
     !------------------------------------------------------------------------------
-    CALL pd_get(root%branches(1), "Lower bounds of selected domain range", xa_d, 3)
-    CALL pd_get(root%branches(1), "Upper bounds of selected domain range", xe_d, 3)
-    
-    CALL pd_get(root%branches(2),"nn_D", nn_D)
+    CALL pd_get(meta_para, "Lower bounds of selected domain range", xa_d, 3)
+    CALL pd_get(meta_para, "Upper bounds of selected domain range", xe_d, 3)
+
+    CALL pd_get(ddc, "nn_D", nn_D)
     
     !------------------------------------------------------------------------------
     ! Linear vs ddc (3D) domain numbers. nn is a purely internal variable.
     !------------------------------------------------------------------------------
-    nn = 1
+    nn = 1_ik
+
+
+
     Do kk = xa_d(3), xe_d(3)
     Do jj = xa_d(2), xe_d(2)
     Do ii = xa_d(1), xe_d(1)
         Domains(nn) = ii + jj * nn_D(1) + kk * nn_D(1)*nn_D(2)
-        nn = nn + 1_mik
+        nn = nn + 1_ik
     End Do
     End Do
     End Do
@@ -904,14 +907,14 @@ End If
 ! Call Open_Stream_Files(root%streams, "write", "new", fh_mpi_root, WRITE_ROOT_COMM)
 
 !------------------------------------------------------------------------------
-! All Ranks -- Init MPI request and stat lists
+! All Ranks -- Init MPI request and status lists
 !------------------------------------------------------------------------------
-Allocate(req_list(size_mpi-1), stat=alloc_stint)
-CALL alloc_err("req_list", alloc_stint)
+Allocate(req_list(size_mpi-1), stat=alloc_stat)
+CALL alloc_err("req_list", alloc_stat)
 req_list=0
 
-Allocate(states_mpi(MPI_STATUS_SIZE, size_mpi-1), stat=alloc_stint)
-CALL alloc_err("states_mpi", alloc_stint)
+Allocate(statuses_mpi(MPI_STATUS_SIZE, size_mpi-1), stat=alloc_stat)
+CALL alloc_err("statuses_mpi", alloc_stat)
 
 !------------------------------------------------------------------------------
 ! Global Rank 0 -- Process master Start working process
@@ -960,7 +963,7 @@ If (rank_mpi==0) Then
         WRITE(fh_mon, FMT_MSG_xAI0) "Domain ", Domains(nn), " at Ranks ", mii, " to ", mii + parts-1
         flush(fh_mon)
 
-        nn = nn + 1_mik
+        nn = nn + 1_ik
         
         Call MPI_IRECV(worker_is_active(mii), 1_mik, MPI_INTEGER4, mii, mii, MPI_COMM_WORLD, req_list(mii), ierr)
         CALL print_err_stop(std_out, "MPI_IRECV of worker_is_active(mii) didn't succeed", INT(ierr, ik))
@@ -969,7 +972,7 @@ If (rank_mpi==0) Then
 
     End Do
 
-    Call MPI_WAITANY(size_mpi-1_mik, req_list, finished, stat_mpi, ierr)
+    Call MPI_WAITANY(size_mpi-1_mik, req_list, finished, status_mpi, ierr)
     CALL print_err_stop(std_out, &
         "MPI_WAITANY on req_list for IRECV of Activity(mii) didn't succeed", INT(ierr, ik))
 
@@ -1018,7 +1021,7 @@ If (rank_mpi==0) Then
         !------------------------------------------------------------------------------
         ! Iterate over domain
         !------------------------------------------------------------------------------
-        nn = nn + 1_mik
+        nn = nn + 1_ik
 
         !------------------------------------------------------------------------------
         ! Worker has finished
@@ -1030,7 +1033,7 @@ If (rank_mpi==0) Then
         ! Only the master worker is allowed to send a 'finished' flag. 
         ! Otherwise, index mii will screw up.
         !------------------------------------------------------------------------------
-        CALL MPI_WAITANY(size_mpi-1_mik, req_list, finished, stat_mpi, ierr)
+        Call MPI_WAITANY(size_mpi-1_mik, req_list, finished, status_mpi, ierr)
         CALL print_err_stop(std_out, &
         "MPI_WAITANY on req_list for IRECV of worker_is_active(mii) didn't succeed", ierr)
 
@@ -1066,7 +1069,7 @@ If (rank_mpi==0) Then
     !------------------------------------------------------------------------------
     ! Wait for all workers to return
     !------------------------------------------------------------------------------
-    CALL MPI_WAITALL(size_mpi-1_mik, req_list, states_mpi, ierr)
+    CALL MPI_WAITALL(size_mpi-1_mik, req_list, statuses_mpi, ierr)
     CALL print_err_stop(std_out, &
         "MPI_WAITALL on req_list for IRECV of worker_is_active(ii) didn't succeed", ierr)
 
@@ -1094,21 +1097,21 @@ Else
 
         !------------------------------------------------------------------------------
         ! Prepare output directory via CALLing the c function.
-        ! File exists if stint_c_int = 0 
+        ! File exists if stat_c_int = 0 
         !------------------------------------------------------------------------------
         c_char_array(1:LEN(TRIM(outpath)//CHAR(0))) = str_to_char(TRIM(outpath)//CHAR(0))
-        CALL Stat_Dir(c_char_array, stint_c_int)
+        CALL Stat_Dir(c_char_array, stat_c_int)
 
-        IF(stint_c_int /= 0) THEN
+        IF(stat_c_int /= 0) THEN
 
-            CALL execute_command_line("mkdir -p "//TRIM(outpath),CMDSTAT=stint)
+            CALL execute_command_line("mkdir -p "//TRIM(outpath),CMDSTAT=stat)
 
-            IF(stint /= 0) CALL print_err_stop(std_out, &
+            IF(stat /= 0) CALL print_err_stop(std_out, &
                 'Could not execute syscall »mkdir -p '//trim(outpath)//'«.', 1)
 
-            CALL Stat_Dir(c_char_array, stint_c_int)
+            CALL Stat_Dir(c_char_array, stat_c_int)
 
-            IF(stint_c_int /= 0) THEN
+            IF(stat_c_int /= 0) THEN
                 mssg = 'Could not create the output directory »'//TRIM(outpath)//'«.'
                 CALL print_err_stop(std_out, mssg, 1)
             END IF
@@ -1178,15 +1181,15 @@ Else
         !------------------------------------------------------------------------------
         CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
             Int(root%branches(3)%leaves(1)%lbound-1+(domains_per_comm-1), MPI_OFFSET_KIND), &
-            INT(Domain, ik), 1_pd_mik, MPI_INTEGER8, stat_mpi, ierr)
+            INT(Domain, KIND=ik), 1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
         CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
             Int(root%branches(3)%leaves(19)%lbound-1+(domains_per_comm-1), MPI_OFFSET_KIND), &
-            1_rk, 1_pd_mik, MPI_REAL8, stat_mpi, ierr)
+            1_rk, 1_pd_mik, MPI_REAL8, status_mpi, ierr)
 
         !------------------------------------------------------------------------------
         ! Start workers
         !------------------------------------------------------------------------------
-        CALL MPI_RECV(active, 1_mik, MPI_INTEGER4, 0_mik, rank_mpi, MPI_COMM_WORLD, stat_mpi, ierr)
+        CALL MPI_RECV(active, 1_mik, MPI_INTEGER4, 0_mik, rank_mpi, MPI_COMM_WORLD, status_mpi, ierr)
         CALL print_err_stop(std_out, "MPI_RECV on Active didn't succseed", ierr)
 
         !------------------------------------------------------------------------------
@@ -1198,21 +1201,21 @@ Else
         ! Receive domain numbers
         !------------------------------------------------------------------------------
 
-        CALL mpi_recv(nn, 1_mik, MPI_INTEGER8, 0_mik, rank_mpi, MPI_COMM_WORLD, stat_mpi, ierr)
+        CALL mpi_recv(nn, 1_mik, MPI_INTEGER8, 0_mik, rank_mpi, MPI_COMM_WORLD, status_mpi, ierr)
         CALL print_err_stop(std_out, "MPI_RECV on Domain didn't succeed", ierr)
 
         Domain = Domains(nn)
 
         !------------------------------------------------------------------------------
-        ! Only compute the domain if it was not yet (entry in stat file = -999)
+        ! Only compute the domain if it was not yet (entry in status file = -999)
         !------------------------------------------------------------------------------
-        IF (Domain_stints(nn) < 0) THEN
+        IF (Domain_stats(nn) < 0) THEN
 
             IF (out_amount /= "PRODUCTION") THEN
                 !------------------------------------------------------------------------------
                 ! Receive Job_Dir
                 !------------------------------------------------------------------------------
-                CALL mpi_recv(job_dir, 4_mik*int(mcl,mik), mpi_character, 0_mik, rank_mpi, MPI_COMM_WORLD, stat_mpi, ierr)
+                CALL mpi_recv(job_dir, 4_mik*int(mcl,mik), mpi_character, 0_mik, rank_mpi, MPI_COMM_WORLD, status_mpi, ierr)
                 CALL print_err_stop(std_out, "MPI_RECV on Domain path didn't succeed", ierr)
             ELSE
                 job_dir = outpath
@@ -1220,10 +1223,10 @@ Else
             
             IF (job_dir(len(job_dir):len(job_dir)) /= "/") job_dir = trim(job_dir)//"/"
 
-            !======================================================================
+            !==============================================================================
             CALL exec_single_domain(root, comm_nn, Domain, job_dir, Active, fh_mpi_worker, &
                 worker_rank_mpi, worker_size_mpi, worker_comm)
-            !======================================================================
+            !==============================================================================
 
             !------------------------------------------------------------------------------
             ! Organize Results
@@ -1235,10 +1238,10 @@ Else
                     ! Log memory consumption (in a trivial way)
                     !------------------------------------------------------------------------------
                     CALL execute_command_line("free -h | grep 'Mem' | tr -d '\n' >> "&
-                        //TRIM(outpath)//TRIM(project_name)//".memlog", CMDSTAT=stint)
+                        //TRIM(outpath)//TRIM(project_name)//".memlog", CMDSTAT=stat)
 
                     CALL execute_command_line("date >> "&
-                        //TRIM(outpath)//TRIM(project_name)//".memlog", CMDSTAT=stint)
+                        //TRIM(outpath)//TRIM(project_name)//".memlog", CMDSTAT=stat)
                 END IF
                 
             
@@ -1271,7 +1274,7 @@ Else
                 ! Store activity information
                 !------------------------------------------------------------------------------
                 Call MPI_FILE_WRITE_AT(aun, INT(((nn-1) * ik), MPI_OFFSET_KIND), &
-                    Domain, 1_mik, MPI_INTEGER8, stat_mpi, ierr)
+                    Domain, 1_mik, MPI_INTEGER8, status_mpi, ierr)
 
                 !------------------------------------------------------------------------------
                 ! Deallocate results of this domain. Potential memory leak.
@@ -1285,12 +1288,12 @@ Else
             !------------------------------------------------------------------------------
             CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
                 INT(root%branches(3)%leaves(1)%lbound-1+(domains_per_comm-1-1), MPI_OFFSET_KIND), &
-                INT(comm_nn, ik), 1_mik, MPI_INTEGER8, stat_mpi, ierr)
+                INT(comm_nn, KIND=ik), 1_mik, MPI_INTEGER8, status_mpi, ierr)
 
             !------------------------------------------------------------------------------
             ! Increment linear domain counter of the PETSc sub_comm instances
             ! It is important (!) to increment this variable after the check
-            ! IF (Domain_stints(nn) <= 0) THEN. Otherwise, the program will write into 
+            ! IF (Domain_stats(nn) <= 0) THEN. Otherwise, the program will write into 
             ! slots that are used by previous domains.
             !------------------------------------------------------------------------------
             comm_nn = comm_nn + 1_ik
@@ -1305,7 +1308,7 @@ Else
         CALL MPI_ISEND(active, 1_mik, MPI_INTEGER4, 0_mik, rank_mpi, MPI_COMM_WORLD, request, ierr)
         CALL print_err_stop(std_out, "MPI_ISEND on Active didn't succeed", ierr)
 
-        CALL MPI_WAIT(request, stat_mpi, ierr)
+        CALL MPI_WAIT(request, status_mpi, ierr)
         CALL print_err_stop(std_out, "MPI_WAIT on request for ISEND Active didn't succeed", ierr)
 
     End Do

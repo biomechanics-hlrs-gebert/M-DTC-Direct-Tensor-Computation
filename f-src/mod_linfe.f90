@@ -11,8 +11,8 @@ contains
   !** First base function for a linear FE-Ansatz
   !** with xi element of closed interval [-1,1]
   !**
-  Real(kind=rk) Function g_1(xi)
-    Real(kind=rk), intent(in) :: xi
+  Real(rk) Function g_1(xi)
+    Real(rk), intent(in) :: xi
     g_1 = 0.5_rk *( 1._rk - xi )
   End Function g_1
 
@@ -20,8 +20,8 @@ contains
   !** Second base function for a linear FE-Ansatz
   !** with xi element of closed interval [-1,1]
   !**  
-  Real(kind=rk) Function g_2(xi)
-    Real(kind=rk), intent(in) :: xi
+  Real(rk) Function g_2(xi)
+    Real(rk), intent(in) :: xi
     g_2 = 0.5_rk *( 1._rk + xi )
   End Function g_2
 
@@ -33,9 +33,9 @@ contains
   !**
   Function phi_NN(xi) Result(N)
 
-    Real(kind=rk), Intent(in), dimension(3)   :: xi
+    Real(rk), Intent(in), dimension(3)   :: xi
 
-    Real(kind=rk), dimension(8)               :: N
+    Real(rk), dimension(8)               :: N
 
     N = 0._rk
 
@@ -62,10 +62,10 @@ contains
   !**
   function t_geom_xi(node,xa,xe) result(tnode)
 
-    Real(kind=rk), Dimension(3), intent(in)  :: node
-    Real(kind=rk), Dimension(3), intent(in)  :: xa, xe
+    Real(rk), Dimension(3), intent(in)  :: node
+    Real(rk), Dimension(3), intent(in)  :: xa, xe
 
-    Real(kind=rk), Dimension(3)              :: tnode
+    Real(rk), Dimension(3)              :: tnode
 
     tnode = 2._rk / (xe-xa) * node - (xe+xa) / (xe-xa)
 
@@ -76,8 +76,8 @@ contains
   !** shaped Hexe8
   Subroutine num_stiffness_to_stiffness(A,C)
 
-    Real(kind=rk), Dimension(24,24), Intent(in ) :: A    
-    Real(kind=rk), Dimension( 6, 6), Intent(out) :: C
+    Real(rk), Dimension(24,24), Intent(in ) :: A    
+    Real(rk), Dimension( 6, 6), Intent(out) :: C
 
     C(1,1)= (  3._rk*A( 2, 2)-12._rk*A( 1, 2)+ 3._rk*A( 1, 1))/2._rk
     C(1,4)= (- 3._rk*A( 4, 4)+ 3._rk*A( 3, 3)- 3._rk*A( 2, 2)+ 3._rk*A( 1, 1))/2._rk
@@ -148,14 +148,9 @@ contains
 !------------------------------------------------------------------------------  
   Function Hexe08(mc) Result(C_FE)
     TYPE(materialcard) :: mc
+    REAL(rk) :: a, factor, nu, E
+    REAL(rk), DIMENSION(24,24) :: C_FE
 
-    REAL(KIND=rk) :: E
-    REAL(KIND=rk) :: nu
-    REAL(KIND=rk) :: a 
-    REAL(KIND=rk), DIMENSION(24,24) :: C_FE
-
-    REAL(KIND=rk) :: factor
-    
     !------------------------------------------------------------------------------  
     ! Both variables can be read from mc. But tranparency is required here.
     !------------------------------------------------------------------------------  
@@ -754,16 +749,21 @@ contains
   end Function Hexe08
 
   !--------------------------------------------------------------------------
-  Function Hexe20() Result(C_FE)
+  Function Hexe20(mc) Result(C_FE)
 
-    Real(kind=rk), Dimension(60,60) :: C_FE
-    Real(kind=rk), Parameter :: E  = 5600._rk
-    Real(kind=rk), Parameter :: nu = 0.3_rk
-    Real(kind=rk), Parameter :: a  = 0.019362_rk
+    TYPE(materialcard) :: mc
 
-    Real(kind=rk) :: factor
+    REAL(rk) :: a, factor, nu, E
+    REAL(rk), DIMENSION(60,60) :: C_FE
 
-    factor = (E*a / (256._rk*(2.0_rk * nu**2 + nu - 1.0_rk)*2._rk*nu))
+    !------------------------------------------------------------------------------  
+    ! Both variables can be read from mc. But tranparency is required here.
+    !------------------------------------------------------------------------------  
+    E  = mc%E
+    nu = mc%nu
+    a  = mc%phdsize(1) * mc%delta(1) 
+
+    factor = (mc%E*a / (256._rk*(2.0_rk * nu**2 + nu - 1.0_rk)*2._rk*nu))
 
     C_FE(1,1) = 7.407407407407407E-3_rk*(1.8816E4_rk*nu-1.2544E4_rk)
     C_FE(1,2) = -1.374814814814815E1_rk

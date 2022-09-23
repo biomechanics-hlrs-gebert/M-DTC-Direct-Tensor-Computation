@@ -1016,7 +1016,7 @@ CONTAINS
     Integer(Kind=1)    , Parameter  :: dat_ty=5
     Integer(Kind=pd_ik), Intent(in) :: dat_no
 
-    Real(Kind=8) , Intent(in), Dimension(:) :: values
+    Real(Kind=8)       , Intent(in), Dimension(:) :: values
 
     !> Pointer to leaf children
     Type(tLeaf), Dimension(:), Pointer :: leaves
@@ -1026,6 +1026,7 @@ CONTAINS
 
     leaves     => t_b%leaves
     t_b%leaves => Null()
+
 
     allocate(t_b%leaves(t_b%no_leaves+1))
 
@@ -2494,7 +2495,7 @@ End Subroutine connect_pointers
 !> statement for
 Subroutine open_stream_files_from_tree(tree, action, status, position)
 
-Type(tBranch)   , Intent(InOut) :: tree 
+Type(tBranch)   , Intent(InOut) :: tree
 Character(len=*), intent(In)    :: action, status
 
 Character(len=*), intent(In),optional :: position
@@ -2517,6 +2518,7 @@ If (.NOT. allocated(tree%streams)) then
 End If
 
 Do ii = 1, no_streams
+
     Inquire(file=trim(tree%streams%stream_files(ii)), exist=fexist, number=funit, action=faction) 
 
     
@@ -2529,7 +2531,6 @@ Do ii = 1, no_streams
         ! File is connected to a unit
         !------------------------------------------------------------------------------
         If (funit > -1) then
-write(*,*) "IS NOT CONNECTED, NO NEW UNIT"
 
             ! Check tree%units integrity
             if (tree%streams%units(ii) /= funit) then
@@ -2800,9 +2801,10 @@ Integer(kind=pd_mik) :: ierr
 Character(len=*), intent(In),optional :: position
 Character(len=pd_mcl) :: lpos
 
+Character(len=10) :: faction
+
 logical :: fexist
 Integer :: ii, funit
-Character(len=10) :: faction
 
 If (present(position)) then
    !lpos = position
@@ -2815,47 +2817,47 @@ Do ii = 1, no_streams
 
     fexist = .FALSE.
 
-    ! File exists
-    If (fexist) Then
+    ! ! File exists
+    ! If (fexist) Then
 
-        ! File is connected to a unit
-        If (funit > -1) then
+    !     ! File is connected to a unit
+    !     If (funit > -1) then
 
-            ! Check units integrity
-            if (streams%units(ii) /= funit) then
+    !         ! Check units integrity
+    !         if (streams%units(ii) /= funit) then
 
-            Write(pd_umon,*)"In Subroutine open_stream_files_from_streams'"
-            Write(pd_umon,*)"An inconsistency was detected in units"
-            Write(pd_umon,*)"Expected unit no. is     :",streams%units(ii)
-            write(pd_umon,*)"Inqure returned unit no. :",funit
-            Write(pd_umon,*)"PROGRAM STOPPED !"
-            stop
+    !         Write(pd_umon,*)"In Subroutine open_stream_files_from_streams'"
+    !         Write(pd_umon,*)"An inconsistency was detected in units"
+    !         Write(pd_umon,*)"Expected unit no. is     :",streams%units(ii)
+    !         write(pd_umon,*)"Inqure returned unit no. :",funit
+    !         Write(pd_umon,*)"PROGRAM STOPPED !"
+    !         stop
 
-            End if
+    !         End if
 
-            ! Check whether the file is opened for the desired action
-            if (action /= trim(faction)) then
+    !         ! Check whether the file is opened for the desired action
+    !         if (action /= trim(faction)) then
 
-            close(streams%units(ii))
-            Open(unit=streams%units(ii), &
-                    file=streams%stream_files(ii), status=status, &
-                    action=action, access='stream', form='unformatted',&
-                    position=trim(lpos))
+    !         close(streams%units(ii))
+    !         Open(unit=streams%units(ii), &
+    !                 file=streams%stream_files(ii), status=status, &
+    !                 action=action, access='stream', form='unformatted',&
+    !                 position=trim(lpos))
 
-            End if
+    !         End if
 
-            ! File is not connected to a unit
-        Else
-            streams%units(ii) = pd_give_new_unit()
-            Open(unit=streams%units(ii), &
-                file=streams%stream_files(ii), status=status, &
-                action=action, access='stream', form='unformatted', &
-                position=trim(lpos))
-            streams%ifopen(ii) = .TRUE.
-        End If
+    !         ! File is not connected to a unit
+    !     Else
+    !         streams%units(ii) = pd_give_new_unit()
+    !         Open(unit=streams%units(ii), &
+    !             file=streams%stream_files(ii), status=status, &
+    !             action=action, access='stream', form='unformatted', &
+    !             position=trim(lpos))
+    !         streams%ifopen(ii) = .TRUE.
+    !     End If
 
-        ! File does not exist
-    Else 
+    !     ! File does not exist
+    ! Else 
 
         If ((status == 'new') .or. (status == 'replace')) then
 
@@ -2901,45 +2903,45 @@ Do ii = 1, no_streams
                 Write(pd_umon,*)"is used on an empty file !"
             End If
 
-      !   END if
-        Else If ( (status =='old') .AND. ( trim(lpos) == 'append' ) ) then
+        END if
+    !     Else If ( (status =='old') .AND. ( trim(lpos) == 'append' ) ) then
 
-            streams%units(ii) = pd_give_new_unit()
-            Open(unit=streams%units(ii), &
-                file=streams%stream_files(ii) , status='new', &
-                action=action, access='stream', form='unformatted', &
-                position=trim(lpos))
-            streams%ifopen(ii) = .TRUE.
+    !         streams%units(ii) = pd_give_new_unit()
+    !         Open(unit=streams%units(ii), &
+    !             file=streams%stream_files(ii) , status='new', &
+    !             action=action, access='stream', form='unformatted', &
+    !             position=trim(lpos))
+    !         streams%ifopen(ii) = .TRUE.
 
-            If (action == 'read') then
-            Write(pd_umon, "( A)") "In Subroutine 'open_stream_files_from_streams'"
-            Write(pd_umon, "(3A)") "file-open status ", status," ws used on a"
-            Write(pd_umon, "( A)") "non existent file so a new one was created ! "
-            End If
+    !         If (action == 'read') then
+    !         Write(pd_umon, "( A)") "In Subroutine 'open_stream_files_from_streams'"
+    !         Write(pd_umon, "(3A)") "file-open status ", status," ws used on a"
+    !         Write(pd_umon, "( A)") "non existent file so a new one was created ! "
+    !         End If
 
-        Else If ( (status =='old') .AND. (streams%dim_st(ii) > 0) ) then
+    !     Else If ( (status =='old') .AND. (streams%dim_st(ii) > 0) ) then
 
-            Write(pd_umon, "(3A)")     "In Subroutine open_stream_files_from_streams' file-open status ", status
-            Write(pd_umon, "(A)")      "is inconsistent with a non existent file and stream dimension > 0 !"
-            Write(pd_umon, "(A,I0,A)") "Please check whether there's file Number ",ii," missing "
-            !------------------------------------------------------------------------------
-            ! Missing check may damage consistency....
-            !------------------------------------------------------------------------------
-            ! Write(pd_umon, *) "PROGRAM STOPPED !"
-            ! stop
+    !         Write(pd_umon, "(3A)")     "In Subroutine open_stream_files_from_streams' file-open status ", status
+    !         Write(pd_umon, "(A)")      "is inconsistent with a non existent file and stream dimension > 0 !"
+    !         Write(pd_umon, "(A,I0,A)") "Please check whether there's file Number ",ii," missing "
+    !         !------------------------------------------------------------------------------
+    !         ! Missing check may damage consistency....
+    !         !------------------------------------------------------------------------------
+    !         ! Write(pd_umon, *) "PROGRAM STOPPED !"
+    !         ! stop
 
 
-          Else if ( (status /= 'new') .and. (status /= 'old') .and. (status /= 'replace') ) then
+    !       Else if ( (status /= 'new') .and. (status /= 'old') .and. (status /= 'replace') ) then
 
-            Write(pd_umon, "(3A)") "In Subroutine open_stream_files_from_streams' file-open status ", status
-            Write(pd_umon, "( A)") "is not a valid parameter !"
-            Write(pd_umon, "( A)") "Only 'new', 'old' and 'replace' are supported"
-            Write(pd_umon, "( A)") "PROGRAM STOPPED !"
-            stop
+    !         Write(pd_umon, "(3A)") "In Subroutine open_stream_files_from_streams' file-open status ", status
+    !         Write(pd_umon, "( A)") "is not a valid parameter !"
+    !         Write(pd_umon, "( A)") "Only 'new', 'old' and 'replace' are supported"
+    !         Write(pd_umon, "( A)") "PROGRAM STOPPED !"
+    !         stop
 
-        End If
+    !     End If
 
-    End If
+    ! End If
 
 End Do
 
@@ -3405,8 +3407,8 @@ End Subroutine pd_get_4
     Type(tBranch)   , Intent(in) :: branch
     Character(Len=*), Intent(in) :: desc
     Integer(kind=8) , Intent(in) :: size
-
-    Real(kind=8), Intent(out), Dimension(size) :: values
+    
+    Real(kind=8) , Intent(out), Dimension(size) :: values
 
     Integer :: ii
     Logical :: desc_found
@@ -3417,6 +3419,7 @@ End Subroutine pd_get_4
 
        If (trim(branch%leaves(ii)%desc) == trim(desc)) then
           
+         
           If (size /= branch%leaves(ii)%dat_no)  then
              Write(pd_umon,'( A)')"Something bad and unexpected happend during retrival&
                   & of leaf data pointer"
