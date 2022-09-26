@@ -223,10 +223,12 @@ calc_rforces = 0._rk
 
 allocate(vv(no_lc, no_lc), stat=alloc_stat)
 call alloc_err("vv", alloc_stat)
+
 allocate(ff(no_lc, no_lc), stat=alloc_stat)
 call alloc_err("ff", alloc_stat)
 
 ff = 0._rk
+
 
 allocate(stiffness(no_lc, no_lc), stat=alloc_stat)
 call alloc_err("stiffness", alloc_stat)
@@ -257,9 +259,8 @@ End Select
 !------------------------------------------------------------------------------
 ! Search effective results branch
 !------------------------------------------------------------------------------
+Call Search_branch("Results of domain "//trim(nn_char), root, result_branch, success)
 
-! Call Search_branch("Results of domain "//trim(nn_char), root, result_branch, success)
-result_branch = root%branches(3)
 !------------------------------------------------------------------------------
 ! Init C
 !------------------------------------------------------------------------------
@@ -304,6 +305,7 @@ End If
 ! Loadcase init
 !------------------------------------------------------------------------------
 call init_loadcase(rve_strain, vv)
+
 
 If (out_amount == "DEBUG") THEN
     WRITE(un_lf, FMT_DBG_SEP)
@@ -382,7 +384,6 @@ CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
 If (out_amount /= "PRODUCTION" ) then
     Call Write_matrix(std_out, "Stiffness", stiffness, fmti='std', unit='MPa')
 End If
-
 
 !------------------------------------------------------------------------------
 ! Calc Symmetry deviation - effective numerical stiffness
@@ -483,7 +484,7 @@ CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
     Int(root%branches(3)%leaves(5)%lbound-1+(comm_nn-1)*6*no_lc, MPI_OFFSET_KIND), &
     reshape(int_stress, [6*no_lc]), &
     Int(6*no_lc, pd_mik), MPI_REAL8, status_mpi, ierr)
-
+    
 !------------------------------------------------------------------------------
 ! Averaged strains
 !------------------------------------------------------------------------------
@@ -581,6 +582,7 @@ CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
     Int(root%branches(3)%leaves(10)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
     tmp_real_fd1, &
     1_pd_mik, MPI_REAL8, status_mpi, ierr)
+
 
 EE_Orig = EE
 

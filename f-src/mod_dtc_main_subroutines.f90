@@ -438,7 +438,6 @@ else if (elt_micro == "HEX20") then
 
 end if
 
-
 IF (rank_mpi == 0) THEN   ! Sub Comm Master
     SELECT CASE (timer_level)
     CASE (1)
@@ -449,6 +448,7 @@ IF (rank_mpi == 0) THEN   ! Sub Comm Master
     
     CALL start_timer(TRIM(timer_name), .FALSE.)
 END IF 
+
 
 CALL MatAssemblyBegin(AA, MAT_FINAL_ASSEMBLY ,petsc_ierr)
 CALL MatAssemblyBegin(AA_org, MAT_FINAL_ASSEMBLY ,petsc_ierr)
@@ -472,7 +472,6 @@ IF (rank_mpi == 0) CALL end_timer(TRIM(timer_name))
 !     CALL PetscViewerDestroy(PetscViewer, petsc_ierr)
 !  End If
     
-
 !------------------------------------------------------------------------------
 ! At this point the system matrix is assembled. To make it ready to be
 ! used, the rows and columns of the dofs with prescribed displacements
@@ -839,7 +838,7 @@ Do jj = 1,24
     
     ! Get Pointer to force vector
     CALL VecGetArrayReadF90(FF(jj),force,petsc_ierr)
-    
+
     !------------------------------------------------------------------------------
     ! Master/Worker
     !------------------------------------------------------------------------------
@@ -855,6 +854,7 @@ Do jj = 1,24
 
     Else ! Master
 
+        
         !------------------------------------------------------------------------------
         ! Copy rank 0 local result
         !------------------------------------------------------------------------------
@@ -884,6 +884,7 @@ Do jj = 1,24
                 COMM_MPI, status_mpi, ierr)
         End Do
 
+        
         !------------------------------------------------------------------------------
         ! Add leaf with displacements to the results branch
         !------------------------------------------------------------------------------
@@ -895,7 +896,6 @@ Do jj = 1,24
         !------------------------------------------------------------------------------
         write(desc,'(A)') "Reaction Forces"
         CALL Add_Leaf_to_Branch(esd_result_branch%branches(2), trim(desc), m_size, glob_force) 
-
 
         If (out_amount == "DEBUG") THEN 
             write(desc,'(A,I2.2)') "DispRes", jj
@@ -910,6 +910,8 @@ Do jj = 1,24
         End if
     End If
 End Do
+
+! write(*,*) "IM BEFORE EFF"
 
 !------------------------------------------------------------------------------
 ! All 24 linear system solutions are produced. 
@@ -936,6 +938,8 @@ if (rank_mpi == 0) then
 ELSE
     DEALLOCATE(part_branch)
 End if
+
+! write(*,*) "IM AFTER EFF"
 
 !------------------------------------------------1------------------------------
 ! Remove matrices
