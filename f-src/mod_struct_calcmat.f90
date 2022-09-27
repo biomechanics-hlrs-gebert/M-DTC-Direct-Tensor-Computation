@@ -50,7 +50,7 @@ Integer(ik) :: no_elems, no_nodes, no_cnodes, macro_order, ii_phi, ii_eta, kk_ph
 
 Integer(ik), Dimension(:,:,:,:), Allocatable :: ang
 Integer(ik), Dimension(:)      , Allocatable :: xa_n, xe_n, no_cnodes_pp, cref_cnodes
-Integer(ik), Dimension(3)                    :: s_loop,e_loop, mlc
+Integer(ik), Dimension(3) :: s_loop,e_loop, mlc
 
 Logical :: success
 
@@ -247,7 +247,7 @@ end if
 
 Select Case (timer_level)
 Case (3)
-    call end_timer  ("  +-- Loading input data "//trim(nn_char))
+    call end_timer  ("  +-- 33 input data "//trim(nn_char))
     call start_timer("  +-- Calc material data "//trim(nn_char))
 Case (2)
     call end_timer  ("  +-- Loading input data "//trim(nn_char))

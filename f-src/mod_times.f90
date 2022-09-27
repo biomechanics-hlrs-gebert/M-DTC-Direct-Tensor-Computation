@@ -140,12 +140,12 @@ contains
   Subroutine write_timelist(timers,exclude,unit)
 
     character(len=*),Dimension(:), intent(in), optional :: timers
-    Logical                      , intent(in), optional :: exclude
-    Integer                      , intent(in), optional :: unit
-    Integer                                             :: ii, loc_u
-    Character(len=4)                                    :: fmt
-    integer                                             :: max_dl
-    Logical                                             :: loc_exclude
+    Logical, intent(in), optional :: exclude
+    Integer, intent(in), optional :: unit
+    Integer :: ii, loc_u
+    integer :: max_dl
+    Logical :: loc_exclude
+    Character(len=4) :: fmt
 
     loc_u = 6
     if (present(unit)) loc_u = unit
