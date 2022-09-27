@@ -268,7 +268,7 @@ If (rank_mpi == 0) THEN
     ! This log file may collide with the original log file (!)
     ! The regular struct_process log file contains still has the "old" basename!
     !------------------------------------------------------------------------------
-    CALL meta_start_ascii(fh_mon, mon_suf)
+    CALL meta_start_ascii(fh_log, log_suf)
 
     IF (std_out/=6) CALL meta_start_ascii(std_out, '.std_out')
 
@@ -428,8 +428,8 @@ If (rank_mpi == 0) THEN
             CALL print_err_stop_slaves(mssg); GOTO 1000
         END IF
     ELSE 
-        WRITE(fh_mon, FMT_MSG) "Reusing the output directory"
-        WRITE(fh_mon, FMT_MSG) TRIM(outpath)
+        WRITE(fh_log, FMT_MSG) "Reusing the output directory"
+        WRITE(fh_log, FMT_MSG) TRIM(outpath)
     END IF
 
     CALL link_start(link_name, .TRUE., .FALSE., success)
@@ -927,7 +927,7 @@ If (rank_mpi==0) Then
     CALL get_stream_size(root, dsize)
 
     If (out_amount == "DEBUG") &
-        write(fh_mon,FMT_MSG_AxI0) "On rank zero, stream sizes: ", dsize
+        write(fh_log,FMT_MSG_AxI0) "On rank zero, stream sizes: ", dsize
     
     !------------------------------------------------------------------------------
     ! Supply all worker masters  with their first work package
@@ -960,8 +960,8 @@ If (rank_mpi==0) Then
         !------------------------------------------------------------------------------
         ! Log to Monitor file
         !------------------------------------------------------------------------------
-        WRITE(fh_mon, FMT_MSG_xAI0) "Domain ", Domains(nn), " at Ranks ", mii, " to ", mii + parts-1
-        flush(fh_mon)
+        WRITE(fh_log, FMT_MSG_xAI0) "Domain ", Domains(nn), " at Ranks ", mii, " to ", mii + parts-1
+        flush(fh_log)
 
         nn = nn + 1_ik
         
@@ -1015,8 +1015,8 @@ If (rank_mpi==0) Then
         !------------------------------------------------------------------------------
         ! Log to Monitor file
         !------------------------------------------------------------------------------
-        WRITE(fh_mon, FMT_MSG_xAI0) "Domain ", Domains(nn), " at Ranks ", mii, " to ", mii + parts-1
-        flush(fh_mon)
+        WRITE(fh_log, FMT_MSG_xAI0) "Domain ", Domains(nn), " at Ranks ", mii, " to ", mii + parts-1
+        flush(fh_log)
 
         !------------------------------------------------------------------------------
         ! Iterate over domain
@@ -1345,7 +1345,7 @@ IF(rank_mpi == 0) THEN
     CALL meta_signing(binary)
     CALL meta_close()
 
-    CALL meta_stop_ascii(fh_mon, mon_suf)
+    CALL meta_stop_ascii(fh_log, log_suf)
 
     IF (std_out/=6) THEN
         CALL meta_stop_ascii(fh=std_out, suf='.std_out')

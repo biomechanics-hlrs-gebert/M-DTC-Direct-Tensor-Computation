@@ -4,16 +4,15 @@
 #
 # Author:    Johannes Gebert - HLRS - NUM - gebert@hlrs.de
 # Date:      09.01.2022
-# Last edit: 27.02.2022
+# Last edit: 12.04.2022
 #
 # For use of PBSPro visit:
 # https://kb.hlrs.de/platforms/index.php/Batch_System_PBSPro_(Hawk)
 # ------------------------------------------------------------------------------
-#PBS -N dtc
-#PBS -l select=32:node_type=rome:mpiprocs=128:node_type_mem=256gb
+#PBS -N dtc-test
+#PBS -l select=4:node_type=rome:mpiprocs=128:node_type_mem=256gb
 #PBS -l walltime=00:25:00
 #PBS -q test
-#
 # ------------------------------------------------------------------------------
 date
 echo "############################################################"
@@ -22,13 +21,28 @@ echo -e "Job identifier:\t${PBS_JOBID}"
 echo -e "Job name:\t${PBS_JOBNAME}"
 echo "running on ${HOST}"
 #
+# ------------------------------------------------------------------------------
 # Change to the direcotry that the job was submitted from
+# ------------------------------------------------------------------------------
 cd "$PBS_O_WORKDIR" || exit
 #
-/zhome/academic/HLRS/hlrs/hpcgeber/hpcgeber-dtc_hawk/M-DTC-Direct-Tensor-Computation-major_output_restructuring/datasets/memlog.sh /zhome/academic/HLRS/hlrs/hpcgeber/hpcgeber-dtc_hawk/M-DTC-Direct-Tensor-Computation-major_output_restructuring/datasets/FH01-2_mu_Dev_dtc_06-DR4-10-p255-N2-32N.memlog > /dev/null 2> /dev/null &
-#
+# ------------------------------------------------------------------------------
+# Source environment. »shellcheck« is some sort of a pragma for shellcheck (!)
+# ------------------------------------------------------------------------------
 # shellcheck source=/dev/null
 source "./environment.source" hawk --no-output
 #
+# ------------------------------------------------------------------------------
+# Set the basename of the dataset, according to the MeRaDat format.
+# ------------------------------------------------------------------------------
+export BASENAME=FH01-2_mu_Dev_CTBI_10-65536
+#
+# ------------------------------------------------------------------------------
+# Start/append memory logging; Extract with the corresponding shell script
+# ------------------------------------------------------------------------------
+datasets/memlog.sh datasets/$BASENAME.memlog > /dev/null 2> /dev/null &
+#
+# ------------------------------------------------------------------------------
 # Launch the parallel mpi application
-mpirun -np 4081 --report-bindings ./bin/dtc_V1.0.0_x86_64 "$PBS_O_WORKDIR" ./datasets/FH01-2_mu_Dev_cbi_32767-65000.meta
+# ------------------------------------------------------------------------------
+mpirun -np 511 ./bin/dtc_V1.1.0_x86_64 "$PBS_O_WORKDIR" datasets/$BASENAME.meta
