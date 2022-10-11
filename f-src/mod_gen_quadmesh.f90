@@ -152,8 +152,8 @@ contains
 
     Else
 
-       Write(un_lf,FMT_MSG_xAI0)'Minimal value in phi = ',min_val_phi
-       Write(un_lf,FMT_MSG_xAI0)'Maximal value in phi = ',max_val_phi
+       Write(un_lf,FMT_MSG_xAI0)'Minimal value in phi = ', min_val_phi
+       Write(un_lf,FMT_MSG_xAI0)'Maximal value in phi = ', max_val_phi
 
     End If
 
@@ -169,6 +169,9 @@ contains
 
        Allocate(elems( 8, x_D(1)*x_D(2)*x_D(3)), stat=alloc_stat)
        call alloc_err("elems", alloc_stat)
+
+      write(*,*) "x_D: ", x_D
+
 
     !** For hexaedral elements with quadratic trial functions *****************
     else if (elt_micro == "HEX20") then

@@ -145,9 +145,6 @@ Module puredat_types
 
   End type tStreams
 
-
-  Integer(8), Dimension(7) :: filehandles  = -1
-
   !============================================================================
   !> Type: Stream chunk pointer
   !>
@@ -1026,7 +1023,6 @@ CONTAINS
 
     leaves     => t_b%leaves
     t_b%leaves => Null()
-
 
     allocate(t_b%leaves(t_b%no_leaves+1))
 
@@ -2499,7 +2495,6 @@ Type(tBranch)   , Intent(InOut) :: tree
 Character(len=*), intent(In)    :: action, status
 
 Character(len=*), intent(In),optional :: position
-
 Character(len=pd_mcl) :: lpos
 
 Character(len=10) :: faction
@@ -2521,7 +2516,6 @@ Do ii = 1, no_streams
 
     Inquire(file=trim(tree%streams%stream_files(ii)), exist=fexist, number=funit, action=faction) 
 
-    
     !------------------------------------------------------------------------------
     ! File exists
     !------------------------------------------------------------------------------
@@ -2559,14 +2553,11 @@ Do ii = 1, no_streams
         Else
 
             tree%streams%units(ii) = pd_give_new_unit()
-
             Open(unit=tree%streams%units(ii), &
                 file=tree%streams%stream_files(ii), status=status, &
                 action=action, access='stream', form='unformatted', &
                 position=trim(lpos))
             tree%streams%ifopen(ii) = .TRUE.
-
-
 
         End If
 
@@ -2629,12 +2620,6 @@ Do ii = 1, no_streams
     End If
 
 End Do
-
-
-!------------------------------------------------------------------------------
-! Workaround to get along with segfaulting units
-!------------------------------------------------------------------------------
-filehandles = tree%streams%units
 
 End Subroutine open_stream_files_from_tree
 
@@ -3419,7 +3404,6 @@ End Subroutine pd_get_4
 
        If (trim(branch%leaves(ii)%desc) == trim(desc)) then
           
-         
           If (size /= branch%leaves(ii)%dat_no)  then
              Write(pd_umon,'( A)')"Something bad and unexpected happend during retrival&
                   & of leaf data pointer"
@@ -4388,18 +4372,16 @@ End Subroutine pd_get_4
     Type(tBranch)   , Intent(in) :: branch
     Character(Len=*), Intent(in) :: desc
 
-    Character(len=scl), Intent(out) :: values
+    Character, Intent(out), Allocatable, Dimension(:) :: values
 
     Integer :: ii, alloc_stat
     Logical :: desc_found=.FALSE.
 
-   ! Can only read one string at a time
     Do ii = 1, branch%no_leaves
-      ! ii=1
 
        If (trim(branch%leaves(ii)%desc) == trim(desc)) then    
 
-         !  Allocate(values(branch%leaves(ii)%dat_no),stat=alloc_stat)
+          Allocate(values(branch%leaves(ii)%dat_no),stat=alloc_stat)
           call alloc_error(alloc_stat, "values", "pd_load_leaf_6", &
                branch%leaves(ii)%dat_no)
       
@@ -6275,9 +6257,8 @@ End Subroutine store_parallel_branch
     End If
 
     IF ((debug == "DEBUG") .AND. (.NOT.success)) then
-      WRITE(pd_umon, FMT_WRN) 'The branch with description: '//TRIM(descr)
-      WRITE(pd_umon, FMT_WRN) 'Was not found in branch '//TRIM(branch%desc)
-      WRITE(pd_umon, FMT_WRN_SEP)
+      WRITE(pd_umon, FMT_WRN) "The branch '"//TRIM(descr)//&
+         "' was not found in branch "//TRIM(branch%desc)
     End If
     
   End Subroutine Search_branch_wrn

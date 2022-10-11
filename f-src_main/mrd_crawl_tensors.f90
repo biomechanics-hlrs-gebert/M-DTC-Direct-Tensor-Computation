@@ -155,7 +155,7 @@ Domain_stats(:,:) = 0_ik
 !------------------------------------------------------------------------------
 aun = give_new_unit()
 
-activity_file = TRIM(in%p_n_bsnm)//".stat"
+activity_file = TRIM(in%p_n_bsnm)//".status"
 INQUIRE(FILE = TRIM(activity_file), EXIST=stat_exists, SIZE=activity_size)
 
 IF(.NOT. stat_exists) THEN

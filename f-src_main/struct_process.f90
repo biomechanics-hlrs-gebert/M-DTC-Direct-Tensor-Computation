@@ -269,6 +269,7 @@ If (rank_mpi == 0) THEN
     ! The regular struct_process log file contains still has the "old" basename!
     !------------------------------------------------------------------------------
     CALL meta_start_ascii(fh_log, log_suf)
+    CALL meta_start_ascii(fh_mon, mon_suf)
 
     IF (std_out/=6) CALL meta_start_ascii(std_out, '.std_out')
 
@@ -398,11 +399,12 @@ If (rank_mpi == 0) THEN
     CALL add_leaf_to_branch(meta_para, "Element order on macro scale"  , 1_ik, [elo_macro]) 
     CALL add_leaf_to_branch(meta_para, "Output amount"                 , len(out_amount), str_to_char(out_amount)) 
     
-    CALL add_leaf_to_branch(meta_para, "Restart"                       , len(restart) , str_to_char(restart)) 
-    CALL add_leaf_to_branch(meta_para, "Number of voxels per direction", 3_ik , vdim) 
+    ! CALL add_leaf_to_branch(meta_para, "Restart"                       , len(restart) , str_to_char(restart)) 
+CALL add_leaf_to_branch(meta_para, "Restart", 1_ik, str_to_char(restart(1:1))) 
+CALL add_leaf_to_branch(meta_para, "Number of voxels per direction", 3_ik , vdim) 
 
     CALL add_leaf_to_branch(meta_para, "Domains per communicator", 1_ik, [domains_per_comm]) 
-    CALL add_leaf_to_branch(meta_para, "Raw data stream" , len(typeraw), str_to_char(typeraw)) 
+!     CALL add_leaf_to_branch(meta_para, "Raw data stream" , len(typeraw), str_to_char(typeraw)) 
 
     !------------------------------------------------------------------------------
     ! Prepare output directory via CALLing the c function.
@@ -414,7 +416,7 @@ If (rank_mpi == 0) THEN
 
     IF(stat_c_int /= 0) THEN
 
-        CALL execute_command_line("mkdir -p "//TRIM(outpath),CMDSTAT=stat)
+        CALL create_directory(TRIM(outpath), stat)
 
         IF(stat /= 0) THEN
             mssg = 'Could not execute syscall »mkdir -p '//trim(outpath)//'«.'
@@ -428,8 +430,8 @@ If (rank_mpi == 0) THEN
             CALL print_err_stop_slaves(mssg); GOTO 1000
         END IF
     ELSE 
-        WRITE(fh_log, FMT_MSG) "Reusing the output directory"
-        WRITE(fh_log, FMT_MSG) TRIM(outpath)
+        WRITE(fh_mon, FMT_MSG) "Reusing the output directory"
+        WRITE(fh_mon, FMT_MSG) TRIM(outpath)
     END IF
 
     CALL link_start(link_name, .TRUE., .FALSE., success)
@@ -446,6 +448,7 @@ END IF
 CALL MPI_BCAST(stat_exists  , 1_mik, MPI_LOGICAL    , 0_mik, MPI_COMM_WORLD, ierr)
 CALL MPI_BCAST(No_of_domains, 1_mik, MPI_INTEGER8   , 0_mik, MPI_COMM_WORLD, ierr)
 CALL MPI_BCAST(activity_file, INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(typeraw,       INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
 
 !------------------------------------------------------------------------------
 ! Allocate and init field for selected domain range
@@ -858,11 +861,9 @@ Else
     CALL pd_get(ddc, "nn_D", nn_D)
     
     !------------------------------------------------------------------------------
-    ! Linear vs ddc (3D) domain numbers. nn is a purely internal variable.
+    ! Linear vs ddc (3D) domain numbers. nn is an internal variable.
     !------------------------------------------------------------------------------
     nn = 1_ik
-
-
 
     Do kk = xa_d(3), xe_d(3)
     Do jj = xa_d(2), xe_d(2)
@@ -888,15 +889,17 @@ Else
     CALL MPI_COMM_SIZE(WORKER_COMM, worker_size_mpi, ierr)
     CALL print_err_stop(std_out, "MPI_COMM_SIZE couldn't retrieve worker_size_mpi", ierr)
 
-    !------------------------------------------------------------------------------
-    ! This sets the options for PETSc in-core. To alter the options
-    ! add them in Set_PETSc_Options in Module pets_opt in file
-    ! f-src/mod_parameters.f90
-    !------------------------------------------------------------------------------
-    CALL Set_PETSc_Options()
+    ! !------------------------------------------------------------------------------
+    ! ! This sets the options for PETSc in-core. To alter the options
+    ! ! add them in Set_PETSc_Options in Module pets_opt in file
+    ! ! f-src/mod_parameters.f90
+    ! !------------------------------------------------------------------------------
+    ! CALL Set_PETSc_Options()
 
-    PETSC_COMM_WORLD = worker_comm
-    CALL PetscInitialize(PETSC_NULL_CHARACTER, petsc_ierr)
+    ! PETSC_COMM_WORLD = worker_comm
+
+    ! CALL PetscInitialize(PETSC_NULL_CHARACTER, petsc_ierr)
+
 End If
 
 ! WRITE_ROOT_COMM = MPI_COMM_WORLD
@@ -927,7 +930,7 @@ If (rank_mpi==0) Then
     CALL get_stream_size(root, dsize)
 
     If (out_amount == "DEBUG") &
-        write(fh_log,FMT_MSG_AxI0) "On rank zero, stream sizes: ", dsize
+        write(fh_mon,FMT_MSG_AxI0) "On rank zero, stream sizes: ", dsize
     
     !------------------------------------------------------------------------------
     ! Supply all worker masters  with their first work package
@@ -960,8 +963,8 @@ If (rank_mpi==0) Then
         !------------------------------------------------------------------------------
         ! Log to Monitor file
         !------------------------------------------------------------------------------
-        WRITE(fh_log, FMT_MSG_xAI0) "Domain ", Domains(nn), " at Ranks ", mii, " to ", mii + parts-1
-        flush(fh_log)
+        WRITE(fh_mon, FMT_MSG_xAI0) "Domain ", Domains(nn), " at Ranks ", mii, " to ", mii + parts-1
+        flush(fh_mon)
 
         nn = nn + 1_ik
         
@@ -982,6 +985,7 @@ If (rank_mpi==0) Then
     ! mii is incremented by mii = mii + parts
     ! mii --> Worker master
     !------------------------------------------------------------------------------
+    nn = 1_ik
     DO  WHILE (nn <= No_of_domains) 
 
         !------------------------------------------------------------------------------
@@ -1015,13 +1019,13 @@ If (rank_mpi==0) Then
         !------------------------------------------------------------------------------
         ! Log to Monitor file
         !------------------------------------------------------------------------------
-        WRITE(fh_log, FMT_MSG_xAI0) "Domain ", Domains(nn), " at Ranks ", mii, " to ", mii + parts-1
-        flush(fh_log)
+        WRITE(fh_mon, FMT_MSG_xAI0) "Domain ", Domains(nn), " at Ranks ", mii, " to ", mii + parts-1
+        flush(fh_mon)
 
         !------------------------------------------------------------------------------
         ! Iterate over domain
         !------------------------------------------------------------------------------
-        nn = nn + 1_ik
+        nn = nn + 1_mik
 
         !------------------------------------------------------------------------------
         ! Worker has finished
@@ -1104,7 +1108,7 @@ Else
 
         IF(stat_c_int /= 0) THEN
 
-            CALL execute_command_line("mkdir -p "//TRIM(outpath),CMDSTAT=stat)
+            CALL create_directory(TRIM(outpath), stat)
 
             IF(stat /= 0) CALL print_err_stop(std_out, &
                 'Could not execute syscall »mkdir -p '//trim(outpath)//'«.', 1)
@@ -1150,11 +1154,11 @@ Else
             comm_nn, 1_mik, & 
             MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
         
-        !------------------------------------------------------------------------------
-        ! Experimental
-        ! May help computing domains which may be skipped3
-        !------------------------------------------------------------------------------
-        IF(comm_nn > 1) comm_nn = comm_nn - 1_ik
+        !!!!!------------------------------------------------------------------------------
+        !!!!! Experimental
+        !!!!! May help computing domains which may be skipped3
+        !!!!!------------------------------------------------------------------------------
+        !!!!!!!!!!!!! IF(comm_nn > 1) comm_nn = comm_nn - 1_ik
 
     END IF 
 
@@ -1200,7 +1204,6 @@ Else
         !------------------------------------------------------------------------------
         ! Receive domain numbers
         !------------------------------------------------------------------------------
-
         CALL mpi_recv(nn, 1_mik, MPI_INTEGER8, 0_mik, rank_mpi, MPI_COMM_WORLD, status_mpi, ierr)
         CALL print_err_stop(std_out, "MPI_RECV on Domain didn't succeed", ierr)
 
@@ -1224,26 +1227,14 @@ Else
             IF (job_dir(len(job_dir):len(job_dir)) /= "/") job_dir = trim(job_dir)//"/"
 
             !==============================================================================
-            CALL exec_single_domain(root, comm_nn, Domain, job_dir, Active, fh_mpi_worker, &
-                worker_rank_mpi, worker_size_mpi, worker_comm)
+            CALL exec_single_domain(root, comm_nn, Domain, typeraw, job_dir, Active, &
+                fh_mpi_worker, worker_rank_mpi, worker_size_mpi, worker_comm)
             !==============================================================================
 
             !------------------------------------------------------------------------------
             ! Organize Results
             !------------------------------------------------------------------------------
             IF (worker_rank_mpi==0) THEN
-            
-                IF(out_amount=="DEBUG") THEN
-                    !------------------------------------------------------------------------------
-                    ! Log memory consumption (in a trivial way)
-                    !------------------------------------------------------------------------------
-                    CALL execute_command_line("free -h | grep 'Mem' | tr -d '\n' >> "&
-                        //TRIM(outpath)//TRIM(project_name)//".memlog", CMDSTAT=stat)
-
-                    CALL execute_command_line("date >> "&
-                        //TRIM(outpath)//TRIM(project_name)//".memlog", CMDSTAT=stat)
-                END IF
-                
             
                 CALL Start_Timer("Write Worker Root Branch")
 
@@ -1317,7 +1308,7 @@ Else
         CALL MPI_File_close(fh_mpi_worker(ii), ierr)
     END DO 
 
-    CALL PetscFinalize(petsc_ierr) 
+    ! CALL PetscFinalize(petsc_ierr) 
     
 End If
 
@@ -1346,6 +1337,7 @@ IF(rank_mpi == 0) THEN
     CALL meta_close()
 
     CALL meta_stop_ascii(fh_log, log_suf)
+    CALL meta_stop_ascii(fh_mon, mon_suf)
 
     IF (std_out/=6) THEN
         CALL meta_stop_ascii(fh=std_out, suf='.std_out')

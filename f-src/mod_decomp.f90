@@ -402,7 +402,6 @@ Contains
             ddc%xa_n_ext(2) * field%vdim(1)    + &
             ddc%xa_n_ext(1)
 
-       write(*,*)ma
 
        Do ii = 0, ddc%x_D(2) + 2*ddc%bpoints(2) - 1
 

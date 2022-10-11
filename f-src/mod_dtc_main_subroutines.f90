@@ -22,6 +22,7 @@ USE mpi
 USE gen_geometry
 USE PETSC
 USE calcmat
+USE petsc_opt
 
 IMPLICIT NONE 
 
@@ -46,13 +47,14 @@ CONTAINS
 !> @param[in]    size_mpi
 !> @param[in]    comm_mpi
 !------------------------------------------------------------------------------
-Subroutine exec_single_domain(root, comm_nn, domain, job_dir, active, fh_mpi_worker, &
-rank_mpi, size_mpi, comm_mpi)
+Subroutine exec_single_domain(root, comm_nn, domain, typeraw, &
+    job_dir, active, fh_mpi_worker, rank_mpi, size_mpi, comm_mpi)
 
 TYPE(materialcard) :: bone
 INTEGER(mik), Intent(INOUT), Dimension(no_streams) :: fh_mpi_worker
 
 Character(*) , Intent(in)  :: job_dir
+Character(*) , Intent(in)  :: typeraw
 INTEGER(mik), Intent(In)  :: rank_mpi, size_mpi, comm_mpi
 INTEGER(ik) , intent(in)  :: comm_nn, domain
 INTEGER(mik), intent(out) :: active
@@ -87,7 +89,7 @@ Character, Dimension(4*mcl) :: c_char_array
 Character, Dimension(:), Allocatable :: char_arr
 
 LOGICAL, PARAMETER :: DEBUG = .TRUE.
-logical :: success
+logical :: success=.TRUE.
 
 Type(tBranch), pointer :: boundary_branch, domain_branch, part_branch, &
     mesh_branch, meta_para, esd_result_branch
@@ -136,7 +138,7 @@ If (rank_mpi == 0) then
 
         If(stat_c_int /= 0) Then
 
-            CALL execute_command_line("mkdir -p "//trim(job_dir), CMDSTAT=stat)
+            CALL create_directory(job_dir, stat)
 
             IF(stat /= 0) CALL print_err_stop(std_out, "Couldn't execute syscall mkdir -p "//TRIM(job_dir), 1)
 
@@ -173,14 +175,14 @@ If (rank_mpi == 0) then
     !------------------------------------------------------------------------------
     Select Case (timer_level)
     Case (1)
-        timer_name = "+-- generate_geometry "//trim(adjustl(domain_char))
+        timer_name = "+-- generate_geometry "//trim(domain_char)
     Case default
         timer_name = "generate_geometry"
     End Select
 
     CALL start_timer(trim(timer_name), .FALSE.)
 
-    CALL generate_geometry(root, domain, job_dir, success)
+    CALL generate_geometry(root, domain, job_dir, typeraw, success)
 
     if (.not. success) then
         write(std_out, FMT_WRN)"generate_geometry() failed."
@@ -203,7 +205,7 @@ If (rank_mpi == 0) then
     domain_desc=''
     Write(domain_desc,'(A,I0)')'Domain ', domain
     
-    CALL search_branch(trim(domain_desc), root, domain_branch, success, out_amount)
+    IF(success) CALL search_branch(trim(domain_desc), root, domain_branch, success, out_amount)
 
     !------------------------------------------------------------------------------
     ! Get the no of nodes per part
@@ -211,13 +213,28 @@ If (rank_mpi == 0) then
     mesh_desc = ''
     Write(mesh_desc,'(A,I0)')'Mesh info of '//trim(project_name)//'_', domain
     
-    CALL search_branch(trim(mesh_desc), domain_branch, mesh_branch, success, out_amount)
-    CALL pd_get(mesh_branch, 'No of nodes in mesh',  nodes_in_mesh)
+    IF(success) CALL search_branch(trim(mesh_desc), domain_branch, mesh_branch, success, out_amount)
 
     !------------------------------------------------------------------------------
-    ! Set the global matrix size
+    ! Send success variable for gracefully aborting the domain.
     !------------------------------------------------------------------------------
-    m_size = nodes_in_mesh(1) * 3
+    CALL mpi_bcast(success, 1_mik, MPI_LOGICAL, 0_mik, COMM_MPI, ierr)
+
+    !------------------------------------------------------------------------------
+    ! Only read from the mesh branch if the branch was found.
+    ! Otherwise, gracefully abort the domain to proceed with the next one.
+    !------------------------------------------------------------------------------
+    IF(success) THEN
+        CALL pd_get(mesh_branch, 'No of nodes in mesh',  nodes_in_mesh)
+
+        !------------------------------------------------------------------------------
+        ! Set the global matrix size
+        !------------------------------------------------------------------------------
+        m_size = nodes_in_mesh(1) * 3
+    ELSE
+        m_size = 0
+        GOTO 1000
+    END IF 
 
     Do ii = 1, parts-1
 
@@ -226,15 +243,15 @@ If (rank_mpi == 0) then
         !------------------------------------------------------------------------------
         domain_desc=''
         Write(part_desc,'(A,I0)')'Part_',ii
-        CALL search_branch(trim(part_desc), domain_branch, part_branch, success)
+        if(success) CALL search_branch(trim(part_desc), domain_branch, part_branch, success)
 
         If (.NOT. success) Then
             WRITE(mssg,'(A,I0,A,L,A,I0,A)') "Something bad and unexpected happend &
             &in exec_single_domain! Looking for branch of part ",ii," returned ", &
                 success, "MPI proc ",rank_mpi," halted."
-            CALL print_err_stop(std_out, mssg, 1)
+            CALL print_err_stop(std_out, mssg, 0)
         End If
-        
+
         !------------------------------------------------------------------------------
         ! Serialize branch with mesh part to send via mpi
         !------------------------------------------------------------------------------
@@ -264,6 +281,11 @@ If (rank_mpi == 0) then
 ! Ranks > 0 - Workers
 !------------------------------------------------------------------------------
 Else
+    !------------------------------------------------------------------------------
+    ! Check if the mesh branch was read successfully, if not - abort the domain.
+    !------------------------------------------------------------------------------
+    CALL mpi_bcast(success, 1_mik, MPI_LOGICAL, 0_mik, COMM_MPI, ierr)
+    IF(.NOT. success) GOTO 1000
 
     CALL mpi_recv(serial_pb_size, 1_mik, MPI_INTEGER8, 0_mik, &
         rank_mpi, COMM_MPI, status_mpi, ierr)
@@ -289,6 +311,11 @@ Else
 End If ! (rank_mpi == 0) then
 
 !------------------------------------------------------------------------------
+! Abort this domain in case of a fatal error in reading the mesh branch.
+!------------------------------------------------------------------------------
+IF(.NOT. success) GOTO 1000
+
+!------------------------------------------------------------------------------
 ! Setup the linear System with a constant system matrix A. Once that
 ! is done setup the multiple right hand sides and solve the linear
 ! system multiple times. Save the solutions to calculate effective
@@ -306,13 +333,25 @@ IF (rank_mpi == 0) THEN   ! Sub Comm Master
 
     SELECT CASE (timer_level)
         CASE (1)
-            timer_name = "+-- create_Stiffness_matrix "//trim(adjustl(domain_char))
+            timer_name = "+-- create_Stiffness_matrix "//TRIM(domain_char)
         CASE default
             timer_name = "create_Stiffness_matrix"
     End SELECT
     
     CALL start_timer(TRIM(timer_name), .FALSE.)
 END IF 
+
+
+            !------------------------------------------------------------------------------
+            ! This sets the options for PETSc in-core. To alter the options
+            ! add them in Set_PETSc_Options in Module pets_opt in file
+            ! f-src/mod_parameters.f90
+            !------------------------------------------------------------------------------
+            CALL Set_PETSc_Options()
+
+            PETSC_COMM_WORLD = COMM_MPI
+
+            CALL PetscInitialize(PETSC_NULL_CHARACTER, petsc_ierr)
 
 !------------------------------------------------------------------------------
 ! Calculate amount of memory to allocate.
@@ -438,17 +477,17 @@ else if (elt_micro == "HEX20") then
 
 end if
 
+
 IF (rank_mpi == 0) THEN   ! Sub Comm Master
     SELECT CASE (timer_level)
     CASE (1)
-        timer_name = "+-- MatAssemblyBegin "//trim(adjustl(domain_char))
+        timer_name = "+-- MatAssemblyBegin "//TRIM(domain_char)
     CASE default
         timer_name = "MatAssemblyBegin"
     End SELECT
     
     CALL start_timer(TRIM(timer_name), .FALSE.)
 END IF 
-
 
 CALL MatAssemblyBegin(AA, MAT_FINAL_ASSEMBLY ,petsc_ierr)
 CALL MatAssemblyBegin(AA_org, MAT_FINAL_ASSEMBLY ,petsc_ierr)
@@ -472,6 +511,7 @@ IF (rank_mpi == 0) CALL end_timer(TRIM(timer_name))
 !     CALL PetscViewerDestroy(PetscViewer, petsc_ierr)
 !  End If
     
+
 !------------------------------------------------------------------------------
 ! At this point the system matrix is assembled. To make it ready to be
 ! used, the rows and columns of the dofs with prescribed displacements
@@ -481,7 +521,7 @@ IF (rank_mpi == 0) CALL end_timer(TRIM(timer_name))
 IF (rank_mpi == 0) THEN   ! Sub Comm Master
     SELECT CASE (timer_level)
     CASE (1)
-        timer_name = "+-- create_rh_solution_vetors "//trim(adjustl(domain_char))
+        timer_name = "+-- create_rh_solution_vetors "//TRIM(domain_char)
     CASE default
         timer_name = "create_rh_solution_vetors"
     End SELECT
@@ -520,8 +560,10 @@ End Do
 ! boundary_branch%leaves(1)%p_int8  : Boundary displacement node global ids
 ! boundary_branch%leaves(2)%p_real8 : Boundary displacement values
 !------------------------------------------------------------------------------ 
-write(desc,'(A,I0)') "Boundaries_"//trim(adjustl(domain_char))//"_",1
+write(desc,'(A,I0)') "Boundaries_"//trim(domain_char)//"_",1
 CALL search_branch(trim(desc), part_branch, boundary_branch, success, out_amount)
+
+!!!!! IF(.NOT. success)  GOTO 1000
 
 !------------------------------------------------------------------------------ 
 ! Setup id reference vector for displacement insertion
@@ -589,7 +631,7 @@ End If
 IF (rank_mpi == 0) THEN   ! Sub Comm Master
     SELECT CASE (timer_level)
     CASE (1)
-        timer_name = "+-- compute_bndry_conditions "//trim(adjustl(domain_char))
+        timer_name = "+-- compute_bndry_conditions "//TRIM(domain_char)
     CASE default
         timer_name = "compute_bndry_conditions"
     End SELECT
@@ -624,7 +666,7 @@ Do ii = 2, 23
     ! boundary_branch%leaves(1)%p_int8  : Boundary displacement node global ids
     ! boundary_branch%leaves(2)%p_real8 : Boundary displacement values
     !------------------------------------------------------------------------------
-    write(desc,'(A,I0)') "Boundaries_"//trim(adjustl(domain_char))//"_",ii
+    write(desc,'(A,I0)') "Boundaries_"//trim(domain_char)//"_",ii
     CALL search_branch(trim(desc), part_branch, boundary_branch, success, out_amount)
 
     IF(boundary_branch%leaves(2)%dat_no /= 0_ik) THEN
@@ -657,7 +699,7 @@ End Do
 ! boundary_branch%leaves(1)%p_int8  : Boundary displacement node global ids
 ! boundary_branch%leaves(2)%p_real8 : Boundary displacement values
 !------------------------------------------------------------------------------
-write(desc,'(A,I0)') "Boundaries_"//trim(adjustl(domain_char))//"_",24
+write(desc,'(A,I0)') "Boundaries_"//trim(domain_char)//"_",24
 CALL search_branch(trim(desc), part_branch, boundary_branch, success, out_amount)
 
 !------------------------------------------------------------------------------
@@ -717,7 +759,7 @@ End If
 IF (rank_mpi == 0) THEN   ! Sub Comm Master
     SELECT CASE (timer_level)
     CASE (1)
-        timer_name = "+-- solve_system "//trim(adjustl(domain_char))
+        timer_name = "+-- solve_system "//TRIM(domain_char)
     CASE default
         timer_name = "solve_system"
     End SELECT
@@ -813,7 +855,7 @@ Do jj = 1,24
     ! boundary_branch%leaves(1)%p_int8  : Boundary displacement node global ids
     ! boundary_branch%leaves(2)%p_real8 : Boundary displacement values
     !------------------------------------------------------------------------------
-    write(desc,'(A,I0)') "Boundaries_"//trim(adjustl(domain_char))//"_",jj
+    write(desc,'(A,I0)') "Boundaries_"//trim(domain_char)//"_",jj
     CALL search_branch(trim(desc), part_branch, boundary_branch, success, out_amount)
     
     !------------------------------------------------------------------------------
@@ -838,7 +880,7 @@ Do jj = 1,24
     
     ! Get Pointer to force vector
     CALL VecGetArrayReadF90(FF(jj),force,petsc_ierr)
-
+    
     !------------------------------------------------------------------------------
     ! Master/Worker
     !------------------------------------------------------------------------------
@@ -854,7 +896,6 @@ Do jj = 1,24
 
     Else ! Master
 
-        
         !------------------------------------------------------------------------------
         ! Copy rank 0 local result
         !------------------------------------------------------------------------------
@@ -884,7 +925,6 @@ Do jj = 1,24
                 COMM_MPI, status_mpi, ierr)
         End Do
 
-        
         !------------------------------------------------------------------------------
         ! Add leaf with displacements to the results branch
         !------------------------------------------------------------------------------
@@ -896,6 +936,7 @@ Do jj = 1,24
         !------------------------------------------------------------------------------
         write(desc,'(A)') "Reaction Forces"
         CALL Add_Leaf_to_Branch(esd_result_branch%branches(2), trim(desc), m_size, glob_force) 
+
 
         If (out_amount == "DEBUG") THEN 
             write(desc,'(A,I2.2)') "DispRes", jj
@@ -911,8 +952,6 @@ Do jj = 1,24
     End If
 End Do
 
-! write(*,*) "IM BEFORE EFF"
-
 !------------------------------------------------------------------------------
 ! All 24 linear system solutions are produced. 
 ! Effective stiffnesses can be calculated.
@@ -926,7 +965,7 @@ if (rank_mpi == 0) then
 
     SELECT CASE (timer_level)
     CASE (1)
-        timer_name = "+-- calc_eff_stiffness "//trim(adjustl(domain_char))
+        timer_name = "+-- calc_eff_stiffness "//TRIM(domain_char)
     CASE default
         timer_name = "calc_eff_stiffness"
     End SELECT
@@ -939,9 +978,9 @@ ELSE
     DEALLOCATE(part_branch)
 End if
 
-! write(*,*) "IM AFTER EFF"
+1000 CONTINUE
 
-!------------------------------------------------1------------------------------
+!------------------------------------------------------------------------------
 ! Remove matrices
 !------------------------------------------------------------------------------
 CALL KSPDestroy(ksp,    petsc_ierr)
@@ -952,6 +991,8 @@ CALL VecDestroy(XX,     petsc_ierr)
 Do ii = 1, 24
     CALL VecDestroy(FF(ii), petsc_ierr)
 End Do
+
+CALL PetscFinalize(petsc_ierr) 
 
 End Subroutine exec_single_domain
 

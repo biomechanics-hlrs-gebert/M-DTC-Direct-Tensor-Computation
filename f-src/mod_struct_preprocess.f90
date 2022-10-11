@@ -20,12 +20,13 @@ Implicit None
 
 Contains
 
-Subroutine generate_geometry(root, ddc_nn, job_dir, glob_success)
+Subroutine generate_geometry(root, ddc_nn, job_dir, typeraw, glob_success) !, rank)
 
     Type(tBranch), Intent(InOut) :: root
     Character(*), Intent(in) :: job_dir
     integer(ik), Intent(in) :: ddc_nn
     Logical, Intent(Out) :: glob_success
+!    integer(4), Intent(in) :: rank
         
     ! Chain Variables
     Character(*), Parameter :: link_name = 'gen_quadmesh'
@@ -43,13 +44,13 @@ Subroutine generate_geometry(root, ddc_nn, job_dir, glob_success)
     Real(rk)    , Dimension(:,:) , Allocatable :: nodes, displ
     Integer(ik) , Dimension(:)   , Allocatable :: elem_col,node_col, cref
     Integer(ik) , Dimension(:,:) , Allocatable :: elems
-    Character(mcl) :: elt_micro, desc, filename
-    Character(scl) :: typeraw, restart
+    Character(mcl) :: elt_micro, desc, filename, typeraw
+    Character(scl) :: restart
     Integer(ik)   :: elo_macro,alloc_stat
     
     ! Parted Mesh -
     Type(tBranch), Pointer :: PMesh
-    INTEGER(ik):: parts, multiplier
+    INTEGER(ik):: parts, multiplier, nts=0
 
     Integer(1), Dimension(:,:,:), Allocatable :: Phi_ik1
     Integer(2), Dimension(:,:,:), Allocatable :: Phi_ik2
@@ -85,15 +86,6 @@ Subroutine generate_geometry(root, ddc_nn, job_dir, glob_success)
     nn_3 = INT( ddc_nn / ( nn_D(1)*nn_D(2) ))
     nn_2 = INT(( ddc_nn - nn_D(1)*nn_D(2)*nn_3 ) / ( nn_D(1) ))
     nn_1 = ( ddc_nn - nn_D(1)*nn_D(2)*nn_3 - nn_D(1)*nn_2 )
-
-    ! xa_n = [x_D(1) * nn_1 + 1, &
-    !         x_D(2) * nn_2 + 1, &
-    !         x_D(3) * nn_3 + 1  ]
-
-    ! xe_n = [x_D(1) * (nn_1 + 1), &
-    !         x_D(2) * (nn_2 + 1), & 
-    !         x_D(3) * (nn_3 + 1)  ] 
-
 
     xa_n = [x_D(1) * nn_1 + bpoints(1) + 1, &
             x_D(2) * nn_2 + bpoints(2) + 1, &
@@ -131,12 +123,6 @@ Subroutine generate_geometry(root, ddc_nn, job_dir, glob_success)
     call add_leaf_to_branch(loc_ddc, "xa_n_ext", 3_pd_ik, xa_n_ext)
     call add_leaf_to_branch(loc_ddc, "xe_n_ext", 3_pd_ik, xe_n_ext)
     
-    IF (out_amount == "DEBUG") THEN
-        WRITE(un_lf, "('DD ', A, 3(' ', I0), A, 3(' ', I0))") "xa_n:     ", xa_n,     "     xe_n:     ", xe_n
-        WRITE(un_lf, "('DD ', A, 3(' ', I0), A, 3(' ', I0))") "xa_n_ext: ", xa_n_ext, "     xe_n_ext: ", xe_n_ext
-        WRITE(un_lf, FMT_DBG)
-    END IF
-
     !----------------------------------------------------------------------------
     Select Case (timer_level)
       Case (3)
@@ -151,7 +137,6 @@ Subroutine generate_geometry(root, ddc_nn, job_dir, glob_success)
     ! Load branch
     !----------------------------------------------------------------------------
     Call Search_branch("Input parameters", root, meta_para, success)
-
     Call pd_get(meta_para,"muCT puredat pro_path",char_arr)
 
     pro_path = char_to_str(char_arr)
@@ -165,24 +150,23 @@ Subroutine generate_geometry(root, ddc_nn, job_dir, glob_success)
     call pd_get(meta_para, "Grid spacings", delta)  
     Call pd_get(meta_para,"Number of voxels per direction",vdim)
 
-    Call pd_get(root%branches(1),"Raw data stream",char_arr)
+!    Call pd_get(meta_para,"Raw data stream",char_arr)
 ! 
-    typeraw = char_to_str(char_arr)
-    deallocate(char_arr)
+!    typeraw = char_to_str(char_arr)
+!    deallocate(char_arr)
 
     if ( out_amount /= "PRODUCTION" ) then
        write(un_lf,FMT_MSG_AxF0) "Grid spacings", delta
        write(un_lf,FMT_MSG_AxI0) "Number of voxels per direction", vdim
     End if
-
     
     !----------------------------------------------------------------------------
     ! Open raw data streams
     !----------------------------------------------------------------------------
     phi_desc = read_tree()
 
-    call open_stream_files(phi_desc, "read" , "old")
-
+    ! call open_stream_files(phi_desc, "read" , "old")
+        
     !----------------------------------------------------------------------------
     ! Read PHI (scalar binary values) from file
     !----------------------------------------------------------------------------
@@ -198,7 +182,6 @@ Subroutine generate_geometry(root, ddc_nn, job_dir, glob_success)
         allocate(Phi_ik4(xa_n(1):xe_n(1), xa_n(2):xe_n(2), xa_n(3):xe_n(3)), stat=alloc_stat)
     END SELECT
 
-
     call alloc_err("phi", alloc_stat)
 
     DO ii=1, phi_desc%no_leaves
@@ -208,6 +191,40 @@ Subroutine generate_geometry(root, ddc_nn, job_dir, glob_success)
         END IF 
     END DO 
 
+   !----------------------------------------------------------------------------
+   ! Retrieve basic geometric information
+   !----------------------------------------------------------------------------
+    call pd_get(meta_para, "Grid spacings", delta)  
+    Call pd_get(meta_para, "Number of voxels per direction",vdim)
+
+!    Call pd_get(meta_para,"Raw data stream",char_arr)
+! 
+!    typeraw = char_to_str(char_arr)
+!    deallocate(char_arr)
+
+    if ( out_amount /= "PRODUCTION" ) then
+       write(un_lf,FMT_MSG_AxF0) "Grid spacings", delta
+       write(un_lf,FMT_MSG_AxI0) "Number of voxels per direction", vdim
+    End if
+
+    !----------------------------------------------------------------------------
+    ! Set datatype
+    ! intent(inout) from open_stream_files did not copy the units(!)
+    !----------------------------------------------------------------------------
+    SELECT CASE(TRIM(ADJUSTL(typeraw)))
+        CASE('ik1'); nts=1
+        CASE('ik2'); nts=2
+        CASE('ik4'); nts=3
+        CASE DEFAULT; CALL print_err_stop(std_out, "Data type failed.", 1)
+    END SELECT
+    !
+    phi_desc%streams%units(nts) = pd_give_new_unit()
+    Open(unit=phi_desc%streams%units(nts), &
+        file=phi_desc%streams%stream_files(nts), status="old", &
+        action="read", access='stream', form='unformatted', &
+        position="REWIND")
+    phi_desc%streams%ifopen(nts) = .TRUE.
+
     Do jj = xa_n(3), xe_n(3)
        Do ii = xa_n(2), xe_n(2)
 
@@ -216,24 +233,22 @@ Subroutine generate_geometry(root, ddc_nn, job_dir, glob_success)
                          INT(                (xa_n(1)    - 1_8), 8) + &
                          first_bytes - 1_8) * multiplier + 1_8 , 8)
 
-
-            !----------------------------------------------------------------------------
-            ! 'filehandles' is a pretty dumb workaround. But ...Intent(inout) :: tree
-            ! in open_stream_files did (21.09.2022) not work. The units of the files
-            ! of the streams were missing.
-            !----------------------------------------------------------------------------
-            SELECT CASE(TRIM(ADJUSTL(typeraw)))
-                CASE('ik1'); Read(filehandles(1), pos=pos_f) Phi_ik1(:,ii,jj)
-                CASE('ik2'); Read(filehandles(2), pos=pos_f) Phi_ik2(:,ii,jj)
-                CASE('ik4'); Read(filehandles(3), pos=pos_f) Phi_ik4(:,ii,jj)
+            SELECT CASE(nts)
+                CASE(1); Read(phi_desc%streams%units(1), pos=pos_f) Phi_ik1(:,ii,jj)
+                CASE(2); Read(phi_desc%streams%units(2), pos=pos_f) Phi_ik2(:,ii,jj)
+                CASE(3); Read(phi_desc%streams%units(3), pos=pos_f) Phi_ik4(:,ii,jj)
             END SELECT
-
         End Do
     End Do
 
-    call close_stream_files(phi_desc)
- 
-   
+    ! call close_stream_files(phi_desc)
+    SELECT CASE(nts)
+        CASE(1); close(phi_desc%streams%units(1))
+        CASE(2); close(phi_desc%streams%units(2))
+        CASE(3); close(phi_desc%streams%units(3))
+    END SELECT
+
+
     Select Case (timer_level)
     Case (3)
        call end_timer("  +-- Initialisation of Phi "//trim(nn_char))
@@ -246,8 +261,8 @@ Subroutine generate_geometry(root, ddc_nn, job_dir, glob_success)
     !============================================================================
     ! Generate Quadmesh from Phi
     !============================================================================
-    Call pd_get(root%branches(1), 'Lower limit of iso value', llimit)
-    Call pd_get(root%branches(1), 'Element type  on micro scale', char_arr)
+    Call pd_get(meta_para, 'Lower limit of iso value', llimit)
+    Call pd_get(meta_para, 'Element type  on micro scale', char_arr)
     elt_micro = char_to_str(char_arr)
     deallocate(char_arr)
 
@@ -255,7 +270,7 @@ Subroutine generate_geometry(root, ddc_nn, job_dir, glob_success)
     ! Get global DDC parameters from root
     !------------------------------------------------------------------------------
     Call Search_branch("Global domain decomposition", root, ddc, success)
-    
+
     SELECT CASE(TRIM(ADJUSTL(typeraw)))
         CASE('ik1')
             call gen_quadmesh_from_phi(delta, ddc, loc_ddc, llimit, elt_micro, &
@@ -285,12 +300,10 @@ Subroutine generate_geometry(root, ddc_nn, job_dir, glob_success)
 
        filename=''
        write(filename,'(A,I0,A)')trim(job_dir)//trim(project_name)//"_",ddc_nn,"_phi.vtk"
-
-
        !------------------------------------------------------------------------------
        ! Check existance of vtk file 
        !------------------------------------------------------------------------------
-       Call pd_get(root%branches(1), 'Restart', char_arr)
+       Call pd_get(meta_para, 'Restart', char_arr)
        restart = char_to_str(char_arr)
        deallocate(char_arr)
 
@@ -332,11 +345,12 @@ Subroutine generate_geometry(root, ddc_nn, job_dir, glob_success)
     !         desc = "PHI", head = .TRUE.)
     End if
 
-    SELECT CASE(TRIM(ADJUSTL(typeraw)))
-        CASE('ik1'); Deallocate(Phi_ik1)
-        CASE('ik2'); Deallocate(Phi_ik2)
-        CASE('ik4'); Deallocate(Phi_ik4)
+    SELECT CASE(nts)
+        CASE(1); Deallocate(Phi_ik1)
+        CASE(2); Deallocate(Phi_ik2)
+        CASE(3); Deallocate(Phi_ik4)
     END SELECT
+
 
     !------------------------------------------------------------------------------
     ! Break if no structure is generated
@@ -397,7 +411,7 @@ Subroutine generate_geometry(root, ddc_nn, job_dir, glob_success)
     !------------------------------------------------------------------------------
     desc=''
     Write(desc,'(A,I0)')'Mesh info of '//trim(project_name)//'_',ddc_nn
-   
+
     call add_branch_to_branch(domain_branch, PMesh)
     call raise_branch(trim(desc), parts, 0_pd_ik, PMesh)
 
@@ -423,7 +437,7 @@ Subroutine generate_geometry(root, ddc_nn, job_dir, glob_success)
        
        Do ii = 1, parts
 
-          Call Search_branch("Boundaries_"//trim(adjustl(nn_char))//"_1",&
+          Call Search_branch("Boundaries_"//trim(nn_char)//"_1",&
              PMesh%branches(ii),bounds_b, success)
 
           allocate(cref( &
@@ -464,7 +478,7 @@ Subroutine generate_geometry(root, ddc_nn, job_dir, glob_success)
        glob_success = .FALSE.
     End If
     
-1000 continue 
+    1000 continue 
 
   End Subroutine generate_geometry
 
