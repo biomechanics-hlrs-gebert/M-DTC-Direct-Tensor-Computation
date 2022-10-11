@@ -889,16 +889,16 @@ Else
     CALL MPI_COMM_SIZE(WORKER_COMM, worker_size_mpi, ierr)
     CALL print_err_stop(std_out, "MPI_COMM_SIZE couldn't retrieve worker_size_mpi", ierr)
 
-    ! !------------------------------------------------------------------------------
-    ! ! This sets the options for PETSc in-core. To alter the options
-    ! ! add them in Set_PETSc_Options in Module pets_opt in file
-    ! ! f-src/mod_parameters.f90
-    ! !------------------------------------------------------------------------------
-    ! CALL Set_PETSc_Options()
+    !------------------------------------------------------------------------------
+    ! This sets the options for PETSc in-core. To alter the options
+    ! add them in Set_PETSc_Options in Module pets_opt in file
+    ! f-src/mod_parameters.f90
+    !------------------------------------------------------------------------------
+    CALL Set_PETSc_Options()
 
-    ! PETSC_COMM_WORLD = worker_comm
+    PETSC_COMM_WORLD = worker_comm
 
-    ! CALL PetscInitialize(PETSC_NULL_CHARACTER, petsc_ierr)
+    CALL PetscInitialize(PETSC_NULL_CHARACTER, petsc_ierr)
 
 End If
 
@@ -1308,7 +1308,7 @@ Else
         CALL MPI_File_close(fh_mpi_worker(ii), ierr)
     END DO 
 
-    ! CALL PetscFinalize(petsc_ierr) 
+    CALL PetscFinalize(petsc_ierr) 
     
 End If
 

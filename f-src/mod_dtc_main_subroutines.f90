@@ -140,11 +140,13 @@ If (rank_mpi == 0) then
 
             CALL create_directory(job_dir, stat)
 
-            IF(stat /= 0) CALL print_err_stop(std_out, "Couldn't execute syscall mkdir -p "//TRIM(job_dir), 1)
+            IF(stat /= 0) CALL print_err_stop(std_out, &
+                "Couldn't execute syscall mkdir -p "//TRIM(job_dir), 1)
 
             CALL Stat_Dir(c_char_array, stat_c_int)
 
-            IF(stat_c_int /= 0) CALL print_err_stop(std_out, "Couldn't create directory "//TRIM(job_dir), 1)
+            IF(stat_c_int /= 0) CALL print_err_stop(std_out, &
+                "Couldn't create directory "//TRIM(job_dir), 1)
 
         End If
 
@@ -340,18 +342,6 @@ IF (rank_mpi == 0) THEN   ! Sub Comm Master
     
     CALL start_timer(TRIM(timer_name), .FALSE.)
 END IF 
-
-
-            !------------------------------------------------------------------------------
-            ! This sets the options for PETSc in-core. To alter the options
-            ! add them in Set_PETSc_Options in Module pets_opt in file
-            ! f-src/mod_parameters.f90
-            !------------------------------------------------------------------------------
-            CALL Set_PETSc_Options()
-
-            PETSC_COMM_WORLD = COMM_MPI
-
-            CALL PetscInitialize(PETSC_NULL_CHARACTER, petsc_ierr)
 
 !------------------------------------------------------------------------------
 ! Calculate amount of memory to allocate.
@@ -991,8 +981,6 @@ CALL VecDestroy(XX,     petsc_ierr)
 Do ii = 1, 24
     CALL VecDestroy(FF(ii), petsc_ierr)
 End Do
-
-CALL PetscFinalize(petsc_ierr) 
 
 End Subroutine exec_single_domain
 

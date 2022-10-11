@@ -368,6 +368,17 @@ Subroutine generate_geometry(root, ddc_nn, job_dir, typeraw, glob_success) !, ra
        filename=''
        write(filename,'(A,I0,A)')trim(job_dir)//trim(project_name)//"_",ddc_nn,"_usg.vtk"
        
+       INQUIRE(FILE=TRIM(filename), EXIST=fex)
+
+        IF((fex) .AND. ((restart=="Y") .OR. (restart=="YES"))) THEN
+            CALL execute_command_line("rm -r "//TRIM(filename))
+        ELSE IF ((fex).AND. ((restart=="N") .OR. (restart=="NO"))) THEN
+            CALL print_err_stop(std_out, TRIM(filename)//" already exists and &
+                &restart -> No", 1)
+        END IF 
+
+
+
        if (elt_micro == "HEX08") then
           
           Call write_vtk_unstructured_grid(trim(filename), &
@@ -460,9 +471,17 @@ Subroutine generate_geometry(root, ddc_nn, job_dir, typeraw, glob_success) !, ra
           filename = ""
           Write(filename,'(A,A,I0,A,I0,A)')trim(job_dir),"Part-",ii,"_",ddc_nn,".vtk"
 
+          INQUIRE(FILE=TRIM(filename), EXIST=fex)
+
+          IF((fex) .AND. ((restart=="Y") .OR. (restart=="YES"))) THEN
+              CALL execute_command_line("rm -r "//TRIM(filename))
+          ELSE IF ((fex).AND. ((restart=="N") .OR. (restart=="NO"))) THEN
+              CALL print_err_stop(std_out, TRIM(filename)//" already exists and &
+                  &restart -> No", 1)
+          END IF 
+
           Call write_vtk_data_real8_vector_1D ( &
-               displ, &
-               Trim(filename), "BoundDispl", .FALSE., "POINT_DATA")
+               displ, Trim(filename), "BoundDispl", .FALSE., "POINT_DATA")
           
           deallocate(cref,displ)
           
