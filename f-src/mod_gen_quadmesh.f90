@@ -279,7 +279,7 @@ contains
                    el_nn(4) =  ii-1 + (jj  ) * (x_D_nodes(1)) + (kk-1) * (x_D_nodes(1)) * (x_D_nodes(2))
                    
                    el_nn(5) =  ii-1 + (jj-1) * (x_D_nodes(1)) + (kk  ) * (x_D_nodes(1)) * (x_D_nodes(2))
-                   el_nn(6) =  ii   + (33jj-1) * (x_D_nodes(1)) + (kk  ) * (x_D_nodes(1)) * (x_D_nodes(2))
+                   el_nn(6) =  ii   + (jj-1) * (x_D_nodes(1)) + (kk  ) * (x_D_nodes(1)) * (x_D_nodes(2))
                    el_nn(7) =  ii   + (jj  ) * (x_D_nodes(1)) + (kk  ) * (x_D_nodes(1)) * (x_D_nodes(2))
                    el_nn(8) =  ii-1 + (jj  ) * (x_D_nodes(1)) + (kk  ) * (x_D_nodes(1)) * (x_D_nodes(2))
                    
