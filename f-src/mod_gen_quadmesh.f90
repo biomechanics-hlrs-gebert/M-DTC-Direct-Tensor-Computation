@@ -9,7 +9,7 @@ Module gen_quadmesh
   !-- Types -------------------------------------------------------------------
   Type tconreg
  
-     Integer(ik) :: color
+     Integer(kind=ik) :: color
      Logical :: tb   = .FALSE.
      
      Type(tconreg), Pointer    :: next => null()
@@ -30,8 +30,6 @@ contains
     Integer(2), Intent(In), optional, Dimension(1:,1:,1:) :: phi_ik2
     Integer(4), Intent(In), optional, Dimension(1:,1:,1:) :: phi_ik4
     Character(Len=scl) :: typeraw
-
-
     Real(rk)  , Intent(in), Dimension(3) :: delta
 
     !** Domain decomposition **************************************************
@@ -39,41 +37,41 @@ contains
     Type(tBranch), Intent(In) :: loc_ddc
     
     !** Iso Value limit *******************************************************
-    Integer(ik), Intent(In) :: llimit
+    Integer(Kind=ik)   , Intent(In) :: llimit
 
     !** Type of elements in micro mesh ****************************************
     Character(len=*)   , Intent(In) :: elt_micro
 
     !** Fiels which are generated and passed out ******************************
-    Real(rk)   , Dimension(:,:), Allocatable, Intent(Out) :: nodes
-    Integer(ik), Dimension(:,:), Allocatable, Intent(Out) :: elems
-    Integer(ik), Dimension(:)  , Allocatable, Intent(Out) :: elem_col
-    Integer(ik), Dimension(:)  , Allocatable, Intent(Out) :: node_col
+    Real(Kind=rk)   , Dimension(:,:), Allocatable, Intent(Out) :: nodes
+    Integer(Kind=ik), Dimension(:,:), Allocatable, Intent(Out) :: elems
+    Integer(Kind=ik), Dimension(:)  , Allocatable, Intent(Out) :: elem_col
+    Integer(Kind=ik), Dimension(:)  , Allocatable, Intent(Out) :: node_col
 
     !** Sizes *****************************************************************
-    Integer(ik), Intent(Out) :: no_nodes
-    Integer(ik), Intent(Out) :: no_elems
+    Integer(Kind=ik), Intent(Out) :: no_nodes
+    Integer(Kind=ik), Intent(Out) :: no_elems
 
     !--------------------------------------------------------------------------
-    Integer(ik), Dimension(:), Allocatable :: nodes_no, node_cref
+    Integer(Kind=ik), Dimension(:), Allocatable :: nodes_no, node_cref
 
     Type(tconreg), Pointer :: cregs, start_cregs, tmp_creg
 
-    Integer(ik) :: ii, jj, kk, ll
-    Integer(ik) :: lb_nodes_no, ub_nodes_no
-    Integer(ik) :: min_col, max_col
+    Integer(kind=ik) :: ii, jj, kk, ll
+    Integer(kind=ik) :: lb_nodes_no, ub_nodes_no
+    Integer(kind=ik) :: min_col, max_col
 
     Integer(ik) :: min_val_phi, max_val_phi, val_phi
-    Integer(ik), Dimension(3)  :: x_D_nodes
-    Real(rk)   , Dimension(3)  :: x_min, x_max
+    Integer(Kind=ik), Dimension(3)  :: x_D_nodes
+    Real(Kind=rk)   , Dimension(3)  :: x_min, x_max
     Integer         , Dimension(27) :: el_nn
 
     integer :: no_elem_nodes, alloc_stat, phi_stat
 
     Logical :: Change, next_exists
 
-    Integer(ik), Allocatable, Dimension(:) :: xa_n, xe_n
-    Integer(ik), Allocatable, Dimension(:) :: x_VD, x_D
+    Integer(kind=ik), Allocatable, Dimension(:) :: xa_n, xe_n
+    Integer(kind=ik), Allocatable, Dimension(:) :: x_VD, x_D
     Character(len=9) :: nn_char
     Integer(ik) :: ddc_nn
 
@@ -152,8 +150,8 @@ contains
 
     Else
 
-       Write(un_lf,FMT_MSG_xAI0)'Minimal value in phi = ', min_val_phi
-       Write(un_lf,FMT_MSG_xAI0)'Maximal value in phi = ', max_val_phi
+       Write(un_lf,FMT_MSG_xAI0)'Minimal value in phi = ',min_val_phi
+       Write(un_lf,FMT_MSG_xAI0)'Maximal value in phi = ',max_val_phi
 
     End If
 
@@ -169,9 +167,6 @@ contains
 
        Allocate(elems( 8, x_D(1)*x_D(2)*x_D(3)), stat=alloc_stat)
        call alloc_err("elems", alloc_stat)
-
-      write(*,*) "x_D: ", x_D
-
 
     !** For hexaedral elements with quadratic trial functions *****************
     else if (elt_micro == "HEX20") then
@@ -284,7 +279,7 @@ contains
                    el_nn(4) =  ii-1 + (jj  ) * (x_D_nodes(1)) + (kk-1) * (x_D_nodes(1)) * (x_D_nodes(2))
                    
                    el_nn(5) =  ii-1 + (jj-1) * (x_D_nodes(1)) + (kk  ) * (x_D_nodes(1)) * (x_D_nodes(2))
-                   el_nn(6) =  ii   + (jj-1) * (x_D_nodes(1)) + (kk  ) * (x_D_nodes(1)) * (x_D_nodes(2))
+                   el_nn(6) =  ii   + (33jj-1) * (x_D_nodes(1)) + (kk  ) * (x_D_nodes(1)) * (x_D_nodes(2))
                    el_nn(7) =  ii   + (jj  ) * (x_D_nodes(1)) + (kk  ) * (x_D_nodes(1)) * (x_D_nodes(2))
                    el_nn(8) =  ii-1 + (jj  ) * (x_D_nodes(1)) + (kk  ) * (x_D_nodes(1)) * (x_D_nodes(2))
                    

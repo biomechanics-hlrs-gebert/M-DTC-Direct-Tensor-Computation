@@ -188,6 +188,7 @@ pd-ld-objects = $(st_obj_dir)mod_global_std$(obj_ext) \
 geb-lib-ld-objects = $(st_obj_dir)mod_global_std$(obj_ext) \
 					$(st_obj_dir)mod_meta$(obj_ext) \
 					$(st_obj_dir)mod_strings$(obj_ext) \
+					$(st_obj_dir)mod_ser_binary$(obj_ext)\
 					$(st_obj_dir)mod_user_interaction$(obj_ext) \
 					$(st_obj_dir)mod_user_interaction$(mpi_ext)$(obj_ext) \
 					$(st_obj_dir)mod_formatted_plain$(obj_ext) \

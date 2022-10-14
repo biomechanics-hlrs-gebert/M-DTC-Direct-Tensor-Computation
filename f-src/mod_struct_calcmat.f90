@@ -22,41 +22,41 @@ contains
 subroutine calc_effective_material_parameters(root, comm_nn, ddc_nn, fh_mpi_worker) 
 
 Type(tBranch)                           , Intent(InOut) :: root
-integer(ik)                        , Intent(in) :: ddc_nn, comm_nn
-Integer(mik), Dimension(no_streams), Intent(in) :: fh_mpi_worker
+integer(Kind=ik)                        , Intent(in) :: ddc_nn, comm_nn
+Integer(kind=mik), Dimension(no_streams), Intent(in) :: fh_mpi_worker
 
-Real(rk) :: div_10_exp_jj, eff_density, n12, n13, n23, alpha, phi, eta
-Real(rk) :: cos_alpha, sin_alpha, One_Minus_cos_alpha, sym
+Real(kind=rk) :: div_10_exp_jj, eff_density, n12, n13, n23, alpha, phi, eta
+Real(kind=rk) :: cos_alpha, sin_alpha, One_Minus_cos_alpha, sym
 
-Real(rk), Dimension(:)    , allocatable :: tmp_nn, delta, x_D_phy
-Real(rk), Dimension(:,:)  , allocatable :: nodes, vv, ff, stiffness
-Real(rk), Dimension(:,:,:), allocatable :: calc_rforces, uu, rforces, edat, crit_1, crit_2
-Real(rk), Dimension(1)    :: tmp_real_fd1
-Real(rk), Dimension(3)    :: min_c, max_c, n
-Real(rk), Dimension(6)    :: ro_stress
-Real(rk), Dimension(8)    :: tmp_r8 
-Real(rk), Dimension(12)   :: tmp_r12
-Real(rk), Dimension(3,3)  :: aa
-Real(rk), Dimension(6,6)  :: ee_orig, BB, CC, cc_mean, EE, fv,meps
-Real(rk), Dimension(0:16) :: crit_min
-Real(rk), Dimension(6,24) :: int_strain, int_stress
-Real(rk):: E_Modul, nu, rve_strain, v_elem, v_cube
+Real(kind=rk), Dimension(:)    , allocatable :: tmp_nn, delta, x_D_phy
+Real(kind=rk), Dimension(:,:)  , allocatable :: nodes, vv, ff, stiffness
+Real(kind=rk), Dimension(:,:,:), allocatable :: calc_rforces, uu, rforces, edat, crit_1, crit_2
+Real(kind=rk), Dimension(1)    :: tmp_real_fd1
+Real(Kind=rk), Dimension(3)    :: min_c, max_c, n
+Real(kind=rk), Dimension(6)    :: ro_stress
+Real(kind=rk), Dimension(8)    :: tmp_r8 
+Real(kind=rk), Dimension(12)   :: tmp_r12
+Real(kind=rk), Dimension(3,3)  :: aa
+Real(kind=rk), Dimension(6,6)  :: ee_orig, BB, CC, cc_mean, EE, fv,meps
+Real(kind=rk), Dimension(0:16) :: crit_min
+Real(Kind=rk), Dimension(6,24) :: int_strain, int_stress
+Real(kind=rk):: E_Modul, nu, rve_strain, v_elem, v_cube
 
-Integer(mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
-Integer(mik) :: ierr
+Integer(kind=mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
+Integer(kind=mik) :: ierr
 
-integer(ik) :: ii, jj, kk, ll, no_elem_nodes, micro_elem_nodes, no_lc, num_leaves, alloc_stat
-Integer(ik) :: no_elems, no_nodes, no_cnodes, macro_order, ii_phi, ii_eta, kk_phi, kk_eta
+integer(Kind=ik) :: ii, jj, kk, ll, no_elem_nodes, micro_elem_nodes, no_lc, num_leaves, alloc_stat
+Integer(Kind=ik) :: no_elems, no_nodes, no_cnodes, macro_order, ii_phi, ii_eta, kk_phi, kk_eta
 
-Integer(ik), Dimension(:,:,:,:), Allocatable :: ang
-Integer(ik), Dimension(:)      , Allocatable :: xa_n, xe_n, no_cnodes_pp, cref_cnodes
-Integer(ik), Dimension(3) :: s_loop,e_loop, mlc
+Integer(kind=ik), Dimension(:,:,:,:), Allocatable :: ang
+Integer(Kind=ik), Dimension(:)      , Allocatable :: xa_n, xe_n, no_cnodes_pp, cref_cnodes
+Integer(kind=ik), Dimension(3)                    :: s_loop,e_loop, mlc
 
 Logical :: success
 
-Character(*), Parameter :: link_name="struct_calcmat_fmps"
-Character(9)   :: nn_char
-Character(mcl) :: desc
+Character(len=*), Parameter :: link_name="struct_calcmat_fmps"
+Character(len=9)   :: nn_char
+Character(Len=mcl) :: desc
 
 Type(tBranch), Pointer :: ddc, loc_ddc, meta_para, domain_branch, mesh_branch, result_branch
 
@@ -223,12 +223,10 @@ calc_rforces = 0._rk
 
 allocate(vv(no_lc, no_lc), stat=alloc_stat)
 call alloc_err("vv", alloc_stat)
-
 allocate(ff(no_lc, no_lc), stat=alloc_stat)
 call alloc_err("ff", alloc_stat)
 
 ff = 0._rk
-
 
 allocate(stiffness(no_lc, no_lc), stat=alloc_stat)
 call alloc_err("stiffness", alloc_stat)
@@ -247,7 +245,7 @@ end if
 
 Select Case (timer_level)
 Case (3)
-    call end_timer  ("  +-- 33 input data "//trim(nn_char))
+    call end_timer  ("  +-- Loading input data "//trim(nn_char))
     call start_timer("  +-- Calc material data "//trim(nn_char))
 Case (2)
     call end_timer  ("  +-- Loading input data "//trim(nn_char))
@@ -259,7 +257,7 @@ End Select
 !------------------------------------------------------------------------------
 ! Search effective results branch
 !------------------------------------------------------------------------------
-Call Search_branch("Results of domain "//trim(nn_char), root, result_branch, success)
+Call Search_branch("Results of domain "//nn_char, root, result_branch, success)
 
 !------------------------------------------------------------------------------
 ! Init C
@@ -306,7 +304,6 @@ End If
 !------------------------------------------------------------------------------
 call init_loadcase(rve_strain, vv)
 
-
 If (out_amount == "DEBUG") THEN
     WRITE(un_lf, FMT_DBG_SEP)
     Call Write_matrix(un_lf, "Displacement matrix", vv, fmti='std', unit='mm')
@@ -333,7 +330,7 @@ Do ii = 1, no_lc            ! Cycle through all load cases
     Do jj = 1, no_nodes      ! Cycle through all boundary nodes
 
         ! t_geom_xi transforms coordinates from geometry to xi space 
-        ! Result(phi_nn) :  Real(rk), dimension(8)
+        ! Result(phi_nn) :  Real(kind=rk), dimension(8)
         tmp_nn = phi_nn(t_geom_xi(nodes(:,jj),min_c,max_c))
 
         Do kk = 1,3
@@ -384,6 +381,7 @@ CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
 If (out_amount /= "PRODUCTION" ) then
     Call Write_matrix(std_out, "Stiffness", stiffness, fmti='std', unit='MPa')
 End If
+
 
 !------------------------------------------------------------------------------
 ! Calc Symmetry deviation - effective numerical stiffness
@@ -484,7 +482,7 @@ CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
     Int(root%branches(3)%leaves(5)%lbound-1+(comm_nn-1)*6*no_lc, MPI_OFFSET_KIND), &
     reshape(int_stress, [6*no_lc]), &
     Int(6*no_lc, pd_mik), MPI_REAL8, status_mpi, ierr)
-    
+
 !------------------------------------------------------------------------------
 ! Averaged strains
 !------------------------------------------------------------------------------
@@ -582,7 +580,6 @@ CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
     Int(root%branches(3)%leaves(10)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
     tmp_real_fd1, &
     1_pd_mik, MPI_REAL8, status_mpi, ierr)
-
 
 EE_Orig = EE
 
@@ -1689,24 +1686,24 @@ EE_Orig = EE
         reshape(EE,[36_pd_ik]), &
         36_pd_mik, MPI_REAL8, status_mpi, ierr)
 
-     !------------------------------------------------------------------------------
-     ! Domain number
-     ! In some sense, the List of domain numbers represents a status file tailored
-     ! to the PETSc sub comm.
-     !------------------------------------------------------------------------------
-     ! Last piece of information written to file. If it is the first entry, 
-     ! data is more likely to get corrupted. For example, the domain number gets
-     ! written to file while some computations within this module is still pending.
-     !------------------------------------------------------------------------------
-     CALL add_leaf_to_branch(result_branch, "Domain number", 1_ik, [ddc_nn])
-     CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
-          Int(root%branches(3)%leaves(1)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
-          ddc_nn, 1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
+    !------------------------------------------------------------------------------
+    ! Domain number
+    ! In some sense, the List of domain numbers represents a status file tailored
+    ! to the PETSc sub comm.
+    !------------------------------------------------------------------------------
+    ! Last piece of information written to file. If it is the first entry, 
+    ! data is more likely to get corrupted. For example, the domain number gets
+    ! written to file while some computations within this module is still pending.
+    !------------------------------------------------------------------------------
+    CALL add_leaf_to_branch(result_branch, "Domain number", 1_ik, [ddc_nn])
+    CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
+        Int(root%branches(3)%leaves(1)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
+        ddc_nn, 1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
 
-     If (out_amount /= "PRODUCTION" ) then
-          Call Write_matrix(std_out, "Optimized Effective stiffness CR_2", EE, fmti='std')
-     End If
-        
+    If (out_amount /= "PRODUCTION" ) then
+        Call Write_matrix(std_out, "Optimized Effective stiffness CR_2", EE, fmti='std')
+    End If
+    
     Select Case (timer_level)
     Case (3)
        call end_timer("  +-- Back rotation of material matrix "//trim(nn_char))
@@ -1720,10 +1717,10 @@ EE_Orig = EE
     ! Effective density
     !------------------------------------------------------------------------------
     eff_density = 0._rk
-    eff_density = REAL(no_elems, rk) / &
+    eff_density = REAL(no_elems, KIND=rk) / &
                 REAL(ANINT(x_D_phy(1)/delta(1)) * &
                      ANINT(x_D_phy(2)/delta(2)) * &
-                     ANINT(x_D_phy(3)/delta(3)), rk)
+                     ANINT(x_D_phy(3)/delta(3)), KIND=rk)
 
     CALL add_leaf_to_branch(result_branch, "Effective density", 1_pd_ik, [eff_density])
     CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
@@ -1742,10 +1739,10 @@ End subroutine calc_effective_material_parameters
 
 subroutine init_loadcase(eps,vv)
 
-    Real(rk), intent(in)     :: eps
-    Real(rk), Dimension(:,:) :: vv
+    Real(Kind=rk), intent(in)     :: eps
+    Real(Kind=rk), Dimension(:,:) :: vv
 
-    Real(rk)                 :: eps2,eps3,eps4
+    Real(Kind=rk)                 :: eps2,eps3,eps4
 
     eps2 = eps*2._rk
     eps3 = eps*3._rk

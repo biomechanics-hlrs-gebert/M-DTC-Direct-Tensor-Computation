@@ -20,25 +20,24 @@ Implicit None
 
 Contains
 
-Subroutine generate_geometry(root, ddc_nn, job_dir, typeraw, glob_success) !, rank)
+Subroutine generate_geometry(root, ddc_nn, job_dir, typeraw, glob_success)
 
-    Type(tBranch), Intent(InOut) :: root
-    Character(*), Intent(in) :: job_dir
-    integer(ik), Intent(in) :: ddc_nn
-    Logical, Intent(Out) :: glob_success
-!    integer(4), Intent(in) :: rank
-        
-    ! Chain Variables
-    Character(*), Parameter :: link_name = 'gen_quadmesh'
+Type(tBranch), Intent(InOut) :: root
+Character(LEN=*), Intent(in) :: job_dir
+integer(Kind=ik), Intent(in) :: ddc_nn
+Logical, Intent(Out) :: glob_success
+    
+! Chain Variables
+Character(Len=*), Parameter :: link_name = 'gen_quadmesh'
 
-    ! Puredat Variables
-    Type(tBranch) :: phi_desc
+! Puredat Variables
+Type(tBranch) :: phi_desc
 
-    ! Decomp Variables 
-    Type(tBranch), Pointer :: loc_ddc, ddc, bounds_b
+! Decomp Variables 
+Type(tBranch), Pointer :: loc_ddc, ddc, bounds_b
 
-    ! Branch pointers
-    Type(tBranch), Pointer :: meta_para, domain_branch
+! Branch pointers
+Type(tBranch), Pointer :: meta_para, domain_branch
 
     ! Mesh Variables 
     Real(rk)    , Dimension(:,:) , Allocatable :: nodes, displ
@@ -66,7 +65,7 @@ Subroutine generate_geometry(root, ddc_nn, job_dir, typeraw, glob_success) !, ra
 
     Logical :: success, fex
     
-    Character(9) :: nn_char
+    Character(len=9) :: nn_char
 
     write(nn_char,'(I0)')ddc_nn
     glob_success = .TRUE.
@@ -422,7 +421,7 @@ Subroutine generate_geometry(root, ddc_nn, job_dir, typeraw, glob_success) !, ra
     !------------------------------------------------------------------------------
     desc=''
     Write(desc,'(A,I0)')'Mesh info of '//trim(project_name)//'_',ddc_nn
-
+   
     call add_branch_to_branch(domain_branch, PMesh)
     call raise_branch(trim(desc), parts, 0_pd_ik, PMesh)
 
@@ -521,17 +520,21 @@ Subroutine generate_geometry(root, ddc_nn, job_dir, typeraw, glob_success) !, ra
 
     Type(tBranch), Pointer             :: part_b, bounds_b
     
-    Real(rk)     , Dimension(:), Allocatable :: dim_c, delta
-    Integer(ik)  , Dimension(:), Allocatable :: xa_n, xe_n
-    Real(rk)     , Dimension(3)              :: min_c, max_c, coor
-    Integer(ik) :: parts, ddc_nn, no_nodes_macro, no_elem_nodes
+    Real(Kind=rk)     , Dimension(:), Allocatable :: dim_c, delta
+    Integer(Kind=ik)  , Dimension(:), Allocatable :: xa_n, xe_n
+    Real(Kind=rk)     , Dimension(3)              :: min_c, max_c, coor
+    Integer(kind=ik) :: parts, ddc_nn
+    Integer(kind=ik) :: no_nodes_macro
+    Integer(kind=ik) :: no_elem_nodes
     
-    integer(ik) :: ii, jj, no_bnodes, b_items, nnodes
+    integer(Kind=ik) :: ii, jj, no_bnodes, b_items, nnodes
 
-    Integer(ik), Dimension(:), Allocatable :: no_nodes_all, no_elems_all, no_cdofs_all
+    Integer(Kind=ik), Dimension(:), Allocatable :: no_nodes_all
+    Integer(Kind=ik), Dimension(:), Allocatable :: no_elems_all
+    Integer(Kind=ik), Dimension(:), Allocatable :: no_cdofs_all
     
-    Integer(ik), Dimension(:)  , Allocatable :: bnode_ids
-    Real(rk)   , Dimension(:,:), Allocatable :: bnode_vals
+    Integer(Kind=ik), Dimension(:)  , Allocatable :: bnode_ids
+    Real(Kind=rk)   , Dimension(:,:), Allocatable :: bnode_vals
 
     !------------------------------------------------------------------------------
     ! Get Parameters of domain decomposition

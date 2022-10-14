@@ -21,6 +21,7 @@ USE meta
 USE user_interaction
 USE formatted_plain
 USE mechanical
+USE ser_binary
 
 IMPLICIT NONE
 
@@ -31,15 +32,15 @@ TYPE(tBranch)        :: rank_data
 TYPE(tensor_2nd_rank_R66), DIMENSION(3) :: tensor
 
 INTEGER(ik), DIMENSION(:,:), ALLOCATABLE :: Domain_stats
-INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0
+INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0, vdim=0, grid=0
 
 INTEGER(ik) :: alloc_stat, parts, fh_covo, fh_cr1, fh_cr2, fh_crdiag, fh_tens, &
     domains_crawled = 0_ik, nn_comm, par_domains, activity_size, size_mpi, &
-    ii, jj, kk, ll, mm, tt, handle, &
+    ii, jj, kk, ll, mm, tt, xx, handle, par_dmn_number, &
     aun, domains_per_comm, rank_mpi, No_of_domains, local_domain_no, last_domain_rank
 
 REAL(rk) :: local_domain_density, sym, start, end
-REAL(rk), DIMENSION(3)   :: local_domain_opt_pos
+REAL(rk), DIMENSION(3)   :: local_domain_opt_pos, spcng, dmn_size
 REAL(rk), DIMENSION(6,6) :: local_domain_tensor
 
 INTEGER(8), DIMENSION(:), ALLOCATABLE :: dat_domains
@@ -83,7 +84,7 @@ CALL meta_invoke(m_rry)
 !------------------------------------------------------------------------------
 ! Redirect std_out into a file in case std_out is not useful by environment.
 !------------------------------------------------------------------------------
-std_out = 6 ! determine_stout()
+std_out = 6 ! determine_sout()
 
 !------------------------------------------------------------------------------
 ! Spawn standard out after(!) the basename is known
@@ -109,7 +110,11 @@ END IF
 CALL meta_read('LO_BNDS_DMN_RANGE' , m_rry, xa_d, stat); IF(stat/="") STOP
 CALL meta_read('UP_BNDS_DMN_RANGE' , m_rry, xe_d, stat); IF(stat/="") STOP
 CALL meta_read('MESH_PER_SUB_DMN'  , m_rry, parts, stat); IF(stat/="") STOP
-CALL meta_read('PROCESSORS'        , m_rry, size_mpi, stat); IF(stat/="") STOP
+
+CALL meta_read('PROCESSORS' , m_rry, size_mpi, stat); IF(stat/="") STOP
+CALL meta_read('SIZE_DOMAIN', m_rry, dmn_size, stat); IF(stat/="") STOP
+CALL meta_read('SPACING'    , m_rry, spcng, stat); IF(stat/="") STOP
+CALL meta_read('DIMENSIONS' , m_rry, vdim, stat); IF(stat/="") STOP
 
 INQUIRE(UNIT=fhmei, OPENED=opened)
 IF(opened) CLOSE (fhmei)
@@ -179,7 +184,19 @@ CLOSE(aun)
 !------------------------------------------------------------------------------
 ! Crawl data
 !------------------------------------------------------------------------------
+par_dmn_number=0
+
 DO rank_mpi = 1, size_mpi-1, parts
+    par_dmn_number = par_dmn_number + 1
+
+    CALL EXECUTE_COMMAND_LINE("clear")
+
+    CALL show_title(["Johannes Gebert, M.Sc. (HLRS, NUM)"])
+
+    WRITE(std_out, FMT_TXT_xAI0) &
+        "Current communicator crawled: ", par_dmn_number, " of ", par_domains
+    WRITE(std_out, FMT_SEP)
+
     nn_comm = 1_ik
 
     target_path = TRIM(in%p_n_bsnm)//"/"
@@ -200,6 +217,8 @@ DO rank_mpi = 1, size_mpi-1, parts
 
     !------------------------------------------------------------------------------
     ! Read domain numbers
+    ! Check that with e.g. 
+    ! ../bin/pd_dump_leaf_x86_64 $PWD/FH01-2_mu_Dev_dtc_Tensors/Rank_0002041/ results_0002041 2
     !------------------------------------------------------------------------------
     CALL get_leaf_with_num(rank_data, 2_pd_ik, leaf_domain_no, success)
 
@@ -236,7 +255,7 @@ DO rank_mpi = 1, size_mpi-1, parts
             CASE(1)
                 CALL get_leaf_with_num(rank_data, 8_pd_ik, leaf_tensors, success)
                 local_domain_opt_pos = 0._rk
-                fh_tens     = fh_covo 
+                fh_tens = fh_covo 
             CASE(2)
                 CALL get_leaf_with_num(rank_data, 15_pd_ik, leaf_tensors, success)
                 CALL get_leaf_with_num(rank_data, 13_pd_ik, leaf_pos    , success)
@@ -290,10 +309,29 @@ DO rank_mpi = 1, size_mpi-1, parts
             ! If it is contained - the tensor can be read. If not, issue an error, since
             ! the domain given apparently is wrong
             !------------------------------------------------------------------------------
+!            Domain_stats(:, 2) = 0_ik
             DO jj = 1, No_of_domains
                 !------------------------------------------------------------------------------
                 ! Reset the information stored before proceeding to the next one.
+                ! Iterating over jj while searching for the actual domain number stored in 
+                ! dat_domains implicitly sorts the data. 
                 !------------------------------------------------------------------------------
+                tensor(tt)%dmn        = 0_ik
+                tensor(tt)%bvtv       = 0._rk
+                tensor(tt)%doa_zener  = 0._rk
+                tensor(tt)%doa_gebert = 0._rk
+                tensor(tt)%sym        = 0._rk
+                tensor(tt)%mat        = 0._rk
+                tensor(tt)%pos        = 0._rk
+                tensor(tt)%sym        = 0._rk
+                tensor(tt)%mps        = 0._rk
+                tensor(tt)%doa_zener  = 0._rk
+                tensor(tt)%doa_gebert = 0._rk
+                
+                !------------------------------------------------------------------------------
+                ! This value is hardcoded in ./f-src/mod_struct_calcmat.f90
+                !------------------------------------------------------------------------------
+                tensor(tt)%opt_res = 1._rk 
 
                 IF(Domain_stats(jj, 1) == dat_domains(ii)) THEN
 
@@ -303,19 +341,19 @@ DO rank_mpi = 1, size_mpi-1, parts
                     IF((Domain_stats(jj, 2) == 0_ik) .OR. (last_domain)) THEN
                         Domain_stats(jj, 2) = 1_ik
                     ELSE
-!                       WRITE(std_out, FMT_DBG_AxI0) "Domain_stats(:): ", Domain_stats(:,1)   
-!                       WRITE(std_out, FMT_DBG_AxI0) "Domain_stats(:): ", Domain_stats(:,2)   
+                        ! WRITE(std_out, FMT_DBG_AxI0) "Domain_stats(:): ", Domain_stats(jj,1)   
+                        ! WRITE(std_out, FMT_DBG_AxI0) "Domain_stats(:): ", Domain_stats(jj,2)   
 
-                        WRITE(std_out, FMT_DBG_xAL)  "last_domain: ", last_domain
-                        WRITE(std_out, FMT_DBG_AxI0) "Domain_stats(jj, 1)", Domain_stats(jj, 1) 
-                        WRITE(std_out, FMT_DBG_AxI0) "Domain_stats(jj, 2)", Domain_stats(jj, 2) 
-                        WRITE(std_out, FMT_DBG_AxI0) "last_domain_rank", last_domain_rank
+                        ! WRITE(std_out, FMT_DBG_xAL)  "last_domain: ", last_domain
+                        ! WRITE(std_out, FMT_DBG_AxI0) "Domain_stats(jj, 1)", Domain_stats(jj, 1) 
+                        ! WRITE(std_out, FMT_DBG_AxI0) "Domain_stats(jj, 2)", Domain_stats(jj, 2) 
+                        ! WRITE(std_out, FMT_DBG_AxI0) "last_domain_rank", last_domain_rank
 
-                        mssg = "The domain was already found. The second appearance of a domain &
-                            &number in a 'valid' state is a hint for a corrupted data set. &
-                            &One would expect to find domain numbers only once in all leafs of &
-                            &domain numbers, scattered in the rank-directories, as long as the &
-                            &first entries are monotonously increasing."
+                        mssg = "The domain was already found."! The second appearance of a domain &
+                            ! &number in a 'valid' state is a hint for a corrupted data set. &
+                            ! &One would expect to find domain numbers only once in all leafs of &
+                            ! &domain numbers, scattered in the rank-directories, as long as the &
+                            ! &first entries are monotonously increasing."
                         ! CALL print_err_stop(std_out, mssg, 1_ik)
                         CALL print_trimmed(std_out, TRIM(mssg), FMT_WRN)
                         
@@ -351,6 +389,11 @@ DO rank_mpi = 1, size_mpi-1, parts
                     !------------------------------------------------------------------------------
                     local_domain_no = dat_domains(ii)
 
+                    IF(write_to_diag) THEN
+                        WRITE(std_out, FMT_DBG_AxI0) "Current domain: ", local_domain_no
+                        WRITE(std_out, FMT_DBG_AxI0) "Last domain: ", dat_domains(ii-1)
+                    END IF
+
                     domains_crawled = domains_crawled + 1_ik
 
                     IF(mrd_dbg_lvl == "DEBUG") THEN
@@ -365,14 +408,39 @@ DO rank_mpi = 1, size_mpi-1, parts
                     sym = check_sym (local_domain_tensor)
 
                     !------------------------------------------------------------------------------
-                    ! Write the data to the file.
+                    ! Compute additional parameters.
                     !------------------------------------------------------------------------------
                     tensor(tt)%dmn  = dat_domains(ii)
                     tensor(tt)%bvtv = dat_densities(ii)
                     tensor(tt)%sym  = sym
                     tensor(tt)%mat  = local_domain_tensor
                     tensor(tt)%pos  = local_domain_opt_pos
+                    tensor(tt)%dmn_size = dmn_size(1)
 
+                    grid = get_grid(dmn_size, vdim, spcng)
+                    tensor(tt)%section = domain_no_to_section(tensor(tt)%dmn, grid)
+                  
+                    DO xx=1, 3
+                        tensor(tt)%phy_dmn_bnds(xx,1) = &
+                             tensor(tt)%section(xx) * tensor(tt)%dmn_size
+
+                        tensor(tt)%phy_dmn_bnds(xx,2) = &
+                            (tensor(tt)%section(xx)+1) * tensor(tt)%dmn_size
+                    END DO
+        
+                    tensor(tt)%sym = check_sym(tensor(tt)%mat)
+                    tensor(tt)%mps = mps(tensor(tt)%mat)
+                    tensor(tt)%doa_zener = doa_zener(tensor(tt)%mat)
+                    tensor(tt)%doa_gebert = doa_gebert(tensor(tt)%mat)
+                    
+                    !------------------------------------------------------------------------------
+                    ! This value is hardcoded in ./f-src/mod_struct_calcmat.f90
+                    !------------------------------------------------------------------------------
+                    tensor(tt)%opt_res = 1._rk 
+
+                    !------------------------------------------------------------------------------
+                    ! Write the data to the file.
+                    !------------------------------------------------------------------------------
                     SELECT CASE (tt)
                         CASE(1); tensor(tt)%opt_crit = "covo" 
                         CASE(2); tensor(tt)%opt_crit = "cr1" 
@@ -380,7 +448,7 @@ DO rank_mpi = 1, size_mpi-1, parts
                     END SELECT
 
                     IF(write_to_diag) handle = fh_crdiag
-
+                
                     CALL write_tensor_2nd_rank_R66_row(handle, tensor(tt))
 
                     !------------------------------------------------------------------------------
@@ -394,6 +462,7 @@ DO rank_mpi = 1, size_mpi-1, parts
 
         END DO ! ii = 1, domains_Per_comm - 1_ik
     END DO ! tt = 1, 3
+
     !------------------------------------------------------------------------------
     ! Close the files of this particular directory (Rank_000xyz)
     ! basically a reset of the tree which was read before.

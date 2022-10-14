@@ -268,7 +268,6 @@ If (rank_mpi == 0) THEN
     ! This log file may collide with the original log file (!)
     ! The regular struct_process log file contains still has the "old" basename!
     !------------------------------------------------------------------------------
-    CALL meta_start_ascii(fh_log, log_suf)
     CALL meta_start_ascii(fh_mon, mon_suf)
 
     IF (std_out/=6) CALL meta_start_ascii(std_out, '.std_out')
@@ -399,12 +398,9 @@ If (rank_mpi == 0) THEN
     CALL add_leaf_to_branch(meta_para, "Element order on macro scale"  , 1_ik, [elo_macro]) 
     CALL add_leaf_to_branch(meta_para, "Output amount"                 , len(out_amount), str_to_char(out_amount)) 
     
-    ! CALL add_leaf_to_branch(meta_para, "Restart"                       , len(restart) , str_to_char(restart)) 
-CALL add_leaf_to_branch(meta_para, "Restart", 1_ik, str_to_char(restart(1:1))) 
-CALL add_leaf_to_branch(meta_para, "Number of voxels per direction", 3_ik , vdim) 
-
+    CALL add_leaf_to_branch(meta_para, "Restart", 1_ik, str_to_char(restart(1:1))) 
+    CALL add_leaf_to_branch(meta_para, "Number of voxels per direction", 3_ik , vdim) 
     CALL add_leaf_to_branch(meta_para, "Domains per communicator", 1_ik, [domains_per_comm]) 
-!     CALL add_leaf_to_branch(meta_para, "Raw data stream" , len(typeraw), str_to_char(typeraw)) 
 
     !------------------------------------------------------------------------------
     ! Prepare output directory via CALLing the c function.
@@ -1156,7 +1152,8 @@ Else
         
         !!!!!------------------------------------------------------------------------------
         !!!!! Experimental
-        !!!!! May help computing domains which may be skipped3
+        !!!!! May help computing domains which may be skipped
+        !!!!! Some domains are skipped while restarting. Considered a minor issue
         !!!!!------------------------------------------------------------------------------
         !!!!!!!!!!!!! IF(comm_nn > 1) comm_nn = comm_nn - 1_ik
 
@@ -1250,14 +1247,14 @@ Else
                 CALL Write_Tree(root%branches(3)) ! Branch with 'Averaged Material Properties'
                 ! ../../../bin/pd_dump_leaf_x86_64 $PWD/ results_0000001 7
             
-                IF (out_amount == "ALEXANDRIA") THEN
-                    DO ii = 1, SIZE(root%branches)
-                        write(*, '(A, I0, 2A, T80, I0, T84, A)') &
-                            "Branch(", ii, ") of the tree: ", &
-                            TRIM(root%branches(ii)%desc), &
-                            SIZE(root%branches(ii)%leaves), " leaves."
-                    END DO
-                END IF
+            !    IF (out_amount == "ALEXANDRIA") THEN
+            !        DO ii = 1, SIZE(root%branches)FH01-2_mu_Dev_dtc_Tensors
+            !            write(*, '(A, I0, 2A, T80, I0, T84, A)') &
+            !                "Branch(", ii, ") of the tree: ", &
+            !                TRIM(root%branches(ii)%desc), &
+            !                SIZE(root%branches(ii)%leaves), " leaves."
+            !        END DO
+            !    END IF
 
                 CALL End_Timer("Write Worker Root Branch")
 
@@ -1272,6 +1269,7 @@ Else
                 !------------------------------------------------------------------------------
                 WRITE(desc,'(A,I0)')"Domain ", Domain
                 CALL delete_branch_from_branch(TRIM(desc), root, dsize)
+
             END IF
 
             !------------------------------------------------------------------------------
@@ -1336,7 +1334,6 @@ IF(rank_mpi == 0) THEN
     CALL meta_signing(binary)
     CALL meta_close()
 
-    CALL meta_stop_ascii(fh_log, log_suf)
     CALL meta_stop_ascii(fh_mon, mon_suf)
 
     IF (std_out/=6) THEN

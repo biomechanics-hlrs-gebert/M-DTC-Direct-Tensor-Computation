@@ -25,18 +25,18 @@ Module chain_variables
   !> Monitor file unit (default = stdout)
   Integer :: un_mon = fhmon
   
-  Character(mcl) :: outpath = "./"
-  Character(mcl) :: inpath  = "./"
-  Character(mcl) :: project_name
+  Character(len=mcl) :: outpath = "./"
+  Character(len=mcl) :: inpath  = "./"
+  Character(len=mcl) :: project_name
 
   !-- Variables for reading input ---------------------------------------------
-  Character(mcl)            :: chp_char
-  Integer(4)               :: chp_int4
-  Integer(4), Dimension(3) :: chp_int4_3vector
-  Integer(8)               :: chp_int8
-  Integer(8), Dimension(3) :: chp_int8_3vector
-  Real(8)                  :: chp_real
-  Real(8)   , Dimension(3) :: chp_real_3vector
+  Character(Len=mcl)            :: chp_char
+  Integer(Kind=4)               :: chp_int4
+  Integer(Kind=4), Dimension(3) :: chp_int4_3vector
+  Integer(Kind=8)               :: chp_int8
+  Integer(Kind=8), Dimension(3) :: chp_int8_3vector
+  Real(Kind=8)                  :: chp_real
+  Real(Kind=8)   , Dimension(3) :: chp_real_3vector
 
 End Module chain_variables
 
@@ -59,7 +59,7 @@ Contains
   !> Subroutine for writing link start tag and opening the global log-file
   Subroutine link_start(link_name, init_lf, silent_stdio, success)
 
-    Character(*), Intent(in) :: link_name
+    Character(Len=*), Intent(in) :: link_name
     
     Logical, Intent(In),      Optional :: init_lf
 
@@ -185,7 +185,7 @@ Contains
   !> Subroutine for writing link end tag and closing the global log file
   Subroutine link_end(link_name, silent_stdio)
 
-    Character(*), Intent(in) :: link_name
+    Character(Len=*), Intent(in) :: link_name
 
     !> If .TRUE. no output to std_out is done (default = .FALSE.)
     Logical, Intent(In), optional :: silent_stdio
@@ -225,7 +225,7 @@ Contains
   !> Subroutine for writing link error and stop message if something fails
   Subroutine link_stop(link_name,msg)
 
-   Character(*), Intent(in)      :: link_name, msg
+   Character(Len=*), Intent(in)      :: link_name, msg
    Logical                           :: opened
 
    !--------------------------------------------------------------------------
@@ -263,7 +263,7 @@ Contains
    SUBROUTINE alloc_err(in_var, io_stat)
 
    INTEGER, INTENT(IN) :: io_stat
-   CHARACTER(*), INTENT(IN) :: in_var
+   CHARACTER(LEN=*), INTENT(IN) :: in_var
 
    IF (io_stat /= 0) Then
       WRITE(mssg, '(A,I4,A)') "Allocation of var ", TRIM(in_var), " failed."
