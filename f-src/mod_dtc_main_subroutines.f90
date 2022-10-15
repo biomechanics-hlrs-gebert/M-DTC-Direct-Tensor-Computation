@@ -1,15 +1,8 @@
 !------------------------------------------------------------------------------
 ! MODULE: exec_single_domain
 !------------------------------------------------------------------------------
-!> @author Ralf Schneider  - HLRS - NUM - schneider@hlrs.de
-!> @author Johannes Gebert - HLRS - NUM - gebert@hlrs.de
-!
 ! DESCRIPTION: 
-!> Auxiliary, but central subroputines of the struct-process/DTC
-!>
-!>  \section modified Last modified:
-!>  by: Johannes Gebert \n
-!>  on: 29.03.2022
+!> https://stackoverflow.com/questions/22028571/track-memory-usage-in-fortran-90
 !------------------------------------------------------------------------------
 MODULE dtc_main_subroutines
 

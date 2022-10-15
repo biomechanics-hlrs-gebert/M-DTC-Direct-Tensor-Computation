@@ -145,7 +145,7 @@ Integer(kind=pd_mik), Dimension(no_streams) :: fh_mpi
 INTEGER(pd_ik) :: serial_root_size, add_leaves
 
 LOGICAL :: success, stat_exists, heaxist, abrt = .FALSE.
-LOGICAL :: create_new_header = .FALSE.
+LOGICAL :: create_new_header = .FALSE., fex=.TRUE.
 
 !----------------------------------------------------------------------------
 CALL mpi_init(ierr)
@@ -1114,6 +1114,24 @@ Else
             IF(stat_c_int /= 0) THEN
                 mssg = 'Could not create the output directory »'//TRIM(outpath)//'«.'
                 CALL print_err_stop(std_out, mssg, 1)
+            ELSE
+                !------------------------------------------------------------------------------
+                ! Start the memory logging
+                !------------------------------------------------------------------------------
+                INQUIRE(file="./datasets/memlog.sh", exist=fex)
+
+                IF(fex) THEN
+                    CALL EXECUTE_COMMAND_LINE (&
+                        './datasets/memlog.sh '&
+                        //TRIM(outpath)//TRIM(project_name)//'.memlog', CMDSTAT=stat)   
+
+                    IF(stat /= 0) WRITE(std_err, FMT_WRN_xAI0) &
+                        "Could not start memory logging! Rank: ", rank_mpi
+                ELSE
+                    WRITE(std_err, FMT_WRN_xAI0) &
+                        "File for memory logging not found! Rank: ", rank_mpi
+                END IF
+
             END IF
         END IF
 
