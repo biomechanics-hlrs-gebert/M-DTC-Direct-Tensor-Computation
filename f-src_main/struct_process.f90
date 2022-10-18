@@ -95,6 +95,7 @@ USE decomp
 USE dtc_main_subroutines
 USE PETSC
 USE petsc_opt
+USE system
 
 Implicit None
 
@@ -123,9 +124,10 @@ CHARACTER(mcl)  , DIMENSION(:), ALLOCATABLE :: m_rry
 
 CHARACTER(4*mcl) :: job_dir
 CHARACTER(mcl)   :: cmd_arg_history='', link_name = 'struct process', stat_char="", &
-    muCT_pd_path, muCT_pd_name, binary, activity_file, desc=""
+    muCT_pd_path, muCT_pd_name, binary, activity_file, desc="", memlog_file=""
 CHARACTER(8)   :: elt_micro, output
 CHARACTER(mcl) :: typeraw="", restart='N', restart_cmd_arg='U',ios="" ! U = 'undefined'
+CHARACTER(3)   :: file_status
 
 REAL(rk), DIMENSION(3) :: delta
 REAL(rk) :: strain
@@ -134,7 +136,7 @@ INTEGER(ik), DIMENSION(:), ALLOCATABLE :: Domains, nn_D, Domain_stats
 INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0
 
 INTEGER(ik) :: nn, ii, jj, kk, dc, stint, computed_domains = 0, comm_nn = 1, &
-    No_of_domains, path_count, activity_size=0, alloc_stat, &
+    No_of_domains, path_count, activity_size=0, alloc_stat, fh_memlog, &
     alloc_stint, free_file_handle, domains_per_comm, stat, &
     Domain, llimit, parts, elo_macro, raw_data_stream, vdim(3)
 
@@ -412,7 +414,7 @@ If (rank_mpi == 0) THEN
 
     IF(stat_c_int /= 0) THEN
 
-        CALL create_directory(TRIM(outpath), stat)
+        CALL exec_cmd_line("mkdir -p "//TRIM(outpath), stat, 20)
 
         IF(stat /= 0) THEN
             mssg = 'Could not execute syscall »mkdir -p '//trim(outpath)//'«.'
@@ -1104,7 +1106,7 @@ Else
 
         IF(stat_c_int /= 0) THEN
 
-            CALL create_directory(TRIM(outpath), stat)
+            CALL exec_cmd_line("mkdir -p "//TRIM(outpath), stat, 20)
 
             IF(stat /= 0) CALL print_err_stop(std_out, &
                 'Could not execute syscall »mkdir -p '//trim(outpath)//'«.', 1)
@@ -1118,25 +1120,47 @@ Else
                 !------------------------------------------------------------------------------
                 ! Start the memory logging
                 !------------------------------------------------------------------------------
-                INQUIRE(file="./datasets/memlog.sh", exist=fex)
+                        ! INQUIRE(file="./datasets/memlog.sh", exist=fex)
 
-                IF(fex) THEN
-                    CALL EXECUTE_COMMAND_LINE (&
-                        './datasets/memlog.sh '&
-                        //TRIM(outpath)//TRIM(project_name)//'.memlog', CMDSTAT=stat)   
+                        ! IF(fex) THEN
+                        !     CALL EXECUTE_COMMAND_LINE (&
+                        !         './datasets/memlog.sh '&
+                        !         //TRIM(outpath)//TRIM(project_name)//'.memlog', CMDSTAT=stat)   
 
-                    IF(stat /= 0) WRITE(std_err, FMT_WRN_xAI0) &
-                        "Could not start memory logging! Rank: ", rank_mpi
-                ELSE
-                    WRITE(std_err, FMT_WRN_xAI0) &
-                        "File for memory logging not found! Rank: ", rank_mpi
-                END IF
+                        !     IF(stat /= 0) WRITE(std_err, FMT_WRN_xAI0) &
+                        !         "Could not start memory logging! Rank: ", rank_mpi
+                        ! ELSE
+                        !     WRITE(std_err, FMT_WRN_xAI0) &
+                        !         "File for memory logging not found! Rank: ", rank_mpi
+                        ! END IF
+
+
+                memlog_file=TRIM(outpath)//TRIM(project_name)//'.memlog'
+                INQUIRE (FILE = memlog_file, EXIST = fex)
+
+                file_status="NEW"
+                IF(fex) file_status="OLD"
+
+                fh_memlog = give_new_unit()
+
+                OPEN(UNIT=fh_memlog, FILE=TRIM(memlog_file), ACTION='WRITE', &
+                    ACCESS="SEQUENTIAL", STATUS=file_status)
+
+                ! IF(stat /= 0) WRITE(std_err, FMT_WRN_xAI0) &
+                !     "Could not start memory logging! Rank: ", rank_mpi
 
             END IF
         END IF
 
         CALL link_start(link_name, .True., .True.)
+
+    ELSE ! Worker threads of the sub communicator
+        !------------------------------------------------------------------------------
+        ! Set fh_memlog = -1 for clarifying the state of the worker threads
+        !------------------------------------------------------------------------------
+        fh_memlog = -1_ik
     END IF 
+
         
     !------------------------------------------------------------------------------
     ! Send new directory/filename
@@ -1229,11 +1253,14 @@ Else
         !------------------------------------------------------------------------------
         IF (Domain_stats(nn) < 0) THEN
 
+            !------------------------------------------------------------------------------
+            ! Outpath depends on whether basic or detailed information are written to fs
+            !------------------------------------------------------------------------------
             IF (out_amount /= "PRODUCTION") THEN
                 !------------------------------------------------------------------------------
                 ! Receive Job_Dir
                 !------------------------------------------------------------------------------
-                CALL mpi_recv(job_dir, 4_mik*int(mcl,mik), mpi_character, 0_mik, rank_mpi, MPI_COMM_WORLD, status_mpi, ierr)
+                CALL mpi_recv(job_dir, Int(4*mcl,mik), mpi_character, 0_mik, rank_mpi, MPI_COMM_WORLD, status_mpi, ierr)
                 CALL print_err_stop(std_out, "MPI_RECV on Domain path didn't succeed", ierr)
             ELSE
                 job_dir = outpath
@@ -1242,7 +1269,7 @@ Else
             IF (job_dir(len(job_dir):len(job_dir)) /= "/") job_dir = trim(job_dir)//"/"
 
             !==============================================================================
-            CALL exec_single_domain(root, comm_nn, Domain, typeraw, job_dir, Active, &
+            CALL exec_single_domain(root, comm_nn, Domain, typeraw, job_dir, fh_memlog, Active, &
                 fh_mpi_worker, worker_rank_mpi, worker_size_mpi, worker_comm)
             !==============================================================================
 
@@ -1319,6 +1346,11 @@ Else
         CALL print_err_stop(std_out, "MPI_WAIT on request for ISEND Active didn't succeed", ierr)
 
     End Do
+
+    !------------------------------------------------------------------------------
+    ! Close memlog file
+    !------------------------------------------------------------------------------
+    CLOSE(fh_memlog)
 
     DO ii = 1, no_streams
         CALL MPI_File_close(fh_mpi_worker(ii), ierr)

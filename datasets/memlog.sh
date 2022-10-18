@@ -13,12 +13,12 @@ else
     # if [[ -f $1 ]]; then
     #     echo "The file $1 already exists. Please delete manually."
     # else
-        while sleep 2
+        while sleep 5
         do
             {
             # Grep for memory or swap (!)
-#             free -h | grep "Mem" | tr -d '\n'
-              free -h | grep "Speicher" | tr -d '\n'
+              free -h | grep "Mem" | tr -d '\n'
+#             free -h | grep "Speicher" | tr -d '\n'
               echo "     " | tr -d '\n'
               date
             } >> "$1"

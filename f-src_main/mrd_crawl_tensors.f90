@@ -349,16 +349,17 @@ DO rank_mpi = 1, size_mpi-1, parts
                         ! WRITE(std_out, FMT_DBG_AxI0) "Domain_stats(jj, 2)", Domain_stats(jj, 2) 
                         ! WRITE(std_out, FMT_DBG_AxI0) "last_domain_rank", last_domain_rank
 
-                        mssg = "The domain was already found."! The second appearance of a domain &
+                        ! mssg = "The domain was already found."! The second appearance of a domain &
                             ! &number in a 'valid' state is a hint for a corrupted data set. &
                             ! &One would expect to find domain numbers only once in all leafs of &
                             ! &domain numbers, scattered in the rank-directories, as long as the &
                             ! &first entries are monotonously increasing."
                         ! CALL print_err_stop(std_out, mssg, 1_ik)
-                        CALL print_trimmed(std_out, TRIM(mssg), FMT_WRN)
+                        ! CALL print_trimmed(std_out, TRIM(mssg), FMT_WRN)
                         
-                        WRITE(std_out, FMT_WRN_SEP)
+                        ! WRITE(std_out, FMT_WRN_SEP)
 
+                        ! Diagnose?!
                         write_to_diag = .TRUE.
                     END IF
 

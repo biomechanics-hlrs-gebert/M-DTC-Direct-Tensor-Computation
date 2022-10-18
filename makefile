@@ -139,39 +139,41 @@ c-objects =  $(obj_dir)OS$(obj_ext) \
 # Fortran objects
 # -----------------------------------------------------------------------------
 f-objects = $(st_obj_dir)mod_global_std$(obj_ext) \
-            $(st_obj_dir)mod_strings$(obj_ext) \
+			$(st_obj_dir)mod_strings$(obj_ext) \
 			$(st_obj_dir)mod_user_interaction$(obj_ext) \
 			$(st_obj_dir)mod_user_interaction$(mpi_ext)$(obj_ext) \
 			$(st_obj_dir)mod_ser_binary$(obj_ext)\
 			$(st_obj_dir)mod_par_binary$(mpi_ext)$(obj_ext)\
 			$(st_obj_dir)mod_vtk$(obj_ext) \
 			$(st_obj_dir)mod_formatted_plain$(obj_ext) \
-            $(st_obj_dir)mod_math$(obj_ext) \
-            $(st_obj_dir)mod_mechanical$(obj_ext) \
-            $(st_obj_dir)mod_meta$(obj_ext) \
-            $(obj_dir)mod_parameters$(obj_ext) \
-            $(obj_dir)mod_times$(obj_ext) \
-            $(obj_dir)mod_auxiliaries$(obj_ext) \
-            $(obj_dir)mod_chain$(obj_ext) \
-            $(obj_dir)mod_puredat$(obj_ext) \
-            $(obj_dir)mod_eispack$(obj_ext) \
-            $(obj_dir)mod_tensors$(obj_ext) \
-            $(obj_dir)mod_metis$(obj_ext) \
-            $(obj_dir)mod_OS$(obj_ext) \
-            $(obj_dir)mod_linfe$(obj_ext) \
-            $(obj_dir)mod_tensor_opt$(obj_ext) \
-            $(obj_dir)mod_blas_1$(obj_ext) \
-            $(obj_dir)mod_linpack$(obj_ext) \
-            $(obj_dir)mod_mat_matrices$(obj_ext) \
-            $(obj_dir)mod_decomp$(obj_ext) \
-            $(obj_dir)mod_vtkio$(obj_ext) \
-            $(obj_dir)mod_mesh_partitioning$(obj_ext) \
-            $(obj_dir)mod_write_deck$(obj_ext) \
-            $(obj_dir)mod_gen_quadmesh$(obj_ext) \
-            $(obj_dir)mod_struct_preprocess$(obj_ext) \
-            $(obj_dir)mod_struct_calcmat$(obj_ext) \
-            $(obj_dir)mod_dtc_main_subroutines$(obj_ext) \
-            $(obj_dir)struct_process$(obj_ext)
+			$(st_obj_dir)mod_math$(obj_ext) \
+			$(st_obj_dir)mod_mechanical$(obj_ext) \
+			$(st_obj_dir)mod_meta$(obj_ext) \
+			$(st_obj_dir)mod_system$(obj_ext) \
+			$(st_obj_dir)mod_system$(mpi_ext)$(obj_ext) \
+			$(obj_dir)mod_parameters$(obj_ext) \
+			$(obj_dir)mod_times$(obj_ext) \
+			$(obj_dir)mod_auxiliaries$(obj_ext) \
+			$(obj_dir)mod_chain$(obj_ext) \
+			$(obj_dir)mod_puredat$(obj_ext) \
+			$(obj_dir)mod_eispack$(obj_ext) \
+			$(obj_dir)mod_tensors$(obj_ext) \
+			$(obj_dir)mod_metis$(obj_ext) \
+			$(obj_dir)mod_OS$(obj_ext) \
+			$(obj_dir)mod_linfe$(obj_ext) \
+			$(obj_dir)mod_tensor_opt$(obj_ext) \
+			$(obj_dir)mod_blas_1$(obj_ext) \
+			$(obj_dir)mod_linpack$(obj_ext) \
+			$(obj_dir)mod_mat_matrices$(obj_ext) \
+			$(obj_dir)mod_decomp$(obj_ext) \
+			$(obj_dir)mod_vtkio$(obj_ext) \
+			$(obj_dir)mod_mesh_partitioning$(obj_ext) \
+			$(obj_dir)mod_write_deck$(obj_ext) \
+			$(obj_dir)mod_gen_quadmesh$(obj_ext) \
+			$(obj_dir)mod_struct_preprocess$(obj_ext) \
+			$(obj_dir)mod_struct_calcmat$(obj_ext) \
+			$(obj_dir)mod_dtc_main_subroutines$(obj_ext) \
+			$(obj_dir)struct_process$(obj_ext)
 #
 # -----------------------------------------------------------------------------
 # For linking
@@ -447,11 +449,11 @@ $(obj_dir)mod_struct_preprocess$(obj_ext):$(st_mod_dir)global_std$(mod_ext)     
 # Calculate effective stiffness parameters 
 # -----------------------------------------------------------------------------
 $(obj_dir)mod_struct_calcmat$(obj_ext):$(st_mod_dir)global_std$(mod_ext)   $(st_mod_dir)formatted_plain$(mod_ext) \
-										$(st_mod_dir)mechanical$(mod_ext)  $(mod_dir)tensors$(mod_ext)\
-                                        $(mod_dir)puredat$(mod_ext)        $(mod_dir)timer$(mod_ext) \
-                                        $(mod_dir)decomp$(mod_ext)         $(mod_dir)mat_matrices$(mod_ext) \
-                                        $(mod_dir)chain_routines$(mod_ext) $(mod_dir)linfe$(mod_ext) \
-                                        $(f_src_dir)mod_struct_calcmat$(f90_ext)
+									   $(st_mod_dir)mechanical$(mod_ext)  $(mod_dir)tensors$(mod_ext)\
+									   $(mod_dir)puredat$(mod_ext)        $(mod_dir)timer$(mod_ext) \
+									   $(mod_dir)decomp$(mod_ext)         $(mod_dir)mat_matrices$(mod_ext) \
+									   $(mod_dir)chain_routines$(mod_ext) $(mod_dir)linfe$(mod_ext) \
+									   $(f_src_dir)mod_struct_calcmat$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_struct_calcmat$(f90_ext) "-----"
 	$(f90_compiler) $(c_flags_f90) -c $(f_src_dir)mod_struct_calcmat$(f90_ext) -o $@
 	@echo 
@@ -460,9 +462,10 @@ $(obj_dir)mod_struct_calcmat$(obj_ext):$(st_mod_dir)global_std$(mod_ext)   $(st_
 # Execution chain for the treatment of a single MVE
 # -----------------------------------------------------------------------------
 $(obj_dir)mod_dtc_main_subroutines$(obj_ext):$(st_mod_dir)global_std$(mod_ext) $(mod_dir)operating_system$(mod_ext) \
-                                        $(mod_dir)puredat_com$(mod_ext)        $(mod_dir)chain_routines$(mod_ext) \
-                                        $(mod_dir)linfe$(mod_ext)              $(mod_dir)gen_geometry$(mod_ext) \
-                                        $(f_src_dir)mod_dtc_main_subroutines$(f90_ext)
+								  $(mod_dir)puredat_com$(mod_ext)        $(mod_dir)chain_routines$(mod_ext) \
+								  $(st_mod_dir)system$(mod_ext)          $(st_mod_dir)mpi_system$(mod_ext) \
+								  $(mod_dir)linfe$(mod_ext)              $(mod_dir)gen_geometry$(mod_ext) \
+								  $(f_src_dir)mod_dtc_main_subroutines$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_dtc_main_subroutines$(f90_ext) "-----"
 	$(f90_compiler) $(c_flags_f90) -c $(f_src_dir)mod_dtc_main_subroutines$(f90_ext) -o $@
 	@echo 
@@ -471,19 +474,20 @@ $(obj_dir)mod_dtc_main_subroutines$(obj_ext):$(st_mod_dir)global_std$(mod_ext) $
 # main Object 
 # -----------------------------------------------------------------------------
 $(obj_dir)struct_process$(obj_ext):$(st_mod_dir)global_std$(mod_ext)     $(st_mod_dir)mechanical$(mod_ext) \
-                                   $(st_mod_dir)meta$(mod_ext) 			 $(st_mod_dir)meta_puredat_interface$(mod_ext) \
-                                   $(st_mod_dir)strings$(mod_ext)        $(mod_dir)gen_quadmesh$(mod_ext) \
-                                   $(mod_dir)auxiliaries$(mod_ext)       $(obj_dir)OS$(obj_ext) \
-                                   $(mod_dir)operating_system$(mod_ext)  $(mod_dir)puredat$(mod_ext) \
-                                   $(mod_dir)decomp$(mod_ext)            $(mod_dir)timer$(mod_ext) \
-                                   $(mod_dir)chain_routines$(mod_ext)    $(st_mod_dir)ser_binary$(mod_ext)\
-								   $(st_mod_dir)mpi_binary$(mod_ext)\
-                                   $(obj_dir)metis_interface$(obj_ext)   $(mod_dir)metis$(mod_ext) \
-                                   $(mod_dir)linfe$(mod_ext)             $(mod_dir)mesh_partitioning$(mod_ext) \
-                                   $(mod_dir)write_deck$(mod_ext)        $(mod_dir)gen_geometry$(mod_ext) \
-                                   $(mod_dir)tensors$(mod_ext)           $(mod_dir)mat_matrices$(mod_ext) \
-                                   $(mod_dir)calcmat$(mod_ext)           $(mod_dir)puredat_com$(mod_ext) \
-                                   $(mod_dir)petsc_opt$(mod_ext)         $(mod_dir)dtc_main_subroutines$(mod_ext) \
+								   $(st_mod_dir)meta$(mod_ext)           $(st_mod_dir)meta_puredat_interface$(mod_ext) \
+								   $(st_mod_dir)strings$(mod_ext)        $(mod_dir)gen_quadmesh$(mod_ext) \
+								   $(mod_dir)auxiliaries$(mod_ext)       $(obj_dir)OS$(obj_ext) \
+								   $(mod_dir)operating_system$(mod_ext)  $(mod_dir)puredat$(mod_ext) \
+								   $(mod_dir)decomp$(mod_ext)            $(mod_dir)timer$(mod_ext) \
+								   $(mod_dir)chain_routines$(mod_ext) \
+								   $(st_mod_dir)ser_binary$(mod_ext)     $(st_mod_dir)mpi_binary$(mod_ext) \
+								   $(st_mod_dir)system$(mod_ext) \
+								   $(obj_dir)metis_interface$(obj_ext)   $(mod_dir)metis$(mod_ext)\
+								   $(mod_dir)linfe$(mod_ext)             $(mod_dir)mesh_partitioning$(mod_ext) \
+								   $(mod_dir)write_deck$(mod_ext)        $(mod_dir)gen_geometry$(mod_ext) \
+								   $(mod_dir)tensors$(mod_ext)           $(mod_dir)mat_matrices$(mod_ext) \
+								   $(mod_dir)calcmat$(mod_ext)           $(mod_dir)puredat_com$(mod_ext) \
+								   $(mod_dir)petsc_opt$(mod_ext)         $(mod_dir)dtc_main_subroutines$(mod_ext) \
 								   $(f-src_main)struct_process$(f90_ext)
 	@echo "----- Compiling " $(f-src_main)struct_process$(f90_ext) "-----"
 	$(f90_compiler) $(c_flags_f90) -c $(f-src_main)struct_process$(f90_ext) -o $@
@@ -527,9 +531,9 @@ $(obj_dir)pd_merge_branch_to_tree$(obj_ext):$(mod_dir)puredat$(mod_ext) $(mod_di
 # -----------------------------------------------------------------------------
 $(obj_dir)mrd_crawl_tensors$(obj_ext):$(st_mod_dir)global_std$(mod_ext)  $(st_mod_dir)meta$(mod_ext) \
                                       $(st_mod_dir)strings$(mod_ext)     $(mod_dir)puredat$(mod_ext) \
-									  $(st_obj_dir)mod_user_interaction$(obj_ext) \
-									  $(st_mod_dir)formatted_plain$(mod_ext) \
-                                 	  $(f-src_main)mrd_crawl_tensors$(f90_ext)
+                                      $(st_obj_dir)mod_user_interaction$(obj_ext) \
+                                      $(st_mod_dir)formatted_plain$(mod_ext) \
+                                      $(f-src_main)mrd_crawl_tensors$(f90_ext)
 	@echo "----- Compiling " mrd_crawl_tensors$(f90_ext) "-----"
 	$(f90_compiler) $(c_flags_f90) -c $(f-src_main)mrd_crawl_tensors$(f90_ext) -o $@
 	@echo 
@@ -659,3 +663,6 @@ end_all:
 	@echo "----------------------------------------------------------------------------------"
 	@echo "-- Successfully built all executables."
 	@echo "----------------------------------------------------------------------------------"
+	@echo -n "-- out_amount = " && grep out_amount geb-lib/f-src/mod_global_std.f90  | cut -d '"' -f 2
+	@echo "----------------------------------------------------------------------------------"
+
