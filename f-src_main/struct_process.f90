@@ -1146,6 +1146,10 @@ Else
                 OPEN(UNIT=fh_memlog, FILE=TRIM(memlog_file), ACTION='WRITE', &
                     ACCESS="SEQUENTIAL", STATUS=file_status)
 
+                WRITE(fh_memlog, '(A)') &
+                    "Operation, Domain, Nodes, Elems, Preallo, "//&
+                    "Mem_comm, Pids_returned, Size_mpi, time"
+            
                 ! IF(stat /= 0) WRITE(std_err, FMT_WRN_xAI0) &
                 !     "Could not start memory logging! Rank: ", rank_mpi
 

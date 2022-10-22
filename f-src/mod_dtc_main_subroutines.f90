@@ -397,13 +397,13 @@ IF (rank_mpi == 0) THEN
     ! Write to the memlog file of the mpi communicator for latter analysis by 
     ! python and gnuplot. Formatted for combined humand and machine readability.
     !------------------------------------------------------------------------------
-    WRITE(fh_memlog, '(A)') "MPI, "//mssg_fix_len//", Domain: , "//domain_char//&
-        &", nodes: , "//TRIM(ADJUSTL(no_nodes_char))//&
-        ", elems: , "//TRIM(ADJUSTL(no_elems_char))//&
-        ", preallo: , "//TRIM(ADJUSTL(preallo_char))//&
-        ", mem_comm: , "//TRIM(ADJUSTL(mem_global_char))//&
-        " kb , stat: , "//TRIM(ADJUSTL(status_global_char))//&
-        ", size_mpi: , "//TRIM(ADJUSTL(size_mpi_char))//", "//time_str
+    WRITE(fh_memlog, '(A)') mssg_fix_len//", "//domain_char//&
+        &", "TRIM(ADJUSTL(no_nodes_char))//&
+        ", "//TRIM(ADJUSTL(no_elems_char))//&
+        ", "//TRIM(ADJUSTL(preallo_char))//&
+        ", "//TRIM(ADJUSTL(mem_global_char))//&
+        ", "//TRIM(ADJUSTL(status_global_char))//&
+        ", "//TRIM(ADJUSTL(size_mpi_char))//", "//time_str
 END IF
             
 
@@ -444,13 +444,13 @@ IF (rank_mpi == 0) THEN
     CALL DATE_AND_TIME(TIME=time)
     time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
 
-    WRITE(fh_memlog, '(A)') "MPI, "//mssg_fix_len//", Domain: , "//domain_char//&
-        &", nodes: , "//TRIM(ADJUSTL(no_nodes_char))//&
-        ", elems: , "//TRIM(ADJUSTL(no_elems_char))//&
-        ", preallo: , "//TRIM(ADJUSTL(preallo_char))//&
-        ", mem_comm: , "//TRIM(ADJUSTL(mem_global_char))//&
-        " kb , stat: , "//TRIM(ADJUSTL(status_global_char))//&
-        ", size_mpi: , "//TRIM(ADJUSTL(size_mpi_char))//", "//time_str
+    WRITE(fh_memlog, '(A)') mssg_fix_len//", "//domain_char//&
+        &", "TRIM(ADJUSTL(no_nodes_char))//&
+        ", "//TRIM(ADJUSTL(no_elems_char))//&
+        ", "//TRIM(ADJUSTL(preallo_char))//&
+        ", "//TRIM(ADJUSTL(mem_global_char))//&
+        ", "//TRIM(ADJUSTL(status_global_char))//&
+        ", "//TRIM(ADJUSTL(size_mpi_char))//", "//time_str
 END IF
 
 
@@ -577,13 +577,13 @@ IF (rank_mpi == 0) THEN
     CALL DATE_AND_TIME(TIME=time)
     time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
 
-    WRITE(fh_memlog, '(A)') "MPI, "//mssg_fix_len//", Domain: , "//domain_char//&
-        &", nodes: , "//TRIM(ADJUSTL(no_nodes_char))//&
-        ", elems: , "//TRIM(ADJUSTL(no_elems_char))//&
-        ", preallo: , "//TRIM(ADJUSTL(preallo_char))//&
-        ", mem_comm: , "//TRIM(ADJUSTL(mem_global_char))//&
-        " kb , stat: , "//TRIM(ADJUSTL(status_global_char))//&
-        ", size_mpi: , "//TRIM(ADJUSTL(size_mpi_char))//", "//time_str
+    WRITE(fh_memlog, '(A)') mssg_fix_len//", "//domain_char//&
+        &", "TRIM(ADJUSTL(no_nodes_char))//&
+        ", "//TRIM(ADJUSTL(no_elems_char))//&
+        ", "//TRIM(ADJUSTL(preallo_char))//&
+        ", "//TRIM(ADJUSTL(mem_global_char))//&
+        ", "//TRIM(ADJUSTL(status_global_char))//&
+        ", "//TRIM(ADJUSTL(size_mpi_char))//", "//time_str
 END IF
 
 CALL MatAssemblyBegin(AA, MAT_FINAL_ASSEMBLY ,petsc_ierr)
@@ -641,13 +641,13 @@ IF (rank_mpi == 0) THEN
     CALL DATE_AND_TIME(TIME=time)
     time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
 
-    WRITE(fh_memlog, '(A)') "MPI, "//mssg_fix_len//", Domain: , "//domain_char//&
-        &", nodes: , "//TRIM(ADJUSTL(no_nodes_char))//&
-        ", elems: , "//TRIM(ADJUSTL(no_elems_char))//&
-        ", preallo: , "//TRIM(ADJUSTL(preallo_char))//&
-        ", mem_comm: , "//TRIM(ADJUSTL(mem_global_char))//&
-        " kb , stat: , "//TRIM(ADJUSTL(status_global_char))//&
-        ", size_mpi: , "//TRIM(ADJUSTL(size_mpi_char))//", "//time_str
+    WRITE(fh_memlog, '(A)') mssg_fix_len//", "//domain_char//&
+        &", "TRIM(ADJUSTL(no_nodes_char))//&
+        ", "//TRIM(ADJUSTL(no_elems_char))//&
+        ", "//TRIM(ADJUSTL(preallo_char))//&
+        ", "//TRIM(ADJUSTL(mem_global_char))//&
+        ", "//TRIM(ADJUSTL(status_global_char))//&
+        ", "//TRIM(ADJUSTL(size_mpi_char))//", "//time_str
 END IF
 
 Do ii = 1, 24
@@ -901,13 +901,13 @@ IF (rank_mpi == 0) THEN
     CALL DATE_AND_TIME(TIME=time)
     time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
 
-    WRITE(fh_memlog, '(A)') "MPI, "//mssg_fix_len//", Domain: , "//domain_char//&
-        &", nodes: , "//TRIM(ADJUSTL(no_nodes_char))//&
-        ", elems: , "//TRIM(ADJUSTL(no_elems_char))//&
-        ", preallo: , "//TRIM(ADJUSTL(preallo_char))//&
-        ", mem_comm: , "//TRIM(ADJUSTL(mem_global_char))//&
-        " kb , stat: , "//TRIM(ADJUSTL(status_global_char))//&
-        ", size_mpi: , "//TRIM(ADJUSTL(size_mpi_char))//", "//time_str
+    WRITE(fh_memlog, '(A)') mssg_fix_len//", "//domain_char//&
+        &", "TRIM(ADJUSTL(no_nodes_char))//&
+        ", "//TRIM(ADJUSTL(no_elems_char))//&
+        ", "//TRIM(ADJUSTL(preallo_char))//&
+        ", "//TRIM(ADJUSTL(mem_global_char))//&
+        ", "//TRIM(ADJUSTL(status_global_char))//&
+        ", "//TRIM(ADJUSTL(size_mpi_char))//", "//time_str
 END IF
 
 !------------------------------------------------------------------------------
@@ -1109,13 +1109,13 @@ IF (rank_mpi == 0) THEN
     CALL DATE_AND_TIME(TIME=time)
     time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
 
-    WRITE(fh_memlog, '(A)') "MPI, "//mssg_fix_len//", Domain: , "//domain_char//&
-        &", nodes: , "//TRIM(ADJUSTL(no_nodes_char))//&
-        ", elems: , "//TRIM(ADJUSTL(no_elems_char))//&
-        ", preallo: , "//TRIM(ADJUSTL(preallo_char))//&
-        ", mem_comm: , "//TRIM(ADJUSTL(mem_global_char))//&
-        " kb , stat: , "//TRIM(ADJUSTL(status_global_char))//&
-        ", size_mpi: , "//TRIM(ADJUSTL(size_mpi_char))//", "//time_str
+    WRITE(fh_memlog, '(A)') mssg_fix_len//", "//domain_char//&
+        &", "TRIM(ADJUSTL(no_nodes_char))//&
+        ", "//TRIM(ADJUSTL(no_elems_char))//&
+        ", "//TRIM(ADJUSTL(preallo_char))//&
+        ", "//TRIM(ADJUSTL(mem_global_char))//&
+        ", "//TRIM(ADJUSTL(status_global_char))//&
+        ", "//TRIM(ADJUSTL(size_mpi_char))//", "//time_str
 END IF
 
 !------------------------------------------------------------------------------
@@ -1173,13 +1173,13 @@ IF ((rank_mpi == 0) .AND. (TRIM(ADJUSTL(no_nodes_char)) /= "0")) THEN
     CALL DATE_AND_TIME(TIME=time)
     time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
 
-    WRITE(fh_memlog, '(A)') "MPI, "//mssg_fix_len//", Domain: , "//domain_char//&
-        &", nodes: , "//TRIM(ADJUSTL(no_nodes_char))//&
-        ", elems: , "//TRIM(ADJUSTL(no_elems_char))//&
-        ", preallo: , "//TRIM(ADJUSTL(preallo_char))//&
-        ", mem_comm: , "//TRIM(ADJUSTL(mem_global_char))//&
-        " kb , stat: , "//TRIM(ADJUSTL(status_global_char))//&
-        ", size_mpi: , "//TRIM(ADJUSTL(size_mpi_char))//", "//time_str
+    WRITE(fh_memlog, '(A)') mssg_fix_len//", "//domain_char//&
+        &", "TRIM(ADJUSTL(no_nodes_char))//&
+        ", "//TRIM(ADJUSTL(no_elems_char))//&
+        ", "//TRIM(ADJUSTL(preallo_char))//&
+        ", "//TRIM(ADJUSTL(mem_global_char))//&
+        ", "//TRIM(ADJUSTL(status_global_char))//&
+        ", "//TRIM(ADJUSTL(size_mpi_char))//", "//time_str
 
     !------------------------------------------------------------------------------
     ! Save to file. Minimizing I/O vs. securing the data.
