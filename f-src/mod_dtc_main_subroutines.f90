@@ -398,7 +398,7 @@ IF (rank_mpi == 0) THEN
     ! python and gnuplot. Formatted for combined humand and machine readability.
     !------------------------------------------------------------------------------
     WRITE(fh_memlog, '(A)') mssg_fix_len//", "//domain_char//&
-        &", "TRIM(ADJUSTL(no_nodes_char))//&
+        &", "//TRIM(ADJUSTL(no_nodes_char))//&
         ", "//TRIM(ADJUSTL(no_elems_char))//&
         ", "//TRIM(ADJUSTL(preallo_char))//&
         ", "//TRIM(ADJUSTL(mem_global_char))//&
@@ -420,6 +420,7 @@ CALL MatSetFromOptions(AA_org, petsc_ierr)
 CALL MatSetSizes(AA,PETSC_DECIDE,PETSC_DECIDE,m_size,m_size,petsc_ierr)
 CALL MatSetSizes(AA_org,PETSC_DECIDE,PETSC_DECIDE,m_size,m_size,petsc_ierr)
 
+! https://lists.mcs.anl.gov/pipermail/petsc-users/2021-January/042972.html
 CALL MatSeqAIJSetPreallocation(AA, preallo, PETSC_NULL_INTEGER, petsc_ierr)
 CALL MatMPIAIJSetPreallocation(AA, preallo, PETSC_NULL_INTEGER, preallo, PETSC_NULL_INTEGER, petsc_ierr)
 
@@ -445,7 +446,7 @@ IF (rank_mpi == 0) THEN
     time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
 
     WRITE(fh_memlog, '(A)') mssg_fix_len//", "//domain_char//&
-        &", "TRIM(ADJUSTL(no_nodes_char))//&
+        &", "//TRIM(ADJUSTL(no_nodes_char))//&
         ", "//TRIM(ADJUSTL(no_elems_char))//&
         ", "//TRIM(ADJUSTL(preallo_char))//&
         ", "//TRIM(ADJUSTL(mem_global_char))//&
@@ -578,7 +579,7 @@ IF (rank_mpi == 0) THEN
     time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
 
     WRITE(fh_memlog, '(A)') mssg_fix_len//", "//domain_char//&
-        &", "TRIM(ADJUSTL(no_nodes_char))//&
+        &", "//TRIM(ADJUSTL(no_nodes_char))//&
         ", "//TRIM(ADJUSTL(no_elems_char))//&
         ", "//TRIM(ADJUSTL(preallo_char))//&
         ", "//TRIM(ADJUSTL(mem_global_char))//&
@@ -642,7 +643,7 @@ IF (rank_mpi == 0) THEN
     time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
 
     WRITE(fh_memlog, '(A)') mssg_fix_len//", "//domain_char//&
-        &", "TRIM(ADJUSTL(no_nodes_char))//&
+        &", "//TRIM(ADJUSTL(no_nodes_char))//&
         ", "//TRIM(ADJUSTL(no_elems_char))//&
         ", "//TRIM(ADJUSTL(preallo_char))//&
         ", "//TRIM(ADJUSTL(mem_global_char))//&
@@ -902,7 +903,7 @@ IF (rank_mpi == 0) THEN
     time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
 
     WRITE(fh_memlog, '(A)') mssg_fix_len//", "//domain_char//&
-        &", "TRIM(ADJUSTL(no_nodes_char))//&
+        &", "//TRIM(ADJUSTL(no_nodes_char))//&
         ", "//TRIM(ADJUSTL(no_elems_char))//&
         ", "//TRIM(ADJUSTL(preallo_char))//&
         ", "//TRIM(ADJUSTL(mem_global_char))//&
@@ -1110,7 +1111,7 @@ IF (rank_mpi == 0) THEN
     time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
 
     WRITE(fh_memlog, '(A)') mssg_fix_len//", "//domain_char//&
-        &", "TRIM(ADJUSTL(no_nodes_char))//&
+        &", "//TRIM(ADJUSTL(no_nodes_char))//&
         ", "//TRIM(ADJUSTL(no_elems_char))//&
         ", "//TRIM(ADJUSTL(preallo_char))//&
         ", "//TRIM(ADJUSTL(mem_global_char))//&
@@ -1139,12 +1140,11 @@ if (rank_mpi == 0) then
     CALL start_timer(trim(timer_name), .FALSE.)
     CALL calc_effective_material_parameters(root, comm_nn, domain, fh_mpi_worker)
     CALL end_timer(trim(timer_name))
-
+    
 ELSE
     DEALLOCATE(part_branch)
 End if
-
-
+   
 1000 CONTINUE
 
 !------------------------------------------------------------------------------
@@ -1174,7 +1174,7 @@ IF ((rank_mpi == 0) .AND. (TRIM(ADJUSTL(no_nodes_char)) /= "0")) THEN
     time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
 
     WRITE(fh_memlog, '(A)') mssg_fix_len//", "//domain_char//&
-        &", "TRIM(ADJUSTL(no_nodes_char))//&
+        &", "//TRIM(ADJUSTL(no_nodes_char))//&
         ", "//TRIM(ADJUSTL(no_elems_char))//&
         ", "//TRIM(ADJUSTL(preallo_char))//&
         ", "//TRIM(ADJUSTL(mem_global_char))//&

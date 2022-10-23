@@ -519,7 +519,7 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     Type(tBranch), Intent(In)    :: ddc, loc_ddc
     Integer      , Intent(In)    :: elo_macro
 
-    Type(tBranch), Pointer             :: part_b, bounds_b
+    Type(tBranch), Pointer :: part_b, bounds_b
     
     Real(Kind=rk)     , Dimension(:), Allocatable :: dim_c, delta
     Integer(Kind=ik)  , Dimension(:), Allocatable :: xa_n, xe_n
