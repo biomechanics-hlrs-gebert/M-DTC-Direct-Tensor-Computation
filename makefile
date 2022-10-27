@@ -124,8 +124,8 @@ include $(st_path)/make.flags
 # -----------------------------------------------------------------------------
 # Linker flags for chain links
 # -----------------------------------------------------------------------------
-link_flags = $(lib_path_flag) -L$(lib_dir) -g # -fopenmp -g # -pg 
-export glb_link_flags
+link_flags = $(lib_path_flag)  -g # -fopenmp -g # -pg 
+export link_flags
 # endif
 #
 #
