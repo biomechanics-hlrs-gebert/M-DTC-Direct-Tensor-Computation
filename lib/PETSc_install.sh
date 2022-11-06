@@ -27,10 +27,10 @@
 # Specify the Version of PETSc
 # https://gitlab.com/petsc/petsc/-/tree/release
 # https://petsc.org/release/
-VERSION="3.15"
+VERSION="3.18.1"
 #
 # Target install directory
-PREF=/opt/petsc/petsc-$VERSION
+PREF=/home/geb/00_bone_eval_chain/M-DTC-Direct-Tensor-Computation/lib/petsc-$VERSION
 # ----------------------------------------------------------------------------------------
 #
 # Check whether all programs and compilers are accesible
@@ -74,8 +74,8 @@ cd "$builddir" || exit
 ./configure -prefix=$PREF                                       \
 --with-fortran-datatypes --with-fortran-interfaces=1            \
 --with-x=0  --with-64-bit-indices=1                             \
-CC_LINKER_FLAGS="-O3 -Wall" CFLAGS="-O3 -Wall" LDFLAGS="-O3"    \
-CXXFLAGS="-O3 -Wall" CXX_LINKER_FLAGS="-O3 -Wall"               \
-FFLAGS="-O3 -Wall" FC_LINKER_FLAGS="-O3 -Wall"                  \
+-CC_LINKER_FLAGS="-O3 -Wall" CFLAGS="-O3 -Wall" LDFLAGS="-O3"    \
+-CXXFLAGS="-O3 -Wall" CXX_LINKER_FLAGS="-O3 -Wall"               \
+-FFLAGS="-O3 -Wall" FC_LINKER_FLAGS="-O3 -Wall"                  \
 --with-precision=double --with-fortran-datatypes                \
---with-shared-libraries=0
+--with-shared-libraries=0                                       \
