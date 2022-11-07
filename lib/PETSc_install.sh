@@ -74,8 +74,8 @@ cd "$builddir" || exit
 ./configure -prefix=$PREF                                       \
 --with-fortran-datatypes --with-fortran-interfaces=1            \
 --with-x=0  --with-64-bit-indices=1                             \
--CC_LINKER_FLAGS="-O3 -Wall" CFLAGS="-O3 -Wall" LDFLAGS="-O3"    \
--CXXFLAGS="-O3 -Wall" CXX_LINKER_FLAGS="-O3 -Wall"               \
--FFLAGS="-O3 -Wall" FC_LINKER_FLAGS="-O3 -Wall"                  \
+-CC_LINKER_FLAGS="-O3 -Wall" CFLAGS="-O3 -Wall" LDFLAGS="-O3"   \
+-CXXFLAGS="-O3 -Wall" CXX_LINKER_FLAGS="-O3 -Wall"              \
+-FFLAGS="-O3 -Wall" FC_LINKER_FLAGS="-O3 -Wall"                 \
 --with-precision=double --with-fortran-datatypes                \
---with-shared-libraries=0                                       \
+--with-shared-libraries=0

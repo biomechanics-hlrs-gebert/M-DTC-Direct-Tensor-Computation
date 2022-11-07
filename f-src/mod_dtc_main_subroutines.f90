@@ -229,6 +229,7 @@ If (rank_mpi == 0) then
     ! Send success variable for gracefully aborting the domain.
     !------------------------------------------------------------------------------
     CALL mpi_bcast(success, 1_mik, MPI_LOGICAL, 0_mik, COMM_MPI, ierr)
+    IF (.NOT. success) GOTO 1000
 
     !------------------------------------------------------------------------------
     ! Only read from the mesh branch if the branch was found.
@@ -243,7 +244,6 @@ If (rank_mpi == 0) then
         m_size = nodes_in_mesh(1) * 3
     ELSE
         m_size = 0
-        GOTO 1000
     END IF 
 
     Do ii = 1, parts-1
@@ -307,8 +307,10 @@ Else
     CALL mpi_recv(serial_pb, INT(serial_pb_size,mik), MPI_INTEGER8, &
         0_mik, rank_mpi, COMM_MPI, status_mpi, ierr)
 
+    !------------------------------------------------------------------------------
     ! Deserialize part branch
-    CALL Start_Timer("Deserialize part branch branch")
+    !------------------------------------------------------------------------------
+3    CALL Start_Timer("Deserialize part branch branch")
 
     Allocate(part_branch)
     
@@ -1146,6 +1148,7 @@ ELSE
 End if
    
 1000 CONTINUE
+
 !------------------------------------------------------------------------------
 ! Remove matrices
 !------------------------------------------------------------------------------
