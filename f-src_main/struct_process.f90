@@ -130,7 +130,7 @@ CHARACTER(mcl) :: typeraw="", restart='N', restart_cmd_arg='U',ios="" ! U = 'und
 CHARACTER(3)   :: file_status
 
 REAL(rk), DIMENSION(3) :: delta
-REAL(rk) :: strain
+REAL(rk) :: strain, t_start, t_end, t_duration
 
 INTEGER(ik), DIMENSION(:), ALLOCATABLE :: Domains, nn_D, Domain_stats
 INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0
@@ -668,19 +668,29 @@ If (rank_mpi == 0) THEN
     ! Ensure to update the number of leaves and the indices of these in every
     ! line of code! Also update dat_ty and dat_no in "CALL raise_leaves"
     !------------------------------------------------------------------------------
-    add_leaves = 19_pd_ik
+    add_leaves = 23_pd_ik
 
     !------------------------------------------------------------------------------
     ! Number of loadcases
     !------------------------------------------------------------------------------
     ! no_lc = 24 
     
+    !------------------------------------------------------------------------------
+    ! The name of the branche is a bit outdated. In the meantime, it contains 
+    ! more data to accomodate the need for the doctoral project.
+    ! It was done this way because it is the quickest and easiest way for 
+    ! combining domain specfic output data.
+    !------------------------------------------------------------------------------
     CALL add_branch_to_branch(root, result_branch)
-    CALL raise_branch("Averaged Material Properties", 0_pd_ik, 19_pd_ik, result_branch)
+    CALL raise_branch("Averaged Material Properties", 0_pd_ik, add_leaves, result_branch)
     
     CALL raise_leaves(no_leaves = add_leaves, &
-        desc = [ &
+        desc = [ & ! DO NOT CHANGE THE LENGTH OF THE STRINGS!
         "Domain number                                     " , &  !  1 x  1
+        "Number of Elements                                " , &  !  1 x  1
+        "Number of Nodes                                   " , &  !  1 x  1
+        "Start Time                                        " , &  !  1 x  1
+        "Duration                                          " , &  !  1 x  1
         "Domain forces                                     " , &  !  2 x 24*24
         "Effective numerical stiffness                     " , &  !  3 x 24*24
         "Symmetry deviation - effective numerical stiffness" , &  !  4 x  1
@@ -699,8 +709,10 @@ If (rank_mpi == 0) THEN
         "Final coordinate system CR_2                      " , &  ! 17 x  9
         "Optimized Effective stiffness CR_2                " , &  ! 18 x  6* 6
         "Effective density                                 "], &  ! 19 x  1
-        dat_ty = [4_1, (5_1, ii=2, add_leaves)], &
+        dat_ty = [4_1, (5_1, ii=4, add_leaves)], &
         dat_no = [ domains_per_comm, &
+        domains_per_comm,         domains_per_comm, & ! ii=2 --> No_elems; no_nodes
+        domains_per_comm,         domains_per_comm, & ! ii=4 --> t_start; t_duration
         domains_per_comm * 24*24, domains_per_comm * 24*24, domains_per_comm       , &
         domains_per_comm *  6*24, domains_per_comm *  6*24, domains_per_comm *  6*6, &
         domains_per_comm        , domains_per_comm *  6* 6, domains_per_comm       , &
@@ -1272,10 +1284,23 @@ Else
             
             IF (job_dir(len(job_dir):len(job_dir)) /= "/") job_dir = trim(job_dir)//"/"
 
+            !------------------------------------------------------------------------------
+            ! Track the start time of the computation of a domain.
+            !------------------------------------------------------------------------------
+            CALL CPU_TIME(t_start)
+
             !==============================================================================
-            CALL exec_single_domain(root, comm_nn, Domain, typeraw, job_dir, fh_memlog, Active, &
-                fh_mpi_worker, worker_rank_mpi, worker_size_mpi, worker_comm)
+            ! Compute a domain
             !==============================================================================
+            CALL exec_single_domain(root, comm_nn, Domain, typeraw, job_dir, fh_memlog, &
+                Active, fh_mpi_worker, worker_rank_mpi, worker_size_mpi, worker_comm)
+            !==============================================================================
+            
+            !------------------------------------------------------------------------------
+            ! Track the duration of the computation of a domain.
+            !------------------------------------------------------------------------------
+            CALL CPU_TIME(t_end)
+            t_duration = t_end - t_start
 
             !------------------------------------------------------------------------------
             ! Organize Results
@@ -1306,6 +1331,24 @@ Else
             !    END IF
 
                 CALL End_Timer("Write Worker Root Branch")
+
+                !------------------------------------------------------------------------------
+                ! Write the start time to file
+                !------------------------------------------------------------------------------
+                CALL add_leaf_to_branch(result_branch, "Start Time", 1_pd_ik, [t_start])
+                CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
+                    Int(root%branches(3)%leaves(2)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
+                    t_start, &
+                    1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
+
+                !------------------------------------------------------------------------------
+                ! Write the duration to file
+                !------------------------------------------------------------------------------
+                CALL add_leaf_to_branch(result_branch, "Duration", 1_pd_ik, [t_duration])
+                CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
+                    Int(root%branches(3)%leaves(3)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
+                    t_duration, &
+                    1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
 
                 !------------------------------------------------------------------------------
                 ! Store activity information

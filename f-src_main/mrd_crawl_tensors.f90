@@ -27,7 +27,8 @@ IMPLICIT NONE
 
 CHARACTER(*), PARAMETER :: mrd_dbg_lvl = "PRODUCTION" ! "DEBUG"
 
-TYPE(tLeaf), POINTER :: domain_no, eff_num_stiffness, density, tensors, leaf_pos
+TYPE(tLeaf), POINTER :: domain_no, eff_num_stiffness, density, tensors, leaf_pos, &
+    no_elems, no_nodes, t_start, t_duration
 TYPE(tBranch)        :: rank_data
 TYPE(domain_data), DIMENSION(3) :: tensor
 
@@ -44,11 +45,13 @@ REAL(rk), DIMENSION(3)   :: local_domain_opt_pos, spcng, dmn_size
 REAL(rk), DIMENSION(6,6) :: local_domain_tensor
 REAL(rk), DIMENSION(24,24) :: local_num_tensor
 
-INTEGER(8), DIMENSION(:), ALLOCATABLE :: dat_domains
-REAL(8), DIMENSION(:), ALLOCATABLE :: dat_densities, dat_eff_num_stiffnesses, dat_tensors, dat_pos
+INTEGER(8), DIMENSION(:), ALLOCATABLE :: dat_domains, dat_no_elems, dat_no_nodes
+REAL(8), DIMENSION(:), ALLOCATABLE :: dat_densities, dat_eff_num_stiffnesses, dat_tensors, &
+    dat_pos, dat_t_start, dat_t_duration
 
 CHARACTER(mcl), DIMENSION(:), ALLOCATABLE :: m_rry      
 CHARACTER(mcl) :: cmd_arg_history='', target_path, file_head, binary, activity_file, stat=""
+CHARACTER(scl) :: mi_el_type, ma_el_type
 
 CHARACTER(10*mcl) :: string
 
@@ -113,6 +116,8 @@ END IF
 CALL meta_read('LO_BNDS_DMN_RANGE' , m_rry, xa_d, stat); IF(stat/="") STOP
 CALL meta_read('UP_BNDS_DMN_RANGE' , m_rry, xe_d, stat); IF(stat/="") STOP
 CALL meta_read('MESH_PER_SUB_DMN'  , m_rry, parts, stat); IF(stat/="") STOP
+CALL meta_read('MACRO_ELMNT_TYPE'  , m_rry, mi_el_type, stat); IF(stat/="") STOP
+CALL meta_read('MICRO_ELMNT_TYPE'  , m_rry, ma_el_type, stat); IF(stat/="") STOP
 
 CALL meta_read('PROCESSORS' , m_rry, size_mpi, stat); IF(stat/="") STOP
 CALL meta_read('SIZE_DOMAIN', m_rry, dmn_size, stat); IF(stat/="") STOP
@@ -222,16 +227,60 @@ DO rank_mpi = 1, size_mpi-1, parts
 
     IF(ALLOCATED(dat_domains)) DEALLOCATE(dat_domains)
     ALLOCATE(dat_domains(domain_no%dat_no), stat=alloc_stat)
-    
+
     CALL print_err_stop(std_out, "Allocating 'dat_domains' failed.", alloc_stat)
     CALL pd_read_leaf(rank_data%streams, domain_no, dat_domains)
+
+    !------------------------------------------------------------------------------
+    ! Number of elements
+    !------------------------------------------------------------------------------
+    CALL get_leaf_with_num(rank_data, 3_pd_ik, no_elems, success)
+
+    IF(ALLOCATED(dat_no_elems)) DEALLOCATE(dat_no_elems)
+    ALLOCATE(dat_no_elems(no_elems%dat_no), stat=alloc_stat)
+
+    CALL print_err_stop(std_out, "Allocating 'dat_no_elems' failed.", alloc_stat)
+    CALL pd_read_leaf(rank_data%streams, no_elems, dat_no_elems)
+
+    !------------------------------------------------------------------------------
+    ! Number of Nodes
+    !------------------------------------------------------------------------------
+    CALL get_leaf_with_num(rank_data, 4_pd_ik, no_nodes, success)
+
+    IF(ALLOCATED(dat_no_nodes)) DEALLOCATE(dat_no_nodes)
+    ALLOCATE(dat_no_nodes(no_nodes%dat_no), stat=alloc_stat)
+
+    CALL print_err_stop(std_out, "Allocating 'dat_no_nodes' failed.", alloc_stat)
+    CALL pd_read_leaf(rank_data%streams, no_nodes, dat_no_nodes)
+
+    !------------------------------------------------------------------------------
+    ! Start time of the domain
+    !------------------------------------------------------------------------------
+    CALL get_leaf_with_num(rank_data, 5_pd_ik, t_start, success)
+
+    IF(ALLOCATED(dat_t_start)) DEALLOCATE(dat_t_start)
+    ALLOCATE(dat_t_start(t_start%dat_no), stat=alloc_stat)
+
+    CALL print_err_stop(std_out, "Allocating 'dat_t_start' failed.", alloc_stat)
+    CALL pd_read_leaf(rank_data%streams, t_start, dat_t_start)
+
+    !------------------------------------------------------------------------------
+    ! Duration of the domain
+    !------------------------------------------------------------------------------
+    CALL get_leaf_with_num(rank_data, 6_pd_ik, t_duration, success)
+
+    IF(ALLOCATED(dat_t_duration)) DEALLOCATE(dat_t_duration)
+    ALLOCATE(dat_t_duration(t_duration%dat_no), stat=alloc_stat)
+
+    CALL print_err_stop(std_out, "Allocating 'dat_t_duration' failed.", alloc_stat)
+    CALL pd_read_leaf(rank_data%streams, t_duration, dat_t_duration)
 
     last_domain_rank = dat_domains(domain_no%dat_no)
 
     !------------------------------------------------------------------------------
     ! Read effective numerical stiffness
     !------------------------------------------------------------------------------
-    CALL get_leaf_with_num(rank_data, 4_pd_ik, eff_num_stiffness, success)
+    CALL get_leaf_with_num(rank_data, 8_pd_ik, eff_num_stiffness, success)
         
     IF(ALLOCATED(dat_eff_num_stiffnesses)) DEALLOCATE(dat_eff_num_stiffnesses)
     ALLOCATE(dat_eff_num_stiffnesses(eff_num_stiffness%dat_no), stat=alloc_stat)
@@ -242,7 +291,7 @@ DO rank_mpi = 1, size_mpi-1, parts
     !------------------------------------------------------------------------------
     ! Read effective density
     !------------------------------------------------------------------------------
-    CALL get_leaf_with_num(rank_data, 20_pd_ik, density, success)
+    CALL get_leaf_with_num(rank_data, 24_pd_ik, density, success)
     
     IF(ALLOCATED(dat_densities)) DEALLOCATE(dat_densities)
     ALLOCATE(dat_densities(density%dat_no), stat=alloc_stat)
@@ -320,6 +369,8 @@ DO rank_mpi = 1, size_mpi-1, parts
             ! dat_domains implicitly sorts the data. 
             !------------------------------------------------------------------------------
             tensor(tt)%dmn        = 0_ik
+            tensor(tt)%no_elems   = 0_ik
+            tensor(tt)%no_nodes   = 0_ik
             tensor(tt)%bvtv       = 0._rk
             tensor(tt)%doa_zener  = 0._rk
             tensor(tt)%doa_gebert = 0._rk
@@ -329,9 +380,11 @@ DO rank_mpi = 1, size_mpi-1, parts
             tensor(tt)%pos        = 0._rk
             tensor(tt)%sym        = 0._rk
             tensor(tt)%mps        = 0._rk
-            tensor(tt)%doa_zener  = 0._rk
-            tensor(tt)%doa_gebert = 0._rk
-            
+            tensor(tt)%t_start    = 0._rk
+            tensor(tt)%t_duration = 0._rk
+         
+            tensor(tt)%mi_el_type = "" 
+            tensor(tt)%ma_el_type = "" 
             !------------------------------------------------------------------------------
             ! This value is hardcoded in ./f-src/mod_struct_calcmat.f90
             !------------------------------------------------------------------------------
@@ -406,6 +459,11 @@ DO rank_mpi = 1, size_mpi-1, parts
                 !------------------------------------------------------------------------------
                 tensor(tt)%dmn  = dat_domains(ii)
                 tensor(tt)%bvtv = dat_densities(ii)
+                tensor(tt)%no_elems = dat_no_elems(ii)
+                tensor(tt)%no_nodes = dat_no_nodes(ii)
+                tensor(tt)%t_start    = dat_t_start(ii)
+                tensor(tt)%t_duration = dat_t_duration(ii)
+
                 tensor(tt)%sym  = sym
                 tensor(tt)%mat  = local_domain_tensor
                 tensor(tt)%num  = local_num_tensor
@@ -429,6 +487,13 @@ DO rank_mpi = 1, size_mpi-1, parts
                 tensor(tt)%doa_zener = doa_zener(tensor(tt)%mat)
                 tensor(tt)%doa_gebert = doa_gebert(tensor(tt)%mat)
                 
+                !------------------------------------------------------------------------------
+                ! Could be assigned globally, but for the sake of clarity, the element type
+                ! gets assigned at this place.
+                !------------------------------------------------------------------------------
+                tensor(tt)%mi_el_type = TRIM(mi_el_type) 
+                tensor(tt)%ma_el_type = TRIM(ma_el_type) 
+
                 !------------------------------------------------------------------------------
                 ! This value is hardcoded in ./f-src/mod_struct_calcmat.f90
                 !------------------------------------------------------------------------------
