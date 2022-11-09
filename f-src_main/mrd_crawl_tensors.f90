@@ -3,7 +3,7 @@
 !
 !> @author Johannes Gebert - HLRS - NUM - gebert@hlrs.de
 !> Date:    19.03.2022
-!> LastMod: 20.03.2022
+!> LastMod: 09.11.2022
 !
 !> @brief:
 !> Program to colect the results of the Direct Tensor Computation. 
@@ -25,7 +25,7 @@ USE ser_binary
 
 IMPLICIT NONE
 
-CHARACTER(*), PARAMETER :: mrd_dbg_lvl = "PRODUCTION" ! "DEBUG"
+CHARACTER(*), PARAMETER :: mrd_dbg_lvl =  "PRODUCTION" ! "DEBUG"
 
 TYPE(tLeaf), POINTER :: domain_no, eff_num_stiffness, density, tensors, leaf_pos, &
     no_elems, no_nodes, t_start, t_duration
@@ -231,6 +231,8 @@ DO rank_mpi = 1, size_mpi-1, parts
     CALL print_err_stop(std_out, "Allocating 'dat_domains' failed.", alloc_stat)
     CALL pd_read_leaf(rank_data%streams, domain_no, dat_domains)
 
+    last_domain_rank = MAXVAL(dat_domains)
+
     !------------------------------------------------------------------------------
     ! Number of elements
     !------------------------------------------------------------------------------
@@ -275,8 +277,6 @@ DO rank_mpi = 1, size_mpi-1, parts
     CALL print_err_stop(std_out, "Allocating 'dat_t_duration' failed.", alloc_stat)
     CALL pd_read_leaf(rank_data%streams, t_duration, dat_t_duration)
 
-    last_domain_rank = dat_domains(domain_no%dat_no)
-
     !------------------------------------------------------------------------------
     ! Read effective numerical stiffness
     !------------------------------------------------------------------------------
@@ -306,18 +306,18 @@ DO rank_mpi = 1, size_mpi-1, parts
         !------------------------------------------------------------------------------
         SELECT CASE(tt)
             CASE(1)
-                CALL get_leaf_with_num(rank_data, 8_pd_ik, tensors, success)
+                CALL get_leaf_with_num(rank_data, 12_pd_ik, tensors, success)
                 local_domain_opt_pos = 0._rk
                 fh_tens = fh_covo 
                 tensor(tt)%opt_crit = "covo" 
             CASE(2)
-                CALL get_leaf_with_num(rank_data, 15_pd_ik, tensors, success)
-                CALL get_leaf_with_num(rank_data, 13_pd_ik, leaf_pos, success)
+                CALL get_leaf_with_num(rank_data, 19_pd_ik, tensors, success)
+                CALL get_leaf_with_num(rank_data, 17_pd_ik, leaf_pos, success)
                 fh_tens = fh_cr1
                 tensor(tt)%opt_crit = "cr1" 
             CASE(3)
-                CALL get_leaf_with_num(rank_data, 19_pd_ik, tensors, success)
-                CALL get_leaf_with_num(rank_data, 17_pd_ik, leaf_pos, success)
+                CALL get_leaf_with_num(rank_data, 23_pd_ik, tensors, success)
+                CALL get_leaf_with_num(rank_data, 21_pd_ik, leaf_pos, success)
                 fh_tens = fh_cr2
                 tensor(tt)%opt_crit = "cr2" 
         END SELECT
@@ -390,11 +390,11 @@ DO rank_mpi = 1, size_mpi-1, parts
             !------------------------------------------------------------------------------
             tensor(tt)%opt_res = 1._rk 
 
-            ! IF(Domain_status(jj) == dat_domains(ii)) THEN
             IF(Domain_status(dat_domains(ii)+1,1) == dat_domains(ii)) THEN
 
                 !------------------------------------------------------------------------------
                 ! Check whether the domain was already found.
+                ! tt 1...3 for different criteria
                 !------------------------------------------------------------------------------
                 IF(Domain_status(dat_domains(ii)+1, tt+1) == 0_ik) THEN
                     Domain_status(dat_domains(ii)+1, tt+1) = 1_ik
@@ -509,6 +509,7 @@ DO rank_mpi = 1, size_mpi-1, parts
 
             END IF ! (Domain_status(jj, 1) == domain_no%p_int8(ii)) THEN
         END DO ! ii = 1, domains_Per_comm - 1_ik
+
     END DO ! tt = 1, 3
 
     !------------------------------------------------------------------------------

@@ -1139,9 +1139,9 @@ if (rank_mpi == 0) then
         timer_name = "calc_eff_stiffness"
     End SELECT
 
-    CALL start_timer(trim(timer_name), .FALSE.)
+    CALL start_timer(TRIM(timer_name), .FALSE.)
     CALL calc_effective_material_parameters(root, comm_nn, domain, fh_mpi_worker)
-    CALL end_timer(trim(timer_name))
+    CALL end_timer(TRIM(timer_name))
     
 ELSE
     DEALLOCATE(part_branch)

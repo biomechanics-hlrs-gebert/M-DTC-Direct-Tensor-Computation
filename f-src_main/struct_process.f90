@@ -709,7 +709,7 @@ If (rank_mpi == 0) THEN
         "Final coordinate system CR_2                      " , &  ! 17 x  9
         "Optimized Effective stiffness CR_2                " , &  ! 18 x  6* 6
         "Effective density                                 "], &  ! 19 x  1
-        dat_ty = [4_1, (5_1, ii=4, add_leaves)], &
+        dat_ty = [(4_1, ii=1, 3), (5_1, ii=4, add_leaves)], &
         dat_no = [ domains_per_comm, &
         domains_per_comm,         domains_per_comm, & ! ii=2 --> No_elems; no_nodes
         domains_per_comm,         domains_per_comm, & ! ii=4 --> t_start; t_duration
@@ -1224,7 +1224,7 @@ Else
     !------------------------------------------------------------------------------
     Do
         !------------------------------------------------------------------------------
-        ! Basically "mark end of file
+        ! Basically "mark end of file"
         !------------------------------------------------------------------------------
         ! Write last segments to streams. 
         ! Required if a sub-comm will not write as many numbers into the stream as 
@@ -1235,14 +1235,19 @@ Else
         ! First leaf (Integer 8)
         ! Last leaf (Real 8)
         !------------------------------------------------------------------------------
-        ! @domain numbers --> The last domain number computed by this rank/comm!
+        ! @domain numbers --> The last domain number and its no_nodes/no_elems
+        !  computed by this rank/comm!
         ! -2 to undo the last increment and to account for the first domain "0"
         !------------------------------------------------------------------------------
+        ! leaves 3 -> 3 INTEGER 8 leaves
+        ! leaves 22 --> Last leaf, contains density
+        !------------------------------------------------------------------------------
         CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
-            Int(root%branches(3)%leaves(1)%lbound-1+(domains_per_comm-1), MPI_OFFSET_KIND), &
+            Int(root%branches(3)%leaves(3)%lbound-1+(domains_per_comm-1), MPI_OFFSET_KIND), &
             INT(Domain, KIND=ik), 1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
+
         CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-            Int(root%branches(3)%leaves(19)%lbound-1+(domains_per_comm-1), MPI_OFFSET_KIND), &
+            Int(root%branches(3)%leaves(23)%lbound-1+(domains_per_comm-1), MPI_OFFSET_KIND), &
             1_rk, 1_pd_mik, MPI_REAL8, status_mpi, ierr)
 
         !------------------------------------------------------------------------------
@@ -1307,6 +1312,23 @@ Else
             !------------------------------------------------------------------------------
             IF (worker_rank_mpi==0) THEN
             
+                !------------------------------------------------------------------------------
+                ! Write the start time to file
+                !------------------------------------------------------------------------------
+                ! CALL add_leaf_to_branch(result_branch, "Start Time", 1_pd_ik, [t_start])
+                CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
+                    Int(root%branches(3)%leaves(2)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
+                    t_start, 1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
+
+                !------------------------------------------------------------------------------
+                ! Write the duration to file
+                !------------------------------------------------------------------------------
+                ! CALL add_leaf_to_branch(result_branch, "Duration", 1_pd_ik, [t_duration])
+                CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
+                    Int(root%branches(3)%leaves(3)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
+                    t_duration, 1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
+
+
                 CALL Start_Timer("Write Worker Root Branch")
 
                 !------------------------------------------------------------------------------
@@ -1331,24 +1353,6 @@ Else
             !    END IF
 
                 CALL End_Timer("Write Worker Root Branch")
-
-                !------------------------------------------------------------------------------
-                ! Write the start time to file
-                !------------------------------------------------------------------------------
-                CALL add_leaf_to_branch(result_branch, "Start Time", 1_pd_ik, [t_start])
-                CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-                    Int(root%branches(3)%leaves(2)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
-                    t_start, &
-                    1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
-
-                !------------------------------------------------------------------------------
-                ! Write the duration to file
-                !------------------------------------------------------------------------------
-                CALL add_leaf_to_branch(result_branch, "Duration", 1_pd_ik, [t_duration])
-                CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-                    Int(root%branches(3)%leaves(3)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
-                    t_duration, &
-                    1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
 
                 !------------------------------------------------------------------------------
                 ! Store activity information

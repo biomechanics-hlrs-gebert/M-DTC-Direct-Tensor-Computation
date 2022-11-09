@@ -148,24 +148,6 @@ If (out_amount /= "PRODUCTION") then
 End If
 
 !------------------------------------------------------------------------------
-! Number of Elements
-!------------------------------------------------------------------------------
-CALL add_leaf_to_branch(result_branch, "Number of Elements", 1_pd_ik, [no_elems])
-CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
-     Int(root%branches(3)%leaves(2)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
-     no_elems, &
-     1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
-
-!------------------------------------------------------------------------------
-! Number of Nodes
-!------------------------------------------------------------------------------
-CALL add_leaf_to_branch(result_branch, "Number of Nodes", 1_pd_ik, [no_nodes])
-CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
-     Int(root%branches(3)%leaves(3)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
-     no_nodes, &
-     1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
-
-!------------------------------------------------------------------------------
 ! Allocate fields and read data
 !------------------------------------------------------------------------------
 
@@ -1717,6 +1699,23 @@ EE_Orig = EE
     CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
         Int(root%branches(3)%leaves(1)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
         ddc_nn, 1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
+
+
+     !------------------------------------------------------------------------------
+     ! Number of Elements
+     !------------------------------------------------------------------------------
+     CALL add_leaf_to_branch(result_branch, "Number of Elements", 1_pd_ik, [no_elems])
+     CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
+          Int(root%branches(3)%leaves(2)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
+          no_elems, 1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
+
+     !------------------------------------------------------------------------------
+     ! Number of Nodes
+     !------------------------------------------------------------------------------
+     CALL add_leaf_to_branch(result_branch, "Number of Nodes", 1_pd_ik, [no_nodes])
+     CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
+          Int(root%branches(3)%leaves(3)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
+          no_nodes, 1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
 
     If (out_amount /= "PRODUCTION" ) then
         Call Write_matrix(std_out, "Optimized Effective stiffness CR_2", EE, fmti='std')
