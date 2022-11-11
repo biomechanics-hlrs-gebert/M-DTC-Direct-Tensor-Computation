@@ -4,7 +4,7 @@
 #
 # Author:    Johannes Gebert - HLRS - NUM - gebert@hlrs.de
 # Date:      09.01.2022
-# Last edit: 12.04.2022
+# Last edit: 11.11.2022
 #
 # For use of PBSPro visit:
 # https://kb.hlrs.de/platforms/index.php/Batch_System_PBSPro_(Hawk)
@@ -12,6 +12,7 @@
 #PBS -N dtc-test
 #PBS -l select=4:node_type=rome:mpiprocs=128:node_type_mem=256gb
 #PBS -l walltime=00:25:00
+#PBS -m gebert@hlrs.de
 #PBS -q test
 # ------------------------------------------------------------------------------
 date
@@ -30,7 +31,12 @@ cd "$PBS_O_WORKDIR" || exit
 # Source environment. »shellcheck« is some sort of a pragma for shellcheck (!)
 # ------------------------------------------------------------------------------
 # shellcheck source=/dev/null
-source "./environment.source" hawk --no-output
+source "./environment.source" hawk-exp --no-output
+#
+# ------------------------------------------------------------------------------
+# Set specify the binary relative to the root directory.
+# ------------------------------------------------------------------------------
+export BINARY=./bin/dtc_V1.1.0_x86_64
 #
 # ------------------------------------------------------------------------------
 # Set the basename of the dataset, according to the MeRaDat format.
@@ -44,5 +50,10 @@ datasets/memlog.sh datasets/$BASENAME.memlog > /dev/null 2> /dev/null &
 #
 # ------------------------------------------------------------------------------
 # Launch the parallel mpi application
+# Do (not) use std_out by user request. This aims at properly organizing 
+# std_out and std_err for multiple jobs at once
 # ------------------------------------------------------------------------------
-mpirun -np 511 ./bin/dtc_V1.1.0_x86_64 "$PBS_O_WORKDIR" datasets/$BASENAME.meta
+export USE_STD_OUT=NO 
+#
+mpirun -np 511 $BINARY "$PBS_O_WORKDIR" datasets/$BASENAME.meta
+# mpirun -np 511 $BINARY "$PBS_O_WORKDIR" datasets/$BASENAME.meta

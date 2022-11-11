@@ -185,7 +185,7 @@ If (rank_mpi == 0) THEN
         mssg = "No input file given"
         CALL print_err_stop_slaves(mssg); GOTO 1000
     ELSE
-        IF ( in%full(LEN_TRIM(in%full)-4 : LEN_TRIM(in%full)) /= ".meta") THEN
+        IF(in%full(LEN_TRIM(in%full)-4 : LEN_TRIM(in%full)) /= ".meta") THEN
             mssg = "No meta file given."
             CALL print_err_stop_slaves(mssg); GOTO 1000
         END IF         
@@ -205,12 +205,13 @@ If (rank_mpi == 0) THEN
     ! Redirect std_out into a file in case std_out is not useful by environment.
     ! Place these lines before handle_lock_file :-)
     !------------------------------------------------------------------------------
-    std_out = determine_stout()
-
+    CALL determine_std_fh(std_out, std_err)
+     
     !------------------------------------------------------------------------------
-    ! Spawn standard out after(!) the basename is known
+    ! Spawn standard out/err after(!) the basename is known
     !------------------------------------------------------------------------------
     IF(std_out/=6) CALL meta_start_ascii(std_out, '.std_out')
+    IF(std_err/=0) CALL meta_start_ascii(std_err, '.std_err')
 
     CALL show_title(["Dr.-Ing. Ralf Schneider (HLRS, NUM)", &
         "Johannes Gebert, M.Sc. (HLRS, NUM) "])
@@ -253,6 +254,7 @@ If (rank_mpi == 0) THEN
     CALL meta_read('POISSON_RATIO'    , m_rry, bone%nu, ios); CALL mest(ios, abrt)
     CALL meta_read('MACRO_ELMNT_ORDER', m_rry, elo_macro, ios); CALL mest(ios, abrt)
     CALL meta_read('TYPE_RAW'         , m_rry, typeraw, ios); CALL mest(ios, abrt)
+
     
     IF(abrt) CALL print_err_stop(std_out, "A keyword error occured.", 1)
 
@@ -273,8 +275,9 @@ If (rank_mpi == 0) THEN
     CALL meta_start_ascii(fh_mon, mon_suf)
 
     IF (std_out/=6) CALL meta_start_ascii(std_out, '.std_out')
+    IF (std_out/=0) CALL meta_start_ascii(std_err, '.std_err')
 
-    CALL meta_write('DBG_LVL', out_amount )
+    CALL meta_write('DBG_LVL', out_amount)
 
     !------------------------------------------------------------------------------
     ! Warning / Error handling
