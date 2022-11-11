@@ -52,42 +52,41 @@ Subroutine exec_single_domain(root, comm_nn, domain, typeraw, &
     job_dir, fh_memlog, active, fh_mpi_worker, rank_mpi, size_mpi, comm_mpi)
 
 TYPE(materialcard) :: bone
-INTEGER(kind=mik), Intent(INOUT), Dimension(no_streams) :: fh_mpi_worker
+INTEGER(mik), Intent(INOUT), Dimension(no_streams) :: fh_mpi_worker
 
-Character(LEN=*) , Intent(in)  :: job_dir
-Character(LEN=*) , Intent(in)  :: typeraw
-INTEGER(kind=mik), Intent(In)  :: rank_mpi, size_mpi, comm_mpi
-INTEGER(kind=ik) , intent(in)  :: comm_nn, domain, fh_memlog
-INTEGER(kind=mik), intent(out) :: active
+Character(*) , Intent(in)  :: job_dir
+Character(*) , Intent(in)  :: typeraw
+INTEGER(mik), Intent(In)  :: rank_mpi, size_mpi, comm_mpi
+INTEGER(ik) , intent(in)  :: comm_nn, domain, fh_memlog
+INTEGER(mik), intent(out) :: active
 Type(tBranch)    , Intent(inOut) :: root
 
-REAL(KIND=rk), DIMENSION(:), Pointer     :: displ, force
-REAL(KIND=rk), DIMENSION(:), Allocatable :: glob_displ, glob_force
-REAL(KIND=rk), DIMENSION(:), Allocatable :: zeros_R8
+REAL(rk), DIMENSION(:), Pointer     :: displ, force
+REAL(rk), DIMENSION(:), Allocatable :: glob_displ, glob_force
+REAL(rk), DIMENSION(:), Allocatable :: zeros_R8
 
 INTEGER(mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
 INTEGER(mik) :: ierr, petsc_ierr
 
-INTEGER(kind=pd_ik), Dimension(:), Allocatable :: serial_pb
-INTEGER(kind=pd_ik), Dimension(no_streams)     ::  dsize
-INTEGER(kind=pd_ik)                            :: serial_pb_size
+INTEGER(pd_ik), Dimension(:), Allocatable :: serial_pb
+INTEGER(pd_ik) :: serial_pb_size
 
-INTEGER(Kind=ik) :: preallo, domain_elems, ii, jj, kk, id, stat, &
+INTEGER(ik) :: preallo, domain_elems, ii, jj, kk, id, stat, &
     Istart,Iend, parts, IVstart, IVend, m_size, mem_global, status_global, &
     no_elems, no_nodes, ddc_nn
 
-INTEGER(Kind=ik), Dimension(:)  , Allocatable :: nodes_in_mesh
-INTEGER(kind=ik), Dimension(:)  , Allocatable :: gnid_cref
-INTEGER(kind=ik), Dimension(:,:), Allocatable :: res_sizes
+INTEGER(ik), Dimension(:)  , Allocatable :: nodes_in_mesh
+INTEGER(ik), Dimension(:)  , Allocatable :: gnid_cref
+INTEGER(ik), Dimension(:,:), Allocatable :: res_sizes
 
-INTEGER(kind=c_int) :: stat_c_int
+INTEGER(c_int) :: stat_c_int
 
-CHARACTER(LEN=5)   :: timezone
-CHARACTER(LEN=8)   :: date, time_str
-CHARACTER(LEN=9)   :: domain_char
-CHARACTER(LEN=10)  :: time
-CHARACTER(LEN=40)  :: mssg_fix_len
-CHARACTER(LEN=mcl) :: str, timer_name, domain_desc, part_desc, env_var, &
+CHARACTER(5)   :: timezone
+CHARACTER(8)   :: date, time_str
+CHARACTER(9)   :: domain_char
+CHARACTER(10)  :: time
+CHARACTER(40)  :: mssg_fix_len
+CHARACTER(mcl) :: str, timer_name, domain_desc, part_desc, env_var, &
     desc, mesh_desc, filename, elt_micro, no_nodes_char, no_elems_char, &
     preallo_char, mem_global_char, status_global_char, size_mpi_char, nn_char
 
@@ -106,11 +105,11 @@ Type(tVec), Dimension(24) :: FF
 TYPE(tPETScViewer)        :: PetscViewer
 Type(tKSP)                :: KSP
 
-INTEGER(Kind=ik), Dimension(60)    :: idxm_20, idxn_20
-Real(kind=rk),    Dimension(60,60) :: K_loc_20
+INTEGER(ik), Dimension(60)    :: idxm_20, idxn_20
+Real(rk),    Dimension(60,60) :: K_loc_20
 
-INTEGER(Kind=ik), Dimension(24)    :: idxm_08, idxn_08
-Real(kind=rk),    Dimension(24,24) :: K_loc_08
+INTEGER(ik), Dimension(24)    :: idxm_08, idxn_08
+Real(rk),    Dimension(24,24) :: K_loc_08
 
 ! Init worker_is_active status
 Active = 0_mik
@@ -310,7 +309,7 @@ Else
     !------------------------------------------------------------------------------
     ! Deserialize part branch
     !------------------------------------------------------------------------------
-3    CALL Start_Timer("Deserialize part branch branch")
+    CALL Start_Timer("Deserialize part branch branch")
 
     Allocate(part_branch)
     
@@ -1222,10 +1221,10 @@ End Subroutine stop_slaves
 !------------------------------------------------------------------------------  
 SUBROUTINE print_err_stop_slaves(instring, tag)
 
-CHARACTER(LEN=*), INTENT(IN), OPTIONAL :: tag
+CHARACTER(*), INTENT(IN), OPTIONAL :: tag
 
-CHARACTER(LEN=SCL) :: tag_used, frmt, frmt_stp
-CHARACTER(LEN=*), INTENT(IN) :: instring
+CHARACTER(SCL) :: tag_used, frmt, frmt_stp
+CHARACTER(*), INTENT(IN) :: instring
 
 tag_used = ""
 IF (PRESENT(tag)) tag_used=tag

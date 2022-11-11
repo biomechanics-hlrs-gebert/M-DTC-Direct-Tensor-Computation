@@ -123,7 +123,7 @@ CHARACTER(4*mcl), DIMENSION(:), ALLOCATABLE :: domain_path
 CHARACTER(mcl)  , DIMENSION(:), ALLOCATABLE :: m_rry      
 
 CHARACTER(4*mcl) :: job_dir
-CHARACTER(mcl)   :: cmd_arg_history='', link_name = 'struct process', stat_char="", &
+CHARACTER(mcl)   :: cmd_arg_history='', link_name = 'struct process', &
     muCT_pd_path, muCT_pd_name, binary, activity_file, desc="", memlog_file=""
 CHARACTER(8)   :: elt_micro, output
 CHARACTER(mcl) :: typeraw="", restart='N', restart_cmd_arg='U',ios="" ! U = 'undefined'
@@ -135,14 +135,13 @@ REAL(rk) :: strain, t_start, t_end, t_duration
 INTEGER(ik), DIMENSION(:), ALLOCATABLE :: Domains, nn_D, Domain_stats
 INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0
 
-INTEGER(ik) :: nn, ii, jj, kk, dc, stint, computed_domains = 0, comm_nn = 1, &
+INTEGER(ik) :: nn, ii, jj, kk, dc, computed_domains = 0, comm_nn = 1, &
     No_of_domains, path_count, activity_size=0, alloc_stat, fh_memlog, &
-    alloc_stint, free_file_handle, domains_per_comm, stat, &
-    Domain, llimit, parts, elo_macro, raw_data_stream, vdim(3)
+    free_file_handle, domains_per_comm, stat, &
+    Domain, llimit, parts, elo_macro, vdim(3)
 
 INTEGER(pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
 INTEGER(pd_ik), DIMENSION(no_streams) :: dsize
-Integer(kind=pd_mik), Dimension(no_streams) :: fh_mpi
 
 INTEGER(pd_ik) :: serial_root_size, add_leaves
 

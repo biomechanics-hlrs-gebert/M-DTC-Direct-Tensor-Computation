@@ -22,35 +22,35 @@ contains
 subroutine calc_effective_material_parameters(root, comm_nn, ddc_nn, fh_mpi_worker) 
 
 Type(tBranch)                           , Intent(InOut) :: root
-integer(Kind=ik)                        , Intent(in) :: ddc_nn, comm_nn
-Integer(kind=mik), Dimension(no_streams), Intent(in) :: fh_mpi_worker
+integer(ik)                        , Intent(in) :: ddc_nn, comm_nn
+Integer(mik), Dimension(no_streams), Intent(in) :: fh_mpi_worker
 
-Real(kind=rk) :: div_10_exp_jj, eff_density, n12, n13, n23, alpha, phi, eta
-Real(kind=rk) :: cos_alpha, sin_alpha, One_Minus_cos_alpha, sym
+Real(rk) :: div_10_exp_jj, eff_density, n12, n13, n23, alpha, phi, eta
+Real(rk) :: cos_alpha, sin_alpha, One_Minus_cos_alpha, sym
 
-Real(kind=rk), Dimension(:)    , allocatable :: tmp_nn, delta, x_D_phy
-Real(kind=rk), Dimension(:,:)  , allocatable :: nodes, vv, ff, stiffness
-Real(kind=rk), Dimension(:,:,:), allocatable :: calc_rforces, uu, rforces, edat, crit_1, crit_2
-Real(kind=rk), Dimension(1)    :: tmp_real_fd1
-Real(Kind=rk), Dimension(3)    :: min_c, max_c, n
-Real(kind=rk), Dimension(6)    :: ro_stress
-Real(kind=rk), Dimension(8)    :: tmp_r8 
-Real(kind=rk), Dimension(12)   :: tmp_r12
-Real(kind=rk), Dimension(3,3)  :: aa
-Real(kind=rk), Dimension(6,6)  :: ee_orig, BB, CC, cc_mean, EE, fv,meps
-Real(kind=rk), Dimension(0:16) :: crit_min
-Real(Kind=rk), Dimension(6,24) :: int_strain, int_stress
-Real(kind=rk):: E_Modul, nu, rve_strain, v_elem, v_cube
+Real(rk), Dimension(:)    , allocatable :: tmp_nn, delta, x_D_phy
+Real(rk), Dimension(:,:)  , allocatable :: nodes, vv, ff, stiffness
+Real(rk), Dimension(:,:,:), allocatable :: calc_rforces, uu, rforces, edat, crit_1, crit_2
+Real(rk), Dimension(1)    :: tmp_real_fd1
+Real(rk), Dimension(3)    :: min_c, max_c, n
+Real(rk), Dimension(6)    :: ro_stress
+Real(rk), Dimension(8)    :: tmp_r8 
+Real(rk), Dimension(12)   :: tmp_r12
+Real(rk), Dimension(3,3)  :: aa
+Real(rk), Dimension(6,6)  :: ee_orig, BB, CC, cc_mean, EE, fv,meps
+Real(rk), Dimension(0:16) :: crit_min
+Real(rk), Dimension(6,24) :: int_strain, int_stress
+Real(rk):: E_Modul, nu, rve_strain, v_elem, v_cube
 
-Integer(kind=mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
-Integer(kind=mik) :: ierr
+Integer(mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
+Integer(mik) :: ierr
 
-integer(Kind=ik) :: ii, jj, kk, ll, no_elem_nodes, micro_elem_nodes, no_lc, num_leaves, alloc_stat
-Integer(Kind=ik) :: no_elems, no_nodes, no_cnodes, macro_order, ii_phi, ii_eta, kk_phi, kk_eta
+integer(ik) :: ii, jj, kk, ll, no_elem_nodes, no_lc, num_leaves, alloc_stat
+Integer(ik) :: no_elems, no_nodes, no_cnodes, macro_order, ii_phi, ii_eta, kk_phi, kk_eta
 
-Integer(kind=ik), Dimension(:,:,:,:), Allocatable :: ang
-Integer(Kind=ik), Dimension(:)      , Allocatable :: xa_n, xe_n, no_cnodes_pp, cref_cnodes
-Integer(kind=ik), Dimension(3)                    :: s_loop,e_loop, mlc
+Integer(ik), Dimension(:,:,:,:), Allocatable :: ang
+Integer(ik), Dimension(:)      , Allocatable :: xa_n, xe_n, no_cnodes_pp, cref_cnodes
+Integer(ik), Dimension(3)                    :: s_loop,e_loop, mlc
 
 Logical :: success
 
@@ -130,20 +130,11 @@ Call search_branch(trim(desc), domain_branch, mesh_branch, success)
 
 ! DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 ! Braucht man das noch?
-call log_tree(mesh_branch, un_lf, .FALSE.)
+! call log_tree(mesh_branch, un_lf, .FALSE.)
 ! DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 call pd_get(mesh_branch, 'No of nodes in mesh',  no_nodes)
 call pd_get(mesh_branch, 'No of elements in mesh',  no_elems)
-
-! DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-! Dafuq?!
-micro_elem_nodes = 20
-! DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-If (out_amount /= "PRODUCTION") then
-    write(un_lf, FMT_MSG_xAI0) "Set number of nodes per micro element to: ", micro_elem_nodes
-End If
 
 call pd_get(mesh_branch, 'No of cdofs in parts', no_cnodes_pp)
 no_cnodes=sum(no_cnodes_pp)/3
@@ -309,7 +300,7 @@ End If
 !------------------------------------------------------------------------------
 ! Loadcase init
 !------------------------------------------------------------------------------
-call init_loadcase(rve_strain, vv)
+call init_loadcase_el_order_lin(rve_strain, vv)
 
 If (out_amount == "DEBUG") THEN
     WRITE(un_lf, FMT_DBG_SEP)
@@ -337,7 +328,7 @@ Do ii = 1, no_lc            ! Cycle through all load cases
     Do jj = 1, no_nodes      ! Cycle through all boundary nodes
 
         ! t_geom_xi transforms coordinates from geometry to xi space 
-        ! Result(phi_nn) :  Real(kind=rk), dimension(8)
+        ! Result(phi_nn) :  Real(rk), dimension(8)
         tmp_nn = phi_nn(t_geom_xi(nodes(:,jj),min_c,max_c))
 
         Do kk = 1,3
@@ -503,7 +494,7 @@ CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
 ! Calc integrated strain matrix for first 6 loadcases
 !meps = int_strain(1:6,1:6)
 !If (out_amount /= "PRODUCTION" ) then
-!   Call Write_real_matrix(un_lf, meps ,6_ik, 6_ik, &
+!   Call Write_real_matrix(un_lf, meps,6_ik, 6_ik, &
 !        "Integrated strain matrix of first 6 loadcases")
 !End If
 
@@ -1741,10 +1732,10 @@ EE_Orig = EE
     ! Effective density
     !------------------------------------------------------------------------------
     eff_density = 0._rk
-    eff_density = REAL(no_elems, KIND=rk) / &
+    eff_density = REAL(no_elems, rk) / &
                 REAL(ANINT(x_D_phy(1)/delta(1)) * &
                      ANINT(x_D_phy(2)/delta(2)) * &
-                     ANINT(x_D_phy(3)/delta(3)), KIND=rk)
+                     ANINT(x_D_phy(3)/delta(3)), rk)
 
     CALL add_leaf_to_branch(result_branch, "Effective density", 1_pd_ik, [eff_density])
     CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
@@ -1762,12 +1753,20 @@ EE_Orig = EE
 End subroutine calc_effective_material_parameters
 
 
-subroutine init_loadcase(eps,vv)
+!------------------------------------------------------------------------------
+! SUBROUTINE: init_loadcase_el_order_lin
+!------------------------------------------------------------------------------
+!> @author Ralf Schneider - HLRS - NUM - schneider@hlrs.de
+!
+! @Brief:
+!> 24 loadcases for lin macro elements.
+!------------------------------------------------------------------------------
+subroutine init_loadcase_el_order_lin(eps,vv)
 
-    Real(Kind=rk), intent(in)     :: eps
-    Real(Kind=rk), Dimension(:,:) :: vv
+    Real(rk), intent(in)     :: eps
+    Real(rk), Dimension(:,:) :: vv
 
-    Real(Kind=rk)                 :: eps2,eps3,eps4
+    Real(rk)                 :: eps2,eps3,eps4
 
     eps2 = eps*2._rk
     eps3 = eps*3._rk
@@ -1775,79 +1774,171 @@ subroutine init_loadcase(eps,vv)
 
     vv = 0._rk
 
-    vv( 1,:) = [ 0._rk , 0._rk , 0._rk ,  eps  ,  eps  , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv( 2,:) = [  eps  , 0._rk , 0._rk ,  eps  ,  eps  , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv( 3,:) = [  eps  , 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv( 4,:) = [ 0._rk , 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv( 5,:) = [ 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv( 6,:) = [  eps  , 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk ,  eps  , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv( 7,:) = [  eps  , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 eps  , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv( 8,:) = [ 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv( 9,:) = [ 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk ,  eps  , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv(10,:) = [ 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 eps  , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv(11,:) = [ 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , 0._rk]
-    vv(12,:) = [ 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , 0._rk]
-    vv(13,:) = [ 0._rk , 0._rk , 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk ,  eps  , 0._rk]
-    vv(14,:) = [ 0._rk , 0._rk , 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk ,  eps ]
-    vv(15,:) = [ 0._rk ,  eps  , 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , -eps ]
-    vv(16,:) = [ 0._rk ,  eps  , 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv(17,:) = [ 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv(18,:) = [ 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv(19,:) = [ 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv(20,:) = [ 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv(21,:) = [ 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv(22,:) = [ 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , -eps2 , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv(23,:) = [ 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , -eps3 , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv(24,:) = [ 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , -eps4 , 0._rk , 0._rk , 0._rk , 0._rk]
+    vv( 1,:) = [ 0._rk, 0._rk, 0._rk,   eps,   eps, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv( 2,:) = [   eps, 0._rk, 0._rk,   eps,   eps, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv( 3,:) = [   eps, 0._rk, 0._rk, 0._rk,   eps, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv( 4,:) = [ 0._rk, 0._rk, 0._rk, 0._rk,   eps, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk,   eps, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv( 5,:) = [ 0._rk, 0._rk, 0._rk,   eps, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk,   eps, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv( 6,:) = [   eps, 0._rk, 0._rk,   eps, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk,   eps, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv( 7,:) = [   eps, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                  eps, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv( 8,:) = [ 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk,   eps, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk,   eps, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv( 9,:) = [ 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk,   eps, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk,   eps, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv(10,:) = [ 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                  eps, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk,   eps, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv(11,:) = [ 0._rk,   eps, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk,   eps, 0._rk, 0._rk, 0._rk]
+    vv(12,:) = [ 0._rk,   eps, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk,   eps, 0._rk, 0._rk]
+    vv(13,:) = [ 0._rk, 0._rk, 0._rk, 0._rk, 0._rk,   eps, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk,   eps, 0._rk]
+    vv(14,:) = [ 0._rk, 0._rk, 0._rk, 0._rk, 0._rk,   eps, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk,  eps ]
+    vv(15,:) = [ 0._rk,   eps, 0._rk, 0._rk, 0._rk,   eps, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, -eps ]
+    vv(16,:) = [ 0._rk,   eps, 0._rk, 0._rk, 0._rk,   eps, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv(17,:) = [ 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk,   eps, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv(18,:) = [ 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk,   eps, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv(19,:) = [ 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk,   eps, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv(20,:) = [ 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk,   eps, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv(21,:) = [ 0._rk, 0._rk,   eps, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv(22,:) = [ 0._rk, 0._rk,   eps, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, -eps2 , 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv(23,:) = [ 0._rk, 0._rk,   eps, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, -eps3 , 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv(24,:) = [ 0._rk, 0._rk,   eps, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, -eps4, 0._rk, 0._rk, 0._rk, 0._rk]
 
-  end subroutine init_loadcase
+  end subroutine init_loadcase_el_order_lin
+
+!------------------------------------------------------------------------------
+! SUBROUTINE: init_loadcase_el_order_lin
+!------------------------------------------------------------------------------
+!> @author Johannes Gebert - HLRS - NUM - gebert@hlrs.de
+!
+! @Brief:
+!> 60 loadcases for quad macro elements.
+!------------------------------------------------------------------------------
+SUBROUTINE init_loadcase_el_order_quad(eps,vv)
+
+    REAL(rk), intent(in)     :: eps
+    REAL(rk), Dimension(:,:) :: vv
+
+    REAL(rk) :: eps2, eps3, eps4, z
+
+    eps2 = eps*2._rk
+    eps3 = eps*3._rk
+    eps4 = eps*4._rk
+
+    vv = 0._rk
+    z = 0._rk
+
+    ! !                1,     2,     3,     4,     5,     6,     7,     8,     9,    10,    11,    12,    13,    14,    15,    16,    17,    18,    19,    20,    21,    22,    23,    24,    24,    24,    25,    26,    27,    28,    29,    30,    31,    32,    33,    34,    35,    36,    37,    38,    39,    40,    41,    42,    43,    44,    45,    46,    47,    48,    49,    50,    51,    52,    53,    54,    55,    56,    57,    58,    59,    60
+    ! vv( 1,:) = [     z,     z,     z,   eps,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv( 2,:) = [   eps,     z,     z,   eps,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv( 3,:) = [   eps,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv( 4,:) = [     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv( 5,:) = [     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv( 6,:) = [   eps,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv( 7,:) = [   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, eps  ,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv( 8,:) = [     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv( 9,:) = [     z,     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(10,:) = [     z,     z,     z,     z,     z,     z,     z,     z, eps   ,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,  eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    
+    ! vv(11,:) = [     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(12,:) = [     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(13,:) = [     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(14,:) = [     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(15,:) = [     z,   eps,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,  -eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(16,:) = [     z,   eps,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(17,:) = [     z,     z,     z,     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(18,:) = [     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(19,:) = [     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(20,:) = [     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    
+    ! vv(21,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(22,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps2 ,    z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(23,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps3,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(24,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(25,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(26,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(27,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(28,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(29,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(30,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    
+    ! vv(31,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(32,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(33,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(34,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(35,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(36,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(37,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(38,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(39,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(40,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    
+    ! vv(41,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(42,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(43,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(44,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(45,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(46,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(47,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(48,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(49,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(50,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    
+    ! vv(51,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(52,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(53,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(54,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(55,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(56,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(57,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(58,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(59,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    ! vv(60,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
+    
+END SUBROUTINE init_loadcase_el_order_quad
 
 End Module calcmat
+ 

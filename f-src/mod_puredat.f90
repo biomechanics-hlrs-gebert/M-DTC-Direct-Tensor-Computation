@@ -2786,10 +2786,8 @@ Integer(kind=pd_mik) :: ierr
 Character(len=*), intent(In),optional :: position
 Character(len=pd_mcl) :: lpos
 
-Character(len=10) :: faction
-
 logical :: fexist
-Integer :: ii, funit
+Integer :: ii
 
 If (present(position)) then
    !lpos = position
