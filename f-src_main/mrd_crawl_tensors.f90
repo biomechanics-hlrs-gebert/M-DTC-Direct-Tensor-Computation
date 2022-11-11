@@ -116,7 +116,7 @@ END IF
 CALL meta_read('LO_BNDS_DMN_RANGE' , m_rry, xa_d, stat); IF(stat/="") STOP
 CALL meta_read('UP_BNDS_DMN_RANGE' , m_rry, xe_d, stat); IF(stat/="") STOP
 CALL meta_read('MESH_PER_SUB_DMN'  , m_rry, parts, stat); IF(stat/="") STOP
-CALL meta_read('MACRO_ELMNT_TYPE'  , m_rry, mi_el_type, stat); IF(stat/="") STOP
+CALL meta_read('MACRO_ELMNT_ORDER' , m_rry, mi_el_type, stat); IF(stat/="") STOP
 CALL meta_read('MICRO_ELMNT_TYPE'  , m_rry, ma_el_type, stat); IF(stat/="") STOP
 
 CALL meta_read('PROCESSORS' , m_rry, size_mpi, stat); IF(stat/="") STOP
