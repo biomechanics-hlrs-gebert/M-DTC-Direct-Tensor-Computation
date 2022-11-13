@@ -70,7 +70,7 @@
 !>
 !>  \section modified Last modified:
 !>  by: Johannes Gebert \n
-!>  on: 03.01.2022
+!>  on: 11.11.2022
 !>
 !> \todo At >> Recieve Job_Dir << calculate the Job_Dir from the Domain number
 !>       and the Domain Decomposition parameters.
@@ -672,11 +672,6 @@ If (rank_mpi == 0) THEN
     !------------------------------------------------------------------------------
     add_leaves = 23_pd_ik
 
-    !------------------------------------------------------------------------------
-    ! Number of loadcases
-    !------------------------------------------------------------------------------
-    ! no_lc = 24 
-    
     !------------------------------------------------------------------------------
     ! The name of the branche is a bit outdated. In the meantime, it contains 
     ! more data to accomodate the need for the doctoral project.

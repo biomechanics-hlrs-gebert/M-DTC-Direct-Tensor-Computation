@@ -62,8 +62,7 @@ INTEGER(mik), intent(out) :: active
 Type(tBranch)    , Intent(inOut) :: root
 
 REAL(rk), DIMENSION(:), Pointer     :: displ, force
-REAL(rk), DIMENSION(:), Allocatable :: glob_displ, glob_force
-REAL(rk), DIMENSION(:), Allocatable :: zeros_R8
+REAL(rk), DIMENSION(:), Allocatable :: glob_displ, glob_force, zeros_R8
 
 INTEGER(mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
 INTEGER(mik) :: ierr, petsc_ierr
@@ -75,8 +74,7 @@ INTEGER(ik) :: preallo, domain_elems, ii, jj, kk, id, stat, &
     Istart,Iend, parts, IVstart, IVend, m_size, mem_global, status_global, &
     no_elems, no_nodes, ddc_nn
 
-INTEGER(ik), Dimension(:)  , Allocatable :: nodes_in_mesh
-INTEGER(ik), Dimension(:)  , Allocatable :: gnid_cref
+INTEGER(ik), Dimension(:)  , Allocatable :: nodes_in_mesh, gnid_cref
 INTEGER(ik), Dimension(:,:), Allocatable :: res_sizes
 
 INTEGER(c_int) :: stat_c_int
@@ -96,8 +94,8 @@ Character, Dimension(:), Allocatable :: char_arr
 LOGICAL, PARAMETER :: DEBUG = .TRUE.
 logical :: success=.TRUE.
 
-Type(tBranch), pointer :: boundary_branch, domain_branch, part_branch
-Type(tBranch), pointer :: mesh_branch, meta_para, esd_result_branch
+Type(tBranch), pointer :: boundary_branch, domain_branch, part_branch, &
+    mesh_branch, meta_para, esd_result_branch
 
 Type(tMat)                :: AA, AA_org
 Type(tVec)                :: XX
