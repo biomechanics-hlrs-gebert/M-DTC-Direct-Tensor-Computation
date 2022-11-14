@@ -1435,9 +1435,6 @@ IF(rank_mpi == 0) THEN
 
     CALL link_end(link_name,.True.)
 
-    CALL meta_signing(binary)
-    CALL meta_close()
-
     CALL meta_stop_ascii(fh_mon, mon_suf)
 
     IF (std_out/=6) THEN
@@ -1447,6 +1444,8 @@ IF(rank_mpi == 0) THEN
         WRITE(std_out, FMT_TXT) "HLRS Direct Tensor Computation finished successfully."
         WRITE(std_out, FMT_TXT_SEP)
     END IF 
+
+    CALL meta_finish(binary)
 
 END IF ! (rank_mpi == 0)
 
