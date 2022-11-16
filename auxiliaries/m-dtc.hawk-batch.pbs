@@ -29,7 +29,7 @@ echo "running on ${HOST}"
 cd "$PBS_O_WORKDIR" || exit
 #
 # shellcheck source=/dev/null
-# source "./environment.source" hawk-exp --no-output
+source "./environment.source" hawk-exp --no-output
 #
 # ------------------------------------------------------------------------------
 # Set the binary and the dataset directory.
@@ -42,7 +42,7 @@ DATASET_DIR="datasets/"
 # In the second array, declare the number of processors used.
 # ------------------------------------------------------------------------------
 declare -a basenames=(\
-    "FH01-2_mu_dHev_dtc_processors186" \
+    "FH01-2_mu_dev_dtc_processors186" \
     "FH01-2_mu_dev_dtc_processors93" \
     "FH01-2_mu_dev_dtc_processors46" \
     )
@@ -55,8 +55,11 @@ declare -a processors=(\
 #
 for ((ii=0; ii<${#basenames[@]}; ii++));
 do
-    "$DATASET_DIR"/memlog.sh "$DATASET_DIR"/"${basenames[ii]}".memlog > /dev/null 2> /dev/null &
+    "$DATASET_DIR"/memlog.sh "$DATASET_DIR/${basenames[ii]}".memlog > /dev/null 2> /dev/null &
     #
-    mpirun -np "${processors[ii]}" "$BINARY" "$PBS_O_WORKDIR" "$DATASET_DIR"/"${basenames[ii]}".meta \
-            >"$DATASET_DIR"/"${basenames[ii]}".std_out 2>"$DATASET_DIR"/"${basenames[ii]}".std_err
+    mpirun -np "${processors[ii]}" "$BINARY" "$PBS_O_WORKDIR" "$DATASET_DIR/${basenames[ii]}".meta \
+            >"$DATASET_DIR/${basenames[ii]}".std_out 2>"$DATASET_DIR/${basenames[ii]}".std_err
+    #	
+	# job_name.i[nfo]job_id.batch_tracker${PBS_JOBNAME}
+    echo "$DATASET_DIR/${basenames[ii]}.meta done" >> "${PBS_JOBNAME}.i${PBS_JOBID}.batch_tracker"
 done

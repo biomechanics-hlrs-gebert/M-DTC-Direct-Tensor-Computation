@@ -147,7 +147,9 @@ Integer(kind=pd_mik), Dimension(no_streams) :: fh_mpi
 INTEGER(pd_ik) :: serial_root_size, add_leaves
 
 LOGICAL :: success, stat_exists, heaxist, abrt = .FALSE.
-LOGICAL :: create_new_header = .FALSE., fex=.TRUE.
+LOGICAL :: create_new_header = .FALSE., fex=.TRUE., no_restart_required = .FALSE., &
+    job_was_already_finished = .FALSE.
+
 
 !----------------------------------------------------------------------------
 CALL mpi_init(ierr)
@@ -197,7 +199,7 @@ If (rank_mpi == 0) THEN
     !------------------------------------------------------------------------------
     global_meta_prgrm_mstr_app = 'dtc' 
     global_meta_program_keyword = 'TENSOR_COMPUTATION'
-    CALL meta_append(m_rry, size_mpi, ios)
+    CALL meta_append(m_rry, size_mpi, binary, ios)
         
     IF(ios /= "") CALL print_err_stop(6, ios, 1)
 
@@ -276,8 +278,6 @@ If (rank_mpi == 0) THEN
 
     IF (std_out/=6) CALL meta_start_ascii(std_out, '.std_out')
     IF (std_out/=0) CALL meta_start_ascii(std_err, '.std_err')
-
-    CALL meta_write('DBG_LVL', out_amount)
 
     !------------------------------------------------------------------------------
     ! Warning / Error handling
@@ -510,6 +510,8 @@ If (rank_mpi == 0) THEN
 
         IF (No_of_domains == computed_domains) THEN 
             mssg = "Job is already finished. No restart required."
+            job_was_already_finished = .TRUE.
+
             CALL print_err_stop_slaves(mssg, "message"); GOTO 1000
         END IF 
 
@@ -1445,11 +1447,25 @@ IF(rank_mpi == 0) THEN
         WRITE(std_out, FMT_TXT_SEP)
     END IF 
 
-    CALL meta_finish(binary)
-
 END IF ! (rank_mpi == 0)
 
 1000 Continue
+
+IF(rank_mpi==0) THEN
+
+    !------------------------------------------------------------------------------
+    ! Write the "JOB_FINISHED" keyword only if the job was finished during 
+    ! this job (re)run.
+    !------------------------------------------------------------------------------
+    write(std_out, *) "Domain_stats(No_of_domains)", Domain_stats(No_of_domains)
+    write(std_out, *) "No_of_domains", No_of_domains
+    IF (Domain_stats(No_of_domains) == No_of_domains-1) THEN ! counts from 0
+
+        no_restart_required = .TRUE.
+    END IF 
+
+    CALL meta_close(m_rry, no_restart_required)
+END IF 
 
 CALL MPI_FILE_CLOSE(aun, ierr)
 CALL MPI_FINALIZE(ierr)

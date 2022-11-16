@@ -25,6 +25,7 @@ endif
 # Check for environment
 # -----------------------------------------------------------------------------
 check-env:
+#
 ifeq ($(SYS_ENV),)
 	@echo "---------------------------------------------------"
 	@echo "-- Please source environment.source <system> first."
@@ -202,7 +203,15 @@ geb-lib-ld-objects = $(st_obj_dir)mod_global_std$(obj_ext) \
 # -----------------------------------------------------------------------------
 # Executable
 # -----------------------------------------------------------------------------
-main_bin = $(bin_dir)$(bin_name)_$(trgt_vrsn)$(bin_suf)
+out_amount=$(shell grep out_amount geb-lib/f-src/mod_global_std.f90  | cut -d '"' -f 2)
+#
+ifeq ($(out_amount),PRODUCTION)
+	oa=p
+else ifeq ($(out_amount),DEBUG)
+	oa=d
+endif
+#
+main_bin = $(bin_dir)$(bin_name)_$(trgt_vrsn)-$(oa)$(bin_suf)
 #
 # ------------------------------------------------------------------------------
 # Build the st directory first
@@ -663,6 +672,6 @@ end_all:
 	@echo "----------------------------------------------------------------------------------"
 	@echo "-- Successfully built all executables."
 	@echo "----------------------------------------------------------------------------------"
-	@echo -n "-- out_amount = " && grep out_amount geb-lib/f-src/mod_global_std.f90  | cut -d '"' -f 2
+	@echo "-- out_amount = $(out_amount)"
 	@echo "----------------------------------------------------------------------------------"
 
