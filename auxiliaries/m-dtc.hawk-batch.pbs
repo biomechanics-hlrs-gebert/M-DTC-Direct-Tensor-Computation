@@ -53,13 +53,19 @@ declare -a processors=(\
     "8097" \
     )
 #
+# ------------------------------------------------------------------------------
+tracker_file="${PBS_JOBNAME}.i${PBS_JOBID}.batch_tracker"
 for ((ii=0; ii<${#basenames[@]}; ii++));
 do
     "$DATASET_DIR"/memlog.sh "$DATASET_DIR/${basenames[ii]}".memlog > /dev/null 2> /dev/null &
     #
+    echo "$DATASET_DIR/${basenames[ii]}.meta started" >> "$tracker_file"
     mpirun -np "${processors[ii]}" "$BINARY" "$PBS_O_WORKDIR" "$DATASET_DIR/${basenames[ii]}".meta \
             >"$DATASET_DIR/${basenames[ii]}".std_out 2>"$DATASET_DIR/${basenames[ii]}".std_err
     #	
 	# job_name.i[nfo]job_id.batch_tracker${PBS_JOBNAME}
-    echo "$DATASET_DIR/${basenames[ii]}.meta done" >> "${PBS_JOBNAME}.i${PBS_JOBID}.batch_tracker"
+    {
+    echo "$DATASET_DIR/${basenames[ii]}.meta finished"; 
+    echo ""
+    } >> "$tracker_file"
 done
