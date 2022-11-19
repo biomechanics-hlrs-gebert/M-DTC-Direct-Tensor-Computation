@@ -670,7 +670,8 @@ cleanall: clean
 #
 end_all: 
 	@echo "----------------------------------------------------------------------------------"
-	@echo "-- Successfully built all executables."
+	@echo "-- Successfully built all executables:"
+	@echo "-- " && ls -l bin | grep "x86" | rev | cut -d " " -f 1 | rev | sed -e 's/^/-- /g'
 	@echo "----------------------------------------------------------------------------------"
 	@echo "-- out_amount = $(out_amount)"
 	@echo "----------------------------------------------------------------------------------"

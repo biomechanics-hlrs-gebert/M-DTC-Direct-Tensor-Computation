@@ -124,7 +124,7 @@ CHARACTER(mcl)  , DIMENSION(:), ALLOCATABLE :: m_rry
 
 CHARACTER(4*mcl) :: job_dir
 CHARACTER(mcl)   :: cmd_arg_history='', link_name = 'struct process', stat_char="", &
-    muCT_pd_path, muCT_pd_name, binary, activity_file, desc="", memlog_file=""
+    muCT_pd_path, muCT_pd_name, binary, activity_file, desc="", memlog_file="", batch_order=""
 CHARACTER(8)   :: elt_micro, output
 CHARACTER(mcl) :: typeraw="", restart='N', restart_cmd_arg='U',ios="" ! U = 'undefined'
 CHARACTER(3)   :: file_status
@@ -148,7 +148,7 @@ INTEGER(pd_ik) :: serial_root_size, add_leaves
 
 LOGICAL :: success, stat_exists, heaxist, abrt = .FALSE.
 LOGICAL :: create_new_header = .FALSE., fex=.TRUE., no_restart_required = .FALSE., &
-    job_was_already_finished = .FALSE.
+    job_was_already_finished = .FALSE., job_done
 
 
 !----------------------------------------------------------------------------
@@ -172,6 +172,11 @@ If (rank_mpi == 0) THEN
     END IF 
 
     CALL Start_Timer("Init Process")
+
+    !------------------------------------------------------------------------------
+    ! Batch feedback
+    !------------------------------------------------------------------------------
+    CALL execute_command_line ("export BATCH_RUN"//"='JOB_STARTED'")
 
     !------------------------------------------------------------------------------
     ! Parse the command arguments
@@ -1437,15 +1442,9 @@ IF(rank_mpi == 0) THEN
 
     CALL link_end(link_name,.True.)
 
-    CALL meta_stop_ascii(fh_mon, mon_suf)
-
-    IF (std_out/=6) THEN
-        CALL meta_stop_ascii(fh=std_out, suf='.std_out')
-    ELSE
-        WRITE(std_out, FMT_TXT_SEP)
-        WRITE(std_out, FMT_TXT) "HLRS Direct Tensor Computation finished successfully."
-        WRITE(std_out, FMT_TXT_SEP)
-    END IF 
+    WRITE(std_out, FMT_TXT_SEP)
+    WRITE(std_out, FMT_TXT) "HLRS Direct Tensor Computation finished successfully."
+    WRITE(std_out, FMT_TXT_SEP)
 
 END IF ! (rank_mpi == 0)
 
@@ -1457,14 +1456,21 @@ IF(rank_mpi==0) THEN
     ! Write the "JOB_FINISHED" keyword only if the job was finished during 
     ! this job (re)run.
     !------------------------------------------------------------------------------
-    write(std_out, *) "Domain_stats(No_of_domains)", Domain_stats(No_of_domains)
-    write(std_out, *) "No_of_domains", No_of_domains
     IF (Domain_stats(No_of_domains) == No_of_domains-1) THEN ! counts from 0
 
         no_restart_required = .TRUE.
     END IF 
 
     CALL meta_close(m_rry, no_restart_required)
+
+    CALL meta_stop_ascii(fh_mon, mon_suf)
+
+    IF(std_err/=6) CALL meta_stop_ascii(std_out, '.std_out')
+    IF(std_err/=0) CALL meta_start_ascii(std_err, '.std_err')
+
+    IF (job_done) THEN
+        CALL execute_command_line ("export BATCH_RUN"//"='JOB_FINISHED'")
+    END IF
 END IF 
 
 CALL MPI_FILE_CLOSE(aun, ierr)

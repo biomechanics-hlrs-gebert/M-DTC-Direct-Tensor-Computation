@@ -4,12 +4,12 @@
 #
 # Author:    Johannes Gebert - HLRS - NUM - gebert@hlrs.de
 # Date:      09.01.2022
-# Last edit: 14.11.2022
+# Last edit: 18.11.2022
 #
 # For use of PBSPro visit:
 # https://kb.hlrs.de/platforms/index.php/Batch_System_PBSPro_(Hawk)
 # ------------------------------------------------------------------------------
-#PBS -N fh02-provenance
+#PBS -N fh01-provenance
 #PBS -l select=64:node_type=rome:mpiprocs=128:node_type_mem=256gb
 #PBS -l walltime=00:25:00
 ### #PBS -l walltime=24:00:00
@@ -31,10 +31,12 @@ cd "$PBS_O_WORKDIR" || exit
 # shellcheck source=/dev/null
 source "./environment.source" hawk-exp --no-output
 #
+try_how_many_times=5
+#
 # ------------------------------------------------------------------------------
 # Set the binary and the dataset directory.
 # ------------------------------------------------------------------------------
-BINARY="./bin/dtc_V1.1.0_x86_64"
+BINARY="./bin/dtc_V1.1.0-p_x86_64"
 DATASET_DIR="datasets/"
 #
 # ------------------------------------------------------------------------------
@@ -42,30 +44,86 @@ DATASET_DIR="datasets/"
 # In the second array, declare the number of processors used.
 # ------------------------------------------------------------------------------
 declare -a basenames=(\
-    "FH01-2_mu_dev_dtc_processors186" \
-    "FH01-2_mu_dev_dtc_processors93" \
-    "FH01-2_mu_dev_dtc_processors46" \
-    )
+   "FH01-1_mu_Dev_dtc_Tensors182" \
+   "FH01-1_mu_Dev_dtc_Tensors90" \
+   "FH01-1_mu_Dev_dtc_Tensors45" \
+   "FH01-1_mu_Dev_dtc_Tensors35" \
+   "FH01-1_mu_Dev_dtc_Tensors20" \
+   "FH01-1_mu_Dev_dtc_Tensors10" \
+   )
 #
 declare -a processors=(\
-    "8185" \
-    "8185" \
-    "8097" \
+   "8191" \
+   "8101" \
+   "8101" \
+   "8191" \
+   "8181" \
+   "8181" \
     )
 #
 # ------------------------------------------------------------------------------
 tracker_file="${PBS_JOBNAME}.i${PBS_JOBID}.batch_tracker"
+try_counter=0
 for ((ii=0; ii<${#basenames[@]}; ii++));
 do
+    #
+    # ------------------------------------------------------------------------------
+    # Start memlogging
+    # ------------------------------------------------------------------------------
     "$DATASET_DIR"/memlog.sh "$DATASET_DIR/${basenames[ii]}".memlog > /dev/null 2> /dev/null &
     #
+    # ------------------------------------------------------------------------------
+    # User feedback
+    # ------------------------------------------------------------------------------
     echo "$DATASET_DIR/${basenames[ii]}.meta started" >> "$tracker_file"
+    #
+    # ------------------------------------------------------------------------------
+    # Send variable to struct-proces
+    # ------------------------------------------------------------------------------
+    export BATCH_ORDER="$ii"
+    #
+    # ------------------------------------------------------------------------------
+    # Run the program
+    # ------------------------------------------------------------------------------
     mpirun -np "${processors[ii]}" "$BINARY" "$PBS_O_WORKDIR" "$DATASET_DIR/${basenames[ii]}".meta \
             >"$DATASET_DIR/${basenames[ii]}".std_out 2>"$DATASET_DIR/${basenames[ii]}".std_err
     #	
 	# job_name.i[nfo]job_id.batch_tracker${PBS_JOBNAME}
-    {
-    echo "$DATASET_DIR/${basenames[ii]}.meta finished"; 
-    echo ""
-    } >> "$tracker_file"
+    #
+    # ------------------------------------------------------------------------------
+    # Restart the application up to $how_many_times if the application crashed
+    # ------------------------------------------------------------------------------
+    if [ $try_counter -eq $try_how_many_times ]
+    then
+        #
+        # ------------------------------------------------------------------------------
+        # Reset after n times
+        # ------------------------------------------------------------------------------
+        try_counter=0
+    else
+        if [ "$BATCH_RUN" = "JOB_FINISHED" ]
+        then
+            #
+            # ------------------------------------------------------------------------------
+            # User feedback
+            # ------------------------------------------------------------------------------
+            {
+            echo "$DATASET_DIR/${basenames[ii]}.meta finished"; 
+            echo ""
+            } >> "$tracker_file"
+            #
+            # ------------------------------------------------------------------------------
+            # (Re)Set counters
+            # ------------------------------------------------------------------------------
+           try_counter=0
+        else
+            {
+            echo "BATCH_RUN=$BATCH_RUN"; 
+            echo ""
+            } >> "$tracker_file"
+            #
+            ii=$((ii-1))
+            try_counter=$((try_counter+1))
+        fi
+    fi
 done
