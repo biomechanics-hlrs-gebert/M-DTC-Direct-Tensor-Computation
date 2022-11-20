@@ -124,9 +124,9 @@ CHARACTER(mcl)  , DIMENSION(:), ALLOCATABLE :: m_rry
 
 CHARACTER(4*mcl) :: job_dir
 CHARACTER(mcl)   :: cmd_arg_history='', link_name = 'struct process', stat_char="", &
-    muCT_pd_path, muCT_pd_name, binary, activity_file, desc="", memlog_file="", batch_order=""
+    muCT_pd_path, muCT_pd_name, binary, activity_file, desc="", memlog_file="", &
+    batch_order="", typeraw="", restart='N', restart_cmd_arg='U',ios="" ! U = 'undefined'
 CHARACTER(8)   :: elt_micro, output
-CHARACTER(mcl) :: typeraw="", restart='N', restart_cmd_arg='U',ios="" ! U = 'undefined'
 CHARACTER(3)   :: file_status
 
 REAL(rk), DIMENSION(3) :: delta
@@ -142,14 +142,12 @@ INTEGER(ik) :: nn, ii, jj, kk, dc, stint, computed_domains = 0, comm_nn = 1, &
 
 INTEGER(pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
 INTEGER(pd_ik), DIMENSION(no_streams) :: dsize
-Integer(kind=pd_mik), Dimension(no_streams) :: fh_mpi
+Integer(pd_mik), Dimension(no_streams) :: fh_mpi
 
 INTEGER(pd_ik) :: serial_root_size, add_leaves
 
 LOGICAL :: success, stat_exists, heaxist, abrt = .FALSE.
-LOGICAL :: create_new_header = .FALSE., fex=.TRUE., no_restart_required = .FALSE., &
-    job_was_already_finished = .FALSE., job_done
-
+LOGICAL :: create_new_header = .FALSE., fex=.TRUE., no_restart_required = .FALSE.
 
 !----------------------------------------------------------------------------
 CALL mpi_init(ierr)
@@ -515,7 +513,6 @@ If (rank_mpi == 0) THEN
 
         IF (No_of_domains == computed_domains) THEN 
             mssg = "Job is already finished. No restart required."
-            job_was_already_finished = .TRUE.
 
             CALL print_err_stop_slaves(mssg, "message"); GOTO 1000
         END IF 
@@ -1459,6 +1456,7 @@ IF(rank_mpi==0) THEN
     IF (Domain_stats(No_of_domains) == No_of_domains-1) THEN ! counts from 0
 
         no_restart_required = .TRUE.
+        CALL execute_command_line ("export BATCH_RUN=JOB_FINISHED")
     END IF 
 
     CALL meta_close(m_rry, no_restart_required)
@@ -1468,9 +1466,6 @@ IF(rank_mpi==0) THEN
     IF(std_err/=6) CALL meta_stop_ascii(std_out, '.std_out')
     IF(std_err/=0) CALL meta_start_ascii(std_err, '.std_err')
 
-    IF (job_done) THEN
-        CALL execute_command_line ("export BATCH_RUN"//"='JOB_FINISHED'")
-    END IF
 END IF 
 
 CALL MPI_FILE_CLOSE(aun, ierr)

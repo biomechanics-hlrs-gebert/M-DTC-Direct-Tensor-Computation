@@ -86,6 +86,10 @@ END IF
 ! Open the given meta file and parse its basename
 !------------------------------------------------------------------------------
 CALL meta_invoke(m_rry)
+! Normally, one would call meta_append which wraps meta_invoke and meta_continue.
+! However, meta_continue provides the assignment out=in which is required to set 
+! the proper basename for meta_start_ascii.
+out = in
 
 !------------------------------------------------------------------------------
 ! Redirect std_out into a file in case std_out is not useful by environment.
