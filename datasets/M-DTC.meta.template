@@ -1,5 +1,7 @@
 
 p TENSOR-COMPUTATION
+r PROVENANCE_P_N_BSNM   datasets/FH01-1_mu_dev_CIF_G31                 ! From which dataset to fork from. can be empty
+
 r SIZE_DOMAIN           0.5  0.5  0.5                                  ! (mm)
 r YOUNG_MODULUS         5600.0                                         ! Monolithical parameter
 r POISSON_RATIO         0.3                                            ! Monolithical parameter
@@ -12,5 +14,5 @@ r LO_BNDS_DMN_RANGE     0    0    0                                    ! xa_n - 
 r UP_BNDS_DMN_RANGE     2    2    2                                    ! xe_n - Upper bounds of selected domain range
 r RESTART               N                                              ! Restart a (partly) computed project
 
-r NEW_BSNM_FEATURE      Tensors                                        ! Last segment of basename - NO '_'
-r NEW_BSNM_PURPOSE      Pro                                            ! 3rd segment of basename - NO '_'
+r NEW_BSNM_FEATURE      06                                             ! Last segment of basename - NO '_'
+r NEW_BSNM_PURPOSE      pro                                            ! 3rd segment of basename - NO '_'

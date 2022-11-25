@@ -86,6 +86,10 @@ END IF
 ! Open the given meta file and parse its basename
 !------------------------------------------------------------------------------
 CALL meta_invoke(m_rry)
+! Normally, one would call meta_append which wraps meta_invoke and meta_continue.
+! However, meta_continue provides the assignment out=in which is required to set 
+! the proper basename for meta_start_ascii.
+out = in
 
 !------------------------------------------------------------------------------
 ! Redirect std_out into a file in case std_out is not useful by environment.
@@ -120,7 +124,7 @@ CALL meta_read('MESH_PER_SUB_DMN'  , m_rry, parts, stat); IF(stat/="") STOP
 !------------------------------------------------------------------------------
 ! Macro Element order via string for more flexibility
 !------------------------------------------------------------------------------
-CALL meta_read('MACRO_ELMNT_ORDER'  , m_rry, mi_el_type, stat); IF(stat/="") STOP
+CALL meta_read('MACRO_ELMNT_ORDER' , m_rry, mi_el_type, stat); IF(stat/="") STOP
 CALL meta_read('MICRO_ELMNT_TYPE'  , m_rry, ma_el_type, stat); IF(stat/="") STOP
 
 CALL meta_read('PROCESSORS' , m_rry, size_mpi, stat); IF(stat/="") STOP

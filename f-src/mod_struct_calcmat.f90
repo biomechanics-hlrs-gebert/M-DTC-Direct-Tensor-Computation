@@ -111,6 +111,9 @@ max_c = Real(xe_n    ,rk) * delta
 If (macro_order == 1) then
     no_elem_nodes = 8
     no_lc         = 24
+ELSE IF (macro_order == 2) THEN
+     no_elem_nodes = 20
+     no_lc         = 60
 Else
     CALL print_err_stop(std_out, "Element order other than 1 not supported", 1)
 End If
@@ -126,13 +129,17 @@ Write(desc,'(A,I0)') 'Mesh info of '//trim(project_name)//'_', ddc_nn
 Call search_branch(trim(desc), domain_branch, mesh_branch, success)
 
 ! DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+! Braucht man das noch?
 call log_tree(mesh_branch, un_lf, .FALSE.)
 ! DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 call pd_get(mesh_branch, 'No of nodes in mesh',  no_nodes)
 call pd_get(mesh_branch, 'No of elements in mesh',  no_elems)
 
+! DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+! Dafuq?!
 micro_elem_nodes = 20
+! DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 If (out_amount /= "PRODUCTION") then
     write(un_lf, FMT_MSG_xAI0) "Set number of nodes per micro element to: ", micro_elem_nodes

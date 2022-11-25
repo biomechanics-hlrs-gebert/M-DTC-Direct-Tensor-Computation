@@ -124,9 +124,9 @@ CHARACTER(mcl)  , DIMENSION(:), ALLOCATABLE :: m_rry
 
 CHARACTER(4*mcl) :: job_dir
 CHARACTER(mcl)   :: cmd_arg_history='', link_name = 'struct process', stat_char="", &
-    muCT_pd_path, muCT_pd_name, binary, activity_file, desc="", memlog_file=""
+    muCT_pd_path, muCT_pd_name, binary, activity_file, desc="", memlog_file="", &
+    batch_order="", typeraw="", restart='N', restart_cmd_arg='U',ios="" ! U = 'undefined'
 CHARACTER(8)   :: elt_micro, output
-CHARACTER(mcl) :: typeraw="", restart='N', restart_cmd_arg='U',ios="" ! U = 'undefined'
 CHARACTER(3)   :: file_status
 
 REAL(rk), DIMENSION(3) :: delta
@@ -142,12 +142,12 @@ INTEGER(ik) :: nn, ii, jj, kk, dc, stint, computed_domains = 0, comm_nn = 1, &
 
 INTEGER(pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
 INTEGER(pd_ik), DIMENSION(no_streams) :: dsize
-Integer(kind=pd_mik), Dimension(no_streams) :: fh_mpi
+Integer(pd_mik), Dimension(no_streams) :: fh_mpi
 
 INTEGER(pd_ik) :: serial_root_size, add_leaves
 
 LOGICAL :: success, stat_exists, heaxist, abrt = .FALSE.
-LOGICAL :: create_new_header = .FALSE., fex=.TRUE.
+LOGICAL :: create_new_header = .FALSE., fex=.TRUE., no_restart_required = .FALSE.
 
 !----------------------------------------------------------------------------
 CALL mpi_init(ierr)
@@ -172,6 +172,11 @@ If (rank_mpi == 0) THEN
     CALL Start_Timer("Init Process")
 
     !------------------------------------------------------------------------------
+    ! Batch feedback
+    !------------------------------------------------------------------------------
+    CALL execute_command_line ("export BATCH_RUN"//"='JOB_STARTED'")
+
+    !------------------------------------------------------------------------------
     ! Parse the command arguments
     !------------------------------------------------------------------------------
     CALL get_cmd_args(binary, in%full, restart_cmd_arg, cmd_arg_history)
@@ -185,7 +190,7 @@ If (rank_mpi == 0) THEN
         mssg = "No input file given"
         CALL print_err_stop_slaves(mssg); GOTO 1000
     ELSE
-        IF ( in%full(LEN_TRIM(in%full)-4 : LEN_TRIM(in%full)) /= ".meta") THEN
+        IF(in%full(LEN_TRIM(in%full)-4 : LEN_TRIM(in%full)) /= ".meta") THEN
             mssg = "No meta file given."
             CALL print_err_stop_slaves(mssg); GOTO 1000
         END IF         
@@ -197,7 +202,7 @@ If (rank_mpi == 0) THEN
     !------------------------------------------------------------------------------
     global_meta_prgrm_mstr_app = 'dtc' 
     global_meta_program_keyword = 'TENSOR_COMPUTATION'
-    CALL meta_append(m_rry, size_mpi, ios)
+    CALL meta_append(m_rry, size_mpi, binary, ios)
         
     IF(ios /= "") CALL print_err_stop(6, ios, 1)
 
@@ -205,12 +210,13 @@ If (rank_mpi == 0) THEN
     ! Redirect std_out into a file in case std_out is not useful by environment.
     ! Place these lines before handle_lock_file :-)
     !------------------------------------------------------------------------------
-    std_out = determine_stout()
-
+    CALL determine_std_fh(std_out, std_err)
+     
     !------------------------------------------------------------------------------
-    ! Spawn standard out after(!) the basename is known
+    ! Spawn standard out/err after(!) the basename is known
     !------------------------------------------------------------------------------
     IF(std_out/=6) CALL meta_start_ascii(std_out, '.std_out')
+    IF(std_err/=0) CALL meta_start_ascii(std_err, '.std_err')
 
     CALL show_title(["Dr.-Ing. Ralf Schneider (HLRS, NUM)", &
         "Johannes Gebert, M.Sc. (HLRS, NUM) "])
@@ -253,6 +259,7 @@ If (rank_mpi == 0) THEN
     CALL meta_read('POISSON_RATIO'    , m_rry, bone%nu, ios); CALL mest(ios, abrt)
     CALL meta_read('MACRO_ELMNT_ORDER', m_rry, elo_macro, ios); CALL mest(ios, abrt)
     CALL meta_read('TYPE_RAW'         , m_rry, typeraw, ios); CALL mest(ios, abrt)
+
     
     IF(abrt) CALL print_err_stop(std_out, "A keyword error occured.", 1)
 
@@ -273,8 +280,7 @@ If (rank_mpi == 0) THEN
     CALL meta_start_ascii(fh_mon, mon_suf)
 
     IF (std_out/=6) CALL meta_start_ascii(std_out, '.std_out')
-
-    CALL meta_write('DBG_LVL', out_amount )
+    IF (std_out/=0) CALL meta_start_ascii(std_err, '.std_err')
 
     !------------------------------------------------------------------------------
     ! Warning / Error handling
@@ -507,6 +513,7 @@ If (rank_mpi == 0) THEN
 
         IF (No_of_domains == computed_domains) THEN 
             mssg = "Job is already finished. No restart required."
+
             CALL print_err_stop_slaves(mssg, "message"); GOTO 1000
         END IF 
 
@@ -1432,22 +1439,34 @@ IF(rank_mpi == 0) THEN
 
     CALL link_end(link_name,.True.)
 
-    CALL meta_signing(binary)
-    CALL meta_close()
-
-    CALL meta_stop_ascii(fh_mon, mon_suf)
-
-    IF (std_out/=6) THEN
-        CALL meta_stop_ascii(fh=std_out, suf='.std_out')
-    ELSE
-        WRITE(std_out, FMT_TXT_SEP)
-        WRITE(std_out, FMT_TXT) "HLRS Direct Tensor Computation finished successfully."
-        WRITE(std_out, FMT_TXT_SEP)
-    END IF 
+    WRITE(std_out, FMT_TXT_SEP)
+    WRITE(std_out, FMT_TXT) "HLRS Direct Tensor Computation finished successfully."
+    WRITE(std_out, FMT_TXT_SEP)
 
 END IF ! (rank_mpi == 0)
 
 1000 Continue
+
+IF(rank_mpi==0) THEN
+
+    !------------------------------------------------------------------------------
+    ! Write the "JOB_FINISHED" keyword only if the job was finished during 
+    ! this job (re)run.
+    !------------------------------------------------------------------------------
+    IF (Domain_stats(No_of_domains) == No_of_domains-1) THEN ! counts from 0
+
+        no_restart_required = .TRUE.
+        CALL execute_command_line ("export BATCH_RUN=JOB_FINISHED")
+    END IF 
+
+    CALL meta_close(m_rry, no_restart_required)
+
+    CALL meta_stop_ascii(fh_mon, mon_suf)
+
+    IF(std_err/=6) CALL meta_stop_ascii(std_out, '.std_out')
+    IF(std_err/=0) CALL meta_start_ascii(std_err, '.std_err')
+
+END IF 
 
 CALL MPI_FILE_CLOSE(aun, ierr)
 CALL MPI_FINALIZE(ierr)
