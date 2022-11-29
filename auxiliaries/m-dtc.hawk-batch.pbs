@@ -4,23 +4,33 @@
 #
 # Author:    Johannes Gebert - HLRS - NUM - gebert@hlrs.de
 # Date:      09.01.2022
-# Last edit: 18.11.2022
+# Last edit: 29.11.2022
 #
 # For use of PBSPro visit:
 # https://kb.hlrs.de/platforms/index.php/Batch_System_PBSPro_(Hawk)
 # ------------------------------------------------------------------------------
 #PBS -N fh01-provenance
-#PBS -l select=64:node_type=rome:mpiprocs=128:node_type_mem=256gb
+#PBS -l select=64:node_type=rome:node_type_mem=256gb
 #PBS -l walltime=00:25:00
 ### #PBS -l walltime=24:00:00
 #PBS -q test
 #PBS -M gebert@hlrs.de
 # ------------------------------------------------------------------------------
-date
-echo "############################################################"
-echo -e "Job identifier:\t${PBS_JOBID}"
-echo -e "Job name:\t${PBS_JOBNAME}"
-echo "running on ${HOST}"
+#
+# ------------------------------------------------------------------------------
+# Get the timestamp in Milliseconds as in the ELK-Stack. 
+# Parse with something like 'grep "JOB_START" | cut -d "=" -f 2'
+# ------------------------------------------------------------------------------
+echo "TimeStampMillis JOB_START=$(($(date +%s) * 1000))"
+echo "###############################################################################"
+echo "Job details $(qstat -f)"
+#
+# ------------------------------------------------------------------------------
+# Create a list of the nodes engaged in the batch job.
+# ------------------------------------------------------------------------------
+id_short=$(echo "$PBS_JOBID" | cut -d "." -f 1)
+#
+awk '!seen[$0]++' "$PBS_NODEFILE" | cut -d "." -f 1 > "$PBS_JOBNAME.$id_short.nodefile"
 #
 # ------------------------------------------------------------------------------
 # Change to the directory that the job was submitted from and 
@@ -43,13 +53,16 @@ DATASET_DIR="datasets/"
 # Set the basename of the datasets, according to the MeRaDat format.
 # In the second array, declare the number of processors used.
 # ------------------------------------------------------------------------------
+# The number of processors is required for mpi to cross-check the allocation 
+# of compute resources
+# The number of parts per node is required for power and energy measurements
+# to properly pin domains to nodes.
+# ------------------------------------------------------------------------------
 declare -a basenames=(\
    "FH01-1_mu_Dev_dtc_Tensors182" \
    "FH01-1_mu_Dev_dtc_Tensors90" \
    "FH01-1_mu_Dev_dtc_Tensors45" \
    "FH01-1_mu_Dev_dtc_Tensors35" \
-   "FH01-1_mu_Dev_dtc_Tensors20" \
-   "FH01-1_mu_Dev_dtc_Tensors10" \
    )
 #
 declare -a processors=(\
@@ -57,8 +70,14 @@ declare -a processors=(\
    "8101" \
    "8101" \
    "8191" \
-   "8181" \
-   "8181" \
+    )
+# Parts per node. The number MUST be smaller than the number of physical 
+# processors per node
+declare -a ppn=(\
+   "91" \ # ppd=182
+   "90" \ # ppd=90
+   "45" \ # ppd=45
+   "35" \ # ppd=35
     )
 #
 # ------------------------------------------------------------------------------
@@ -83,9 +102,14 @@ do
     export BATCH_ORDER="$ii"
     #
     # ------------------------------------------------------------------------------
-    # Run the program
+    # Parametrize the program and run it
+    # ppn = Parts per node - how many processes per node, dpending on part per domain
+    # mpiprocs=128 -> default by PBS; how many processes per node
     # ------------------------------------------------------------------------------
-    mpirun -np "${processors[ii]}" "$BINARY" "$PBS_O_WORKDIR" "$DATASET_DIR/${basenames[ii]}".meta \
+    export PARTS_PER_NODE=${ppn[ii]}
+    cmd_options="-np --report-bindings --map-by ppr:${ppn[ii]}:node"
+    #
+    mpirun "$cmd_options" "${processors[ii]}" "$BINARY" "$PBS_O_WORKDIR" "$DATASET_DIR/${basenames[ii]}".meta \
             >"$DATASET_DIR/${basenames[ii]}".std_out 2>"$DATASET_DIR/${basenames[ii]}".std_err
     #	
 	# job_name.i[nfo]job_id.batch_tracker${PBS_JOBNAME}
@@ -127,3 +151,9 @@ do
         fi
     fi
 done
+#
+# ------------------------------------------------------------------------------
+# Get the timestamp in Milliseconds as in the ELK-Stack. 
+# Parse with something like 'grep "JOB_END" | cut -d "=" -f 2'
+# ------------------------------------------------------------------------------
+echo "TimeStampMillis JOB_END=$(($(date +%s) * 1000))"
