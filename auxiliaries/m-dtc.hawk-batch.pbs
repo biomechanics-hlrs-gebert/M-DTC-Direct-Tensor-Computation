@@ -9,6 +9,9 @@
 # For use of PBSPro visit:
 # https://kb.hlrs.de/platforms/index.php/Batch_System_PBSPro_(Hawk)
 # ------------------------------------------------------------------------------
+# IF USED FOR LOAD BALANCING: TAKE CARE NOT TO ALLOCATE TOO MANY NODES!
+# ------------------------------------------------------------------------------
+NO_NODES=64
 #PBS -N fh01-provenance
 #PBS -l select=64:node_type=rome:node_type_mem=256gb
 #PBS -l walltime=00:25:00
@@ -69,7 +72,7 @@ declare -a basenames=(\
    "FH01-1_mu_Dev_dtc_Tensors45" \
    "FH01-1_mu_Dev_dtc_Tensors35" \
    )
-#
+# The number *MUST* fit the total number of processors active on all of the nodes.
 declare -a processors=(\
    "8191" \
    "8101" \
@@ -88,7 +91,11 @@ do
     in_file="$DATASET_DIR/${basenames[ii]}.meta"
     task_file="$DATASET_DIR/${basenames[ii]}.task_geometry"
     #
-    python ./bin/write_task_geometry.DTC.hawk.py -if="$in_file" -tf="$task_file" || continue
+    python ./bin/write_task_geometry.DTC.hawk.py \
+        -if="$in_file" \
+        -nodes="$NO_NODES" \
+        -np="${processors[ii]}" \
+        -tf="$task_file" || continue
     #
     # ------------------------------------------------------------------------------
     # Start memlogging
