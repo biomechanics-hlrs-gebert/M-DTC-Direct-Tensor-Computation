@@ -6,6 +6,7 @@
 #
 # @description: 
 #> Create a file containing the task geometry for an HPE MPT batch job. 
+#> Reads its information out of the meta file of the batch job.
 #
 # -----------------------------------------------------------------------------
 # Import modules
@@ -129,20 +130,71 @@ if ppd > processors_per_node:
     # 3 of 5 nodes must host an additional process
     overhead = ppd - no_processes_per_domain
 
+else:
+    no_nodes_per_domain = 1
 
+parallel_domains = (size_mpi - 1)/ppd
+
+total_no_nodes = (no_nodes_per_domain * parallel_domains) + 1
 
 # -----------------------------------------------------------------------------
 # Concatenate the task geometry like {(0)(1,2,5)(4)}:
 # -----------------------------------------------------------------------------
+# Master rank == 0; calculation of current_rank does not make sense, 
+# but it is a good hint.
+# -----------------------------------------------------------------------------
 task_geom_string="{(" + str(master_rank) + ")"
 
+current_rank = master_rank + 1
+
+for ii in range(1, parallel_domains):
+
+    current_overhead = 0
+    current_proc_per_domain = 1
+    
+    for jj in range(1, no_nodes_per_domain):
+
+        substring = "("
+        
+        for kk in range(1, processors_per_node):
+
+            substring = substring + str(current_rank) 
+
+            if current_proc_per_domain < processors_per_node:
+                substring = substring + ","
+            
+            current_rank += 1
+            current_proc_per_domain += 1
+
+        # -----------------------------------------------------------------------------
+        # Write overhead if required.
+        # -----------------------------------------------------------------------------
+        if current_overhead < overhead:
+
+            substring = substring + str(current_rank)
+            current_overhead += 1
+
+            current_rank += 1
+            current_proc_per_domain += 1
+
+        # -----------------------------------------------------------------------------
+        # Finish node entry
+        # -----------------------------------------------------------------------------
+        substring = substring + ")"
+
+        task_geom_string = task_geom_string + substring
 
 
-
+# -----------------------------------------------------------------------------
+# Finish concatenating wit a curly bracket
+# -----------------------------------------------------------------------------
 task_geom_string = task_geom_string + "}"
 
 # -----------------------------------------------------------------------------
 # Write the *.task_geometry file
 # -----------------------------------------------------------------------------
-with open(cmd_args.task_file, 'w') as f:  # Just use 'w' mode in 3.x
-
+out_file = open(cmd_args.task_file, "w")
+ 
+out_file.write(task_geom_string)
+ 
+out_file.close()
