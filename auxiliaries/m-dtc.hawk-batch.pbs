@@ -41,13 +41,18 @@ cd "$PBS_O_WORKDIR" || exit
 # shellcheck source=/dev/null
 source "./environment.source" hawk-exp --no-output
 #
-try_how_many_times=5
+# ------------------------------------------------------------------------------
+# Python required for writing the *.task_geometry files
+# ------------------------------------------------------------------------------
+module load python || exit
 #
 # ------------------------------------------------------------------------------
 # Set the binary and the dataset directory.
 # ------------------------------------------------------------------------------
 BINARY="./bin/dtc_V1.1.0-p_x86_64"
 DATASET_DIR="datasets/"
+#
+try_how_many_times=5
 #
 # ------------------------------------------------------------------------------
 # Set the basename of the datasets, according to the MeRaDat format.
@@ -71,20 +76,19 @@ declare -a processors=(\
    "8101" \
    "8191" \
     )
-# Parts per node. The number MUST be smaller than the number of physical 
-# processors per node
-declare -a ppn=(\
-   "91" \ # ppd=182
-   "90" \ # ppd=90
-   "45" \ # ppd=45
-   "35" \ # ppd=35
-    )
-#
 # ------------------------------------------------------------------------------
 tracker_file="${PBS_JOBNAME}.i${PBS_JOBID}.batch_tracker"
 try_counter=0
 for ((ii=0; ii<${#basenames[@]}; ii++));
 do
+    #
+    # ------------------------------------------------------------------------------
+    # Create the *.task_geometry file; Skip basename if python does not suceed.
+    # ------------------------------------------------------------------------------
+    in_file="$DATASET_DIR/${basenames[ii]}.meta"
+    task_file="$DATASET_DIR/${basenames[ii]}.task_geometry"
+    #
+    python ./bin/write_task_geometry.DTC.hawk.py -if="$in_file" -tf="$task_file" || continue
     #
     # ------------------------------------------------------------------------------
     # Start memlogging
@@ -97,7 +101,7 @@ do
     echo "$DATASET_DIR/${basenames[ii]}.meta started" >> "$tracker_file"
     #
     # ------------------------------------------------------------------------------
-    # Send variable to struct-proces
+    # Send variable to DTC
     # ------------------------------------------------------------------------------
     export BATCH_ORDER="$ii"
     #
@@ -106,10 +110,10 @@ do
     # ppn = Parts per node - how many processes per node, dpending on part per domain
     # mpiprocs=128 -> default by PBS; how many processes per node
     # ------------------------------------------------------------------------------
-    export PARTS_PER_NODE=${ppn[ii]}
-    cmd_options="-np --report-bindings --map-by ppr:${ppn[ii]}:node"
+    export MPI_TASK_GEOMETRY="$task_file"
+    cmd_options="--report-bindings"
     #
-    mpirun "$cmd_options" "${processors[ii]}" "$BINARY" "$PBS_O_WORKDIR" "$DATASET_DIR/${basenames[ii]}".meta \
+    mpirun "$cmd_options" -np "${processors[ii]}" "$BINARY" "$PBS_O_WORKDIR" "$DATASET_DIR/${basenames[ii]}".meta \
             >"$DATASET_DIR/${basenames[ii]}".std_out 2>"$DATASET_DIR/${basenames[ii]}".std_err
     #	
 	# job_name.i[nfo]job_id.batch_tracker${PBS_JOBNAME}
