@@ -1134,45 +1134,45 @@ Else
             IF(stat_c_int /= 0) THEN
                 mssg = 'Could not create the output directory »'//TRIM(outpath)//'«.'
                 CALL print_err_stop(std_out, mssg, 1)
-            ELSE
-                !------------------------------------------------------------------------------
-                ! Start the memory logging
-                !------------------------------------------------------------------------------
-                        ! INQUIRE(file="./datasets/memlog.sh", exist=fex)
-
-                        ! IF(fex) THEN
-                        !     CALL EXECUTE_COMMAND_LINE (&
-                        !         './datasets/memlog.sh '&
-                        !         //TRIM(outpath)//TRIM(project_name)//'.memlog', CMDSTAT=stat)   
-
-                        !     IF(stat /= 0) WRITE(std_err, FMT_WRN_xAI0) &
-                        !         "Could not start memory logging! Rank: ", rank_mpi
-                        ! ELSE
-                        !     WRITE(std_err, FMT_WRN_xAI0) &
-                        !         "File for memory logging not found! Rank: ", rank_mpi
-                        ! END IF
-
-
-                memlog_file=TRIM(outpath)//TRIM(project_name)//'.memlog'
-                INQUIRE (FILE = memlog_file, EXIST = fex)
-
-                file_status="NEW"
-                IF(fex) file_status="OLD"
-
-                fh_cluster_log = give_new_unit()
-
-                OPEN(UNIT=fh_cluster_log, FILE=TRIM(memlog_file), ACTION='WRITE', &
-                    ACCESS="SEQUENTIAL", STATUS=file_status)
-
-                WRITE(fh_cluster_log, '(A)') &
-                    "Operation, Domain, Nodes, Elems, Preallo, "//&
-                    "Mem_comm, Pids_returned, Size_mpi, time"
-            
-                ! IF(stat /= 0) WRITE(std_err, FMT_WRN_xAI0) &
-                !     "Could not start memory logging! Rank: ", rank_mpi
-
             END IF
         END IF
+
+        !------------------------------------------------------------------------------
+        ! Start the memory logging
+        !------------------------------------------------------------------------------
+                ! INQUIRE(file="./datasets/memlog.sh", exist=fex)
+
+                ! IF(fex) THEN
+                !     CALL EXECUTE_COMMAND_LINE (&
+                !         './datasets/memlog.sh '&
+                !         //TRIM(outpath)//TRIM(project_name)//'.memlog', CMDSTAT=stat)   
+
+                !     IF(stat /= 0) WRITE(std_err, FMT_WRN_xAI0) &
+                !         "Could not start memory logging! Rank: ", rank_mpi
+                ! ELSE
+                !     WRITE(std_err, FMT_WRN_xAI0) &
+                !         "File for memory logging not found! Rank: ", rank_mpi
+                ! END IF
+
+
+        memlog_file=TRIM(outpath)//TRIM(project_name)//'.memlog'
+        INQUIRE (FILE = memlog_file, EXIST = fex)
+
+        file_status="NEW"
+        IF(fex) file_status="OLD"
+
+        fh_cluster_log = give_new_unit()
+
+        OPEN(UNIT=fh_cluster_log, FILE=TRIM(memlog_file), ACTION='WRITE', &
+            ACCESS="SEQUENTIAL", STATUS=file_status)
+
+        WRITE(fh_cluster_log, '(A)') &
+            "Operation, Domain, Nodes, Elems, Preallo, "//&
+            "Mem_comm, Pids_returned, Size_mpi, time"
+    
+        ! IF(stat /= 0) WRITE(std_err, FMT_WRN_xAI0) &
+        !     "Could not start memory logging! Rank: ", rank_mpi
+
 
         CALL link_start(link_name, .True., .True.)
 

@@ -196,19 +196,3 @@ with open(cmd_args.nodelist) as file:
         out_file.write(line + " slots=" + str(slots) + "\n")
  
 out_file.close()
-
-
-
-
-# -----------------------------------------------------------------------------
-# Create the directories for the struct process
-# -----------------------------------------------------------------------------
-for i in range(0,99,20)
-
-
-txt = "50"
-
-x = txt.zfill(10)
-
-
-os.mkdir(cmd_args.hostfile.split() + rank_string)
