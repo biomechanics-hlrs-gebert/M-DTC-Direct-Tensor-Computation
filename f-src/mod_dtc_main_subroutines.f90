@@ -86,7 +86,7 @@ CHARACTER(LEN=8)   :: date, time_str
 CHARACTER(LEN=9)   :: domain_char
 CHARACTER(LEN=10)  :: time
 CHARACTER(LEN=40)  :: mssg_fix_len
-CHARACTER(LEN=mcl) :: str, timer_name, domain_desc, part_desc, &
+CHARACTER(LEN=mcl) :: str, timer_name, rank_char, domain_desc, part_desc, &
     desc, mesh_desc, filename, elt_micro, no_nodes_char, no_elems_char, &
     preallo_char, mem_global_char, status_global_char, size_mpi_char, nn_char
 
@@ -203,8 +203,11 @@ If (rank_mpi == 0) then
 
         IF (ii/=0) THEN
             CALL MPI_RECV(host_list(ii), INT(host_name_length, mik), MPI_CHAR, &
-                INT(ii+1,mik), INT(ii+1,mik), comm_mpi, status_mpi, ierr)
-            CALL print_err_stop(std_out, "MPI_RECV on host_of_part didn't succseed", ierr)
+                INT(ii,mik), INT(ii,mik), comm_mpi, status_mpi, ierr)
+
+            WRITE(rank_char, "(I20)") rank_mpi
+            CALL print_err_stop(std_out, &
+                "MPI_RECV on host_of_part "//TRIM(rank_char)//" didn't succseed", ierr)
         END IF
 
         !------------------------------------------------------------------------------

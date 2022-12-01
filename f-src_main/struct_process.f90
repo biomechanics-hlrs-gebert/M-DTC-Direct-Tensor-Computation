@@ -105,7 +105,7 @@ TYPE(materialcard) :: bone
 
 INTEGER(mik) :: ierr, rank_mpi, size_mpi, petsc_ierr, mii, mjj, &
     worker_rank_mpi, worker_size_mpi, aun, par_domains, &
-    Active, request, finished = -1, worker_comm ! , WRITE_ROOT_COMM
+    Active, request, finished = -1, worker_comm, mpi_proc_resultlen ! , WRITE_ROOT_COMM
 
 INTEGER(mik), Dimension(no_streams)       :: fh_mpi_worker
 INTEGER(mik), Dimension(MPI_STATUS_SIZE)  :: status_mpi
@@ -123,9 +123,9 @@ CHARACTER(4*mcl), DIMENSION(:), ALLOCATABLE :: domain_path
 CHARACTER(mcl)  , DIMENSION(:), ALLOCATABLE :: m_rry      
 
 CHARACTER(4*mcl) :: job_dir
-CHARACTER(mcl)   :: cmd_arg_history='', link_name = 'struct process', stat_char="", &
+CHARACTER(mcl)   :: cmd_arg_history='', link_name = 'struct process', &
     muCT_pd_path, muCT_pd_name, binary, activity_file, desc="", memlog_file="", &
-    batch_order="", typeraw="", restart='N', restart_cmd_arg='U',ios="" ! U = 'undefined'
+    typeraw="", restart='N', restart_cmd_arg='U',ios="", mpi_proc_name ! U = 'undefined'
 CHARACTER(8)   :: elt_micro, output
 CHARACTER(3)   :: file_status
 
@@ -135,14 +135,13 @@ REAL(rk) :: strain, t_start, t_end, t_duration
 INTEGER(ik), DIMENSION(:), ALLOCATABLE :: Domains, nn_D, Domain_stats
 INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0
 
-INTEGER(ik) :: nn, ii, jj, kk, dc, stint, computed_domains = 0, comm_nn = 1, &
-    No_of_domains, path_count, activity_size=0, alloc_stat, fh_memlog, &
-    alloc_stint, free_file_handle, domains_per_comm, stat, &
-    Domain, llimit, parts, elo_macro, raw_data_stream, vdim(3)
+INTEGER(ik) :: nn, ii, jj, kk, dc, computed_domains = 0, comm_nn = 1, &
+    No_of_domains, path_count, activity_size=0, alloc_stat, fh_cluster_log, &
+    free_file_handle, domains_per_comm, stat, &
+    Domain, llimit, parts, elo_macro, vdim(3)
 
 INTEGER(pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
 INTEGER(pd_ik), DIMENSION(no_streams) :: dsize
-Integer(pd_mik), Dimension(no_streams) :: fh_mpi
 
 INTEGER(pd_ik) :: serial_root_size, add_leaves
 
@@ -160,6 +159,12 @@ CALL MPI_COMM_SIZE(MPI_COMM_WORLD, size_mpi, ierr)
 CALL print_err_stop(std_out, "MPI_COMM_SIZE couldn't be retrieved", ierr)
 
 !------------------------------------------------------------------------------
+! How to use that?
+!------------------------------------------------------------------------------
+CALL mpi_get_processor_name(mpi_proc_name, mpi_proc_resultlen, ierr) 
+CALL print_err_stop(std_out, "mpi_get_processor_name failed", ierr)
+
+!------------------------------------------------------------------------------
 ! Rank 0 -- Init (Master) Process and broadcast init parameters 
 !------------------------------------------------------------------------------
 If (rank_mpi == 0) THEN
@@ -174,7 +179,7 @@ If (rank_mpi == 0) THEN
     !------------------------------------------------------------------------------
     ! Batch feedback
     !------------------------------------------------------------------------------
-    CALL execute_command_line ("export BATCH_RUN"//"='JOB_STARTED'")
+    CALL execute_command_line ("echo 'JOB_STARTED' > BATCH_RUN")
 
     !------------------------------------------------------------------------------
     ! Parse the command arguments
@@ -1160,12 +1165,12 @@ Else
                 file_status="NEW"
                 IF(fex) file_status="OLD"
 
-                fh_memlog = give_new_unit()
+                fh_cluster_log = give_new_unit()
 
-                OPEN(UNIT=fh_memlog, FILE=TRIM(memlog_file), ACTION='WRITE', &
+                OPEN(UNIT=fh_cluster_log, FILE=TRIM(memlog_file), ACTION='WRITE', &
                     ACCESS="SEQUENTIAL", STATUS=file_status)
 
-                WRITE(fh_memlog, '(A)') &
+                WRITE(fh_cluster_log, '(A)') &
                     "Operation, Domain, Nodes, Elems, Preallo, "//&
                     "Mem_comm, Pids_returned, Size_mpi, time"
             
@@ -1179,9 +1184,9 @@ Else
 
     ELSE ! Worker threads of the sub communicator
         !------------------------------------------------------------------------------
-        ! Set fh_memlog = -1 for clarifying the state of the worker threads
+        ! Set fh_cluster_log = -1 for clarifying the state of the worker threads
         !------------------------------------------------------------------------------
-        fh_memlog = -1_ik
+        fh_cluster_log = -1_ik
     END IF 
 
         
@@ -1304,7 +1309,7 @@ Else
             !==============================================================================
             ! Compute a domain
             !==============================================================================
-            CALL exec_single_domain(root, comm_nn, Domain, typeraw, job_dir, fh_memlog, &
+            CALL exec_single_domain(root, comm_nn, Domain, typeraw, job_dir, fh_cluster_log, &
                 Active, fh_mpi_worker, worker_rank_mpi, worker_size_mpi, worker_comm)
             !==============================================================================
             
@@ -1408,7 +1413,7 @@ Else
     !------------------------------------------------------------------------------
     ! Close memlog file
     !------------------------------------------------------------------------------
-    CLOSE(fh_memlog)
+    CLOSE(fh_cluster_log)
 
     DO ii = 1, no_streams
         CALL MPI_File_close(fh_mpi_worker(ii), ierr)
@@ -1456,7 +1461,7 @@ IF(rank_mpi==0) THEN
     IF (Domain_stats(No_of_domains) == No_of_domains-1) THEN ! counts from 0
 
         no_restart_required = .TRUE.
-        CALL execute_command_line ("export BATCH_RUN=JOB_FINISHED")
+        CALL execute_command_line ("echo 'JOB_FINISHED' > BATCH_RUN")
     END IF 
 
     CALL meta_close(m_rry, no_restart_required)

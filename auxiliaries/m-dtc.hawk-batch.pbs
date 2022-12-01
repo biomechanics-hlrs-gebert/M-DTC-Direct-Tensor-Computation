@@ -18,6 +18,7 @@
 #PBS -q test
 #PBS -M gebert@hlrs.de
 NO_NODES=8
+PROCESSORS_PER_NODE=128
 # ------------------------------------------------------------------------------
 #
 # ------------------------------------------------------------------------------
@@ -43,7 +44,7 @@ id_short=$(echo "$PBS_JOBID" | cut -d "." -f 1)
 awk '!seen[$0]++' "$PBS_NODEFILE" > "$PBS_JOBNAME.$id_short.nodefile"
 #
 # shellcheck source=/dev/null
-source "./environment.source" hawk-exp --no-output
+source "./environment.source" hawk --no-output
 #
 # ------------------------------------------------------------------------------
 # Python required for writing the *.task_geometry files
@@ -73,9 +74,9 @@ declare -a basenames=(\
    "FH01-1_mu_Dev_dtc_Tensors45" \
    "FH01-1_mu_Dev_dtc_Tensors35" \
    )
-#
+# Calculate them by hand, it is a good quality measure.
 declare -a processors=(\
-   "638" \
+   "547" \
    "631" \
    "316" \
    "246" \
@@ -94,8 +95,8 @@ do
     python ./auxiliaries/write_hostfile.DTC.hawk.py \
         -if="$DATASET_DIR/${basenames[ii]}.meta" \
         -nodes="$NO_NODES" \
+        -ppn="$PROCESSORS_PER_NODE" \
         -nodelist="$PBS_JOBNAME.$id_short.nodefile" \
-        -np="${processors[ii]}" \
         -hf="$host_file" || continue
     #
     # ------------------------------------------------------------------------------
@@ -119,10 +120,11 @@ do
     # mpiprocs=128 -> default by PBS; how many processes per node
     # ------------------------------------------------------------------------------
     #
+    echo "Computing: $DATASET_DIR/${basenames[ii]}.meta"
     mpirun -np "${processors[ii]}" -hostfile "$host_file" \
             --report-bindings --nooversubscribe \
-            "$BINARY" "$PBS_O_WORKDIR" "$DATASET_DIR/${basenames[ii]}".meta \
-            >"$DATASET_DIR/${basenames[ii]}".std_out 2>"$DATASET_DIR/${basenames[ii]}".std_err
+            "$BINARY" "$PBS_O_WORKDIR" "$PWD/$DATASET_DIR/${basenames[ii]}".meta \
+            >>"$DATASET_DIR/${basenames[ii]}".std_out 2>>"$DATASET_DIR/${basenames[ii]}".std_err
     # 
 	# job_name.i[nfo]job_id.batch_tracker${PBS_JOBNAME}
     #
@@ -170,6 +172,11 @@ do
         fi
     fi
 done
+#
+if [ -f "BATCH_RUN" ]
+then
+    rm BATCH_RUN
+fi 
 #
 # ------------------------------------------------------------------------------
 # Get the timestamp in Milliseconds as in the ELK-Stack. 
