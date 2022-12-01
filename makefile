@@ -93,17 +93,17 @@ clean_cmd = rm -rf
 #
 # ------------------------------------------------------------------------------
 # C include paths for external libraries
-c_inc_path = -I$(METIS_INCPATH)
+c_inc_path = -I$(METIS_INCPATH)  -I$(PARMETIS_INCPATH) 
 #
 # -----------------------------------------------------------------------------
 # Fortran include paths for external libraries
 # -----------------------------------------------------------------------------
-f90_inc_path = -I$(PETSC_INCPATH)
+f90_inc_path = -I$(PETSC_INCPATH) -I$(PARMETIS_INCPATH)
 #
 # ------------------------------------------------------------------------------
 # Library paths for external libraries 
 # -----------------------------------------------------------------------------
-lib_path_flag = -L$(LAPACK_LIBPATH) -L$(METIS_LIBPATH) -L$(PETSC_LIBPATH)
+lib_path_flag = -L$(LAPACK_LIBPATH) -L$(METIS_LIBPATH) -L$(PETSC_LIBPATH) -L$(PARMETIS_LIBPATH)
 #
 # -----------------------------------------------------------------------------
 # Choose Lapack

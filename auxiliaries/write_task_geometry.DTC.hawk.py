@@ -11,9 +11,7 @@
 # -----------------------------------------------------------------------------
 # Import modules
 # -----------------------------------------------------------------------------
-import os
-import argparse
-import math
+import os, argparse, math
 
 #
 # -----------------------------------------------------------------------------
@@ -141,6 +139,8 @@ if ppd > processors_per_node:
     # 3 = 598 - 595
     # 3 of 5 nodes must host an additional process
     overhead = ppd - no_processes_per_domain
+    
+    processors_per_node=processes_per_node
 
 else:
     no_nodes_per_domain = 1
@@ -168,7 +168,9 @@ task_geom_string="{(" + str(master_rank) + ")"
 
 current_rank = master_rank + 1
 
+print ("Write the task geometry file.")
 print ("ppd: " + str(ppd))
+print ("overhead: " + str(overhead))
 print ("parallel_domains: " + str(parallel_domains))
 print ("no_nodes_per_domain: " + str(no_nodes_per_domain))
 print ("processors_per_node: " + str(processors_per_node))
@@ -188,7 +190,7 @@ for ii in range(0, parallel_domains):
 
             substring = substring
 
-            if current_proc_per_node < ppd:
+            if current_proc_per_node < processors_per_node:
                 substring = substring + str(current_rank) + ","
             else:
                 substring = substring + str(current_rank) 
@@ -212,8 +214,6 @@ for ii in range(0, parallel_domains):
         # Finish node entry
         # -----------------------------------------------------------------------------
         substring = substring + ")"
-
-        print(substring)
 
         task_geom_string = task_geom_string + substring
 
