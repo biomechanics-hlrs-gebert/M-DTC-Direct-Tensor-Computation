@@ -49,7 +49,7 @@ CONTAINS
 !> @param[in]    comm_mpi
 !------------------------------------------------------------------------------
 Subroutine exec_single_domain(root, comm_nn, domain, typeraw, &
-    job_dir, fh_memlog, active, fh_mpi_worker, rank_mpi, size_mpi, comm_mpi)
+    job_dir, fh_cluster_log, active, fh_mpi_worker, rank_mpi, size_mpi, comm_mpi)
 
 TYPE(materialcard) :: bone
 INTEGER(kind=mik), Intent(INOUT), Dimension(no_streams) :: fh_mpi_worker
@@ -57,7 +57,7 @@ INTEGER(kind=mik), Intent(INOUT), Dimension(no_streams) :: fh_mpi_worker
 Character(LEN=*) , Intent(in)  :: job_dir
 Character(LEN=*) , Intent(in)  :: typeraw
 INTEGER(kind=mik), Intent(In)  :: rank_mpi, size_mpi, comm_mpi
-INTEGER(kind=ik) , intent(in)  :: comm_nn, domain, fh_memlog
+INTEGER(kind=ik) , intent(in)  :: comm_nn, domain, fh_cluster_log
 INTEGER(kind=mik), intent(out) :: active
 Type(tBranch)    , Intent(inOut) :: root
 
@@ -69,12 +69,11 @@ INTEGER(mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
 INTEGER(mik) :: ierr, petsc_ierr
 
 INTEGER(kind=pd_ik), Dimension(:), Allocatable :: serial_pb
-INTEGER(kind=pd_ik), Dimension(no_streams)     ::  dsize
 INTEGER(kind=pd_ik)                            :: serial_pb_size
 
 INTEGER(Kind=ik) :: preallo, domain_elems, ii, jj, kk, id, stat, &
     Istart,Iend, parts, IVstart, IVend, m_size, mem_global, status_global, &
-    no_elems, no_nodes, ddc_nn
+    no_elems, no_nodes, ddc_nn, no_different_hosts
 
 INTEGER(Kind=ik), Dimension(:)  , Allocatable :: nodes_in_mesh
 INTEGER(kind=ik), Dimension(:)  , Allocatable :: gnid_cref
@@ -87,12 +86,16 @@ CHARACTER(LEN=8)   :: date, time_str
 CHARACTER(LEN=9)   :: domain_char
 CHARACTER(LEN=10)  :: time
 CHARACTER(LEN=40)  :: mssg_fix_len
-CHARACTER(LEN=mcl) :: str, timer_name, domain_desc, part_desc, env_var, &
+CHARACTER(LEN=mcl) :: str, timer_name, domain_desc, part_desc, &
     desc, mesh_desc, filename, elt_micro, no_nodes_char, no_elems_char, &
     preallo_char, mem_global_char, status_global_char, size_mpi_char, nn_char
 
 Character, Dimension(4*mcl) :: c_char_array
 Character, Dimension(:), Allocatable :: char_arr
+
+INTEGER(ik), PARAMETER :: host_name_length = 10
+CHARACTER(host_name_length), DIMENSION(:), ALLOCATABLE :: host_list, unique_host_list
+CHARACTER(host_name_length) :: host_of_part
 
 LOGICAL, PARAMETER :: DEBUG = .TRUE.
 logical :: success=.TRUE.
@@ -123,6 +126,9 @@ write(domain_char,'(I0)') domain
 !--------------------------------------------------------------------------
 ! Get basic infos 
 !--------------------------------------------------------------------------
+host_of_part = ""
+CALL get_environment_Variable("HOST", host_of_part)
+
 CALL Search_branch("Input parameters", root, meta_para, success, out_amount)
 
 CALL pd_get(meta_para, "No of mesh parts per subdomain", parts)
@@ -159,15 +165,12 @@ If (rank_mpi == 0) then
 
         End If
 
-        Write(un_lf,FMT_MSG_SEP)
     End If
 
     !------------------------------------------------------------------------------
     ! Write log and monitor file
     !------------------------------------------------------------------------------
-    Write(un_lf, FMT_MSG_xAI0) "Domain No. : ", domain
-    Write(un_lf, FMT_MSG)      "Job_dir    : "//Trim(job_dir)
-
+    Write(un_lf,FMT_MSG_SEP)
     CALL DATE_AND_TIME(DATE=date, TIME=time, ZONE=timezone)
 
     str = ''
@@ -177,8 +180,70 @@ If (rank_mpi == 0) then
     
     WRITE(un_lf, '(2A)') 'Start time: ', TRIM(str)
 
-    CALL get_environment_Variable("HOSTNAME", env_var)
-    Write(un_lf,FMT_MSG) "Host       : "//Trim(env_var)
+    Write(un_lf, FMT_MSG_xAI0) "Domain No.: ", domain
+    Write(un_lf, FMT_MSG)      "Job_dir:    "//Trim(job_dir)
+    Write(un_lf,FMT_MSG_SEP)
+
+    !------------------------------------------------------------------------------
+    ! Get and log the hosts of all parts
+    !------------------------------------------------------------------------------
+    IF (.NOT. ALLOCATED(host_list)) ALLOCATE(host_list(parts))
+    IF (.NOT. ALLOCATED(unique_host_list)) ALLOCATE(unique_host_list(parts))
+    
+    host_list(1)        = host_of_part
+
+    no_different_hosts = 1
+
+    unique_host_list(no_different_hosts) = host_of_part
+
+    !------------------------------------------------------------------------------
+    ! Loop over all ranks of the sub comm
+    !------------------------------------------------------------------------------
+    Do ii = 1, parts-1
+
+        IF (ii/=0) THEN
+            CALL MPI_RECV(host_list(ii), INT(host_name_length, mik), MPI_CHAR, &
+                INT(ii+1,mik), INT(ii+1,mik), comm_mpi, status_mpi, ierr)
+            CALL print_err_stop(std_out, "MPI_RECV on host_of_part didn't succseed", ierr)
+        END IF
+
+        !------------------------------------------------------------------------------
+        ! Test whether the host is unique in the domain
+        !------------------------------------------------------------------------------
+        IF (host_list(ii) == "") CYCLE
+        
+        DO jj = 1, parts
+
+            IF((host_list(ii) /= unique_host_list(jj))  .AND. (unique_host_list(jj) /= "")) THEN
+                no_different_hosts = no_different_hosts + 1_ik
+                unique_host_list(no_different_hosts) = host_list(ii)
+            END IF 
+        END DO
+        
+    END Do
+
+    !------------------------------------------------------------------------------
+    ! Concatenate the string of the unique host names.
+    !------------------------------------------------------------------------------
+    mssg_fix_len = "Unique hosts of domain:"
+    WRITE(fh_cluster_log, '(A)', ADVANCE="NO") mssg_fix_len//", "//domain_char//", " 
+
+    DO ii = 1, host_name_length, no_different_hosts*host_name_length
+
+        WRITE(fh_cluster_log, '(A)', ADVANCE="NO") TRIM(unique_host_list(ii))//","
+    END DO
+
+    WRITE(fh_cluster_log, '(A)')
+
+ELSE ! (rank_mpi == 0) THEN
+
+    CALL MPI_SEND(host_of_part, INT(host_name_length, mik), MPI_CHAR, 0_mik, rank_mpi, comm_mpi, ierr)
+    CALL print_err_stop(std_out, "MPI_SEND of host_of_part didn't succeed", ierr)
+
+END IF 
+
+
+If (rank_mpi == 0) then
 
     !------------------------------------------------------------------------------
     ! Generate Geometry
@@ -310,7 +375,7 @@ Else
     !------------------------------------------------------------------------------
     ! Deserialize part branch
     !------------------------------------------------------------------------------
-3    CALL Start_Timer("Deserialize part branch branch")
+    CALL Start_Timer("Deserialize part branch branch")
 
     Allocate(part_branch)
     
@@ -399,7 +464,7 @@ IF (rank_mpi == 0) THEN
     ! Write to the memlog file of the mpi communicator for latter analysis by 
     ! python and gnuplot. Formatted for combined humand and machine readability.
     !------------------------------------------------------------------------------
-    WRITE(fh_memlog, '(A)') mssg_fix_len//", "//domain_char//&
+    WRITE(fh_cluster_log, '(A)') mssg_fix_len//", "//domain_char//&
         &", "//TRIM(ADJUSTL(no_nodes_char))//&
         ", "//TRIM(ADJUSTL(no_elems_char))//&
         ", "//TRIM(ADJUSTL(preallo_char))//&
@@ -447,7 +512,7 @@ IF (rank_mpi == 0) THEN
     CALL DATE_AND_TIME(TIME=time)
     time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
 
-    WRITE(fh_memlog, '(A)') mssg_fix_len//", "//domain_char//&
+    WRITE(fh_cluster_log, '(A)') mssg_fix_len//", "//domain_char//&
         &", "//TRIM(ADJUSTL(no_nodes_char))//&
         ", "//TRIM(ADJUSTL(no_elems_char))//&
         ", "//TRIM(ADJUSTL(preallo_char))//&
@@ -580,7 +645,7 @@ IF (rank_mpi == 0) THEN
     CALL DATE_AND_TIME(TIME=time)
     time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
 
-    WRITE(fh_memlog, '(A)') mssg_fix_len//", "//domain_char//&
+    WRITE(fh_cluster_log, '(A)') mssg_fix_len//", "//domain_char//&
         &", "//TRIM(ADJUSTL(no_nodes_char))//&
         ", "//TRIM(ADJUSTL(no_elems_char))//&
         ", "//TRIM(ADJUSTL(preallo_char))//&
@@ -644,7 +709,7 @@ IF (rank_mpi == 0) THEN
     CALL DATE_AND_TIME(TIME=time)
     time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
 
-    WRITE(fh_memlog, '(A)') mssg_fix_len//", "//domain_char//&
+    WRITE(fh_cluster_log, '(A)') mssg_fix_len//", "//domain_char//&
         &", "//TRIM(ADJUSTL(no_nodes_char))//&
         ", "//TRIM(ADJUSTL(no_elems_char))//&
         ", "//TRIM(ADJUSTL(preallo_char))//&
@@ -904,7 +969,7 @@ IF (rank_mpi == 0) THEN
     CALL DATE_AND_TIME(TIME=time)
     time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
 
-    WRITE(fh_memlog, '(A)') mssg_fix_len//", "//domain_char//&
+    WRITE(fh_cluster_log, '(A)') mssg_fix_len//", "//domain_char//&
         &", "//TRIM(ADJUSTL(no_nodes_char))//&
         ", "//TRIM(ADJUSTL(no_elems_char))//&
         ", "//TRIM(ADJUSTL(preallo_char))//&
@@ -1112,7 +1177,7 @@ IF (rank_mpi == 0) THEN
     CALL DATE_AND_TIME(TIME=time)
     time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
 
-    WRITE(fh_memlog, '(A)') mssg_fix_len//", "//domain_char//&
+    WRITE(fh_cluster_log, '(A)') mssg_fix_len//", "//domain_char//&
         &", "//TRIM(ADJUSTL(no_nodes_char))//&
         ", "//TRIM(ADJUSTL(no_elems_char))//&
         ", "//TRIM(ADJUSTL(preallo_char))//&
@@ -1175,7 +1240,7 @@ IF ((rank_mpi == 0) .AND. (TRIM(ADJUSTL(no_nodes_char)) /= "0")) THEN
     CALL DATE_AND_TIME(TIME=time)
     time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
 
-    WRITE(fh_memlog, '(A)') mssg_fix_len//", "//domain_char//&
+    WRITE(fh_cluster_log, '(A)') mssg_fix_len//", "//domain_char//&
         &", "//TRIM(ADJUSTL(no_nodes_char))//&
         ", "//TRIM(ADJUSTL(no_elems_char))//&
         ", "//TRIM(ADJUSTL(preallo_char))//&
@@ -1186,7 +1251,7 @@ IF ((rank_mpi == 0) .AND. (TRIM(ADJUSTL(no_nodes_char)) /= "0")) THEN
     !------------------------------------------------------------------------------
     ! Save to file. Minimizing I/O vs. securing the data.
     !------------------------------------------------------------------------------
-    FLUSH(fh_memlog)
+    FLUSH(fh_cluster_log)
 END IF
 
 End Subroutine exec_single_domain
