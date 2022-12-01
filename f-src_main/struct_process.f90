@@ -125,7 +125,7 @@ CHARACTER(mcl)  , DIMENSION(:), ALLOCATABLE :: m_rry
 CHARACTER(4*mcl) :: job_dir
 CHARACTER(mcl)   :: cmd_arg_history='', link_name = 'struct process', &
     muCT_pd_path, muCT_pd_name, binary, activity_file, desc="", memlog_file="", &
-    typeraw="", restart='N', restart_cmd_arg='U',ios="", mpi_proc_name ! U = 'undefined'
+    typeraw="", restart='N', restart_cmd_arg='U',ios="" ! U = 'undefined'
 CHARACTER(8)   :: elt_micro, output
 CHARACTER(3)   :: file_status
 
@@ -157,12 +157,6 @@ CALL print_err_stop(std_out, "MPI_COMM_RANK couldn't be retrieved", ierr)
 
 CALL MPI_COMM_SIZE(MPI_COMM_WORLD, size_mpi, ierr)
 CALL print_err_stop(std_out, "MPI_COMM_SIZE couldn't be retrieved", ierr)
-
-!------------------------------------------------------------------------------
-! How to use that?
-!------------------------------------------------------------------------------
-CALL mpi_get_processor_name(mpi_proc_name, mpi_proc_resultlen, ierr) 
-CALL print_err_stop(std_out, "mpi_get_processor_name failed", ierr)
 
 !------------------------------------------------------------------------------
 ! Rank 0 -- Init (Master) Process and broadcast init parameters 
@@ -1130,7 +1124,7 @@ Else
 
         IF(stat_c_int /= 0) THEN
 
-            CALL exec_cmd_line("mkdir -p "//TRIM(outpath), stat, 20)
+            CALL exec_cmd_line("mkdir -p "//TRIM(outpath), stat)
 
             IF(stat /= 0) CALL print_err_stop(std_out, &
                 'Could not execute syscall »mkdir -p '//trim(outpath)//'«.', 1)

@@ -66,7 +66,7 @@ REAL(KIND=rk), DIMENSION(:), Allocatable :: glob_displ, glob_force
 REAL(KIND=rk), DIMENSION(:), Allocatable :: zeros_R8
 
 INTEGER(mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
-INTEGER(mik) :: ierr, petsc_ierr
+INTEGER(mik) :: ierr, petsc_ierr, result_len_mpi_procs
 
 INTEGER(kind=pd_ik), Dimension(:), Allocatable :: serial_pb
 INTEGER(kind=pd_ik)                            :: serial_pb_size
@@ -93,12 +93,12 @@ CHARACTER(LEN=mcl) :: str, timer_name, rank_char, domain_desc, part_desc, &
 Character, Dimension(4*mcl) :: c_char_array
 Character, Dimension(:), Allocatable :: char_arr
 
-INTEGER(ik), PARAMETER :: host_name_length = 10
+INTEGER(ik), PARAMETER :: host_name_length = 512
 CHARACTER(host_name_length), DIMENSION(:), ALLOCATABLE :: host_list, unique_host_list
 CHARACTER(host_name_length) :: host_of_part
 
 LOGICAL, PARAMETER :: DEBUG = .TRUE.
-logical :: success=.TRUE.
+logical :: success=.TRUE., host_assumed_unique
 
 Type(tBranch), pointer :: boundary_branch, domain_branch, part_branch
 Type(tBranch), pointer :: mesh_branch, meta_para, esd_result_branch
@@ -127,7 +127,10 @@ write(domain_char,'(I0)') domain
 ! Get basic infos 
 !--------------------------------------------------------------------------
 host_of_part = ""
-CALL get_environment_Variable("HOST", host_of_part)
+CALL mpi_get_processor_name(host_of_part, result_len_mpi_procs, ierr) 
+CALL print_err_stop(std_out, "mpi_get_processor_name failed", ierr)
+
+! CALL get_environment_Variable("HOST", host_of_part)
 
 CALL Search_branch("Input parameters", root, meta_para, success, out_amount)
 
@@ -190,24 +193,27 @@ If (rank_mpi == 0) then
     IF (.NOT. ALLOCATED(host_list)) ALLOCATE(host_list(parts))
     IF (.NOT. ALLOCATED(unique_host_list)) ALLOCATE(unique_host_list(parts))
     
-    host_list(1)        = host_of_part
+    host_list = ""
+    host_list(1) = host_of_part
 
     no_different_hosts = 1
 
-    unique_host_list(no_different_hosts) = host_of_part
+    unique_host_list = host_list
 
     !------------------------------------------------------------------------------
     ! Loop over all ranks of the sub comm
+    ! parts refers to ranks an therefore is counted from o, 
+    ! but 0 is the master and does not need so send to itself.
     !------------------------------------------------------------------------------
-    Do ii = 1, parts-1
+    Do ii = 1, parts-1 
 
         IF (ii/=0) THEN
             CALL MPI_RECV(host_list(ii), INT(host_name_length, mik), MPI_CHAR, &
                 INT(ii,mik), INT(ii,mik), comm_mpi, status_mpi, ierr)
 
-            WRITE(rank_char, "(I20)") rank_mpi
+            WRITE(rank_char, "(I20)") ii
             CALL print_err_stop(std_out, &
-                "MPI_RECV on host_of_part "//TRIM(rank_char)//" didn't succseed", ierr)
+                "MPI_RECV on host_of_part "//TRIM(ADJUSTL(rank_char))//" didn't succseed", ierr)
         END IF
 
         !------------------------------------------------------------------------------
@@ -215,14 +221,19 @@ If (rank_mpi == 0) then
         !------------------------------------------------------------------------------
         IF (host_list(ii) == "") CYCLE
         
+        host_assumed_unique = .TRUE.
         DO jj = 1, parts
 
-            IF((host_list(ii) /= unique_host_list(jj))  .AND. (unique_host_list(jj) /= "")) THEN
-                no_different_hosts = no_different_hosts + 1_ik
-                unique_host_list(no_different_hosts) = host_list(ii)
+            IF((host_list(ii) == unique_host_list(jj)) .AND. (unique_host_list(jj) /= "")) THEN
+                host_assumed_unique = .FALSE.
             END IF 
         END DO
         
+        IF (host_assumed_unique) THEN
+            no_different_hosts = no_different_hosts + 1_ik
+            unique_host_list(no_different_hosts) = host_list(ii)
+        END IF 
+
     END Do
 
     !------------------------------------------------------------------------------
@@ -231,10 +242,11 @@ If (rank_mpi == 0) then
     mssg_fix_len = "Unique hosts of domain:"
     WRITE(fh_cluster_log, '(A)', ADVANCE="NO") mssg_fix_len//", "//domain_char//", " 
 
-    DO ii = 1, host_name_length, no_different_hosts*host_name_length
+    DO ii = 1, no_different_hosts-1
 
         WRITE(fh_cluster_log, '(A)', ADVANCE="NO") TRIM(unique_host_list(ii))//","
     END DO
+    WRITE(fh_cluster_log, '(A)', ADVANCE="NO") TRIM(unique_host_list(no_different_hosts))
 
     WRITE(fh_cluster_log, '(A)')
 

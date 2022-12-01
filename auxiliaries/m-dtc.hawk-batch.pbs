@@ -81,11 +81,32 @@ declare -a processors=(\
    "316" \
    "246" \
     )
+# Calculate them by hand, it is a good quality measure.
+declare -a ppd=(\
+   "182" \
+   "90" \
+   "45" \
+   "35" \
+    )
 # ------------------------------------------------------------------------------
 tracker_file="${PBS_JOBNAME}.i${PBS_JOBID}.batch_tracker"
 try_counter=0
 for ((ii=0; ii<${#basenames[@]}; ii++));
 do
+    #
+    # ------------------------------------------------------------------------------
+    # Workaround for creating the proper directories.
+    # No need for continue if it fails, the DTC will try by itself.
+    # ------------------------------------------------------------------------------
+    helper_script="auxiliaries/create_directories.DTC.hawk.py"
+    if [ -f "$helper_script" ]
+    then
+        python auxiliaries/create_directories.DTC.hawk.py \
+            -p_n_bsnm "$DATASET_DIR/${basenames[ii]}" \
+            -worker_bsnm Rank \
+            -ppd "${ppd[ii]}" \
+            -size_mpi "${processors[ii]}"
+    fi
     #
     # ------------------------------------------------------------------------------
     # Create the *.task_geometry file; Skip basename if python does not suceed.
@@ -105,11 +126,6 @@ do
     "$DATASET_DIR"/memlog.sh "$DATASET_DIR/${basenames[ii]}".memlog > /dev/null 2> /dev/null &
     #
     # ------------------------------------------------------------------------------
-    # User feedback
-    # ------------------------------------------------------------------------------
-    echo "$DATASET_DIR/${basenames[ii]}.meta started" >> "$tracker_file"
-    #
-    # ------------------------------------------------------------------------------
     # Send variable to DTC
     # ------------------------------------------------------------------------------
     export BATCH_ORDER="$ii"
@@ -125,6 +141,11 @@ do
             --report-bindings --nooversubscribe \
             "$BINARY" "$PBS_O_WORKDIR" "$PWD/$DATASET_DIR/${basenames[ii]}".meta \
             >>"$DATASET_DIR/${basenames[ii]}".std_out 2>>"$DATASET_DIR/${basenames[ii]}".std_err
+    #
+    # ------------------------------------------------------------------------------
+    # User feedback
+    # ------------------------------------------------------------------------------
+    echo "$DATASET_DIR/${basenames[ii]}.meta started" >> "$tracker_file"
     # 
 	# job_name.i[nfo]job_id.batch_tracker${PBS_JOBNAME}
     #
