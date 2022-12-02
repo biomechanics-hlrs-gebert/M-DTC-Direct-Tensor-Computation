@@ -42,6 +42,3 @@ for ii in range(1,int(cmd_args.size_mpi),int(cmd_args.ppd)):
 
     if not os.path.exists(Rank_directories):
         os.makedirs(Rank_directories)
-
-        print("Create directory: " + Rank_directories)
-

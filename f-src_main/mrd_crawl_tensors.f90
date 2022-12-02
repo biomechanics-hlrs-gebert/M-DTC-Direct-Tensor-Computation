@@ -106,7 +106,7 @@ CALL show_title(["Johannes Gebert, M.Sc. (HLRS, NUM) "])
 !------------------------------------------------------------------------------
 ! Parse input
 !------------------------------------------------------------------------------
-CALL meta_check_contains_program ('TENSOR-COMPUTATION', m_rry, success)
+CALL meta_check_contains_program ('TENSOR_COMPUTATION', m_rry, success)
 
 IF (.NOT. success) THEN
     CALL print_trimmed(std_out, &
