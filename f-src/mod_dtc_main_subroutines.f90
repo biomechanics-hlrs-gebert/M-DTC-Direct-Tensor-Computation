@@ -73,7 +73,7 @@ INTEGER(kind=pd_ik)                            :: serial_pb_size
 
 INTEGER(Kind=ik) :: preallo, domain_elems, ii, jj, kk, id, stat, &
     Istart,Iend, parts, IVstart, IVend, m_size, mem_global, status_global, &
-    no_elems, no_nodes, ddc_nn, no_different_hosts
+    no_elems, no_nodes, ddc_nn, no_different_hosts, timestamp
 
 INTEGER(Kind=ik), Dimension(:)  , Allocatable :: nodes_in_mesh
 INTEGER(kind=ik), Dimension(:)  , Allocatable :: gnid_cref
@@ -81,14 +81,10 @@ INTEGER(kind=ik), Dimension(:,:), Allocatable :: res_sizes
 
 INTEGER(kind=c_int) :: stat_c_int
 
-CHARACTER(LEN=5)   :: timezone
-CHARACTER(LEN=8)   :: date, time_str
 CHARACTER(LEN=9)   :: domain_char
-CHARACTER(LEN=10)  :: time
 CHARACTER(LEN=40)  :: mssg_fix_len
-CHARACTER(LEN=mcl) :: str, timer_name, rank_char, domain_desc, part_desc, &
-    desc, mesh_desc, filename, elt_micro, no_nodes_char, no_elems_char, &
-    preallo_char, mem_global_char, status_global_char, size_mpi_char, nn_char
+CHARACTER(LEN=mcl) :: timer_name, rank_char, domain_desc, part_desc, &
+    desc, mesh_desc, filename, elt_micro, nn_char
 
 Character, Dimension(4*mcl) :: c_char_array
 Character, Dimension(:), Allocatable :: char_arr
@@ -118,9 +114,6 @@ Real(kind=rk),    Dimension(24,24) :: K_loc_08
 ! Init worker_is_active status
 Active = 0_mik
 
-no_nodes_char="0"
-no_elems_char="0"
-
 write(domain_char,'(I0)') domain
 
 !--------------------------------------------------------------------------
@@ -130,6 +123,7 @@ host_of_part = ""
 CALL mpi_get_processor_name(host_of_part, result_len_mpi_procs, ierr) 
 CALL print_err_stop(std_out, "mpi_get_processor_name failed", ierr)
 
+! This function does not work out well.
 ! CALL get_environment_Variable("HOST", host_of_part)
 
 CALL Search_branch("Input parameters", root, meta_para, success, out_amount)
@@ -174,14 +168,10 @@ If (rank_mpi == 0) then
     ! Write log and monitor file
     !------------------------------------------------------------------------------
     Write(un_lf,FMT_MSG_SEP)
-    CALL DATE_AND_TIME(DATE=date, TIME=time, ZONE=timezone)
+    timestamp = time()
 
-    str = ''
-    str = date(7:8)//'.'//date(5:6)//'.'//date(1:4)
-    str = TRIM(str)//' '//time(1:2)//':'//time(3:4)//':'//time(5:10)
-    str = TRIM(str)//' '//timezone
     
-    WRITE(un_lf, '(2A)') 'Start time: ', TRIM(str)
+    WRITE(un_lf, '(A,I0)') 'Start time: ', timestamp
 
     Write(un_lf, FMT_MSG_xAI0) "Domain No.: ", domain
     Write(un_lf, FMT_MSG)      "Job_dir:    "//Trim(job_dir)
@@ -279,15 +269,10 @@ If (rank_mpi == 0) then
     End if
 
     CALL end_timer(trim(timer_name))
-    
-    CALL DATE_AND_TIME(DATE=date, TIME=time, ZONE=timezone)
+        timestamp = time()
 
-    str = ''
-    str = date(7:8)//'.'//date(5:6)//'.'//date(1:4)
-    str = TRIM(str)//' '//time(1:2)//':'//time(3:4)//':'//time(5:10)
-    str = TRIM(str)//' '//timezone
-    
-    WRITE(un_lf, '(2A)') 'End time: ', TRIM(str)
+
+    WRITE(un_lf, '(A,I0)') 'End time: ', timestamp
 
     !------------------------------------------------------------------------------
     ! Look for the Domain branch
@@ -465,27 +450,16 @@ IF (rank_mpi == 0) THEN
     !------------------------------------------------------------------------------
     mssg_fix_len = ""
     mssg_fix_len = "Before PETSc preallocation"
-    WRITE(no_nodes_char, '(I8)') no_nodes
-    WRITE(no_elems_char, '(I8)') no_elems
-    WRITE(preallo_char, '(I8)') preallo
-    WRITE(mem_global_char, '(I20)') mem_global
-    WRITE(status_global_char, '(I8)') status_global
-    WRITE(size_mpi_char, '(I8)') size_mpi
-
-    CALL DATE_AND_TIME(TIME=time)
-    time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
 
     !------------------------------------------------------------------------------
     ! Write to the memlog file of the mpi communicator for latter analysis by 
     ! python and gnuplot. Formatted for combined humand and machine readability.
     !------------------------------------------------------------------------------
-    WRITE(fh_cluster_log, '(A)') mssg_fix_len//", "//domain_char//&
-        &", "//TRIM(ADJUSTL(no_nodes_char))//&
-        ", "//TRIM(ADJUSTL(no_elems_char))//&
-        ", "//TRIM(ADJUSTL(preallo_char))//&
-        ", "//TRIM(ADJUSTL(mem_global_char))//&
-        ", "//TRIM(ADJUSTL(status_global_char))//&
-        ", "//TRIM(ADJUSTL(size_mpi_char))//", "//time_str
+    timestamp = time()
+
+    WRITE(fh_cluster_log, '(7(A,I0))') mssg_fix_len//", "//domain_char//", ", &
+        no_nodes, ", ", no_elems, ", ", preallo, ", ", mem_global, ", ", &
+        status_global, ", ", size_mpi,", ", timestamp
 END IF
             
 
@@ -521,19 +495,11 @@ CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global)
 IF (rank_mpi == 0) THEN
     mssg_fix_len = ""
     mssg_fix_len = "After PETSc preallocation"
-    WRITE(mem_global_char, '(I20)') mem_global
-    WRITE(status_global_char, '(I8)') status_global
+    timestamp = time()
 
-    CALL DATE_AND_TIME(TIME=time)
-    time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
-
-    WRITE(fh_cluster_log, '(A)') mssg_fix_len//", "//domain_char//&
-        &", "//TRIM(ADJUSTL(no_nodes_char))//&
-        ", "//TRIM(ADJUSTL(no_elems_char))//&
-        ", "//TRIM(ADJUSTL(preallo_char))//&
-        ", "//TRIM(ADJUSTL(mem_global_char))//&
-        ", "//TRIM(ADJUSTL(status_global_char))//&
-        ", "//TRIM(ADJUSTL(size_mpi_char))//", "//time_str
+    WRITE(fh_cluster_log, '(7(A,I0))') mssg_fix_len//", "//domain_char//", ", &
+        no_nodes, ", ", no_elems, ", ", preallo, ", ", mem_global, ", ", &
+        status_global, ", ", size_mpi,", ", timestamp
 END IF
 
 
@@ -654,19 +620,11 @@ CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global)
 IF (rank_mpi == 0) THEN
     mssg_fix_len = ""
     mssg_fix_len = "Before matrix assembly"
-    WRITE(mem_global_char, '(I20)') mem_global
-    WRITE(status_global_char, '(I8)') status_global
+    timestamp = time()
 
-    CALL DATE_AND_TIME(TIME=time)
-    time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
-
-    WRITE(fh_cluster_log, '(A)') mssg_fix_len//", "//domain_char//&
-        &", "//TRIM(ADJUSTL(no_nodes_char))//&
-        ", "//TRIM(ADJUSTL(no_elems_char))//&
-        ", "//TRIM(ADJUSTL(preallo_char))//&
-        ", "//TRIM(ADJUSTL(mem_global_char))//&
-        ", "//TRIM(ADJUSTL(status_global_char))//&
-        ", "//TRIM(ADJUSTL(size_mpi_char))//", "//time_str
+    WRITE(fh_cluster_log, '(7(A,I0))') mssg_fix_len//", "//domain_char//", ", &
+        no_nodes, ", ", no_elems, ", ", preallo, ", ", mem_global, ", ", &
+        status_global, ", ", size_mpi,", ", timestamp
 END IF
 
 CALL MatAssemblyBegin(AA, MAT_FINAL_ASSEMBLY ,petsc_ierr)
@@ -718,19 +676,11 @@ CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global)
 IF (rank_mpi == 0) THEN
     mssg_fix_len = ""
     mssg_fix_len = "After matrix assembly"
-    WRITE(mem_global_char, '(I20)') mem_global
-    WRITE(status_global_char, '(I8)') status_global
+    timestamp = time()
 
-    CALL DATE_AND_TIME(TIME=time)
-    time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
-
-    WRITE(fh_cluster_log, '(A)') mssg_fix_len//", "//domain_char//&
-        &", "//TRIM(ADJUSTL(no_nodes_char))//&
-        ", "//TRIM(ADJUSTL(no_elems_char))//&
-        ", "//TRIM(ADJUSTL(preallo_char))//&
-        ", "//TRIM(ADJUSTL(mem_global_char))//&
-        ", "//TRIM(ADJUSTL(status_global_char))//&
-        ", "//TRIM(ADJUSTL(size_mpi_char))//", "//time_str
+    WRITE(fh_cluster_log, '(7(A,I0))') mssg_fix_len//", "//domain_char//", ", &
+        no_nodes, ", ", no_elems, ", ", preallo, ", ", mem_global, ", ", &
+        status_global, ", ", size_mpi,", ", timestamp
 END IF
 
 Do ii = 1, 24
@@ -978,19 +928,11 @@ CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global)
 IF (rank_mpi == 0) THEN
     mssg_fix_len = ""
     mssg_fix_len = "Before solving"
-    WRITE(mem_global_char, '(I20)') mem_global
-    WRITE(status_global_char, '(I8)') status_global
+    timestamp = time()
 
-    CALL DATE_AND_TIME(TIME=time)
-    time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
-
-    WRITE(fh_cluster_log, '(A)') mssg_fix_len//", "//domain_char//&
-        &", "//TRIM(ADJUSTL(no_nodes_char))//&
-        ", "//TRIM(ADJUSTL(no_elems_char))//&
-        ", "//TRIM(ADJUSTL(preallo_char))//&
-        ", "//TRIM(ADJUSTL(mem_global_char))//&
-        ", "//TRIM(ADJUSTL(status_global_char))//&
-        ", "//TRIM(ADJUSTL(size_mpi_char))//", "//time_str
+    WRITE(fh_cluster_log, '(7(A,I0))') mssg_fix_len//", "//domain_char//", ", &
+        no_nodes, ", ", no_elems, ", ", preallo, ", ", mem_global, ", ", &
+        status_global, ", ", size_mpi,", ", timestamp
 END IF
 
 !------------------------------------------------------------------------------
@@ -1186,19 +1128,11 @@ CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global)
 IF (rank_mpi == 0) THEN
     mssg_fix_len = ""
     mssg_fix_len = "After solving"
-    WRITE(mem_global_char, '(I20)') mem_global
-    WRITE(status_global_char, '(I8)') status_global
+    timestamp = time()
 
-    CALL DATE_AND_TIME(TIME=time)
-    time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
-
-    WRITE(fh_cluster_log, '(A)') mssg_fix_len//", "//domain_char//&
-        &", "//TRIM(ADJUSTL(no_nodes_char))//&
-        ", "//TRIM(ADJUSTL(no_elems_char))//&
-        ", "//TRIM(ADJUSTL(preallo_char))//&
-        ", "//TRIM(ADJUSTL(mem_global_char))//&
-        ", "//TRIM(ADJUSTL(status_global_char))//&
-        ", "//TRIM(ADJUSTL(size_mpi_char))//", "//time_str
+    WRITE(fh_cluster_log, '(7(A,I0))') mssg_fix_len//", "//domain_char//", ", &
+        no_nodes, ", ", no_elems, ", ", preallo, ", ", mem_global, ", ", &
+        status_global, ", ", size_mpi,", ", timestamp
 END IF
 
 !------------------------------------------------------------------------------
@@ -1246,22 +1180,14 @@ End Do
 !------------------------------------------------------------------------------
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
-IF ((rank_mpi == 0) .AND. (TRIM(ADJUSTL(no_nodes_char)) /= "0")) THEN
+IF ((rank_mpi == 0) .AND. (no_nodes /= 0)) THEN
     mssg_fix_len = ""
     mssg_fix_len = "End of domain"
-    WRITE(mem_global_char, '(I20)') mem_global
-    WRITE(status_global_char, '(I8)') status_global
+    timestamp = time()
 
-    CALL DATE_AND_TIME(TIME=time)
-    time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
-
-    WRITE(fh_cluster_log, '(A)') mssg_fix_len//", "//domain_char//&
-        &", "//TRIM(ADJUSTL(no_nodes_char))//&
-        ", "//TRIM(ADJUSTL(no_elems_char))//&
-        ", "//TRIM(ADJUSTL(preallo_char))//&
-        ", "//TRIM(ADJUSTL(mem_global_char))//&
-        ", "//TRIM(ADJUSTL(status_global_char))//&
-        ", "//TRIM(ADJUSTL(size_mpi_char))//", "//time_str
+    WRITE(fh_cluster_log, '(7(A,I0))') mssg_fix_len//", "//domain_char//", ", &
+        no_nodes, ", ", no_elems, ", ", preallo, ", ", mem_global, ", ", &
+        status_global, ", ", size_mpi,", ", timestamp
 
     !------------------------------------------------------------------------------
     ! Save to file. Minimizing I/O vs. securing the data.

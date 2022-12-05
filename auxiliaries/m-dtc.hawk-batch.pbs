@@ -4,7 +4,7 @@
 #
 # Author:    Johannes Gebert - HLRS - NUM - gebert@hlrs.de
 # Date:      09.01.2022
-# Last edit: 29.11.2022
+# Last edit: 06.12.2022
 #
 # For use of PBSPro visit:
 # https://kb.hlrs.de/platforms/index.php/Batch_System_PBSPro_(Hawk)
@@ -12,14 +12,43 @@
 # IF USED FOR LOAD BALANCING: TAKE CARE NOT TO ALLOCATE TOO MANY NODES!
 # TASK_GEOMETRY ONLY WORKS WITH MPT. NOT WITH Open MPI
 # ------------------------------------------------------------------------------
-#PBS -N fh01-pow
+#PBS -N fh01-test
 #PBS -l select=8:node_type=rome:mpiprocs=128:node_type_mem=256gb
 #PBS -l walltime=00:25:00
 #PBS -q test
 #PBS -M gebert@hlrs.de
 NO_NODES=8
 PROCESSORS_PER_NODE=128
-# ------------------------------------------------------------------------------
+BINARY="./bin/dtc_V1.1.0-p_x86_64"
+DATASET_DIR="datasets/"
+#
+try_how_many_times=5
+#
+# Set the basename of the datasets, according to the MeRaDat format.
+declare -a basenames=(\
+   "FH01-1_mu_Dev_dtc_Tensors182" \
+   "FH01-1_mu_Dev_dtc_Tensors90" \
+   "FH01-1_mu_Dev_dtc_Tensors45" \
+   "FH01-1_mu_Dev_dtc_Tensors35" \
+   )
+# The number of processors used by MPI
+declare -a processors=(\
+   "547" \
+   "631" \
+   "316" \
+   "246" \
+    )
+# Parts per domain. Calc by hand too.
+declare -a ppd=(\
+   "182" \
+   "90" \
+   "45" \
+   "35" \
+    )
+#    
+# USER INPUT COMPLETE ==========================================================
+# ==============================================================================
+# JOBS START ===================================================================
 #
 # ------------------------------------------------------------------------------
 # Change to the directory that the job was submitted from and 
@@ -32,7 +61,7 @@ cd "$PBS_O_WORKDIR" || exit
 # Parse with something like 'grep "JOB_START" | cut -d "=" -f 2'
 # ------------------------------------------------------------------------------
 echo "TimeStampMillis JOB_START=$(($(date +%s) * 1000))"
-echo "###############################################################################"
+echo "##############################################START#################################"
 echo "Job details $(qstat -f)"
 #
 # ------------------------------------------------------------------------------
@@ -40,55 +69,17 @@ echo "Job details $(qstat -f)"
 # ------------------------------------------------------------------------------
 id_short=$(echo "$PBS_JOBID" | cut -d "." -f 1)
 #
-# awk '!seen[$0]++' "$PBS_NODEFILE" | cut -d "." -f 1 > "$PBS_JOBNAME.$id_short.nodefile"
 awk '!seen[$0]++' "$PBS_NODEFILE" > "$PBS_JOBNAME.$id_short.nodefile"
 #
 # shellcheck source=/dev/null
 source "./environment.source" hawk --no-output
 #
-# ------------------------------------------------------------------------------
-# Python required for writing the *.task_geometry files
+# -----------------------------------------------------------------------------
+# Python is a requirement special to DTC.
 # ------------------------------------------------------------------------------
 module load python || exit
 #
-# ------------------------------------------------------------------------------
-# Set the binary and the dataset directory.
-# ------------------------------------------------------------------------------
-BINARY="./bin/dtc_V1.1.0-p_x86_64"
-DATASET_DIR="datasets/"
 #
-try_how_many_times=5
-#
-# ------------------------------------------------------------------------------
-# Set the basename of the datasets, according to the MeRaDat format.
-# In the second array, declare the number of processors used.
-# ------------------------------------------------------------------------------
-# The number of processors is required for mpi to cross-check the allocation 
-# of compute resources
-# The number of parts per node is required for power and energy measurements
-# to properly pin domains to nodes.
-# ------------------------------------------------------------------------------
-declare -a basenames=(\
-   "FH01-1_mu_Dev_dtc_Tensors182" \
-   "FH01-1_mu_Dev_dtc_Tensors90" \
-   "FH01-1_mu_Dev_dtc_Tensors45" \
-   "FH01-1_mu_Dev_dtc_Tensors35" \
-   )
-# Calculate them by hand, it is a good quality measure.
-declare -a processors=(\
-   "547" \
-   "631" \
-   "316" \
-   "246" \
-    )
-# Calculate them by hand, it is a good quality measure.
-declare -a ppd=(\
-   "182" \
-   "90" \
-   "45" \
-   "35" \
-    )
-# ------------------------------------------------------------------------------
 tracker_file="${PBS_JOBNAME}.i${PBS_JOBID}.batch_tracker"
 try_counter=0
 for ((ii=0; ii<${#basenames[@]}; ii++));
@@ -96,12 +87,13 @@ do
     #
     # ------------------------------------------------------------------------------
     # Workaround for creating the proper directories.
-    # No need for continue if it fails, the DTC will try by itself.
+    # No need for '|| continue' if it fails, the DTC will try by itself.
     # ------------------------------------------------------------------------------
-    helper_script="auxiliaries/create_directories.DTC.hawk.py"
-    if [ -f "$helper_script" ]
+    script="auxiliaries/create_directories.DTC.hawk.py"
+    #
+    if [ -f "$script" ]
     then
-        python auxiliaries/create_directories.DTC.hawk.py \
+        python "$script" \
             -p_n_bsnm "$DATASET_DIR/${basenames[ii]}" \
             -worker_bsnm Rank \
             -ppd "${ppd[ii]}" \
@@ -109,7 +101,7 @@ do
     fi
     #
     # ------------------------------------------------------------------------------
-    # Create the *.task_geometry file; Skip basename if python does not suceed.
+    # Create the *.hostfile file; Skip basename if python does not suceed.
     # ------------------------------------------------------------------------------
     host_file="$DATASET_DIR/${basenames[ii]}.hostfile"
     #
@@ -131,23 +123,19 @@ do
     export BATCH_ORDER="$ii"
     #
     # ------------------------------------------------------------------------------
-    # Parametrize the program and run it
-    # ppn = Parts per node - how many processes per node, dpending on part per domain
-    # mpiprocs=128 -> default by PBS; how many processes per node
+    # Parametrize DTC and run it.
     # ------------------------------------------------------------------------------
     #
     echo "Computing: $DATASET_DIR/${basenames[ii]}.meta"
-    mpirun -np "${processors[ii]}" -hostfile "$host_file" \
-            --report-bindings --nooversubscribe \
-            "$BINARY" "$PBS_O_WORKDIR" "$PWD/$DATASET_DIR/${basenames[ii]}".meta \
-            >>"$DATASET_DIR/${basenames[ii]}".std_out 2>>"$DATASET_DIR/${basenames[ii]}".std_err
-    #
-    # ------------------------------------------------------------------------------
-    # User feedback
-    # ------------------------------------------------------------------------------
-    echo "$DATASET_DIR/${basenames[ii]}.meta started" >> "$tracker_file"
-    # 
-	# job_name.i[nfo]job_id.batch_tracker${PBS_JOBNAME}
+    mpirun -np "${processors[ii]}" \
+        -hostfile "$host_file" \
+        --report-bindings \
+        --nooversubscribe \
+        "$BINARY" \
+        "$PBS_O_WORKDIR" \
+        "$PWD/$DATASET_DIR/${basenames[ii]}".meta \
+           >>"$DATASET_DIR/${basenames[ii]}".std_out \
+          2>>"$DATASET_DIR/${basenames[ii]}".std_err
     #
     # ------------------------------------------------------------------------------
     # Restart the application up to $how_many_times if the application crashed
@@ -169,6 +157,7 @@ do
         #
         if [ "$BATCH_RUN" = "JOB_FINISHED" ]
         then
+            echo "TimeStampMillis ${basenames[ii]}-END=$(($(date +%s) * 1000))"
             #
             # ------------------------------------------------------------------------------
             # User feedback
@@ -181,7 +170,46 @@ do
             # ------------------------------------------------------------------------------
             # (Re)Set counters
             # ------------------------------------------------------------------------------
-           try_counter=0
+            try_counter=0
+            # 
+            # ------------------------------------------------------------------------------
+            # Crawl results, single threaded. Not efficient, but reduces the out amount.
+            # Continue statement is important to avoid data corruption.
+            # ------------------------------------------------------------------------------
+            ./bin/meRaDat_Crawl_Tensors_x86_64 "$DATASET_DIR/${basenames[ii]}.meta" >/dev/null 2>/dev/null || continue
+            #
+            # ------------------------------------------------------------------------------
+            # Move mem-/hardware logs to the root directory of the output data.
+            # Continue statement is important to avoid data corruption.
+            # ------------------------------------------------------------------------------
+            mv "$DATASET_DIR/${basenames[ii]}/"*"/"*".memlog" "$DATASET_DIR/${basenames[ii]}/" || continue
+            #
+            # ------------------------------------------------------------------------------
+            # Delete unnecessary result data.
+            # DO NOT interchange this delete with the preceeding mv command.
+            # ------------------------------------------------------------------------------
+            rm -r "$DATASET_DIR/${basenames[ii]}/Rank_"*
+            #
+            # ------------------------------------------------------------------------------
+            # Optimize the tensors
+            # ------------------------------------------------------------------------------
+            ROT_BINARY="rot/bin/rot__x86_64"
+            ROT_TEMPLATE="$DATASET_DIR/M-ROT.meta.template"
+            #
+            echo "TimeStampMillis ${basenames[ii]}-ROT-START=$(($(date +%s) * 1000))"
+            #
+            if [ -f "$ROT_BINARY" ] && [ -f "$ROT_TEMPLATE" ]
+            then
+                cat "$ROT_TEMPLATE" >> "$DATASET_DIR/${basenames[ii]}.meta"
+                #
+                mpirun -np $(("$NO_NODES"*"$PROCESSORS_PER_NODE")) "$ROT_BINARY" "$DATASET_DIR/${basenames[ii]}.meta" >/dev/null 2>/dev/null || continue
+                #
+                echo "TimeStampMillis ${basenames[ii]}-ROT-END=$(($(date +%s) * 1000))"
+                #
+            else
+                echo "Tensors for ${basenames[ii]} have not been optimized due to an exception regarding the rot template or binary."
+            fi 
+            #
         else
             {
             echo "BATCH_RUN=$BATCH_RUN"; 

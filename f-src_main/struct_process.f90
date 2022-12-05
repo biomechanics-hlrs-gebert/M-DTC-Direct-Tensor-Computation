@@ -145,7 +145,7 @@ INTEGER(pd_ik), DIMENSION(no_streams) :: dsize
 
 INTEGER(pd_ik) :: serial_root_size, add_leaves
 
-LOGICAL :: success, stat_exists, heaxist, abrt = .FALSE.
+LOGICAL :: success, stat_exists, heaxist, abrt = .FALSE., already_finished=.FALSE.
 LOGICAL :: create_new_header = .FALSE., fex=.TRUE., no_restart_required = .FALSE.
 
 !----------------------------------------------------------------------------
@@ -511,6 +511,7 @@ If (rank_mpi == 0) THEN
         END DO
 
         IF (No_of_domains == computed_domains) THEN 
+            already_finished=.TRUE.
             mssg = "Job is already finished. No restart required."
 
             CALL print_err_stop_slaves(mssg, "message"); GOTO 1000
@@ -1452,7 +1453,7 @@ IF(rank_mpi==0) THEN
     ! Write the "JOB_FINISHED" keyword only if the job was finished during 
     ! this job (re)run.
     !------------------------------------------------------------------------------
-    IF (Domain_stats(No_of_domains) == No_of_domains-1) THEN ! counts from 0
+    IF ((Domain_stats(No_of_domains) == No_of_domains-1) .OR. (already_finished)) THEN ! counts from 0
 
         no_restart_required = .TRUE.
         CALL execute_command_line ("echo 'JOB_FINISHED' > BATCH_RUN")

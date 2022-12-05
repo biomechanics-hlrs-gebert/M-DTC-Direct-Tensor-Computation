@@ -4,7 +4,7 @@
 #
 # Author:    Johannes Gebert - HLRS - NUM - gebert@hlrs.de
 # Date:      09.01.2022
-# Last edit: 03.12.2022
+# Last edit: 06.12.2022
 #
 # For use of PBSPro visit:
 # https://kb.hlrs.de/platforms/index.php/Batch_System_PBSPro_(Hawk)
@@ -176,7 +176,7 @@ do
             # Crawl results, single threaded. Not efficient, but reduces the out amount.
             # Continue statement is important to avoid data corruption.
             # ------------------------------------------------------------------------------
-            ./bin/meRaDat_Crawl_Tensors_x86_64 "$DATASET_DIR/${basenames[ii]}.meta" || continue
+            ./bin/meRaDat_Crawl_Tensors_x86_64 "$DATASET_DIR/${basenames[ii]}.meta" >/dev/null 2>/dev/null || continue
             #
             # ------------------------------------------------------------------------------
             # Move mem-/hardware logs to the root directory of the output data.
@@ -202,7 +202,7 @@ do
             then
                 cat "$ROT_TEMPLATE" >> "$DATASET_DIR/${basenames[ii]}.meta"
                 #
-                mpirun -np $(("$NO_NODES"*"$PROCESSORS_PER_NODE")) "$ROT_BINARY" "$DATASET_DIR/${basenames[ii]}.meta" || continue
+                mpirun -np $(("$NO_NODES"*"$PROCESSORS_PER_NODE")) "$ROT_BINARY" "$DATASET_DIR/${basenames[ii]}.meta" >/dev/null 2>/dev/null || continue
                 #
                 echo "TimeStampMillis ${basenames[ii]}-ROT-END=$(($(date +%s) * 1000))"
                 #
