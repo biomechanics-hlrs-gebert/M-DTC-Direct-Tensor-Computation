@@ -60,9 +60,9 @@ cd "$PBS_O_WORKDIR" || exit
 # Get the timestamp in Milliseconds as in the ELK-Stack. 
 # Parse with something like 'grep "JOB_START" | cut -d "=" -f 2'
 # ------------------------------------------------------------------------------
-echo "TimeStampMillis JOB_START=$(($(date +%s) * 1000))"
-echo "##############################################START#################################"
-echo "Job details $(qstat -f)"
+echo "-- TimeStampMillis JOB_START=$(($(date +%s) * 1000))"
+echo "---------------------------------------------------------------------------------------"
+echo "-- Job details $(qstat -f)"
 #
 # ------------------------------------------------------------------------------
 # Create a list of the nodes engaged in the batch job.
@@ -103,14 +103,18 @@ do
     # ------------------------------------------------------------------------------
     # Create the *.hostfile file; Skip basename if python does not suceed.
     # ------------------------------------------------------------------------------
+    script="auxiliaries/write_hostfile.DTC.hawk.py"
     host_file="$DATASET_DIR/${basenames[ii]}.hostfile"
     #
-    python ./auxiliaries/write_hostfile.DTC.hawk.py \
-        -if="$DATASET_DIR/${basenames[ii]}.meta" \
-        -nodes="$NO_NODES" \
-        -ppn="$PROCESSORS_PER_NODE" \
-        -nodelist="$PBS_JOBNAME.$id_short.nodefile" \
-        -hf="$host_file" || continue
+    if [ -f "$host_file" ] && [ -f "$script" ]
+    then
+        python "$script" \
+            -if="$DATASET_DIR/${basenames[ii]}.meta" \
+            -nodes="$NO_NODES" \
+            -ppn="$PROCESSORS_PER_NODE" \
+            -nodelist="$PBS_JOBNAME.$id_short.nodefile" \
+            -hf="$host_file" || continue
+    fi
     #
     # ------------------------------------------------------------------------------
     # Start memlogging
@@ -125,8 +129,9 @@ do
     # ------------------------------------------------------------------------------
     # Parametrize DTC and run it.
     # ------------------------------------------------------------------------------
+    echo "-- TimeStampMillis ${basenames[ii]}-DTC-START=$(($(date +%s) * 1000))"
     #
-    echo "Computing: $DATASET_DIR/${basenames[ii]}.meta"
+    echo "-- Computing: $DATASET_DIR/${basenames[ii]}.meta"
     mpirun -np "${processors[ii]}" \
         -hostfile "$host_file" \
         --report-bindings \
@@ -157,14 +162,14 @@ do
         #
         if [ "$BATCH_RUN" = "JOB_FINISHED" ]
         then
-            echo "TimeStampMillis ${basenames[ii]}-END=$(($(date +%s) * 1000))"
+            echo "-- TimeStampMillis ${basenames[ii]}-DTC-END=$(($(date +%s) * 1000))"
             #
             # ------------------------------------------------------------------------------
             # User feedback
             # ------------------------------------------------------------------------------
             {
-            echo "$DATASET_DIR/${basenames[ii]}.meta finished"; 
-            echo ""
+            echo "-- $DATASET_DIR/${basenames[ii]}.meta finished"; 
+            echo "-- "
             } >> "$tracker_file"
             #
             # ------------------------------------------------------------------------------
@@ -196,7 +201,7 @@ do
             ROT_BINARY="rot/bin/rot__x86_64"
             ROT_TEMPLATE="$DATASET_DIR/M-ROT.meta.template"
             #
-            echo "TimeStampMillis ${basenames[ii]}-ROT-START=$(($(date +%s) * 1000))"
+            echo "-- TimeStampMillis ${basenames[ii]}-ROT-START=$(($(date +%s) * 1000))"
             #
             if [ -f "$ROT_BINARY" ] && [ -f "$ROT_TEMPLATE" ]
             then
@@ -204,10 +209,10 @@ do
                 #
                 mpirun -np $(("$NO_NODES"*"$PROCESSORS_PER_NODE")) "$ROT_BINARY" "$DATASET_DIR/${basenames[ii]}.meta" >/dev/null 2>/dev/null || continue
                 #
-                echo "TimeStampMillis ${basenames[ii]}-ROT-END=$(($(date +%s) * 1000))"
+                echo "-- TimeStampMillis ${basenames[ii]}-ROT-END=$(($(date +%s) * 1000))"
                 #
             else
-                echo "Tensors for ${basenames[ii]} have not been optimized due to an exception regarding the rot template or binary."
+                echo "-- Tensors for ${basenames[ii]} have not been optimized due to an exception regarding the rot template or binary."
             fi 
             #
         else
@@ -231,4 +236,4 @@ fi
 # Get the timestamp in Milliseconds as in the ELK-Stack. 
 # Parse with something like 'grep "JOB_END" | cut -d "=" -f 2'
 # ------------------------------------------------------------------------------
-echo "TimeStampMillis JOB_END=$(($(date +%s) * 1000))"
+echo "-- TimeStampMillis JOB_END=$(($(date +%s) * 1000))"
