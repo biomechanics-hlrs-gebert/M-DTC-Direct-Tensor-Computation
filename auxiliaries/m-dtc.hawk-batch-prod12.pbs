@@ -172,7 +172,7 @@ do
         #
         if [ "$BATCH_RUN" = "JOB_FINISHED" ]
         then
-            echo "TimeStampMillis ${basenames[ii]}-END=$(($(date +%s) * 1000))"
+            echo "TimeStampMillis ${basenames[ii]}-DTC-END=$(($(date +%s) * 1000))"
             #
             # ------------------------------------------------------------------------------
             # User feedback

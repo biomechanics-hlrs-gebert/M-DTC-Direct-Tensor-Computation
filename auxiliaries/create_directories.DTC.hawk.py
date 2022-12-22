@@ -41,4 +41,4 @@ for ii in range(1,int(cmd_args.size_mpi),int(cmd_args.ppd)):
     # sleep(randint(1,10))
 
     if not os.path.exists(Rank_directories):
-        os.makedirs(Rank_directories)
+        os.makedirs(Rank_directories) 

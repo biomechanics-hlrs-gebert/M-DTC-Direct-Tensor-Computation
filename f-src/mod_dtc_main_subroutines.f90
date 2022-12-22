@@ -75,6 +75,7 @@ INTEGER(Kind=ik) :: preallo, domain_elems, ii, jj, kk, id, stat, &
     Istart,Iend, parts, IVstart, IVend, m_size, mem_global, status_global, &
     no_elems, no_nodes, ddc_nn, no_different_hosts, timestamp
 
+INTEGER(ik), DIMENSION(24) :: collected_logs ! timestamps, memory_usage, pid_returned
 INTEGER(Kind=ik), Dimension(:)  , Allocatable :: nodes_in_mesh
 INTEGER(kind=ik), Dimension(:)  , Allocatable :: gnid_cref
 INTEGER(kind=ik), Dimension(:,:), Allocatable :: res_sizes
@@ -97,7 +98,7 @@ LOGICAL, PARAMETER :: DEBUG = .TRUE.
 logical :: success=.TRUE., host_assumed_unique
 
 Type(tBranch), pointer :: boundary_branch, domain_branch, part_branch
-Type(tBranch), pointer :: mesh_branch, meta_para, esd_result_branch
+Type(tBranch), pointer :: mesh_branch, meta_para, esd_result_branch, result_branch
 
 Type(tMat)                :: AA, AA_org
 Type(tVec)                :: XX
@@ -113,6 +114,7 @@ Real(kind=rk),    Dimension(24,24) :: K_loc_08
 
 ! Init worker_is_active status
 Active = 0_mik
+collected_logs = 0_ik
 
 write(domain_char,'(I0)') domain
 
@@ -239,6 +241,7 @@ If (rank_mpi == 0) then
     WRITE(fh_cluster_log, '(A)', ADVANCE="NO") TRIM(unique_host_list(no_different_hosts))
 
     WRITE(fh_cluster_log, '(A)')
+    FLUSH(fh_cluster_log)
 
 ELSE ! (rank_mpi == 0) THEN
 
@@ -419,49 +422,23 @@ IF (rank_mpi == 0) THEN   ! Sub Comm Master
 END IF 
 
 !------------------------------------------------------------------------------
-! Calculate amount of memory to allocate.
-!------------------------------------------------------------------------------
-preallo = (part_branch%leaves(5)%dat_no * 3) / parts + 1
-
-
-!------------------------------------------------------------------------------
 ! Get the mpi communicators total memory usage by the pids of the threads.
 !------------------------------------------------------------------------------
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 !------------------------------------------------------------------------------
-! Tracking the memory usage is intended for use during production too.
+! Tracking (the memory usage is) intended for use during production too.
 !------------------------------------------------------------------------------
 IF (rank_mpi == 0) THEN
-    !------------------------------------------------------------------------------
-    ! Get global mesh_branch parameters
-    !------------------------------------------------------------------------------
-    Call Search_branch("Domain "//trim(nn_char), root, domain_branch, success)
-
-    desc = ''
-    Write(desc,'(A,I0)') 'Mesh info of '//trim(project_name)//'_', ddc_nn
-    Call search_branch(trim(desc), domain_branch, mesh_branch, success)
-
-    call pd_get(mesh_branch, 'No of nodes in mesh',  no_nodes)
-    call pd_get(mesh_branch, 'No of elements in mesh',  no_elems)
-
-    !------------------------------------------------------------------------------
-    ! Prepare key data for logging memory usage and dependencies.
-    !------------------------------------------------------------------------------
-    mssg_fix_len = ""
-    mssg_fix_len = "Before PETSc preallocation"
-
-    !------------------------------------------------------------------------------
-    ! Write to the memlog file of the mpi communicator for latter analysis by 
-    ! python and gnuplot. Formatted for combined humand and machine readability.
-    !------------------------------------------------------------------------------
-    timestamp = time()
-
-    WRITE(fh_cluster_log, '(7(A,I0))') mssg_fix_len//", "//domain_char//", ", &
-        no_nodes, ", ", no_elems, ", ", preallo, ", ", mem_global, ", ", &
-        status_global, ", ", size_mpi,", ", timestamp
+    collected_logs(1) = INT(time(), ik)
+    collected_logs(8) = mem_global
+    collected_logs(15) = status_global
 END IF
             
+!------------------------------------------------------------------------------
+! Calculate amount of memory to allocate.
+!------------------------------------------------------------------------------
+preallo = (part_branch%leaves(5)%dat_no * 3) / parts + 1
 
 !------------------------------------------------------------------------------
 ! Create Stiffness matrix
@@ -493,13 +470,9 @@ CALL MatSetOption(AA_org,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 IF (rank_mpi == 0) THEN
-    mssg_fix_len = ""
-    mssg_fix_len = "After PETSc preallocation"
-    timestamp = time()
-
-    WRITE(fh_cluster_log, '(7(A,I0))') mssg_fix_len//", "//domain_char//", ", &
-        no_nodes, ", ", no_elems, ", ", preallo, ", ", mem_global, ", ", &
-        status_global, ", ", size_mpi,", ", timestamp
+    collected_logs(2) = INT(time(), ik)
+    collected_logs(9) = mem_global
+    collected_logs(16) = status_global
 END IF
 
 
@@ -618,13 +591,9 @@ END IF
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 IF (rank_mpi == 0) THEN
-    mssg_fix_len = ""
-    mssg_fix_len = "Before matrix assembly"
-    timestamp = time()
-
-    WRITE(fh_cluster_log, '(7(A,I0))') mssg_fix_len//", "//domain_char//", ", &
-        no_nodes, ", ", no_elems, ", ", preallo, ", ", mem_global, ", ", &
-        status_global, ", ", size_mpi,", ", timestamp
+    collected_logs(3) = INT(time(), ik)
+    collected_logs(10) = mem_global
+    collected_logs(17) = status_global
 END IF
 
 CALL MatAssemblyBegin(AA, MAT_FINAL_ASSEMBLY ,petsc_ierr)
@@ -674,13 +643,9 @@ END IF
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 IF (rank_mpi == 0) THEN
-    mssg_fix_len = ""
-    mssg_fix_len = "After matrix assembly"
-    timestamp = time()
-
-    WRITE(fh_cluster_log, '(7(A,I0))') mssg_fix_len//", "//domain_char//", ", &
-        no_nodes, ", ", no_elems, ", ", preallo, ", ", mem_global, ", ", &
-        status_global, ", ", size_mpi,", ", timestamp
+    collected_logs(4) = INT(time(), ik)
+    collected_logs(11) = mem_global
+    collected_logs(18) = status_global
 END IF
 
 Do ii = 1, 24
@@ -926,13 +891,9 @@ END IF
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 IF (rank_mpi == 0) THEN
-    mssg_fix_len = ""
-    mssg_fix_len = "Before solving"
-    timestamp = time()
-
-    WRITE(fh_cluster_log, '(7(A,I0))') mssg_fix_len//", "//domain_char//", ", &
-        no_nodes, ", ", no_elems, ", ", preallo, ", ", mem_global, ", ", &
-        status_global, ", ", size_mpi,", ", timestamp
+    collected_logs(5) = INT(time(), ik)
+    collected_logs(12) = mem_global
+    collected_logs(19) = status_global
 END IF
 
 !------------------------------------------------------------------------------
@@ -1126,13 +1087,9 @@ End Do
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 IF (rank_mpi == 0) THEN
-    mssg_fix_len = ""
-    mssg_fix_len = "After solving"
-    timestamp = time()
-
-    WRITE(fh_cluster_log, '(7(A,I0))') mssg_fix_len//", "//domain_char//", ", &
-        no_nodes, ", ", no_elems, ", ", preallo, ", ", mem_global, ", ", &
-        status_global, ", ", size_mpi,", ", timestamp
+    collected_logs(6) = INT(time(), ik)
+    collected_logs(13) = mem_global
+    collected_logs(20) = status_global
 END IF
 
 !------------------------------------------------------------------------------
@@ -1181,18 +1138,23 @@ End Do
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 IF ((rank_mpi == 0) .AND. (no_nodes /= 0)) THEN
-    mssg_fix_len = ""
-    mssg_fix_len = "End of domain"
-    timestamp = time()
-
-    WRITE(fh_cluster_log, '(7(A,I0))') mssg_fix_len//", "//domain_char//", ", &
-        no_nodes, ", ", no_elems, ", ", preallo, ", ", mem_global, ", ", &
-        status_global, ", ", size_mpi,", ", timestamp
+    collected_logs(7) = INT(time(), ik)
+    collected_logs(14) = mem_global
+    collected_logs(21) = status_global
+    collected_logs(22) = size_mpi
+    collected_logs(23) = rank_mpi
+    collected_logs(24) = SUM(collected_logs(15:21))
 
     !------------------------------------------------------------------------------
-    ! Save to file. Minimizing I/O vs. securing the data.
+    ! Search domain (effective) results branch
     !------------------------------------------------------------------------------
-    FLUSH(fh_cluster_log)
+    Call Search_branch("Results of domain "//nn_char, root, result_branch, success)
+
+    CALL add_leaf_to_branch(result_branch, "Collected logs", 24_ik, [collected_logs])
+    CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
+        Int(root%branches(3)%leaves(4)%lbound-1+(comm_nn-1)*24, MPI_OFFSET_KIND), &
+        collected_logs, 1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
+
 END IF
 
 End Subroutine exec_single_domain

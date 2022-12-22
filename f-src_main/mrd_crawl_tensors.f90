@@ -28,7 +28,7 @@ IMPLICIT NONE
 CHARACTER(*), PARAMETER :: mrd_dbg_lvl =  "PRODUCTION" ! "DEBUG"
 
 TYPE(tLeaf), POINTER :: domain_no, eff_num_stiffness, density, tensors, leaf_pos, &
-    no_elems, no_nodes, t_start, t_duration
+    no_elems, no_nodes, t_start, t_duration, collected_logs
 TYPE(tBranch)        :: rank_data
 TYPE(domain_data), DIMENSION(3) :: tensor
 
@@ -45,7 +45,8 @@ REAL(rk), DIMENSION(3)   :: local_domain_opt_pos, spcng, dmn_size
 REAL(rk), DIMENSION(6,6) :: local_domain_tensor
 REAL(rk), DIMENSION(24,24) :: local_num_tensor
 
-INTEGER(8), DIMENSION(:), ALLOCATABLE :: dat_domains, dat_no_elems, dat_no_nodes
+INTEGER(8), DIMENSION(:), ALLOCATABLE :: dat_domains, dat_no_elems, dat_no_nodes, &
+    dat_collected_logs
 REAL(8), DIMENSION(:), ALLOCATABLE :: dat_densities, dat_eff_num_stiffnesses, dat_tensors, &
     dat_pos, dat_t_start, dat_t_duration
 
@@ -264,9 +265,20 @@ DO rank_mpi = 1, size_mpi-1, parts
     CALL pd_read_leaf(rank_data%streams, no_nodes, dat_no_nodes)
 
     !------------------------------------------------------------------------------
+    ! Collected logs
+    !------------------------------------------------------------------------------
+    CALL get_leaf_with_num(rank_data, 5_pd_ik, collected_logs, success)
+
+    IF(ALLOCATED(dat_collected_logs)) DEALLOCATE(dat_collected_logs)
+    ALLOCATE(dat_collected_logs(collected_logs%dat_no), stat=alloc_stat)
+
+    CALL print_err_stop(std_out, "Allocating 'dat_collected_logs' failed.", alloc_stat)
+    CALL pd_read_leaf(rank_data%streams, collected_logs, dat_collected_logs)
+
+    !------------------------------------------------------------------------------
     ! Start time of the domain
     !------------------------------------------------------------------------------
-    CALL get_leaf_with_num(rank_data, 5_pd_ik, t_start, success)
+    CALL get_leaf_with_num(rank_data, 6_pd_ik, t_start, success)
 
     IF(ALLOCATED(dat_t_start)) DEALLOCATE(dat_t_start)
     ALLOCATE(dat_t_start(t_start%dat_no), stat=alloc_stat)
@@ -277,7 +289,7 @@ DO rank_mpi = 1, size_mpi-1, parts
     !------------------------------------------------------------------------------
     ! Duration of the domain
     !------------------------------------------------------------------------------
-    CALL get_leaf_with_num(rank_data, 6_pd_ik, t_duration, success)
+    CALL get_leaf_with_num(rank_data, 7_pd_ik, t_duration, success)
 
     IF(ALLOCATED(dat_t_duration)) DEALLOCATE(dat_t_duration)
     ALLOCATE(dat_t_duration(t_duration%dat_no), stat=alloc_stat)
@@ -288,7 +300,7 @@ DO rank_mpi = 1, size_mpi-1, parts
     !------------------------------------------------------------------------------
     ! Read effective numerical stiffness
     !------------------------------------------------------------------------------
-    CALL get_leaf_with_num(rank_data, 8_pd_ik, eff_num_stiffness, success)
+    CALL get_leaf_with_num(rank_data, 9_pd_ik, eff_num_stiffness, success)
         
     IF(ALLOCATED(dat_eff_num_stiffnesses)) DEALLOCATE(dat_eff_num_stiffnesses)
     ALLOCATE(dat_eff_num_stiffnesses(eff_num_stiffness%dat_no), stat=alloc_stat)
@@ -299,7 +311,7 @@ DO rank_mpi = 1, size_mpi-1, parts
     !------------------------------------------------------------------------------
     ! Read effective density
     !------------------------------------------------------------------------------
-    CALL get_leaf_with_num(rank_data, 24_pd_ik, density, success)
+    CALL get_leaf_with_num(rank_data, 25_pd_ik, density, success)
     
     IF(ALLOCATED(dat_densities)) DEALLOCATE(dat_densities)
     ALLOCATE(dat_densities(density%dat_no), stat=alloc_stat)
@@ -314,18 +326,18 @@ DO rank_mpi = 1, size_mpi-1, parts
         !------------------------------------------------------------------------------
         SELECT CASE(tt)
             CASE(1)
-                CALL get_leaf_with_num(rank_data, 12_pd_ik, tensors, success)
+                CALL get_leaf_with_num(rank_data, 13_pd_ik, tensors, success)
                 local_domain_opt_pos = 0._rk
                 fh_tens = fh_covo 
                 tensor(tt)%opt_crit = "covo" 
             CASE(2)
-                CALL get_leaf_with_num(rank_data, 19_pd_ik, tensors, success)
-                CALL get_leaf_with_num(rank_data, 17_pd_ik, leaf_pos, success)
+                CALL get_leaf_with_num(rank_data, 20_pd_ik, tensors, success)
+                CALL get_leaf_with_num(rank_data, 18_pd_ik, leaf_pos, success)
                 fh_tens = fh_cr1
                 tensor(tt)%opt_crit = "cr1" 
             CASE(3)
-                CALL get_leaf_with_num(rank_data, 23_pd_ik, tensors, success)
-                CALL get_leaf_with_num(rank_data, 21_pd_ik, leaf_pos, success)
+                CALL get_leaf_with_num(rank_data, 24_pd_ik, tensors, success)
+                CALL get_leaf_with_num(rank_data, 22_pd_ik, leaf_pos, success)
                 fh_tens = fh_cr2
                 tensor(tt)%opt_crit = "cr2" 
         END SELECT
@@ -390,7 +402,14 @@ DO rank_mpi = 1, size_mpi-1, parts
             tensor(tt)%mps        = 0._rk
             tensor(tt)%t_start    = 0._rk
             tensor(tt)%t_duration = 0._rk
-         
+
+            tensor(tt)%timestamps       = 0_ik
+            tensor(tt)%mem_comm_global  = 0_ik
+            tensor(tt)%status_mem_comm  = 0_ik
+            tensor(tt)%size_mpi_domain  = 0_ik
+            tensor(tt)%worker_main_rank = 0_ik
+            tensor(tt)%pids_returned    = 0_ik
+
             tensor(tt)%mi_el_type = "" 
             tensor(tt)%ma_el_type = "" 
             !------------------------------------------------------------------------------
@@ -506,6 +525,17 @@ DO rank_mpi = 1, size_mpi-1, parts
                 ! This value is hardcoded in ./f-src/mod_struct_calcmat.f90
                 !------------------------------------------------------------------------------
                 tensor(tt)%opt_res = 1._rk 
+
+                DO xx=1, 7
+                    tensor(tt)%timestamps(xx)       = dat_collected_logs(ii         -1+xx)
+                    tensor(tt)%mem_comm_global(xx)  = dat_collected_logs(ii +  7_ik -1+xx)
+                    tensor(tt)%status_mem_comm(xx)  = dat_collected_logs(ii + 15_ik -1+xx)
+                END DO
+
+                tensor(tt)%size_mpi_domain  = dat_collected_logs(ii + 22_ik)
+                tensor(tt)%worker_main_rank = dat_collected_logs(ii + 23_ik)
+                tensor(tt)%pids_returned    = dat_collected_logs(ii + 24_ik)
+
 
                 CALL write_tensor_2nd_rank_R66_row(tensor(tt), string)
                 WRITE(fh_tens,'(A)') TRIM(string)

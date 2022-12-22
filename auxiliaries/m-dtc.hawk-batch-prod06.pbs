@@ -141,6 +141,7 @@ do
     # ------------------------------------------------------------------------------
     #
     echo "Computing: $DATASET_DIR/${basenames[ii]}.meta"
+    echo "TimeStampMillis ${basenames[ii]}-DTC-START=$(($(date +%s) * 1000))"
     mpirun -np "${processors[ii]}" \
         -hostfile "$host_file" \
         --nooversubscribe \
@@ -171,7 +172,7 @@ do
         #
         if [ "$BATCH_RUN" = "JOB_FINISHED" ]
         then
-            echo "TimeStampMillis ${basenames[ii]}-END=$(($(date +%s) * 1000))"
+            echo "TimeStampMillis ${basenames[ii]}-DTC-END=$(($(date +%s) * 1000))"
             #
             # ------------------------------------------------------------------------------
             # User feedback
