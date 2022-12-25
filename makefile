@@ -458,9 +458,10 @@ $(obj_dir)mod_struct_preprocess$(obj_ext):$(st_mod_dir)global_std$(mod_ext)     
 # Calculate effective stiffness parameters 
 # -----------------------------------------------------------------------------
 $(obj_dir)mod_struct_calcmat$(obj_ext):$(st_mod_dir)global_std$(mod_ext)   $(st_mod_dir)formatted_plain$(mod_ext) \
-									   $(st_mod_dir)mechanical$(mod_ext)  $(mod_dir)tensors$(mod_ext)\
+									   $(st_mod_dir)mechanical$(mod_ext)  $(mod_dir)tensors$(mod_ext) \
 									   $(mod_dir)puredat$(mod_ext)        $(mod_dir)timer$(mod_ext) \
 									   $(mod_dir)decomp$(mod_ext)         $(mod_dir)mat_matrices$(mod_ext) \
+									   $(st_mod_dir)mpi_system$(mod_ext) \
 									   $(mod_dir)chain_routines$(mod_ext) $(mod_dir)linfe$(mod_ext) \
 									   $(f_src_dir)mod_struct_calcmat$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_struct_calcmat$(f90_ext) "-----"

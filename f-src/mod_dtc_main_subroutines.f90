@@ -73,7 +73,7 @@ INTEGER(kind=pd_ik)                            :: serial_pb_size
 
 INTEGER(Kind=ik) :: preallo, domain_elems, ii, jj, kk, id, stat, &
     Istart,Iend, parts, IVstart, IVend, m_size, mem_global, status_global, &
-    no_elems, no_nodes, ddc_nn, no_different_hosts, timestamp
+    ddc_nn, no_different_hosts, timestamp
 
 INTEGER(ik), DIMENSION(24) :: collected_logs ! timestamps, memory_usage, pid_returned
 INTEGER(Kind=ik), Dimension(:)  , Allocatable :: nodes_in_mesh
@@ -124,6 +124,22 @@ write(domain_char,'(I0)') domain
 host_of_part = ""
 CALL mpi_get_processor_name(host_of_part, result_len_mpi_procs, ierr) 
 CALL print_err_stop(std_out, "mpi_get_processor_name failed", ierr)
+
+
+!------------------------------------------------------------------------------
+! Get the mpi communicators total memory usage by the pids of the threads.
+!------------------------------------------------------------------------------
+CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
+
+!------------------------------------------------------------------------------
+! Tracking (the memory usage is) intended for use during production too.
+!------------------------------------------------------------------------------
+IF (rank_mpi == 0) THEN
+    collected_logs(1) = INT(time(), ik)
+    collected_logs(8) = mem_global
+    collected_logs(15) = status_global
+END IF
+
 
 ! This function does not work out well.
 ! CALL get_environment_Variable("HOST", host_of_part)
@@ -430,9 +446,9 @@ CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global)
 ! Tracking (the memory usage is) intended for use during production too.
 !------------------------------------------------------------------------------
 IF (rank_mpi == 0) THEN
-    collected_logs(1) = INT(time(), ik)
-    collected_logs(8) = mem_global
-    collected_logs(15) = status_global
+    collected_logs(2) = INT(time(), ik)
+    collected_logs(9) = mem_global
+    collected_logs(16) = status_global
 END IF
             
 !------------------------------------------------------------------------------
@@ -470,9 +486,9 @@ CALL MatSetOption(AA_org,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 IF (rank_mpi == 0) THEN
-    collected_logs(2) = INT(time(), ik)
-    collected_logs(9) = mem_global
-    collected_logs(16) = status_global
+    collected_logs(3) = INT(time(), ik)
+    collected_logs(10) = mem_global
+    collected_logs(17) = status_global
 END IF
 
 
@@ -591,9 +607,9 @@ END IF
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 IF (rank_mpi == 0) THEN
-    collected_logs(3) = INT(time(), ik)
-    collected_logs(10) = mem_global
-    collected_logs(17) = status_global
+    collected_logs(4) = INT(time(), ik)
+    collected_logs(11) = mem_global
+    collected_logs(18) = status_global
 END IF
 
 CALL MatAssemblyBegin(AA, MAT_FINAL_ASSEMBLY ,petsc_ierr)
@@ -643,9 +659,9 @@ END IF
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 IF (rank_mpi == 0) THEN
-    collected_logs(4) = INT(time(), ik)
-    collected_logs(11) = mem_global
-    collected_logs(18) = status_global
+    collected_logs(5) = INT(time(), ik)
+    collected_logs(12) = mem_global
+    collected_logs(19) = status_global
 END IF
 
 Do ii = 1, 24
@@ -891,9 +907,9 @@ END IF
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 IF (rank_mpi == 0) THEN
-    collected_logs(5) = INT(time(), ik)
-    collected_logs(12) = mem_global
-    collected_logs(19) = status_global
+    collected_logs(6) = INT(time(), ik)
+    collected_logs(13) = mem_global
+    collected_logs(20) = status_global
 END IF
 
 !------------------------------------------------------------------------------
@@ -1087,9 +1103,9 @@ End Do
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 IF (rank_mpi == 0) THEN
-    collected_logs(6) = INT(time(), ik)
-    collected_logs(13) = mem_global
-    collected_logs(20) = status_global
+    collected_logs(7) = INT(time(), ik)
+    collected_logs(14) = mem_global
+    collected_logs(21) = status_global
 END IF
 
 !------------------------------------------------------------------------------
@@ -1111,7 +1127,8 @@ if (rank_mpi == 0) then
     End SELECT
 
     CALL start_timer(TRIM(timer_name), .FALSE.)
-    CALL calc_effective_material_parameters(root, comm_nn, domain, fh_mpi_worker)
+    CALL calc_effective_material_parameters(root, comm_nn, domain, &
+        fh_mpi_worker, size_mpi, comm_mpi, collected_logs)
     CALL end_timer(TRIM(timer_name))
     
 ELSE
@@ -1131,31 +1148,6 @@ CALL VecDestroy(XX,     petsc_ierr)
 Do ii = 1, 24
     CALL VecDestroy(FF(ii), petsc_ierr)
 End Do
-
-!------------------------------------------------------------------------------
-! Get and write another memory log.
-!------------------------------------------------------------------------------
-CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
-
-IF ((rank_mpi == 0) .AND. (no_nodes /= 0)) THEN
-    collected_logs(7) = INT(time(), ik)
-    collected_logs(14) = mem_global
-    collected_logs(21) = status_global
-    collected_logs(22) = size_mpi
-    collected_logs(23) = rank_mpi
-    collected_logs(24) = SUM(collected_logs(15:21))
-
-    !------------------------------------------------------------------------------
-    ! Search domain (effective) results branch
-    !------------------------------------------------------------------------------
-    Call Search_branch("Results of domain "//nn_char, root, result_branch, success)
-
-    CALL add_leaf_to_branch(result_branch, "Collected logs", 24_ik, [collected_logs])
-    CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
-        Int(root%branches(3)%leaves(4)%lbound-1+(comm_nn-1)*24, MPI_OFFSET_KIND), &
-        collected_logs, 1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
-
-END IF
 
 End Subroutine exec_single_domain
 

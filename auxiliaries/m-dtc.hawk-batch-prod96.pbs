@@ -198,7 +198,7 @@ do
             # Move mem-/hardware logs to the root directory of the output data.
             # Continue statement is important to avoid data corruption.
             # ------------------------------------------------------------------------------
-            mv "$DATASET_DIR/${basenames[ii]}/"*"/"*".memlog" "$DATASET_DIR/${basenames[ii]}/" || continue
+            mv "$DATASET_DIR/${basenames[ii]}/"*"/"*".memlog" "$DATASET_DIR/${basenames[ii]}/"
             #
             # ------------------------------------------------------------------------------
             # Delete unnecessary result data.

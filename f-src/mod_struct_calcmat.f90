@@ -13,16 +13,19 @@ USE auxiliaries
 USE user_interaction
 USE formatted_plain
 USE linFE
+USE mpi_system
 USE mpi
 
 implicit none
 
 contains
 
-subroutine calc_effective_material_parameters(root, comm_nn, ddc_nn, fh_mpi_worker) 
+subroutine calc_effective_material_parameters(root, comm_nn, ddc_nn, &
+     fh_mpi_worker, size_mpi, comm_mpi, collected_logs)
 
-Type(tBranch)                           , Intent(InOut) :: root
-integer(Kind=ik)                        , Intent(in) :: ddc_nn, comm_nn
+Type(tBranch)     , Intent(InOut) :: root
+INTEGER(kind=mik) , Intent(In) :: size_mpi, comm_mpi
+integer(Kind=ik)  , Intent(in) :: ddc_nn, comm_nn
 Integer(kind=mik), Dimension(no_streams), Intent(in) :: fh_mpi_worker
 
 Real(kind=rk) :: div_10_exp_jj, eff_density, n12, n13, n23, alpha, phi, eta
@@ -43,14 +46,15 @@ Real(Kind=rk), Dimension(6,24) :: int_strain, int_stress
 Real(kind=rk):: E_Modul, nu, rve_strain, v_elem, v_cube
 
 Integer(kind=mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
-Integer(kind=mik) :: ierr
+Integer(kind=mik) :: ierr, global_rank_mpi
 
-integer(Kind=ik) :: ii, jj, kk, ll, no_elem_nodes, micro_elem_nodes, no_lc, num_leaves, alloc_stat
-Integer(Kind=ik) :: no_elems, no_nodes, no_cnodes, macro_order, ii_phi, ii_eta, kk_phi, kk_eta
+integer(Kind=ik) :: ii, jj, kk, ll, no_elem_nodes, micro_elem_nodes, no_lc, num_leaves, alloc_stat, &
+     no_elems, no_nodes, no_cnodes, macro_order, ii_phi, ii_eta, kk_phi, kk_eta, mem_global, status_global
 
 Integer(kind=ik), Dimension(:,:,:,:), Allocatable :: ang
 Integer(Kind=ik), Dimension(:)      , Allocatable :: xa_n, xe_n, no_cnodes_pp, cref_cnodes
 Integer(kind=ik), Dimension(3)                    :: s_loop,e_loop, mlc
+INTEGER(ik), DIMENSION(24) :: collected_logs ! timestamps, memory_usage, pid_returned
 
 Logical :: success
 
@@ -62,6 +66,9 @@ Type(tBranch), Pointer :: ddc, loc_ddc, meta_para, domain_branch, mesh_branch, r
 
 Type(tLeaf),  pointer :: node_leaf_pointer
 Type(tLeaf), Allocatable, Dimension(:)   :: leaf_list
+
+CALL MPI_COMM_RANK(MPI_COMM_WORLD, global_rank_mpi, ierr)
+CALL print_err_stop(std_out, "MPI_COMM_RANK couldn't be retrieved", ierr)
 
 write(nn_char,'(I0)') ddc_nn
 
@@ -1752,6 +1759,20 @@ EE_Orig = EE
         eff_density, &
         1_pd_mik, MPI_REAL8, status_mpi, ierr)
 
+     !------------------------------------------------------------------------------
+     ! Write another memory log.
+     !------------------------------------------------------------------------------
+     IF (no_nodes /= 0) THEN
+          collected_logs(22) = size_mpi
+          collected_logs(23) = global_rank_mpi
+          collected_logs(24) = SUM(collected_logs(15:21))
+
+          CALL add_leaf_to_branch(result_branch, "Collected logs", 24_ik, [collected_logs])
+          CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
+               Int(root%branches(3)%leaves(4)%lbound-1+(comm_nn-1)*24, MPI_OFFSET_KIND), &
+               collected_logs, 24_pd_mik, MPI_INTEGER8, status_mpi, ierr)
+
+     END IF
 
     DEALLOCATE(tmp_nn, delta, x_D_phy)
     DEALLOCATE(nodes, vv, ff, stiffness)

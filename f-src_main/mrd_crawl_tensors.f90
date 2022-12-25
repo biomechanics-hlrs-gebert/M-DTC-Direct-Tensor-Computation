@@ -45,8 +45,7 @@ REAL(rk), DIMENSION(3)   :: local_domain_opt_pos, spcng, dmn_size
 REAL(rk), DIMENSION(6,6) :: local_domain_tensor
 REAL(rk), DIMENSION(24,24) :: local_num_tensor
 
-INTEGER(8), DIMENSION(:), ALLOCATABLE :: dat_domains, dat_no_elems, dat_no_nodes, &
-    dat_collected_logs
+INTEGER(8), DIMENSION(:), ALLOCATABLE :: dat_domains, dat_no_elems, dat_no_nodes, dat_collected_logs
 REAL(8), DIMENSION(:), ALLOCATABLE :: dat_densities, dat_eff_num_stiffnesses, dat_tensors, &
     dat_pos, dat_t_start, dat_t_duration
 
@@ -111,7 +110,7 @@ CALL meta_check_contains_program ('TENSOR_COMPUTATION', m_rry, success)
 
 IF (.NOT. success) THEN
     CALL print_trimmed(std_out, &
-        "The program 'TENSOR-COMPUTATION' apparently did not run successfully. &
+        "The program 'TENSOR_COMPUTATION' apparently did not run successfully. &
         &Maybe it crashed or was stopped by purpose. However, it can also point &
         &to an incorrect implementation.", &
         FMT_WRN)    
@@ -388,27 +387,22 @@ DO rank_mpi = 1, size_mpi-1, parts
             ! Iterating over jj while searching for the actual domain number stored in 
             ! dat_domains implicitly sorts the data. 
             !------------------------------------------------------------------------------
-            tensor(tt)%dmn        = 0_ik
-            tensor(tt)%no_elems   = 0_ik
-            tensor(tt)%no_nodes   = 0_ik
-            tensor(tt)%bvtv       = 0._rk
-            tensor(tt)%doa_zener  = 0._rk
-            tensor(tt)%doa_gebert = 0._rk
-            tensor(tt)%sym        = 0._rk
-            tensor(tt)%mat        = 0._rk
-            tensor(tt)%num        = 0._rk
-            tensor(tt)%pos        = 0._rk
-            tensor(tt)%sym        = 0._rk
-            tensor(tt)%mps        = 0._rk
-            tensor(tt)%t_start    = 0._rk
-            tensor(tt)%t_duration = 0._rk
+            tensor(tt)%dmn            = 0_ik
+            tensor(tt)%no_elems       = 0_ik
+            tensor(tt)%no_nodes       = 0_ik
+            tensor(tt)%collected_logs = 0_ik
+            tensor(tt)%bvtv           = 0._rk
+            tensor(tt)%doa_zener      = 0._rk
+            tensor(tt)%doa_gebert     = 0._rk
+            tensor(tt)%sym            = 0._rk
+            tensor(tt)%mat            = 0._rk
+            tensor(tt)%num            = 0._rk
+            tensor(tt)%pos            = 0._rk
+            tensor(tt)%sym            = 0._rk
+            tensor(tt)%mps            = 0._rk
+            tensor(tt)%t_start        = 0._rk
+            tensor(tt)%t_duration     = 0._rk
 
-            tensor(tt)%timestamps       = 0_ik
-            tensor(tt)%mem_comm_global  = 0_ik
-            tensor(tt)%status_mem_comm  = 0_ik
-            tensor(tt)%size_mpi_domain  = 0_ik
-            tensor(tt)%worker_main_rank = 0_ik
-            tensor(tt)%pids_returned    = 0_ik
 
             tensor(tt)%mi_el_type = "" 
             tensor(tt)%ma_el_type = "" 
@@ -526,17 +520,10 @@ DO rank_mpi = 1, size_mpi-1, parts
                 !------------------------------------------------------------------------------
                 tensor(tt)%opt_res = 1._rk 
 
-                DO xx=1, 7
-                    tensor(tt)%timestamps(xx)       = dat_collected_logs(ii         -1+xx)
-                    tensor(tt)%mem_comm_global(xx)  = dat_collected_logs(ii +  7_ik -1+xx)
-                    tensor(tt)%status_mem_comm(xx)  = dat_collected_logs(ii + 15_ik -1+xx)
+                DO xx=1, 24
+                    tensor(tt)%collected_logs(xx) = dat_collected_logs(24_ik*(ii-1)+xx)
                 END DO
-
-                tensor(tt)%size_mpi_domain  = dat_collected_logs(ii + 22_ik)
-                tensor(tt)%worker_main_rank = dat_collected_logs(ii + 23_ik)
-                tensor(tt)%pids_returned    = dat_collected_logs(ii + 24_ik)
-
-
+                
                 CALL write_tensor_2nd_rank_R66_row(tensor(tt), string)
                 WRITE(fh_tens,'(A)') TRIM(string)
 

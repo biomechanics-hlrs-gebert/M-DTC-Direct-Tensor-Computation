@@ -675,7 +675,7 @@ If (rank_mpi == 0) THEN
     ! Ensure to update the number of leaves and the indices of these in every
     ! line of code! Also update dat_ty and dat_no in "CALL raise_leaves"
     !------------------------------------------------------------------------------
-    add_leaves = 28_pd_ik
+    add_leaves = 24_pd_ik
 
     !------------------------------------------------------------------------------
     ! Number of loadcases
@@ -1263,14 +1263,18 @@ Else
         !------------------------------------------------------------------------------
         ! leaves 3 -> 3 INTEGER 8 leaves
         ! leaves 22 --> Last leaf, contains density
+
+        !------------------------------------------------------------------------------
+        ! (domains_per_comm*24)-1 because the last int8 entry has 24 ints.
         !------------------------------------------------------------------------------
         CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
-            Int(root%branches(3)%leaves(3)%lbound-1+(domains_per_comm-1), MPI_OFFSET_KIND), &
+            Int(root%branches(3)%leaves(4)%lbound-1+((domains_per_comm*24)-1), MPI_OFFSET_KIND), &
             INT(Domain, KIND=ik), 1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
 
         CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-            Int(root%branches(3)%leaves(23)%lbound-1+(domains_per_comm-1), MPI_OFFSET_KIND), &
+            Int(root%branches(3)%leaves(24)%lbound-1+(domains_per_comm-1), MPI_OFFSET_KIND), &
             1_rk, 1_pd_mik, MPI_REAL8, status_mpi, ierr)
+
 
         !------------------------------------------------------------------------------
         ! Start workers
