@@ -22,7 +22,7 @@ module mesh_partitioning
 
 contains
 
-  Subroutine part_mesh(nodes, eind, nnodes, ne, parts, PMesh, job_dir, ddc_nn)
+  Subroutine part_mesh(nodes, eind, HU_magnitudes, nnodes, ne, parts, PMesh, job_dir, ddc_nn)
 
     !****************************************************************************
     !** Declarations ************************************************************
@@ -36,17 +36,18 @@ contains
     Integer(kind=C_INT64_T), Intent(In) :: ne
     Integer(kind=C_INT64_T), intent(In) :: nnodes
 
-    Integer(kind=C_INT64_T)                             :: nn
-    Integer(kind=C_INT64_T), Dimension(:), Allocatable :: eptr
+    Integer(kind=C_INT64_T)                              :: nn
+    Integer(kind=C_INT64_T), Dimension(:),   Allocatable :: eptr
     Integer(kind=C_INT64_T), Dimension(:,:), Allocatable :: eind
-    Integer(kind=C_INT64_T), Dimension(:), Allocatable :: vwgt, vsize
-    Integer(kind=C_INT64_T)                             :: ncommon
-    Integer(kind=C_INT64_T), Intent(in)                 :: parts
-    Real   (kind=c_double), Dimension(:), Allocatable :: tpwgts
-    Integer(kind=C_INT64_T), Dimension(40)              :: options
-    Integer(kind=C_INT64_T)                             :: objval
-    Integer(kind=C_INT64_T), Dimension(:), Allocatable :: depart
-    Integer(kind=C_INT64_T), Dimension(:), Allocatable :: dnpart
+    Integer(kind=C_INT64_T), Dimension(:)  , Allocatable :: HU_magnitudes
+    Integer(kind=C_INT64_T), Dimension(:),   Allocatable :: vwgt, vsize
+    Integer(kind=C_INT64_T)                              :: ncommon
+    Integer(kind=C_INT64_T), Intent(in)                  :: parts
+    Real   (kind=c_double) , Dimension(:)  , Allocatable :: tpwgts
+    Integer(kind=C_INT64_T), Dimension(40)               :: options
+    Integer(kind=C_INT64_T)                              :: objval
+    Integer(kind=C_INT64_T), Dimension(:)  , Allocatable :: depart
+    Integer(kind=C_INT64_T), Dimension(:)  , Allocatable :: dnpart
 
     Real(kind=C_double), Dimension(:,:), intent(in) :: nodes
 
@@ -80,11 +81,11 @@ contains
        Call raise_leaves(5,&
             ["Node Numbers       ", "Coordinates        ", &
              "Global Node Numbers", "Element Numbers    ", &
-             "Topology           "                       ],&
-            [4_1,     5_1,     4_1,     4_1,     4_1     ],&
-            [0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik ],&
-            [0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik ],&
-            [0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik ],&
+             "Topology           ", "HU Magnitudes      "],&
+            [4_1,     5_1,     4_1,     4_1,     4_1,     4_1    ],&
+            [0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik],&
+            [0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik],&
+            [0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik],&
             PMesh%branches(ii))
        
        call raise_branch("Connections", 0_pd_ik, 2_pd_ik, PMesh%branches(ii)%branches(1))
@@ -107,10 +108,27 @@ contains
        
        eind = eind-1
        
-       Allocate(eptr(ne+1))
-       Do ii = 1, ne+1
-          eptr(ii) = (ii-1) * nn_el
-       End Do
+
+        !-------------------------------------------------------------------------------
+        ! From the METIS manual section 5.6
+        ! Creating the array eptr is comparatively simple, because all elements are of 
+        ! the same type and therefore of the same interval regarding eptr/eind
+        !-------------------------------------------------------------------------------
+        ! 5.6 Mesh data structure
+        ! All of the mesh partitioning and mesh conversion routines in METIS take as input the element node array of a mesh.
+        ! This element node array is stored using a pair of arrays called eptr and eind, which are similar to the xadj and
+        ! adjncy arrays used for storing the adjacency structure of a graph. The size of the eptr array is n+ 1, where n is the
+        ! number of elements in the mesh. The size of the eind array is of size equal to the sum of the number of nodes in all
+        ! the elements of the mesh. The list of nodes belonging to the ith element of the mesh are stored in consecutive locations
+        ! of eind starting at position eptr[i] up to (but not including) position eptr[i+1]. This format makes it easy
+        ! to specify meshes of any type of elements, including meshes with mixed element types that have different number of
+        ! nodes per element. As it was the case with the format of the mesh file described in Section 4.1.2, the ordering of the
+        ! nodes in each element is not important.
+        !-------------------------------------------------------------------------------
+        Allocate(eptr(ne+1))
+        Do ii = 1, ne+1
+            eptr(ii) = (ii-1) * nn_el
+        End Do
        
        call end_timer("  +-- Prep EPTR")
     
@@ -146,10 +164,15 @@ contains
        
        call end_timer("  +-- Metis")
     
-       !** Shift C-Style indicees *********************************************
-       call start_timer("  +-- Shift C-Style indicees")
-       depart = depart + 1
-       eind   = eind   + 1
+        !-------------------------------------------------------------------------------
+        !** Shift C-Style indicees *********************************************
+        !-------------------------------------------------------------------------------
+        ! This might be replaced with correctly setting up METIS OPTION NUMBERING
+        ! Not done yet to avoid possible roots of erros.
+        !-------------------------------------------------------------------------------
+        call start_timer("  +-- Shift C-Style indicees")
+        depart = depart + 1
+        eind   = eind   + 1
 
        If (out_amount /= "PRODUCTION" ) then
           write(un_lf,fmt_msg_xAI0)"MinVal in depart:",minval(depart)
@@ -170,25 +193,41 @@ contains
        !============================================================================
        ! Store partitioning as data on vtk unstructured grid
        !============================================================================
-       if (out_amount == "DEBUG") then
+        !-------------------------------------------------------------------------------
+        ! Colors of the elements are the number or the part of the mesh
+        !-------------------------------------------------------------------------------
+        if (out_amount == "DEBUG") then
 
-          filename=''
-          write(filename,'(A,I0,A)')trim(job_dir)//trim(project_name)//"_",ddc_nn,"_usg.vtk"
-          Call write_vtk_data_int4_scalar_1D(&
-               matrix = int(depart,4), &
-               filename = trim(filename),  &
-               desc = "PartNo", head = .TRUE.,location="CELL_DATA")
-       End if
+            filename=''
+            write(filename,'(A,I0,A)')trim(job_dir)//trim(project_name)//"_",ddc_nn,"_usg.vtk"
+            Call write_vtk_data_int4_scalar_1D(&
+                matrix = int(depart,4), &
+                filename = trim(filename),  &
+                desc = "PartNo", head = .TRUE.,location="CELL_DATA")
+        End if
        
        !** Split Topology *****************************************************       
        call start_timer("  +-- Split Topology")
 
        Do ii = 1, Parts
 
-          !** PMesh%branches(ii)%leaves(5) = "Topology" **************
+          !------------------------------------------------------------------------------
+          ! nn_el     -> Number of nodes per element
+          ! nelems_pp -> Number of Elements per part
+          !------------------------------------------------------------------------------
+          ! PMesh%branches(ii)%leaves(5) = "Topology"
+          !------------------------------------------------------------------------------
           PMesh%branches(ii)%leaves(5)%dat_no = nn_el*nelems_pp(ii)
           PMesh%branches(ii)%leaves(5)%pstat  = 1
           Allocate(PMesh%branches(ii)%leaves(5)%p_int8(nn_el*nelems_pp(ii)))
+
+          !------------------------------------------------------------------------------
+          ! PMesh%branches(ii)%leaves(6) = Hounsfield units of the voxels (HU Magnitude)
+          ! As many entries as elements in part
+          !------------------------------------------------------------------------------
+          PMesh%branches(ii)%leaves(6)%dat_no = nelems_pp(ii)
+          PMesh%branches(ii)%leaves(6)%pstat  = 1
+          Allocate(PMesh%branches(ii)%leaves(6)%p_int8(nelems_pp(ii)))
 
           If (out_amount /= "PRODUCTION" ) then
              write(un_lf,fmt_msg_xAI0)"No Elems in part",ii,"=",nelems_pp(ii)
@@ -196,14 +235,27 @@ contains
 
        End Do
 
-       nelems_pp = 0
-       
+       !------------------------------------------------------------------------------
+       ! Count Elements per part
+       ! Assemble node list
+       !------------------------------------------------------------------------------
+       nelems_pp = 0      
        Do ii = 1, ne
-          nelems_pp(depart(ii)) = nelems_pp(depart(ii)) + 1
-          
-          PMesh%branches(depart(ii))%leaves(5)%p_int8( &
-               (nelems_pp(depart(ii))-1)*nn_el+1:nelems_pp(depart(ii))*nn_el &
-               ) = eind(:,ii)
+            nelems_pp(depart(ii)) = nelems_pp(depart(ii)) + 1
+            
+            !------------------------------------------------------------------------------
+            ! Assign nodes to parts
+            !------------------------------------------------------------------------------
+            PMesh%branches(depart(ii))%leaves(5)%p_int8( &
+                (nelems_pp(depart(ii))-1)*nn_el+1:nelems_pp(depart(ii))*nn_el &
+                ) = eind(:,ii)
+
+
+            !------------------------------------------------------------------------------
+            ! Assign corresponding HUs to parts
+            !------------------------------------------------------------------------------
+            PMesh%branches(depart(ii))%leaves(6)%p_int8 = HU_magnitudes(ii)
+
        End do
 
        !** Renumber nodes in each part starting at 1 **************************
@@ -338,6 +390,13 @@ contains
        PMesh%branches(1)%leaves(5)%pstat = 1
        Allocate(PMesh%branches(1)%leaves(5)%p_int8(ne*nn_el))
 
+       !------------------------------------------------------------------------------
+       ! PMesh%branches(ii)%leaves(6) = Hounsfield units of the voxels (HU Magnitude)
+       !------------------------------------------------------------------------------
+       PMesh%branches(1)%leaves(6)%dat_no   = ne*nn_el
+       PMesh%branches(1)%leaves(6)%pstat = 1
+       Allocate(PMesh%branches(1)%leaves(6)%p_int8(ne*nn_el))
+
        !** Fill in nodes numbers and global node numbers ************
        Do ii = 1, nnodes
           PMesh%branches(1)%leaves(1)%p_int8(ii) = ii
@@ -354,6 +413,12 @@ contains
 
        !** Fill in topology *****************************************
        PMesh%branches(1)%leaves(5)%p_int8 = reshape(eind, [ne*nn_el])
+
+       !------------------------------------------------------------------------------
+       ! Fill in Hounsfield units of the voxels (HU Magnitude)
+       !------------------------------------------------------------------------------
+       PMesh%branches(1)%leaves(6)%p_int8 = reshape(HU_magnitudes, [ne*nn_el])
+
       
        nnodes_pp     = nnodes
        nelems_pp     = ne

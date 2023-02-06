@@ -40,9 +40,11 @@ Type(tBranch), Pointer :: loc_ddc, ddc, bounds_b
 Type(tBranch), Pointer :: meta_para, domain_branch
 
     ! Mesh Variables 
-    Real(rk)    , Dimension(:,:) , Allocatable :: nodes, displ
-    Integer(ik) , Dimension(:)   , Allocatable :: elem_col,node_col, cref
-    Integer(ik) , Dimension(:,:) , Allocatable :: elems
+    Real(rk)   , Dimension(:,:) , Allocatable :: nodes, displ
+    Integer(ik), Dimension(:)   , Allocatable :: elem_col,node_col, cref
+    Integer(ik), Dimension(:,:) , Allocatable :: elems
+    INTEGER(ik), DIMENSION(:)   , ALLOCATABLE :: HU_magnitudes
+
     Character(mcl) :: elt_micro, desc, filename, typeraw
     Character(scl) :: restart
     Integer(ik)   :: elo_macro,alloc_stat
@@ -273,15 +275,18 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     SELECT CASE(TRIM(ADJUSTL(typeraw)))
         CASE('ik1')
             call gen_quadmesh_from_phi(delta, ddc, loc_ddc, llimit, elt_micro, &
-             nodes, elems, node_col, elem_col, no_nodes, no_elems, typeraw, phi_ik1=Phi_ik1)
+             nodes, elems, HU_magnitudes, node_col, elem_col, no_nodes, no_elems, &
+             typeraw, phi_ik1=Phi_ik1)
 
         CASE('ik2')
             call gen_quadmesh_from_phi(delta, ddc, loc_ddc, llimit, elt_micro, &
-             nodes, elems, node_col, elem_col, no_nodes, no_elems, typeraw, phi_ik2=Phi_ik2)
+             nodes, elems, HU_magnitudes, node_col, elem_col, no_nodes, no_elems, &
+             typeraw, phi_ik2=Phi_ik2)
 
         CASE('ik4')
             call gen_quadmesh_from_phi(delta, ddc, loc_ddc, llimit, elt_micro, &
-             nodes, elems, node_col, elem_col, no_nodes, no_elems, typeraw, phi_ik4=Phi_ik4)
+             nodes, elems, HU_magnitudes, node_col, elem_col, no_nodes, no_elems, &
+             typeraw, phi_ik4=Phi_ik4)
 
     END SELECT
 
@@ -425,7 +430,7 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     call add_branch_to_branch(domain_branch, PMesh)
     call raise_branch(trim(desc), parts, 0_pd_ik, PMesh)
 
-    Call part_mesh(nodes, elems, no_nodes, no_elems, parts, PMesh, job_dir, ddc_nn)
+    Call part_mesh(nodes, elems, HU_magnitudes, no_nodes, no_elems, parts, PMesh, job_dir, ddc_nn)
    
     call add_leaf_to_branch(PMesh, "No of nodes in mesh",  1_pd_ik, [no_nodes])
     call add_leaf_to_branch(PMesh, "No of elements in mesh",  1_pd_ik, [no_elems])

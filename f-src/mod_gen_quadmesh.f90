@@ -20,7 +20,7 @@ End type tconreg
 contains
 
     Subroutine gen_quadmesh_from_phi(delta, ddc, loc_ddc, llimit, elt_micro, &
-        nodes, elems, node_col , elem_col , no_nodes, &
+        nodes, elems, HU_magnitudes, node_col , elem_col , no_nodes, &
         no_elems, typeraw, phi_ik1, phi_ik2, phi_ik4)
 
     !------------------------------------------------------------------------------
@@ -53,6 +53,7 @@ contains
     !------------------------------------------------------------------------------
     Real(Kind=rk)   , Dimension(:,:), Allocatable, Intent(Out) :: nodes
     Integer(Kind=ik), Dimension(:,:), Allocatable, Intent(Out) :: elems
+    Integer(Kind=ik), DIMENSION(:)  , ALLOCATABLE, INTENT(OUT) :: HU_magnitudes
     Integer(Kind=ik), Dimension(:)  , Allocatable, Intent(Out) :: elem_col
     Integer(Kind=ik), Dimension(:)  , Allocatable, Intent(Out) :: node_col
 
@@ -169,7 +170,7 @@ contains
     End If
 
     !------------------------------------------------------------------------------
-    ! Allocate needed fields
+    ! Allocate required fields
     !------------------------------------------------------------------------------
 
     ! For hexaedral elements with linear trial functions
@@ -179,7 +180,7 @@ contains
 
         x_D_nodes = x_D + 1
 
-        Allocate(elems( 8, x_D(1)*x_D(2)*x_D(3)), stat=alloc_stat)
+        Allocate(elems( 8,     x_D(1)*x_D(2)*x_D(3)), stat=alloc_stat)
         call alloc_err("elems", alloc_stat)
 
     ! For hexaedral elements with quadratic trial functions
@@ -200,6 +201,13 @@ contains
 
     End if
 
+    !------------------------------------------------------------------------------
+    ! Allocate list of element gradients
+    !------------------------------------------------------------------------------
+    Allocate(HU_magnitudes(x_D(1)*x_D(2)*x_D(3)), stat=alloc_stat)
+    call alloc_err("HU_magnitudes", alloc_stat)
+
+
     lb_nodes_no = 0
     ub_nodes_no = x_D_nodes(1) * x_D_nodes(2) * x_D_nodes(3)
     elems = 0
@@ -216,7 +224,6 @@ contains
     !------------------------------------------------------------------------------
     ! Generate Elements 
     !------------------------------------------------------------------------------
-
     ! 20 Node hexaeral elements
     If (elt_micro == "HEX20") then
 
@@ -235,7 +242,7 @@ contains
                     END SELECT
 
                     If (val_phi >= llimit) Then
-
+                    
                     el_nn( 1) = (2*ii-2) + (2*jj-2) * (x_D_nodes(1)) + (2*kk-2) * (x_D_nodes(1)) * (x_D_nodes(2))
                     el_nn( 2) = (2*ii-1) + (2*jj-2) * (x_D_nodes(1)) + (2*kk-2) * (x_D_nodes(1)) * (x_D_nodes(2))
                     el_nn( 3) = (2*ii  ) + (2*jj-2) * (x_D_nodes(1)) + (2*kk-2) * (x_D_nodes(1)) * (x_D_nodes(2))
@@ -259,10 +266,15 @@ contains
                     el_nn(19) = (2*ii-2) + (2*jj  ) * (x_D_nodes(1)) + (2*kk  ) * (x_D_nodes(1)) * (x_D_nodes(2))
                     el_nn(20) = (2*ii-2) + (2*jj-1) * (x_D_nodes(1)) + (2*kk  ) * (x_D_nodes(1)) * (x_D_nodes(2))
 
-                    nodes_no(el_nn( 1:20)) = -1
-                    elems(:,no_elems)      = el_nn(1:20)
-                    no_elems               = no_elems + 1
+                    nodes_no(el_nn( 1:20))  = -1
+                    elems(:,no_elems)       = el_nn(1:20)
 
+                    !------------------------------------------------------------------------------
+                    ! Hardcoded for dev purposes 
+                    !------------------------------------------------------------------------------
+                    HU_magnitudes(no_elems) = val_phi
+                    no_elems                = no_elems + 1
+ 
                     End If
                     
                 End Do
@@ -302,6 +314,11 @@ contains
                     
                     nodes_no(el_nn(1:8)) = -1
                     elems(:,no_elems)    = el_nn(1:8)
+                    
+                    !------------------------------------------------------------------------------
+                    ! Hardcoded for dev purposes 
+                    !------------------------------------------------------------------------------
+                    HU_magnitudes(no_elems) = REAL(val_phi-llimit, rk) * 0.4226_rk 
                     no_elems             = no_elems + 1
 
                     End If
@@ -596,6 +613,8 @@ contains
 
         elem_col(kk) = elem_col(jj)
         elems(:,kk)  = elems(:,jj)
+
+        HU_magnitudes(kk)  = HU_magnitudes(jj)
 
     End Do
 

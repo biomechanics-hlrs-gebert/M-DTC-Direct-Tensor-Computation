@@ -51,7 +51,7 @@ CONTAINS
 Subroutine exec_single_domain(root, comm_nn, domain, typeraw, &
     job_dir, fh_cluster_log, active, fh_mpi_worker, rank_mpi, size_mpi, comm_mpi)
 
-TYPE(materialcard) :: bone
+TYPE(materialcard) :: bone, bone_adjusted
 INTEGER(kind=mik), Intent(INOUT), Dimension(no_streams) :: fh_mpi_worker
 
 Character(LEN=*) , Intent(in)  :: job_dir
@@ -73,7 +73,7 @@ INTEGER(kind=pd_ik)                            :: serial_pb_size
 
 INTEGER(Kind=ik) :: preallo, domain_elems, ii, jj, kk, id, stat, &
     Istart,Iend, parts, IVstart, IVend, m_size, mem_global, status_global, &
-    ddc_nn, no_different_hosts, timestamp
+    ddc_nn, no_different_hosts, timestamp, HU
 
 INTEGER(ik), DIMENSION(24) :: collected_logs ! timestamps, memory_usage, pid_returned
 INTEGER(Kind=ik), Dimension(:)  , Allocatable :: nodes_in_mesh
@@ -514,6 +514,7 @@ End If
 ! part_branch%leaves(3) : Global node ids   in part branch
 ! part_branch%leaves(4) : NOT USED ! (For Element Numbers)
 ! part_branch%leaves(5) : Topology
+! part_branch%leaves(6) : Hounsfield units of the voxels (HU Magnitude)
 ! No Cross reference global nid to local nid is currently needed since 
 ! renumbering is deactivated in mod_mesh_partitioning.f90 : part_mesh
 !------------------------------------------------------------------------------
@@ -524,9 +525,12 @@ End If
 CALL pd_get(root%branches(1), 'Element type  on micro scale', char_arr)
 elt_micro = char_to_str(char_arr)
 
-if (TRIM(elt_micro) == "HEX08") then
+!------------------------------------------------------------------------------
+! Hardcoded for dev
+!------------------------------------------------------------------------------
+bone_adjusted%nu = bone%nu
 
-    K_loc_08 = Hexe08(bone)
+if (TRIM(elt_micro) == "HEX08") then
 
     domain_elems = part_branch%leaves(5)%dat_no / 8
 
@@ -539,15 +543,22 @@ if (TRIM(elt_micro) == "HEX08") then
             
             id = part_branch%leaves(5)%p_int8(jj)
             id = (id - 1) * 3
-            
+
             idxm_08(kk)   = (id    ) !*cr
             idxm_08(kk+1) = (id + 1) !*cr
             idxm_08(kk+2) = (id + 2) !*cr
             
             kk = kk + 3
-            
         End Do
-        
+                        
+        HU = part_branch%leaves(6)%p_int8(ii)
+
+        bone_adjusted%E = bone%E / &
+                         REAL((14250_ik-1000_ik),rk) * &
+                         REAL((HU - 1000_ik), rk)
+
+        K_loc_08 = Hexe08(bone_adjusted)
+
         idxn_08 = idxm_08
 
         CALL MatSetValues(AA, 24_8, idxm_08, 24_8 ,idxn_08, K_loc_08, ADD_VALUES, petsc_ierr)
@@ -577,9 +588,17 @@ else if (elt_micro == "HEX20") then
             idxm_20(kk+2) = (id + 2) !*cr
             
             kk = kk + 3
-            
+
         End Do
-        
+
+        HU = part_branch%leaves(6)%p_int8(ii)
+
+        bone_adjusted%E = bone%E / &
+                         REAL((14250_ik - 1000_ik),rk) * &
+                         REAL((HU - 1000_ik), rk)
+
+        K_loc_08 = Hexe08(bone_adjusted)
+                
         idxn_20 = idxm_20
 
         CALL MatSetValues(AA, 60_8, idxm_20, 60_8 ,idxn_20, K_loc_20, ADD_VALUES, petsc_ierr)
