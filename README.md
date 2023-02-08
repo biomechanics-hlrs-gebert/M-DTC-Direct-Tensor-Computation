@@ -3,7 +3,7 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 ![Architecture](https://img.shields.io/badge/Architecture-x86_64-blue)
 ![OS](https://img.shields.io/badge/OS-Linux-blue)
-![version](https://img.shields.io/badge/version-1.0.0-blue)
+![version](https://img.shields.io/badge/version-1.2.0-blue)
 
 
 
