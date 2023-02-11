@@ -77,8 +77,8 @@ contains
     Do ii = 1, Parts
           
        Write(desc,'(A,I0)')"Part_",ii
-       call raise_branch(trim(desc), 1_pd_ik, 5_pd_ik, PMesh%branches(ii))
-       Call raise_leaves(5,&
+       call raise_branch(trim(desc), 1_pd_ik, 6_pd_ik, PMesh%branches(ii))
+       Call raise_leaves(6,&
             ["Node Numbers       ", "Coordinates        ", &
              "Global Node Numbers", "Element Numbers    ", &
              "Topology           ", "HU Magnitudes      "],&
@@ -228,6 +228,7 @@ contains
           PMesh%branches(ii)%leaves(6)%dat_no = nelems_pp(ii)
           PMesh%branches(ii)%leaves(6)%pstat  = 1
           Allocate(PMesh%branches(ii)%leaves(6)%p_int8(nelems_pp(ii)))
+          
 
           If (out_amount /= "PRODUCTION" ) then
              write(un_lf,fmt_msg_xAI0)"No Elems in part",ii,"=",nelems_pp(ii)
@@ -241,6 +242,15 @@ contains
        !------------------------------------------------------------------------------
        nelems_pp = 0      
        Do ii = 1, ne
+            !------------------------------------------------------------------------------
+            ! depart(ii) -> depart is an array with length "elements of domain"
+            ! array entries are the number of the part, the elements belongs to.
+            ! While iterating over ne, the elements and nodes are sorted to their 
+            ! corresponding parts. 
+            !
+            ! PMesh%branches(depart(ii))%leaves(6)%p_int8(nelems_pp(depart(ii)))
+            ! For example, nelems_pp(part xy) = HU_magnitudes(corresponding element)
+            !------------------------------------------------------------------------------
             nelems_pp(depart(ii)) = nelems_pp(depart(ii)) + 1
             
             !------------------------------------------------------------------------------
@@ -254,7 +264,7 @@ contains
             !------------------------------------------------------------------------------
             ! Assign corresponding HUs to parts
             !------------------------------------------------------------------------------
-            PMesh%branches(depart(ii))%leaves(6)%p_int8 = HU_magnitudes(ii)
+            PMesh%branches(depart(ii))%leaves(6)%p_int8(nelems_pp(depart(ii))) = HU_magnitudes(ii)
 
        End do
 
@@ -393,9 +403,9 @@ contains
        !------------------------------------------------------------------------------
        ! PMesh%branches(ii)%leaves(6) = Hounsfield units of the voxels (HU Magnitude)
        !------------------------------------------------------------------------------
-       PMesh%branches(1)%leaves(6)%dat_no   = ne*nn_el
+       PMesh%branches(1)%leaves(6)%dat_no = ne
        PMesh%branches(1)%leaves(6)%pstat = 1
-       Allocate(PMesh%branches(1)%leaves(6)%p_int8(ne*nn_el))
+       Allocate(PMesh%branches(1)%leaves(6)%p_int8(ne))
 
        !** Fill in nodes numbers and global node numbers ************
        Do ii = 1, nnodes
@@ -417,7 +427,7 @@ contains
        !------------------------------------------------------------------------------
        ! Fill in Hounsfield units of the voxels (HU Magnitude)
        !------------------------------------------------------------------------------
-       PMesh%branches(1)%leaves(6)%p_int8 = reshape(HU_magnitudes, [ne*nn_el])
+       PMesh%branches(1)%leaves(6)%p_int8 = reshape(HU_magnitudes, [ne])
 
       
        nnodes_pp     = nnodes

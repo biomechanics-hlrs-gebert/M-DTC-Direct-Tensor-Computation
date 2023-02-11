@@ -64,6 +64,7 @@ Type(tBranch)    , Intent(inOut) :: root
 REAL(KIND=rk), DIMENSION(:), Pointer     :: displ, force
 REAL(KIND=rk), DIMENSION(:), Allocatable :: glob_displ, glob_force
 REAL(KIND=rk), DIMENSION(:), Allocatable :: zeros_R8
+REAL(rk) :: factor
 
 INTEGER(mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
 INTEGER(mik) :: ierr, petsc_ierr, result_len_mpi_procs
@@ -553,12 +554,23 @@ if (TRIM(elt_micro) == "HEX08") then
                         
         HU = part_branch%leaves(6)%p_int8(ii)
 
-        bone_adjusted%E = bone%E / &
-                         REAL((14250_ik-1000_ik),rk) * &
-                         REAL((HU - 1000_ik), rk)
+        !------------------------------------------------------------------------------
+        ! Need to distinguish between > and < 1000 HU. Otherwise, the young modulus
+        ! may be negative, which leads to faulty results.
+        !------------------------------------------------------------------------------
+        IF (HU > 1000_ik) THEN
+            factor = 1._rk / REAL((14250_ik-1000_ik),rk) * REAL((HU - 1000_ik), rk)
+                
+            K_loc_08 = Hexe08(bone)
 
-        K_loc_08 = Hexe08(bone_adjusted)
+            K_loc_08 = K_loc_08! * factor
 
+        ELSE
+            bone_adjusted%E = 0._rk
+            K_loc_08 = Hexe08(bone_adjusted)
+        END IF 
+
+!         write(*,*) "ii: ", ii, "Parts: ", parts, "HU:", HU, " bone_adjusted%E:" , bone_adjusted%E
         idxn_08 = idxm_08
 
         CALL MatSetValues(AA, 24_8, idxm_08, 24_8 ,idxn_08, K_loc_08, ADD_VALUES, petsc_ierr)
@@ -593,11 +605,16 @@ else if (elt_micro == "HEX20") then
 
         HU = part_branch%leaves(6)%p_int8(ii)
 
-        bone_adjusted%E = bone%E / &
-                         REAL((14250_ik - 1000_ik),rk) * &
-                         REAL((HU - 1000_ik), rk)
+        IF (HU > 1000_ik) THEN
+            factor = 1._rk / REAL((14250_ik-1000_ik),rk) * REAL((HU - 1000_ik), rk)
+                
+            K_loc_08 = Hexe08(bone)
 
-        K_loc_08 = Hexe08(bone_adjusted)
+            K_loc_08 = K_loc_08 * factor
+        ELSE
+            bone_adjusted%E = 0._rk
+            K_loc_08 = Hexe08(bone_adjusted)
+        END IF 
                 
         idxn_20 = idxm_20
 

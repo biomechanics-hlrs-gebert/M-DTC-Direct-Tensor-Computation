@@ -196,7 +196,7 @@ contains
     Else
 
         write(std_out,FMT_ERR)"El_Type not supported in gen_quadmesh"
-        write(std_out,FMT_ERR)"Program stopped                      "
+        write(std_out,FMT_ERR)"Program stopped "
         stop
 
     End if
@@ -206,7 +206,7 @@ contains
     !------------------------------------------------------------------------------
     Allocate(HU_magnitudes(x_D(1)*x_D(2)*x_D(3)), stat=alloc_stat)
     call alloc_err("HU_magnitudes", alloc_stat)
-
+    HU_magnitudes = 0_ik
 
     lb_nodes_no = 0
     ub_nodes_no = x_D_nodes(1) * x_D_nodes(2) * x_D_nodes(3)
@@ -269,11 +269,8 @@ contains
                     nodes_no(el_nn( 1:20))  = -1
                     elems(:,no_elems)       = el_nn(1:20)
 
-                    !------------------------------------------------------------------------------
-                    ! Hardcoded for dev purposes 
-                    !------------------------------------------------------------------------------
                     HU_magnitudes(no_elems) = val_phi
-                    no_elems                = no_elems + 1
+                    no_elems = no_elems + 1
  
                     End If
                     
@@ -315,11 +312,8 @@ contains
                     nodes_no(el_nn(1:8)) = -1
                     elems(:,no_elems)    = el_nn(1:8)
                     
-                    !------------------------------------------------------------------------------
-                    ! Hardcoded for dev purposes 
-                    !------------------------------------------------------------------------------
-                    HU_magnitudes(no_elems) = REAL(val_phi-llimit, rk) * 0.4226_rk 
-                    no_elems             = no_elems + 1
+                    HU_magnitudes(no_elems) = val_phi
+                    no_elems = no_elems + 1
 
                     End If
                     

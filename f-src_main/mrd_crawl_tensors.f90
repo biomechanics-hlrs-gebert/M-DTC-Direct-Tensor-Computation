@@ -37,7 +37,7 @@ INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0, vdim=0, grid=0
 
 INTEGER(ik) :: alloc_stat, parts, fh_covo, fh_cr1, fh_cr2, fh_tens, &
     domains_crawled = 0_ik, nn_comm, par_domains, activity_size, size_mpi, fh_covo_num, &
-    ii, kk, ll, mm, tt, xx, par_dmn_number, &
+    ii, kk, ll, mm, tt, xx, par_dmn_number, jj, current_domain, pntr, &
     aun, domains_per_comm, rank_mpi, No_of_domains, local_domain_no, last_domain_rank
 
 REAL(rk) :: local_domain_density, sym, start, end
@@ -163,7 +163,7 @@ par_domains = (size_mpi-1) / parts
 
 domains_per_comm = CEILING(REAL(No_of_domains, rk) / REAL(par_domains, rk), ik)
 
-domains_per_comm = domains_per_comm * 2_ik
+domains_per_comm = domains_per_comm
 
 !------------------------------------------------------------------------------
 ! Allocate memory. Only necessary for one single PETSc sub comm of the DTC.
@@ -370,18 +370,12 @@ DO rank_mpi = 1, size_mpi-1, parts
         ! Begin searching for the domain to extract
         !------------------------------------------------------------------------------
         last_domain = .FALSE.
-        DO ii = 1, domains_Per_comm - 1_ik
+        DO ii = 1, domains_Per_comm 
 
             !------------------------------------------------------------------------------
-            ! Check if it is the last domain. Exit loop if it is not, but the last
-            ! iteration was.
+            ! Quite a naive implementation
             !------------------------------------------------------------------------------
-            IF (dat_domains(ii) .EQ. last_domain_rank) THEN
-                last_domain = .TRUE.
-            ELSE 
-                IF (last_domain) EXIT
-            END IF 
-
+            ! DO jj =1, No_of_domains
             !------------------------------------------------------------------------------
             ! Reset the information stored before proceeding to the next one.
             ! Iterating over jj while searching for the actual domain number stored in 
@@ -403,7 +397,6 @@ DO rank_mpi = 1, size_mpi-1, parts
             tensor(tt)%t_start        = 0._rk
             tensor(tt)%t_duration     = 0._rk
 
-
             tensor(tt)%mi_el_type = "" 
             tensor(tt)%ma_el_type = "" 
             !------------------------------------------------------------------------------
@@ -411,128 +404,141 @@ DO rank_mpi = 1, size_mpi-1, parts
             !------------------------------------------------------------------------------
             tensor(tt)%opt_res = 1._rk 
 
-            IF(Domain_status(dat_domains(ii)+1,1) == dat_domains(ii)) THEN
+            !------------------------------------------------------------------------------
+            ! Search for the current domain
+            !------------------------------------------------------------------------------
+            current_domain = dat_domains(ii)
 
-                !------------------------------------------------------------------------------
-                ! Check whether the domain was already found.
-                ! tt 1...3 for different criteria
-                !------------------------------------------------------------------------------
-                IF(Domain_status(dat_domains(ii)+1, tt+1) == 0_ik) THEN
-                    Domain_status(dat_domains(ii)+1, tt+1) = 1_ik
-                ELSE
-                    CYCLE
-                END IF
+            pntr = -1
+            DO jj = 1, No_of_domains
+                IF (Domain_status(jj,1) == current_domain) pntr = jj
+            END DO
 
-                !------------------------------------------------------------------------------
-                ! Effective domain density, which is crawled at the moment
-                !------------------------------------------------------------------------------
-                local_domain_density = dat_densities(ii)
+            !------------------------------------------------------------------------------
+            ! If, e.g. 500 domains are computed in parallel, but only 800 are requested
+            ! for computation, then cycle the last 200.
+            !------------------------------------------------------------------------------
+            IF (pntr == -1) CYCLE
 
-                !------------------------------------------------------------------------------
-                ! Get the position of the optimized tensor
-                !------------------------------------------------------------------------------
-                IF(tt/= 1) local_domain_opt_pos = dat_pos(ii:ii + 2_ik)
+            !------------------------------------------------------------------------------
+            ! Check whether the domain was already found.
+            ! tt 1...3 for different criteria
+            !------------------------------------------------------------------------------
+            IF(Domain_status(pntr, tt+1) == 0_ik) THEN
+                Domain_status(pntr, tt+1) = 1_ik
+            ELSE
+                CYCLE
+            END IF
 
-                !------------------------------------------------------------------------------
-                ! Local numerical stiffness
-                !------------------------------------------------------------------------------
-                local_num_tensor = 0._rk
-                mm = (ii-1) * 24 * 24 + 1
-                DO kk = 1, 24
-                DO ll = 1, 24
-                    local_num_tensor(kk, ll) = dat_eff_num_stiffnesses(mm)
-                    mm = mm + 1
-                END DO 
-                END DO
+            !------------------------------------------------------------------------------
+            ! Effective domain density, which is crawled at the moment
+            !------------------------------------------------------------------------------
+            local_domain_density = dat_densities(ii)
 
-                !------------------------------------------------------------------------------
-                ! Local tensor
-                !------------------------------------------------------------------------------
-                local_domain_tensor = 0._rk
-                mm = (ii-1) * 36 + 1
-                DO kk = 1, 6
-                DO ll = 1, 6
-                    local_domain_tensor(kk, ll) = dat_tensors(mm)
-                    mm = mm + 1
-                END DO 
-                END DO
+            !------------------------------------------------------------------------------
+            ! Get the position of the optimized tensor
+            !------------------------------------------------------------------------------
+            IF(tt/= 1) local_domain_opt_pos = dat_pos(ii:ii + 2_ik)
 
-                !------------------------------------------------------------------------------
-                ! Domain number, which is crawled at the moment
-                !------------------------------------------------------------------------------
-                local_domain_no = dat_domains(ii)
+            !------------------------------------------------------------------------------
+            ! Local numerical stiffness
+            !------------------------------------------------------------------------------
+            local_num_tensor = 0._rk
+            mm = (ii-1) * 24 * 24 + 1
+            DO kk = 1, 24
+            DO ll = 1, 24
+                local_num_tensor(kk, ll) = dat_eff_num_stiffnesses(mm)
+                mm = mm + 1
+            END DO 
+            END DO
 
-                domains_crawled = domains_crawled + 1_ik
+            !------------------------------------------------------------------------------
+            ! Local tensor
+            !------------------------------------------------------------------------------
+            local_domain_tensor = 0._rk
+            mm = (ii-1) * 36 + 1
+            DO kk = 1, 6
+            DO ll = 1, 6
+                local_domain_tensor(kk, ll) = dat_tensors(mm)
+                mm = mm + 1
+            END DO 
+            END DO
 
-                IF(mrd_dbg_lvl == "DEBUG") THEN
-                    WRITE(dmn_char, '(I0)') local_domain_no
-                    CALL write_matrix(std_out, "Effective stiffness of domain "//dmn_char, &
-                        local_domain_tensor, fmti='std', unit='MPa')
-                END IF 
+            !------------------------------------------------------------------------------
+            ! Domain number, which is crawled at the moment
+            !------------------------------------------------------------------------------
+            local_domain_no = dat_domains(ii)
 
-                !------------------------------------------------------------------------------
-                ! Check symmetry of the tensor
-                !------------------------------------------------------------------------------
-                sym = check_sym (local_domain_tensor)
+            domains_crawled = domains_crawled + 1_ik
 
-                !------------------------------------------------------------------------------
-                ! Compute additional parameters.
-                !------------------------------------------------------------------------------
-                tensor(tt)%dmn  = dat_domains(ii)
-                tensor(tt)%bvtv = dat_densities(ii)
-                tensor(tt)%no_elems = dat_no_elems(ii)
-                tensor(tt)%no_nodes = dat_no_nodes(ii)
-                tensor(tt)%t_start    = dat_t_start(ii)
-                tensor(tt)%t_duration = dat_t_duration(ii)
+            IF(mrd_dbg_lvl == "DEBUG") THEN
+                WRITE(dmn_char, '(I0)') local_domain_no
+                CALL write_matrix(std_out, "Effective stiffness of domain "//dmn_char, &
+                    local_domain_tensor, fmti='std', unit='MPa')
+            END IF 
 
-                tensor(tt)%sym  = sym
-                tensor(tt)%mat  = local_domain_tensor
-                tensor(tt)%num  = local_num_tensor
+            !------------------------------------------------------------------------------
+            ! Check symmetry of the tensor
+            !------------------------------------------------------------------------------
+            sym = check_sym (local_domain_tensor)
 
-                tensor(tt)%pos  = local_domain_opt_pos
-                tensor(tt)%dmn_size = dmn_size(1)
+            !------------------------------------------------------------------------------
+            ! Compute additional parameters.
+            !------------------------------------------------------------------------------
+            tensor(tt)%dmn  = dat_domains(ii)
+            tensor(tt)%bvtv = dat_densities(ii)
+            tensor(tt)%no_elems = dat_no_elems(ii)
+            tensor(tt)%no_nodes = dat_no_nodes(ii)
+            tensor(tt)%t_start    = dat_t_start(ii)
+            tensor(tt)%t_duration = dat_t_duration(ii)
 
-                grid = get_grid(dmn_size, vdim, spcng)
-                tensor(tt)%section = domain_no_to_section(tensor(tt)%dmn, grid)
-                
-                DO xx=1, 3
-                    tensor(tt)%phy_dmn_bnds(xx,1) = &
-                            tensor(tt)%section(xx) * tensor(tt)%dmn_size
+            tensor(tt)%sym  = sym
+            tensor(tt)%mat  = local_domain_tensor
+            tensor(tt)%num  = local_num_tensor
 
-                    tensor(tt)%phy_dmn_bnds(xx,2) = &
-                        (tensor(tt)%section(xx)+1) * tensor(tt)%dmn_size
-                END DO
-    
-                tensor(tt)%sym = check_sym(tensor(tt)%mat)
-                tensor(tt)%mps = mps(tensor(tt)%mat)
-                tensor(tt)%doa_zener = doa_zener(tensor(tt)%mat)
-                tensor(tt)%doa_gebert = doa_gebert(tensor(tt)%mat)
-                
-                !------------------------------------------------------------------------------
-                ! Could be assigned globally, but for the sake of clarity, the element type
-                ! gets assigned at this place.
-                !------------------------------------------------------------------------------
-                tensor(tt)%mi_el_type = TRIM(mi_el_type) 
-                tensor(tt)%ma_el_type = TRIM(ma_el_type) 
+            tensor(tt)%pos  = local_domain_opt_pos
+            tensor(tt)%dmn_size = dmn_size(1)
 
-                !------------------------------------------------------------------------------
-                ! This value is hardcoded in ./f-src/mod_struct_calcmat.f90
-                !------------------------------------------------------------------------------
-                tensor(tt)%opt_res = 1._rk 
+            grid = get_grid(dmn_size, vdim, spcng)
+            tensor(tt)%section = domain_no_to_section(tensor(tt)%dmn, grid)
+            
+            DO xx=1, 3
+                tensor(tt)%phy_dmn_bnds(xx,1) = &
+                        tensor(tt)%section(xx) * tensor(tt)%dmn_size
 
-                DO xx=1, 24
-                    tensor(tt)%collected_logs(xx) = dat_collected_logs(24_ik*(ii-1)+xx)
-                END DO
-                
-                CALL write_tensor_2nd_rank_R66_row(tensor(tt), string)
-                WRITE(fh_tens,'(A)') TRIM(string)
+                tensor(tt)%phy_dmn_bnds(xx,2) = &
+                    (tensor(tt)%section(xx)+1) * tensor(tt)%dmn_size
+            END DO
 
-                IF(tt==1) THEN
-                    CALL write_eff_num_stiff_row(tensor(tt), string)
-                    WRITE(fh_covo_num,'(A)') TRIM(string)
-                END IF
+            tensor(tt)%sym = check_sym(tensor(tt)%mat)
+            tensor(tt)%mps = mps(tensor(tt)%mat)
+            tensor(tt)%doa_zener = doa_zener(tensor(tt)%mat)
+            tensor(tt)%doa_gebert = doa_gebert(tensor(tt)%mat)
+            
+            !------------------------------------------------------------------------------
+            ! Could be assigned globally, but for the sake of clarity, the element type
+            ! gets assigned at this place.
+            !------------------------------------------------------------------------------
+            tensor(tt)%mi_el_type = TRIM(mi_el_type) 
+            tensor(tt)%ma_el_type = TRIM(ma_el_type) 
 
-            END IF ! (Domain_status(jj, 1) == domain_no%p_int8(ii)) THEN
+            !------------------------------------------------------------------------------
+            ! This value is hardcoded in ./f-src/mod_struct_calcmat.f90
+            !------------------------------------------------------------------------------
+            tensor(tt)%opt_res = 1._rk 
+
+            DO xx=1, 24
+                tensor(tt)%collected_logs(xx) = dat_collected_logs(24_ik*(ii-1)+xx)
+            END DO
+            
+            CALL write_tensor_2nd_rank_R66_row(tensor(tt), string)
+            WRITE(fh_tens,'(A)') TRIM(string)
+
+
+            IF(tt==1) THEN
+                CALL write_eff_num_stiff_row(tensor(tt), string)
+                WRITE(fh_covo_num,'(A)') TRIM(string)
+            END IF
         END DO ! ii = 1, domains_Per_comm - 1_ik
 
     END DO ! tt = 1, 3
@@ -568,3 +574,4 @@ WRITE(std_out, FMT_TXT_SEP)
 IF(std_out /= 6) CALL meta_stop_ascii(fh=std_out, suf='.std_out')
 
 END PROGRAM mrd_crawl_tensors
+
