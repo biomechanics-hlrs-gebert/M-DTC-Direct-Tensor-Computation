@@ -34,9 +34,9 @@ contains
 
     Do ii = 1, elnodes*3
 
-       bnode_vals(ii,1) = sum(phi_nn(t_geom_xi(node,xa,xe))*uu(:,1,ii))
-       bnode_vals(ii,2) = sum(phi_nn(t_geom_xi(node,xa,xe))*uu(:,2,ii))
-       bnode_vals(ii,3) = sum(phi_nn(t_geom_xi(node,xa,xe))*uu(:,3,ii))
+       bnode_vals(ii,1) = sum(phi_NN_hexe8(t_geom_xi_hexe8(node,xa,xe))*uu(:,1,ii))
+       bnode_vals(ii,2) = sum(phi_NN_hexe8(t_geom_xi_hexe8(node,xa,xe))*uu(:,2,ii))
+       bnode_vals(ii,3) = sum(phi_NN_hexe8(t_geom_xi_hexe8(node,xa,xe))*uu(:,3,ii))
 
     End Do
 

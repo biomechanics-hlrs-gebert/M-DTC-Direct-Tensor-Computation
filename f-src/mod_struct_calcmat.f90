@@ -23,16 +23,10 @@ contains
 subroutine calc_effective_material_parameters(root, comm_nn, ddc_nn, &
      fh_mpi_worker, size_mpi, comm_mpi, collected_logs)
 
-<<<<<<< HEAD
-Type(tBranch)                           , Intent(InOut) :: root
-integer(ik)                        , Intent(in) :: ddc_nn, comm_nn
-Integer(mik), Dimension(no_streams), Intent(in) :: fh_mpi_worker
-=======
 Type(tBranch)     , Intent(InOut) :: root
-INTEGER(kind=mik) , Intent(In) :: size_mpi, comm_mpi
-integer(Kind=ik)  , Intent(in) :: ddc_nn, comm_nn
-Integer(kind=mik), Dimension(no_streams), Intent(in) :: fh_mpi_worker
->>>>>>> main
+INTEGER(mik) , Intent(In) :: size_mpi, comm_mpi
+integer(ik)  , Intent(in) :: ddc_nn, comm_nn
+Integer(mik), Dimension(no_streams), Intent(in) :: fh_mpi_worker
 
 Real(rk) :: div_10_exp_jj, eff_density, n12, n13, n23, alpha, phi, eta
 Real(rk) :: cos_alpha, sin_alpha, One_Minus_cos_alpha, sym
@@ -51,28 +45,16 @@ Real(rk), Dimension(0:16) :: crit_min
 Real(rk), Dimension(6,24) :: int_strain, int_stress
 Real(rk):: E_Modul, nu, rve_strain, v_elem, v_cube
 
-<<<<<<< HEAD
 Integer(mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
-Integer(mik) :: ierr
+Integer(mik) :: ierr, global_rank_mpi
 
-integer(ik) :: ii, jj, kk, ll, no_elem_nodes, no_lc, num_leaves, alloc_stat
-Integer(ik) :: no_elems, no_nodes, no_cnodes, macro_order, ii_phi, ii_eta, kk_phi, kk_eta
+integer(ik) :: ii, jj, kk, ll, no_elem_nodes, micro_elem_nodes, no_lc, num_leaves, alloc_stat, &
+     no_elems, no_nodes, no_cnodes, macro_order, ii_phi, ii_eta, kk_phi, kk_eta, mem_global, status_global
 
 Integer(ik), Dimension(:,:,:,:), Allocatable :: ang
 Integer(ik), Dimension(:)      , Allocatable :: xa_n, xe_n, no_cnodes_pp, cref_cnodes
 Integer(ik), Dimension(3)                    :: s_loop,e_loop, mlc
-=======
-Integer(kind=mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
-Integer(kind=mik) :: ierr, global_rank_mpi
-
-integer(Kind=ik) :: ii, jj, kk, ll, no_elem_nodes, micro_elem_nodes, no_lc, num_leaves, alloc_stat, &
-     no_elems, no_nodes, no_cnodes, macro_order, ii_phi, ii_eta, kk_phi, kk_eta, mem_global, status_global
-
-Integer(kind=ik), Dimension(:,:,:,:), Allocatable :: ang
-Integer(Kind=ik), Dimension(:)      , Allocatable :: xa_n, xe_n, no_cnodes_pp, cref_cnodes
-Integer(kind=ik), Dimension(3)                    :: s_loop,e_loop, mlc
 INTEGER(ik), DIMENSION(24) :: collected_logs ! timestamps, memory_usage, pid_returned
->>>>>>> main
 
 Logical :: success
 
@@ -135,12 +117,12 @@ max_c = Real(xe_n    ,rk) * delta
 !------------------------------------------------------------------------------
 If (macro_order == 1) then
     no_elem_nodes = 8
-    no_lc         = 24
+    no_lc = 24
 ELSE IF (macro_order == 2) THEN
      no_elem_nodes = 20
-     no_lc         = 60
+     no_lc = 60
 Else
-    CALL print_err_stop(std_out, "Element order other than 1 not supported", 1)
+    CALL print_err_stop(std_out, "Element orders other than 1 or 2 are not supported", 1)
 End If
 
 !------------------------------------------------------------------------------
@@ -313,8 +295,8 @@ End Do
 !------------------------------------------------------------------------------
 ! Init element and RVE volume 
 !------------------------------------------------------------------------------
-v_elem = delta(1)*delta(2)*delta(3)
-v_cube = x_D_phy(1)*x_D_phy(2)*x_D_phy(3)
+v_elem = delta(1)   * delta(2)   * delta(3)
+v_cube = x_D_phy(1) * x_D_phy(2) * x_D_phy(3)
 
 If (out_amount /= "PRODUCTION" ) then
     Write(un_lf, "(A,E15.6)") 'Volume per element: ', v_elem
@@ -349,23 +331,27 @@ End if
 !------------------------------------------------------------------------------
 ff = 0._rk
 
-Do ii = 1, no_lc            ! Cycle through all load cases
-    Do jj = 1, no_nodes      ! Cycle through all boundary nodes
+Do ii = 1, no_lc                         ! Cycle through all load cases
+    Do jj = 1, no_nodes                  ! Cycle through all boundary nodes
 
-        ! t_geom_xi transforms coordinates from geometry to xi space 
-        ! Result(phi_nn) :  Real(rk), dimension(8)
-        tmp_nn = phi_nn(t_geom_xi(nodes(:,jj),min_c,max_c))
+          ! t_geom_xi transforms coordinates from geometry to xi space 
+          ! Result(phi_nn) :  Real(rk), dimension(8)
+          IF (macro_order == 1) THEN
+               tmp_nn = phi_NN_hexe8(t_geom_xi_hexe8(nodes(:,jj),min_c,max_c))
+          ELSE IF (macro_order == 2) THEN
+               tmp_nn = phi_NN_hexe20(t_geom_xi_hexe8(nodes(:,jj),min_c,max_c))
+          END IF 
 
-        Do kk = 1,3
-            Do ll = 1,no_elem_nodes
-            ! Setup of load matrix
-            ! 1st index - rows : Acumulate the reaction forces of the 
-            !                    micro model via the trail functions to 
-            !                    the macro element
-            ! 2nd index - cols : Do first index step for all load cases
-            ff((kk-1)*8+ll,ii) = ff((kk-1)*8+ll,ii) + rforces(kk,jj,ii)*tmp_nn(ll)
-            End Do
-        End Do
+          Do kk = 1,3                         ! Dof per node
+                    Do ll = 1, no_elem_nodes  ! No of FE nodes per Macro element
+                    ! Setup of load matrix
+                    ! 1st index - rows : Acumulate the reaction forces of the 
+                    !                    micro model via the trail functions to 
+                    !                    the macro element
+                    ! 2nd index - cols : Do first index step for all load cases
+                    ff((kk-1)*no_elem_nodes+ll,ii) = ff((kk-1)*no_elem_nodes+ll,ii) + rforces(kk,jj,ii)*tmp_nn(ll)
+                    End Do
+          End Do
 
     End Do
 End Do
@@ -467,7 +453,7 @@ End If
 !------------------------------------------------------------------------------
 ! Calc averaged strains and stresses 
 !------------------------------------------------------------------------------
-Do jj = 1, 24
+Do jj = 1, no_lc ! 24
   Do ii = 1,6
      int_stress(ii,jj) = sum(edat(ii,jj,:))
   End do

@@ -7,77 +7,89 @@ module linFE
 
 contains
 
-  !****************************************************************************
-  !** First base function for a linear FE-Ansatz
-  !** with xi element of closed interval [-1,1]
-  !**
-  Real(kind=rk) Function g_1(xi)
-    Real(kind=rk), intent(in) :: xi
+!------------------------------------------------------------------------------
+! FUNCTION: g_1
+!------------------------------------------------------------------------------  
+!> @author Ralf Schneider, schneider@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> First base function for a linear FE-Ansatz 
+!> with xi element of closed interval [-1,1]
+!------------------------------------------------------------------------------  
+Real(rk) Function g_1(xi)
+    Real(rk), intent(in) :: xi
     g_1 = 0.5_rk *( 1._rk - xi )
-  End Function g_1
-
-  !****************************************************************************
-  !** Second base function for a linear FE-Ansatz
-  !** with xi element of closed interval [-1,1]
-  !**  
-  Real(kind=rk) Function g_2(xi)
-    Real(kind=rk), intent(in) :: xi
+End Function g_1
+    
+!------------------------------------------------------------------------------
+! FUNCTION: g_2
+!------------------------------------------------------------------------------  
+!> @author Ralf Schneider, schneider@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Second base function for a linear FE-Ansatz 
+!> with xi element of closed interval [-1,1]
+!------------------------------------------------------------------------------  
+Real(rk) Function g_2(xi)
+    Real(rk), intent(in) :: xi
     g_2 = 0.5_rk *( 1._rk + xi )
-  End Function g_2
+End Function g_2
+  
+!------------------------------------------------------------------------------
+! FUNCTION: phi_NN_hexe8
+!------------------------------------------------------------------------------  
+!> @author Ralf Schneider, schneider@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Ansatz-functions for a linear Hexaedra element.
+!> The Element is defind in the dimensionless parameter space whith its
+!> ideal shape  being a cube with a edge length of 2
+!
+!> @param[in] xi
+!> @return    N
+!------------------------------------------------------------------------------  
+Function phi_NN_hexe8(xi) Result(N)
 
-  !****************************************************************************
-  !** Ansatz-functions for a linear Hexaedra element
-  !**
-  !** The Element is defind in the dimensionless parameter space whith its
-  !** ideal shape  being a cube with a edge length of 2
-  !**
-  Function phi_NN(xi) Result(N)
-
-    Real(kind=rk), Intent(in), dimension(3)   :: xi
-
-    Real(kind=rk), dimension(8)               :: N
+    Real(rk), Intent(in), dimension(3) :: xi
+    Real(rk) :: N(8)
 
     N = 0._rk
 
-    N(1)         = g_1(xi(1)) * g_1(xi(2)) * g_1(xi(3))
+    N(1) = g_1(xi(1)) * g_1(xi(2)) * g_1(xi(3))
+    N(2) = g_2(xi(1)) * g_1(xi(2)) * g_1(xi(3))
+    N(3) = g_2(xi(1)) * g_2(xi(2)) * g_1(xi(3))
+    N(4) = g_1(xi(1)) * g_2(xi(2)) * g_1(xi(3))
+    N(5) = g_1(xi(1)) * g_1(xi(2)) * g_2(xi(3))
+    N(6) = g_2(xi(1)) * g_1(xi(2)) * g_2(xi(3))
+    N(7) = g_2(xi(1)) * g_2(xi(2)) * g_2(xi(3))
+    N(8) = g_1(xi(1)) * g_2(xi(2)) * g_2(xi(3))
 
-    N(2)         = g_2(xi(1)) * g_1(xi(2)) * g_1(xi(3))
+End Function phi_NN_hexe8
 
-    N(3)         = g_2(xi(1)) * g_2(xi(2)) * g_1(xi(3))
+!------------------------------------------------------------------------------
+! FUNCTION: t_geom_xi_hexe8
+!------------------------------------------------------------------------------  
+!> @author Ralf Schneider, schneider@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Transformation for a single node from Geometry to XI-space
+!------------------------------------------------------------------------------  
+function t_geom_xi_hexe8(node,xa,xe) result(tnode)
 
-    N(4)         = g_1(xi(1)) * g_2(xi(2)) * g_1(xi(3))
-
-    N(5)         = g_1(xi(1)) * g_1(xi(2)) * g_2(xi(3))
-
-    N(6)         = g_2(xi(1)) * g_1(xi(2)) * g_2(xi(3))
-
-    N(7)         = g_2(xi(1)) * g_2(xi(2)) * g_2(xi(3))
-
-    N(8)         = g_1(xi(1)) * g_2(xi(2)) * g_2(xi(3))
-
-  End Function phi_NN
-
-  !****************************************************************************
-  !** Transformation for a single node from Geometry to XI-space
-  !**
-  function t_geom_xi(node,xa,xe) result(tnode)
-
-    Real(kind=rk), Dimension(3), intent(in)  :: node
-    Real(kind=rk), Dimension(3), intent(in)  :: xa, xe
-
-    Real(kind=rk), Dimension(3)              :: tnode
+    Real(rk), Dimension(3), intent(in)  :: node, xa, xe
+    Real(rk) :: tnode(3)
 
     tnode = 2._rk / (xe-xa) * node - (xe+xa) / (xe-xa)
 
-  End function t_geom_xi
+End function t_geom_xi_hexe8
 
   !****************************************************************************
   !** Extract stiffness matrix (E-Matrix) from nummerical stiffnes of a cube
   !** shaped Hexe8
   Subroutine num_stiffness_to_stiffness(A,C)
 
-    Real(kind=rk), Dimension(24,24), Intent(in ) :: A    
-    Real(kind=rk), Dimension( 6, 6), Intent(out) :: C
+    Real(rk), Dimension(24,24), Intent(in ) :: A    
+    Real(rk), Dimension( 6, 6), Intent(out) :: C
 
     C(1,1)= (  3._rk*A( 2, 2)-12._rk*A( 1, 2)+ 3._rk*A( 1, 1))/2._rk
     C(1,4)= (- 3._rk*A( 4, 4)+ 3._rk*A( 3, 3)- 3._rk*A( 2, 2)+ 3._rk*A( 1, 1))/2._rk
@@ -149,12 +161,12 @@ contains
   Function Hexe08(mc) Result(C_FE)
     TYPE(materialcard) :: mc
 
-    REAL(KIND=rk) :: E
-    REAL(KIND=rk) :: nu
-    REAL(KIND=rk) :: a 
-    REAL(KIND=rk), DIMENSION(24,24) :: C_FE
+    REAL(rk) :: E
+    REAL(rk) :: nu
+    REAL(rk) :: a 
+    REAL(rk), DIMENSION(24,24) :: C_FE
 
-    REAL(KIND=rk) :: factor
+    REAL(rk) :: factor
     
     !------------------------------------------------------------------------------  
     ! Both variables can be read from mc. But tranparency is required here.
@@ -751,10 +763,118 @@ contains
 
     C_FE = C_FE*factor
 
-  end Function Hexe08
+end Function Hexe08
 
-  !--------------------------------------------------------------------------
-  Function Hexe20(mc) Result(C_FE)
+
+!------------------------------------------------------------------------------
+! FUNCTION: g_1_hexe20
+!------------------------------------------------------------------------------  
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> First base function for a linear FE-Ansatz 
+!> with xi element of closed interval [-1,1]
+!------------------------------------------------------------------------------  
+FUNCTION g_1_hexe20(xi) RESULT(g_1)
+    REAL(rk), INTENT(IN) :: xi
+    REAL(rk) :: g_1
+    g_1 = -xi*0.5_rk * (1._rk - xi)
+END FUNCTION g_1_hexe20
+
+!------------------------------------------------------------------------------
+! FUNCTION: g_2_hexe20
+!------------------------------------------------------------------------------  
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Second base function for a linear FE-Ansatz 
+!> with xi element of closed interval [-1,1]
+!------------------------------------------------------------------------------  
+FUNCTION g_2_hexe20(xi) RESULT(g_2)
+    REAL(rk), INTENT(IN) :: xi
+    REAL(rk) :: g_2
+    g_2 = (1+xi)*(1-xi)
+END FUNCTION g_2_hexe20
+
+!------------------------------------------------------------------------------
+! FUNCTION: g_3_hexe20
+!------------------------------------------------------------------------------  
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Third base function for a linear FE-Ansatz 
+!> with xi element of closed interval [-1,1]
+!------------------------------------------------------------------------------  
+FUNCTION g_3_hexe20(xi) RESULT(g_3)
+    REAL(rk), INTENT(IN) :: xi
+    REAL(rk) :: g_3
+    g_3 = xi*0.5_rk * (1._rk + xi)
+END FUNCTION g_3_hexe20
+
+!------------------------------------------------------------------------------
+! FUNCTION: phi_NN_hexe20 
+!------------------------------------------------------------------------------  
+!> @author Ralf Schneider, schneider@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Ansatz-functions for a linear Hexaedra element.
+!> The Element is defind in the dimensionless parameter space whith its
+!> ideal shape  being a cube with a edge length of 2
+!
+!> @param[in] xi
+!> @return    N
+!------------------------------------------------------------------------------  
+Function phi_NN_hexe20 (xi) Result(N)
+
+    Real(rk), Intent(in), dimension(3) :: xi
+    Real(rk) :: N(20)
+    Real(rk), PARAMETER :: f = 1./8., ff = 1./4., e = 1.
+
+    N = 0._rk
+
+    N(1)  =  f * (e - xi(1)) * (e - xi(2)) * (e - xi(3)) * (-xi(1)-xi(2)-xi(3) - 2._rk)
+    N(2)  =  f * (e + xi(1)) * (e - xi(2)) * (e - xi(3)) * ( xi(1)-xi(2)-xi(3) - 2._rk)
+    N(3)  =  f * (e + xi(1)) * (e + xi(2)) * (e - xi(3)) * ( xi(1)+xi(2)-xi(3) - 2._rk)
+    N(4)  =  f * (e - xi(1)) * (e + xi(2)) * (e - xi(3)) * (-xi(1)+xi(2)-xi(3) - 2._rk)
+    N(5)  =  f * (e - xi(1)) * (e - xi(2)) * (e + xi(3)) * (-xi(1)-xi(2)+xi(3) - 2._rk)
+    N(6)  =  f * (e + xi(1)) * (e - xi(2)) * (e + xi(3)) * ( xi(1)-xi(2)+xi(3) - 2._rk)
+    N(7)  =  f * (e + xi(1)) * (e + xi(2)) * (e + xi(3)) * ( xi(1)+xi(2)+xi(3) - 2._rk)
+    N(8)  =  f * (e - xi(1)) * (e + xi(2)) * (e + xi(3)) * (-xi(1)+xi(2)+xi(3) - 2._rk)
+    N(9)  = ff * (e - xi(1)**2) * (e - xi(2)   ) * (e - xi(3)   )
+    N(10) = ff * (e + xi(1)   ) * (e - xi(2)**2) * (e - xi(3)   )
+    N(11) = ff * (e - xi(1)**2) * (e + xi(2)   ) * (e - xi(3)   )
+    N(12) = ff * (e - xi(1)   ) * (e - xi(2)**2) * (e - xi(3)   )
+    N(13) = ff * (e - xi(1)**2) * (e + xi(2)   ) * (e + xi(3)   )
+    N(14) = ff * (e + xi(1)   ) * (e - xi(2)**2) * (e + xi(3)   )
+    N(15) = ff * (e - xi(1)**2) * (e + xi(2)   ) * (e + xi(3)   )
+    N(16) = ff * (e - xi(1)   ) * (e - xi(2)**2) * (e + xi(3)   )
+    N(17) = ff * (e - xi(1)   ) * (e - xi(2)   ) * (e - xi(3)**2)
+    N(18) = ff * (e + xi(1)   ) * (e - xi(2)   ) * (e - xi(3)**2)
+    N(19) = ff * (e + xi(1)   ) * (e + xi(2)   ) * (e - xi(3)**2)
+    N(20) = ff * (e - xi(1)   ) * (e + xi(2)   ) * (e - xi(3)**2)
+
+End Function phi_NN_hexe20 
+
+!------------------------------------------------------------------------------
+! FUNCTION: t_geom_xi_hexe20
+!------------------------------------------------------------------------------  
+!> @author Ralf Schneider, schneider@hlrs.de, HLRS/NUM
+!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
+!
+!> @brief
+!> Transformation for a single node from Geometry to XI-space
+!------------------------------------------------------------------------------  
+function t_geom_xi_hexe20(node,xa,xe) result(tnode)
+
+    Real(rk), Dimension(3), intent(in)  :: node, xa, xe
+    Real(rk) :: tnode(3)
+
+    tnode = 2._rk / (xe-xa) * node - (xe+xa) / (xe-xa)
+
+End function t_geom_xi_hexe20
+
+!--------------------------------------------------------------------------
+Function Hexe20(mc) Result(C_FE)
 
     TYPE(materialcard) :: mc
 
@@ -4373,6 +4493,6 @@ contains
 
     C_FE = C_FE*factor
 
-  End Function Hexe20
+End Function Hexe20
 
 end module linFE 
