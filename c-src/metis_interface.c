@@ -21,7 +21,6 @@ void F_METIS_PartMeshDual(idx_t *ne, idx_t *nn, idx_t *eptr, idx_t *eind,
   rstatus = METIS_SetDefaultOptions(options);
   options[METIS_OPTION_NUMBERING] = 0; 
 
-  printf("## %d ## %d ## %d ## %d ## %d ##\n",*ne,*nn, *nparts, *ncommon, sizeof(idx_t)); 
 
 // Solid Cube
 // ## 40 ##
@@ -37,11 +36,13 @@ void F_METIS_PartMeshDual(idx_t *ne, idx_t *nn, idx_t *eptr, idx_t *eind,
   			       ncommon, nparts, tpwgts, options,
   			       objval, epart, npart);
 
+  printf(""); 
+
   if ( rstatus == METIS_OK ) {
-    printf("METIS OK\n");  
+    printf("ne: %d; nn: %d; nparts: %d; ncommon: %d; sizeof(idx_t): %d; METIS OK\n",*ne,*nn, *nparts, *ncommon, sizeof(idx_t));  
   }
   else {
-    printf("METIS NOT OK: %d \n", rstatus);
+    printf("ne: %d; nn: %d; nparts: %d; ncommon: %d; sizeof(idx_t): %d; METIS NOT OK: %d \n",*ne,*nn, *nparts, *ncommon, sizeof(idx_t), rstatus);
   }
   
 }

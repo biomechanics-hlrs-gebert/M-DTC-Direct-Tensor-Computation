@@ -13,17 +13,26 @@ USE auxiliaries
 USE user_interaction
 USE formatted_plain
 USE linFE
+USE mpi_system
 USE mpi
 
 implicit none
 
 contains
 
-subroutine calc_effective_material_parameters(root, comm_nn, ddc_nn, fh_mpi_worker) 
+subroutine calc_effective_material_parameters(root, comm_nn, ddc_nn, &
+     fh_mpi_worker, size_mpi, comm_mpi, collected_logs)
 
+<<<<<<< HEAD
 Type(tBranch)                           , Intent(InOut) :: root
 integer(ik)                        , Intent(in) :: ddc_nn, comm_nn
 Integer(mik), Dimension(no_streams), Intent(in) :: fh_mpi_worker
+=======
+Type(tBranch)     , Intent(InOut) :: root
+INTEGER(kind=mik) , Intent(In) :: size_mpi, comm_mpi
+integer(Kind=ik)  , Intent(in) :: ddc_nn, comm_nn
+Integer(kind=mik), Dimension(no_streams), Intent(in) :: fh_mpi_worker
+>>>>>>> main
 
 Real(rk) :: div_10_exp_jj, eff_density, n12, n13, n23, alpha, phi, eta
 Real(rk) :: cos_alpha, sin_alpha, One_Minus_cos_alpha, sym
@@ -42,6 +51,7 @@ Real(rk), Dimension(0:16) :: crit_min
 Real(rk), Dimension(6,24) :: int_strain, int_stress
 Real(rk):: E_Modul, nu, rve_strain, v_elem, v_cube
 
+<<<<<<< HEAD
 Integer(mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
 Integer(mik) :: ierr
 
@@ -51,6 +61,18 @@ Integer(ik) :: no_elems, no_nodes, no_cnodes, macro_order, ii_phi, ii_eta, kk_ph
 Integer(ik), Dimension(:,:,:,:), Allocatable :: ang
 Integer(ik), Dimension(:)      , Allocatable :: xa_n, xe_n, no_cnodes_pp, cref_cnodes
 Integer(ik), Dimension(3)                    :: s_loop,e_loop, mlc
+=======
+Integer(kind=mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
+Integer(kind=mik) :: ierr, global_rank_mpi
+
+integer(Kind=ik) :: ii, jj, kk, ll, no_elem_nodes, micro_elem_nodes, no_lc, num_leaves, alloc_stat, &
+     no_elems, no_nodes, no_cnodes, macro_order, ii_phi, ii_eta, kk_phi, kk_eta, mem_global, status_global
+
+Integer(kind=ik), Dimension(:,:,:,:), Allocatable :: ang
+Integer(Kind=ik), Dimension(:)      , Allocatable :: xa_n, xe_n, no_cnodes_pp, cref_cnodes
+Integer(kind=ik), Dimension(3)                    :: s_loop,e_loop, mlc
+INTEGER(ik), DIMENSION(24) :: collected_logs ! timestamps, memory_usage, pid_returned
+>>>>>>> main
 
 Logical :: success
 
@@ -62,6 +84,9 @@ Type(tBranch), Pointer :: ddc, loc_ddc, meta_para, domain_branch, mesh_branch, r
 
 Type(tLeaf),  pointer :: node_leaf_pointer
 Type(tLeaf), Allocatable, Dimension(:)   :: leaf_list
+
+CALL MPI_COMM_RANK(MPI_COMM_WORLD, global_rank_mpi, ierr)
+CALL print_err_stop(std_out, "MPI_COMM_RANK couldn't be retrieved", ierr)
 
 write(nn_char,'(I0)') ddc_nn
 
@@ -354,7 +379,7 @@ End If
 !------------------------------------------------------------------------------
 CALL add_leaf_to_branch(result_branch, "Domain forces", no_lc*no_lc, reshape(ff,[no_lc*no_lc]))
 CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-     Int(root%branches(3)%leaves(6)%lbound-1+(comm_nn-1)*no_lc*no_lc, MPI_OFFSET_KIND), &
+     Int(root%branches(3)%leaves(7)%lbound-1+(comm_nn-1)*no_lc*no_lc, MPI_OFFSET_KIND), &
      reshape(ff,[no_lc*no_lc]), &
      Int(no_lc*no_lc,pd_mik), MPI_Real8, &
      status_mpi, ierr)
@@ -371,7 +396,7 @@ stiffness = matmul(ff,vv)
 CALL add_leaf_to_branch(result_branch, "Effective numerical stiffness", no_lc*no_lc, &
     reshape(stiffness,[no_lc*no_lc]))
 CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-    Int(root%branches(3)%leaves(7)%lbound-1+(comm_nn-1)*no_lc*no_lc, MPI_OFFSET_KIND), &
+    Int(root%branches(3)%leaves(8)%lbound-1+(comm_nn-1)*no_lc*no_lc, MPI_OFFSET_KIND), &
     reshape(stiffness, [no_lc*no_lc]), &
     Int(no_lc*no_lc,pd_mik), MPI_Real8, &
     status_mpi, ierr)
@@ -390,7 +415,7 @@ tmp_real_fd1 = sym
 CALL add_leaf_to_branch(result_branch, &
     "Symmetry deviation - effective numerical stiffness", 1_pd_ik, tmp_real_fd1)
 CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-    Int(root%branches(3)%leaves(8)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
+    Int(root%branches(3)%leaves(9)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
     tmp_real_fd1, &
     1_pd_mik, MPI_REAL8, status_mpi, ierr)
 
@@ -477,7 +502,7 @@ int_stress = int_stress * v_elem / v_cube
 !------------------------------------------------------------------------------
 CALL add_leaf_to_branch(result_branch, "Averaged stresses", 6*no_lc, reshape(int_stress,[6*no_lc]))
 CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-    Int(root%branches(3)%leaves(9)%lbound-1+(comm_nn-1)*6*no_lc, MPI_OFFSET_KIND), &
+    Int(root%branches(3)%leaves(10)%lbound-1+(comm_nn-1)*6*no_lc, MPI_OFFSET_KIND), &
     reshape(int_stress, [6*no_lc]), &
     Int(6*no_lc, pd_mik), MPI_REAL8, status_mpi, ierr)
 
@@ -486,7 +511,7 @@ CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
 !------------------------------------------------------------------------------
 CALL add_leaf_to_branch(result_branch, "Averaged strains",  6*no_lc, reshape(int_strain,[6*no_lc]))
 CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-    Int(root%branches(3)%leaves(10)%lbound-1+(comm_nn-1)*6*no_lc, MPI_OFFSET_KIND), &
+    Int(root%branches(3)%leaves(11)%lbound-1+(comm_nn-1)*6*no_lc, MPI_OFFSET_KIND), &
     reshape(int_strain,[6*no_lc]), &
     Int(6*no_lc, pd_mik), MPI_REAL8, status_mpi, ierr)
 
@@ -520,7 +545,7 @@ End If
 !------------------------------------------------------------------------------
 CALL add_leaf_to_branch(result_branch, "Effective stiffness", 36_pd_ik, reshape(cc_mean, [36_pd_ik]))
 CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-    Int(root%branches(3)%leaves(11)%lbound-1+(comm_nn-1)*36, MPI_OFFSET_KIND), &
+    Int(root%branches(3)%leaves(12)%lbound-1+(comm_nn-1)*36, MPI_OFFSET_KIND), &
     reshape(cc_mean,[36]), &
     36_pd_mik, MPI_Real8, status_mpi, ierr)
 
@@ -532,7 +557,7 @@ tmp_real_fd1 = sym
 
 CALL add_leaf_to_branch(result_branch, "Symmetry deviation - effective stiffness",  1_pd_ik, tmp_real_fd1)
 CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-    Int(root%branches(3)%leaves(12)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
+    Int(root%branches(3)%leaves(13)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
     tmp_real_fd1, &
     1_pd_mik, MPI_REAL8, status_mpi, ierr)
 
@@ -563,7 +588,7 @@ End If
 !------------------------------------------------------------------------------
 CALL add_leaf_to_branch(result_branch, "Averaged Effective stiffness",  36_pd_ik, reshape(ee,[36_pd_ik]))
 CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-    Int(root%branches(3)%leaves(13)%lbound-1+(comm_nn-1)*36, MPI_OFFSET_KIND), &
+    Int(root%branches(3)%leaves(14)%lbound-1+(comm_nn-1)*36, MPI_OFFSET_KIND), &
     reshape(ee,[36]), &
     36_pd_mik, MPI_REAL8, status_mpi, ierr)
 
@@ -575,7 +600,7 @@ tmp_real_fd1 = check_sym(ee)
 CALL add_leaf_to_branch(result_branch, &
     "Symmetry deviation - Averaged effective stiffness",  1_pd_ik, tmp_real_fd1)
 CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-    Int(root%branches(3)%leaves(14)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
+    Int(root%branches(3)%leaves(15)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
     tmp_real_fd1, &
     1_pd_mik, MPI_REAL8, status_mpi, ierr)
 
@@ -1121,7 +1146,7 @@ EE_Orig = EE
 
     CALL add_leaf_to_branch(result_branch, "Rotation Angle CR_1" , 1_pd_ik, tmp_real_fd1)
     CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-          Int(root%branches(3)%leaves(15)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
+          Int(root%branches(3)%leaves(16)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
           tmp_real_fd1, &
           1_pd_mik, MPI_REAL8, status_mpi, ierr)
 
@@ -1130,7 +1155,7 @@ EE_Orig = EE
     !------------------------------------------------------------------------------
     CALL add_leaf_to_branch(result_branch, "Rotation Vector CR_1", 3_pd_ik, n)
     CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-          Int(root%branches(3)%leaves(16)%lbound-1+(comm_nn-1)*3, MPI_OFFSET_KIND), &
+          Int(root%branches(3)%leaves(17)%lbound-1+(comm_nn-1)*3, MPI_OFFSET_KIND), &
           n, &
           3_pd_mik, MPI_REAL8, status_mpi, ierr)
 
@@ -1228,7 +1253,7 @@ EE_Orig = EE
     !------------------------------------------------------------------------------
     CALL add_leaf_to_branch(result_branch, "Final coordinate system CR_1", 9_pd_ik, reshape(aa,[9_pd_ik]))
     CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-          Int(root%branches(3)%leaves(17)%lbound-1+(comm_nn-1)*9, MPI_OFFSET_KIND), &
+          Int(root%branches(3)%leaves(18)%lbound-1+(comm_nn-1)*9, MPI_OFFSET_KIND), &
           reshape(aa,[9_pd_ik]), &
           9_pd_mik, MPI_REAL8, status_mpi, ierr)
 
@@ -1237,7 +1262,7 @@ EE_Orig = EE
     !------------------------------------------------------------------------------
     CALL add_leaf_to_branch(result_branch, "Optimized Effective stiffness CR_1", 36_pd_ik, reshape(EE,[36_pd_ik]))
     CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-          Int(root%branches(3)%leaves(18)%lbound-1+(comm_nn-1)*36, MPI_OFFSET_KIND), &
+          Int(root%branches(3)%leaves(19)%lbound-1+(comm_nn-1)*36, MPI_OFFSET_KIND), &
           reshape(EE, [36_pd_ik]), &
           36_pd_mik, MPI_REAL8, status_mpi, ierr)
 
@@ -1567,7 +1592,7 @@ EE_Orig = EE
 
     CALL add_leaf_to_branch(result_branch, "Rotation Angle CR_2" , 1_pd_ik, tmp_real_fd1)
     CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-        Int(root%branches(3)%leaves(19)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
+        Int(root%branches(3)%leaves(20)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
         tmp_real_fd1, &
         1_pd_mik, MPI_REAL8, status_mpi, ierr)
     
@@ -1576,7 +1601,7 @@ EE_Orig = EE
     !------------------------------------------------------------------------------
     CALL add_leaf_to_branch(result_branch, "Rotation Vector CR_2", 3_pd_ik, n)
     CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-        Int(root%branches(3)%leaves(20)%lbound-1+(comm_nn-1)*3, MPI_OFFSET_KIND), &
+        Int(root%branches(3)%leaves(21)%lbound-1+(comm_nn-1)*3, MPI_OFFSET_KIND), &
         n, &
         3_pd_mik, MPI_REAL8, status_mpi, ierr)
     
@@ -1671,7 +1696,7 @@ EE_Orig = EE
     !------------------------------------------------------------------------------
     CALL add_leaf_to_branch(result_branch,"Final coordinate system CR_2", 9_pd_ik, reshape(aa,[9_pd_ik]))
     CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-        Int(root%branches(3)%leaves(21)%lbound-1+(comm_nn-1)*9, MPI_OFFSET_KIND), &
+        Int(root%branches(3)%leaves(22)%lbound-1+(comm_nn-1)*9, MPI_OFFSET_KIND), &
         reshape(aa,[9_pd_ik]), &
         9_pd_mik, MPI_REAL8, status_mpi, ierr)
         
@@ -1680,7 +1705,7 @@ EE_Orig = EE
     !------------------------------------------------------------------------------
     CALL add_leaf_to_branch(result_branch,"Optimized Effective stiffness CR_2", 36_pd_ik, reshape(EE,[36_pd_ik]))
     CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-        Int(root%branches(3)%leaves(22)%lbound-1+(comm_nn-1)*36, MPI_OFFSET_KIND), &
+        Int(root%branches(3)%leaves(23)%lbound-1+(comm_nn-1)*36, MPI_OFFSET_KIND), &
         reshape(EE,[36_pd_ik]), &
         36_pd_mik, MPI_REAL8, status_mpi, ierr)
 
@@ -1739,10 +1764,24 @@ EE_Orig = EE
 
     CALL add_leaf_to_branch(result_branch, "Effective density", 1_pd_ik, [eff_density])
     CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-        Int(root%branches(3)%leaves(23)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
+        Int(root%branches(3)%leaves(24)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
         eff_density, &
         1_pd_mik, MPI_REAL8, status_mpi, ierr)
 
+     !------------------------------------------------------------------------------
+     ! Write another memory log.
+     !------------------------------------------------------------------------------
+     IF (no_nodes /= 0) THEN
+          collected_logs(22) = size_mpi
+          collected_logs(23) = global_rank_mpi
+          collected_logs(24) = SUM(collected_logs(15:21))
+
+          CALL add_leaf_to_branch(result_branch, "Collected logs", 24_ik, [collected_logs])
+          CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
+               Int(root%branches(3)%leaves(4)%lbound-1+(comm_nn-1)*24, MPI_OFFSET_KIND), &
+               collected_logs, 24_pd_mik, MPI_INTEGER8, status_mpi, ierr)
+
+     END IF
 
     DEALLOCATE(tmp_nn, delta, x_D_phy)
     DEALLOCATE(nodes, vv, ff, stiffness)

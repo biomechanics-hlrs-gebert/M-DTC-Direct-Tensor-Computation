@@ -25,6 +25,7 @@ endif
 # Check for environment
 # -----------------------------------------------------------------------------
 check-env:
+#
 ifeq ($(SYS_ENV),)
 	@echo "---------------------------------------------------"
 	@echo "-- Please source environment.source <system> first."
@@ -92,17 +93,17 @@ clean_cmd = rm -rf
 #
 # ------------------------------------------------------------------------------
 # C include paths for external libraries
-c_inc_path = -I$(METIS_INCPATH)
+c_inc_path = -I$(METIS_INCPATH)  # -I$(PARMETIS_INCPATH) 
 #
 # -----------------------------------------------------------------------------
 # Fortran include paths for external libraries
 # -----------------------------------------------------------------------------
-f90_inc_path = -I$(PETSC_INCPATH)
+f90_inc_path = -I$(PETSC_INCPATH) # -I$(PARMETIS_INCPATH)
 #
 # ------------------------------------------------------------------------------
 # Library paths for external libraries 
 # -----------------------------------------------------------------------------
-lib_path_flag = -L$(LAPACK_LIBPATH) -L$(METIS_LIBPATH) -L$(PETSC_LIBPATH)
+lib_path_flag = -L$(LAPACK_LIBPATH) -L$(METIS_LIBPATH) -L$(PETSC_LIBPATH) -L$(PARMETIS_LIBPATH)
 #
 # -----------------------------------------------------------------------------
 # Choose Lapack
@@ -202,7 +203,15 @@ geb-lib-ld-objects = $(st_obj_dir)mod_global_std$(obj_ext) \
 # -----------------------------------------------------------------------------
 # Executable
 # -----------------------------------------------------------------------------
-main_bin = $(bin_dir)$(bin_name)_$(trgt_vrsn)$(bin_suf)
+out_amount=$(shell grep out_amount geb-lib/f-src/mod_global_std.f90  | cut -d '"' -f 2)
+#
+ifeq ($(out_amount),PRODUCTION)
+	oa=p
+else ifeq ($(out_amount),DEBUG)
+	oa=d
+endif
+#
+main_bin = $(bin_dir)$(bin_name)_$(trgt_vrsn)-$(oa)$(bin_suf)
 #
 # ------------------------------------------------------------------------------
 # Build the st directory first
@@ -449,9 +458,10 @@ $(obj_dir)mod_struct_preprocess$(obj_ext):$(st_mod_dir)global_std$(mod_ext)     
 # Calculate effective stiffness parameters 
 # -----------------------------------------------------------------------------
 $(obj_dir)mod_struct_calcmat$(obj_ext):$(st_mod_dir)global_std$(mod_ext)   $(st_mod_dir)formatted_plain$(mod_ext) \
-									   $(st_mod_dir)mechanical$(mod_ext)  $(mod_dir)tensors$(mod_ext)\
+									   $(st_mod_dir)mechanical$(mod_ext)  $(mod_dir)tensors$(mod_ext) \
 									   $(mod_dir)puredat$(mod_ext)        $(mod_dir)timer$(mod_ext) \
 									   $(mod_dir)decomp$(mod_ext)         $(mod_dir)mat_matrices$(mod_ext) \
+									   $(st_mod_dir)mpi_system$(mod_ext) \
 									   $(mod_dir)chain_routines$(mod_ext) $(mod_dir)linfe$(mod_ext) \
 									   $(f_src_dir)mod_struct_calcmat$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_struct_calcmat$(f90_ext) "-----"
@@ -661,8 +671,9 @@ cleanall: clean
 #
 end_all: 
 	@echo "----------------------------------------------------------------------------------"
-	@echo "-- Successfully built all executables."
+	@echo "-- Successfully built all executables:"
+	@echo "-- " && ls -l bin | grep "x86" | rev | cut -d " " -f 1 | rev | sed -e 's/^/-- /g'
 	@echo "----------------------------------------------------------------------------------"
-	@echo -n "-- out_amount = " && grep out_amount geb-lib/f-src/mod_global_std.f90  | cut -d '"' -f 2
+	@echo "-- out_amount = $(out_amount)"
 	@echo "----------------------------------------------------------------------------------"
 

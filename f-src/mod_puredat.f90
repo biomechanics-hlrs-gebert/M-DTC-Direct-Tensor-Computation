@@ -2020,7 +2020,7 @@ End Subroutine connect_pointers
     Do ii = 1, branch%no_leaves 
        
        If (  (branch%leaves(ii)%lbound == 0) .AND. &
-             (branch%leaves(ii)%ubound == 0)        ) then
+             (branch%leaves(ii)%ubound == 0)) then
 
           branch%leaves(ii)%lbound = t_streams%ii_st(branch%leaves(ii)%dat_ty)
           branch%leaves(ii)%ubound = branch%leaves(ii)%lbound + branch%leaves(ii)%dat_no - 1

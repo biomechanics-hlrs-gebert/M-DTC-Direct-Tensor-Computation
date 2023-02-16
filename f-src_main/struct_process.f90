@@ -105,7 +105,7 @@ TYPE(materialcard) :: bone
 
 INTEGER(mik) :: ierr, rank_mpi, size_mpi, petsc_ierr, mii, mjj, &
     worker_rank_mpi, worker_size_mpi, aun, par_domains, &
-    Active, request, finished = -1, worker_comm ! , WRITE_ROOT_COMM
+    Active, request, finished = -1, worker_comm, mpi_proc_resultlen ! , WRITE_ROOT_COMM
 
 INTEGER(mik), Dimension(no_streams)       :: fh_mpi_worker
 INTEGER(mik), Dimension(MPI_STATUS_SIZE)  :: status_mpi
@@ -124,9 +124,9 @@ CHARACTER(mcl)  , DIMENSION(:), ALLOCATABLE :: m_rry
 
 CHARACTER(4*mcl) :: job_dir
 CHARACTER(mcl)   :: cmd_arg_history='', link_name = 'struct process', &
-    muCT_pd_path, muCT_pd_name, binary, activity_file, desc="", memlog_file=""
+    muCT_pd_path, muCT_pd_name, binary, activity_file, desc="", memlog_file="", &
+    typeraw="", restart='N', restart_cmd_arg='U',ios="" ! U = 'undefined'
 CHARACTER(8)   :: elt_micro, output
-CHARACTER(mcl) :: typeraw="", restart='N', restart_cmd_arg='U',ios="" ! U = 'undefined'
 CHARACTER(3)   :: file_status
 
 REAL(rk), DIMENSION(3) :: delta
@@ -136,7 +136,7 @@ INTEGER(ik), DIMENSION(:), ALLOCATABLE :: Domains, nn_D, Domain_stats
 INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0
 
 INTEGER(ik) :: nn, ii, jj, kk, dc, computed_domains = 0, comm_nn = 1, &
-    No_of_domains, path_count, activity_size=0, alloc_stat, fh_memlog, &
+    No_of_domains, path_count, activity_size=0, alloc_stat, fh_cluster_log, &
     free_file_handle, domains_per_comm, stat, &
     Domain, llimit, parts, elo_macro, vdim(3)
 
@@ -145,8 +145,8 @@ INTEGER(pd_ik), DIMENSION(no_streams) :: dsize
 
 INTEGER(pd_ik) :: serial_root_size, add_leaves
 
-LOGICAL :: success, stat_exists, heaxist, abrt = .FALSE.
-LOGICAL :: create_new_header = .FALSE., fex=.TRUE.
+LOGICAL :: success, stat_exists, heaxist, abrt = .FALSE., already_finished=.FALSE.
+LOGICAL :: create_new_header = .FALSE., fex=.TRUE., no_restart_required = .FALSE.
 
 !----------------------------------------------------------------------------
 CALL mpi_init(ierr)
@@ -169,6 +169,11 @@ If (rank_mpi == 0) THEN
     END IF 
 
     CALL Start_Timer("Init Process")
+
+    !------------------------------------------------------------------------------
+    ! Batch feedback
+    !------------------------------------------------------------------------------
+    CALL execute_command_line ("echo 'JOB_STARTED' > BATCH_RUN")
 
     !------------------------------------------------------------------------------
     ! Parse the command arguments
@@ -196,7 +201,7 @@ If (rank_mpi == 0) THEN
     !------------------------------------------------------------------------------
     global_meta_prgrm_mstr_app = 'dtc' 
     global_meta_program_keyword = 'TENSOR_COMPUTATION'
-    CALL meta_append(m_rry, size_mpi, ios)
+    CALL meta_append(m_rry, size_mpi, binary, ios)
         
     IF(ios /= "") CALL print_err_stop(6, ios, 1)
 
@@ -275,8 +280,6 @@ If (rank_mpi == 0) THEN
 
     IF (std_out/=6) CALL meta_start_ascii(std_out, '.std_out')
     IF (std_out/=0) CALL meta_start_ascii(std_err, '.std_err')
-
-    CALL meta_write('DBG_LVL', out_amount)
 
     !------------------------------------------------------------------------------
     ! Warning / Error handling
@@ -508,7 +511,9 @@ If (rank_mpi == 0) THEN
         END DO
 
         IF (No_of_domains == computed_domains) THEN 
+            already_finished=.TRUE.
             mssg = "Job is already finished. No restart required."
+
             CALL print_err_stop_slaves(mssg, "message"); GOTO 1000
         END IF 
 
@@ -670,8 +675,13 @@ If (rank_mpi == 0) THEN
     ! Ensure to update the number of leaves and the indices of these in every
     ! line of code! Also update dat_ty and dat_no in "CALL raise_leaves"
     !------------------------------------------------------------------------------
-    add_leaves = 23_pd_ik
+    add_leaves = 24_pd_ik
 
+    !------------------------------------------------------------------------------
+    ! Number of loadcases
+    !------------------------------------------------------------------------------
+    ! no_lc = 24 
+    
     !------------------------------------------------------------------------------
     ! The name of the branche is a bit outdated. In the meantime, it contains 
     ! more data to accomodate the need for the doctoral project.
@@ -680,36 +690,51 @@ If (rank_mpi == 0) THEN
     !------------------------------------------------------------------------------
     CALL add_branch_to_branch(root, result_branch)
     CALL raise_branch("Averaged Material Properties", 0_pd_ik, add_leaves, result_branch)
-    
+
+    !------------------------------------------------------------------------------
+    ! Former *.memlog file
+    !------------------------------------------------------------------------------
+    ! Operation, Domain, Nodes, Elems, Preallo, Mem_comm, Pids_returned, Size_mpi, time
+    ! Before PETSc preallocation              , 3395     , 1672328, 1442071, 546, 37198100, 252, 252, 1671690714
+    ! After PETSc preallocation               , 3395     , 1672328, 1442071, 546, 209263436, 252, 252, 1671690714
+    ! Before matrix assembly                  , 3395     , 1672328, 1442071, 546, 269684188, 252, 252, 1671690714
+    ! After matrix assembly                   , 3395     , 1672328, 1442071, 546, 242114948, 252, 252, 1671690715
+    ! Before solving                          , 3395     , 1672328, 1442071, 546, 242514604, 252, 252, 1671690716
+    ! After solving                           , 3395     , 1672328, 1442071, 546, 244625464, 252, 252, 1671690736
+    ! End of domain                           , 3395     , 1672328, 1442071, 546, 73615236, 252, 252, 1671690747
+    !------------------------------------------------------------------------------
+
     CALL raise_leaves(no_leaves = add_leaves, &
-        desc = [ & ! DO NOT CHANGE THE LENGTH OF THE STRINGS!
+        desc = [ & ! DO NOT CHANGE THE LENGTH OF THE STRINGS      ! Leaf x bytes
         "Domain number                                     " , &  !  1 x  1
-        "Number of Elements                                " , &  !  1 x  1
-        "Number of Nodes                                   " , &  !  1 x  1
-        "Start Time                                        " , &  !  1 x  1
-        "Duration                                          " , &  !  1 x  1
-        "Domain forces                                     " , &  !  2 x 24*24
-        "Effective numerical stiffness                     " , &  !  3 x 24*24
-        "Symmetry deviation - effective numerical stiffness" , &  !  4 x  1
-        "Averaged stresses                                 " , &  !  5 x  6*24
-        "Averaged strains                                  " , &  !  6 x  6*24
-        "Effective stiffness                               " , &  !  7 x  6* 6  
-        "Symmetry deviation - effective stiffness          " , &  !  8 x  1
-        "Averaged Effective stiffness                      " , &  !  9 x  6* 6
-        "Symmetry deviation - Averaged effective stiffness " , &  ! 10 x  1
-        "Rotation Angle CR_1                               " , &  ! 11 x  1
-        "Rotation Vector CR_1                              " , &  ! 12 x  3
-        "Final coordinate system CR_1                      " , &  ! 13 x  9
-        "Optimized Effective stiffness CR_1                " , &  ! 14 x  6* 6
-        "Rotation Angle CR_2                               " , &  ! 15 x  1
-        "Rotation Vector CR_2                              " , &  ! 16 x  3
-        "Final coordinate system CR_2                      " , &  ! 17 x  9
-        "Optimized Effective stiffness CR_2                " , &  ! 18 x  6* 6
-        "Effective density                                 "], &  ! 19 x  1
-        dat_ty = [(4_1, ii=1, 3), (5_1, ii=4, add_leaves)], &
+        "Number of Elements                                " , &  !  2 x  1
+        "Number of Nodes                                   " , &  !  3 x  1
+        "Collected logs                                    " , &  !  4 x  24
+        "Start Time                                        " , &  !  5 x  1
+        "Duration                                          " , &  !  6 x  1
+        "Domain forces                                     " , &  !  7 x 24*24
+        "Effective numerical stiffness                     " , &  !  8 x 24*24
+        "Symmetry deviation - effective numerical stiffness" , &  !  9 x  1
+        "Averaged stresses                                 " , &  ! 10 x  6*24
+        "Averaged strains                                  " , &  ! 11 x  6*24
+        "Effective stiffness                               " , &  ! 12 x  6* 6  
+        "Symmetry deviation - effective stiffness          " , &  ! 13 x  1
+        "Averaged Effective stiffness                      " , &  ! 14 x  6* 6
+        "Symmetry deviation - Averaged effective stiffness " , &  ! 15 x  1
+        "Rotation Angle CR_1                               " , &  ! 16 x  1
+        "Rotation Vector CR_1                              " , &  ! 17 x  3
+        "Final coordinate system CR_1                      " , &  ! 18 x  9
+        "Optimized Effective stiffness CR_1                " , &  ! 19 x  6* 6
+        "Rotation Angle CR_2                               " , &  ! 20 x  1
+        "Rotation Vector CR_2                              " , &  ! 21 x  3
+        "Final coordinate system CR_2                      " , &  ! 22 x  9
+        "Optimized Effective stiffness CR_2                " , &  ! 23 x  6* 6
+        "Effective density                                 "], &  ! 24 x  1
+        dat_ty = [(4_1, ii=1, 4), (5_1, ii=5, add_leaves)], &
         dat_no = [ domains_per_comm, &
-        domains_per_comm,         domains_per_comm, & ! ii=2 --> No_elems; no_nodes
-        domains_per_comm,         domains_per_comm, & ! ii=4 --> t_start; t_duration
+        domains_per_comm,         domains_per_comm, &
+        domains_per_comm * 24   ,                                                    &
+        domains_per_comm,         domains_per_comm, &                                  
         domains_per_comm * 24*24, domains_per_comm * 24*24, domains_per_comm       , &
         domains_per_comm *  6*24, domains_per_comm *  6*24, domains_per_comm *  6*6, &
         domains_per_comm        , domains_per_comm *  6* 6, domains_per_comm       , &
@@ -1115,7 +1140,7 @@ Else
 
         IF(stat_c_int /= 0) THEN
 
-            CALL exec_cmd_line("mkdir -p "//TRIM(outpath), stat, 20)
+            CALL exec_cmd_line("mkdir -p "//TRIM(outpath), stat)
 
             IF(stat /= 0) CALL print_err_stop(std_out, &
                 'Could not execute syscall »mkdir -p '//trim(outpath)//'«.', 1)
@@ -1125,53 +1150,53 @@ Else
             IF(stat_c_int /= 0) THEN
                 mssg = 'Could not create the output directory »'//TRIM(outpath)//'«.'
                 CALL print_err_stop(std_out, mssg, 1)
-            ELSE
-                !------------------------------------------------------------------------------
-                ! Start the memory logging
-                !------------------------------------------------------------------------------
-                        ! INQUIRE(file="./datasets/memlog.sh", exist=fex)
-
-                        ! IF(fex) THEN
-                        !     CALL EXECUTE_COMMAND_LINE (&
-                        !         './datasets/memlog.sh '&
-                        !         //TRIM(outpath)//TRIM(project_name)//'.memlog', CMDSTAT=stat)   
-
-                        !     IF(stat /= 0) WRITE(std_err, FMT_WRN_xAI0) &
-                        !         "Could not start memory logging! Rank: ", rank_mpi
-                        ! ELSE
-                        !     WRITE(std_err, FMT_WRN_xAI0) &
-                        !         "File for memory logging not found! Rank: ", rank_mpi
-                        ! END IF
-
-
-                memlog_file=TRIM(outpath)//TRIM(project_name)//'.memlog'
-                INQUIRE (FILE = memlog_file, EXIST = fex)
-
-                file_status="NEW"
-                IF(fex) file_status="OLD"
-
-                fh_memlog = give_new_unit()
-
-                OPEN(UNIT=fh_memlog, FILE=TRIM(memlog_file), ACTION='WRITE', &
-                    ACCESS="SEQUENTIAL", STATUS=file_status)
-
-                WRITE(fh_memlog, '(A)') &
-                    "Operation, Domain, Nodes, Elems, Preallo, "//&
-                    "Mem_comm, Pids_returned, Size_mpi, time"
-            
-                ! IF(stat /= 0) WRITE(std_err, FMT_WRN_xAI0) &
-                !     "Could not start memory logging! Rank: ", rank_mpi
-
             END IF
         END IF
+
+        !------------------------------------------------------------------------------
+        ! Start the memory logging
+        !------------------------------------------------------------------------------
+                ! INQUIRE(file="./datasets/memlog.sh", exist=fex)
+
+                ! IF(fex) THEN
+                !     CALL EXECUTE_COMMAND_LINE (&
+                !         './datasets/memlog.sh '&
+                !         //TRIM(outpath)//TRIM(project_name)//'.memlog', CMDSTAT=stat)   
+
+                !     IF(stat /= 0) WRITE(std_err, FMT_WRN_xAI0) &
+                !         "Could not start memory logging! Rank: ", rank_mpi
+                ! ELSE
+                !     WRITE(std_err, FMT_WRN_xAI0) &
+                !         "File for memory logging not found! Rank: ", rank_mpi
+                ! END IF
+
+
+        memlog_file=TRIM(outpath)//TRIM(project_name)//'.memlog'
+        INQUIRE (FILE = memlog_file, EXIST = fex)
+
+        file_status="NEW"
+        IF(fex) file_status="OLD"
+
+        fh_cluster_log = give_new_unit()
+
+        OPEN(UNIT=fh_cluster_log, FILE=TRIM(memlog_file), ACTION='WRITE', &
+            ACCESS="SEQUENTIAL", STATUS=file_status)
+
+        WRITE(fh_cluster_log, '(A)') &
+            "Operation, Domain, Nodes, Elems, Preallo, "//&
+            "Mem_comm, Pids_returned, Size_mpi, time"
+    
+        ! IF(stat /= 0) WRITE(std_err, FMT_WRN_xAI0) &
+        !     "Could not start memory logging! Rank: ", rank_mpi
+
 
         CALL link_start(link_name, .True., .True.)
 
     ELSE ! Worker threads of the sub communicator
         !------------------------------------------------------------------------------
-        ! Set fh_memlog = -1 for clarifying the state of the worker threads
+        ! Set fh_cluster_log = -1 for clarifying the state of the worker threads
         !------------------------------------------------------------------------------
-        fh_memlog = -1_ik
+        fh_cluster_log = -1_ik
     END IF 
 
         
@@ -1238,14 +1263,18 @@ Else
         !------------------------------------------------------------------------------
         ! leaves 3 -> 3 INTEGER 8 leaves
         ! leaves 22 --> Last leaf, contains density
+
+        !------------------------------------------------------------------------------
+        ! (domains_per_comm*24)-1 because the last int8 entry has 24 ints.
         !------------------------------------------------------------------------------
         CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
-            Int(root%branches(3)%leaves(3)%lbound-1+(domains_per_comm-1), MPI_OFFSET_KIND), &
+            Int(root%branches(3)%leaves(4)%lbound-1+((domains_per_comm*24)-1), MPI_OFFSET_KIND), &
             INT(Domain, KIND=ik), 1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
 
         CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-            Int(root%branches(3)%leaves(23)%lbound-1+(domains_per_comm-1), MPI_OFFSET_KIND), &
+            Int(root%branches(3)%leaves(24)%lbound-1+(domains_per_comm-1), MPI_OFFSET_KIND), &
             1_rk, 1_pd_mik, MPI_REAL8, status_mpi, ierr)
+
 
         !------------------------------------------------------------------------------
         ! Start workers
@@ -1294,7 +1323,7 @@ Else
             !==============================================================================
             ! Compute a domain
             !==============================================================================
-            CALL exec_single_domain(root, comm_nn, Domain, typeraw, job_dir, fh_memlog, &
+            CALL exec_single_domain(root, comm_nn, Domain, typeraw, job_dir, fh_cluster_log, &
                 Active, fh_mpi_worker, worker_rank_mpi, worker_size_mpi, worker_comm)
             !==============================================================================
             
@@ -1398,7 +1427,7 @@ Else
     !------------------------------------------------------------------------------
     ! Close memlog file
     !------------------------------------------------------------------------------
-    CLOSE(fh_memlog)
+    CLOSE(fh_cluster_log)
 
     DO ii = 1, no_streams
         CALL MPI_File_close(fh_mpi_worker(ii), ierr)
@@ -1429,22 +1458,34 @@ IF(rank_mpi == 0) THEN
 
     CALL link_end(link_name,.True.)
 
-    CALL meta_signing(binary)
-    CALL meta_close()
-
-    CALL meta_stop_ascii(fh_mon, mon_suf)
-
-    IF (std_out/=6) THEN
-        CALL meta_stop_ascii(fh=std_out, suf='.std_out')
-    ELSE
-        WRITE(std_out, FMT_TXT_SEP)
-        WRITE(std_out, FMT_TXT) "HLRS Direct Tensor Computation finished successfully."
-        WRITE(std_out, FMT_TXT_SEP)
-    END IF 
+    WRITE(std_out, FMT_TXT_SEP)
+    WRITE(std_out, FMT_TXT) "HLRS Direct Tensor Computation finished successfully."
+    WRITE(std_out, FMT_TXT_SEP)
 
 END IF ! (rank_mpi == 0)
 
 1000 Continue
+
+IF(rank_mpi==0) THEN
+
+    !------------------------------------------------------------------------------
+    ! Write the "JOB_FINISHED" keyword only if the job was finished during 
+    ! this job (re)run.
+    !------------------------------------------------------------------------------
+    IF ((Domain_stats(No_of_domains) == No_of_domains-1) .OR. (already_finished)) THEN ! counts from 0
+
+        no_restart_required = .TRUE.
+        CALL execute_command_line ("echo 'JOB_FINISHED' > BATCH_RUN")
+    END IF 
+
+    CALL meta_close(m_rry, no_restart_required)
+
+    CALL meta_stop_ascii(fh_mon, mon_suf)
+
+    IF(std_err/=6) CALL meta_stop_ascii(std_out, '.std_out')
+    IF(std_err/=0) CALL meta_start_ascii(std_err, '.std_err')
+
+END IF 
 
 CALL MPI_FILE_CLOSE(aun, ierr)
 CALL MPI_FINALIZE(ierr)

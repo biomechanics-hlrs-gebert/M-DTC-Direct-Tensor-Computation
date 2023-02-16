@@ -49,53 +49,55 @@ CONTAINS
 !> @param[in]    comm_mpi
 !------------------------------------------------------------------------------
 Subroutine exec_single_domain(root, comm_nn, domain, typeraw, &
-    job_dir, fh_memlog, active, fh_mpi_worker, rank_mpi, size_mpi, comm_mpi)
+    job_dir, fh_cluster_log, active, fh_mpi_worker, rank_mpi, size_mpi, comm_mpi)
 
 TYPE(materialcard) :: bone
 INTEGER(mik), Intent(INOUT), Dimension(no_streams) :: fh_mpi_worker
 
-Character(*) , Intent(in)  :: job_dir
-Character(*) , Intent(in)  :: typeraw
-INTEGER(mik), Intent(In)  :: rank_mpi, size_mpi, comm_mpi
-INTEGER(ik) , intent(in)  :: comm_nn, domain, fh_memlog
-INTEGER(mik), intent(out) :: active
+Character(LEN=*) , Intent(in)  :: job_dir
+Character(LEN=*) , Intent(in)  :: typeraw
+INTEGER(kind=mik), Intent(In)  :: rank_mpi, size_mpi, comm_mpi
+INTEGER(kind=ik) , intent(in)  :: comm_nn, domain, fh_cluster_log
+INTEGER(kind=mik), intent(out) :: active
 Type(tBranch)    , Intent(inOut) :: root
 
 REAL(rk), DIMENSION(:), Pointer     :: displ, force
 REAL(rk), DIMENSION(:), Allocatable :: glob_displ, glob_force, zeros_R8
 
 INTEGER(mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
-INTEGER(mik) :: ierr, petsc_ierr
+INTEGER(mik) :: ierr, petsc_ierr, result_len_mpi_procs
 
-INTEGER(pd_ik), Dimension(:), Allocatable :: serial_pb
-INTEGER(pd_ik) :: serial_pb_size
+INTEGER(kind=pd_ik), Dimension(:), Allocatable :: serial_pb
+INTEGER(kind=pd_ik)                            :: serial_pb_size
 
 INTEGER(ik) :: preallo, domain_elems, ii, jj, kk, id, stat, &
     Istart,Iend, parts, IVstart, IVend, m_size, mem_global, status_global, &
-    no_elems, no_nodes, ddc_nn
+    ddc_nn, no_different_hosts, timestamp
 
-INTEGER(ik), Dimension(:)  , Allocatable :: nodes_in_mesh, gnid_cref
-INTEGER(ik), Dimension(:,:), Allocatable :: res_sizes
+INTEGER(ik), DIMENSION(24) :: collected_logs ! timestamps, memory_usage, pid_returned
+INTEGER(Kind=ik), Dimension(:)  , Allocatable :: nodes_in_mesh
+INTEGER(kind=ik), Dimension(:)  , Allocatable :: gnid_cref
+INTEGER(kind=ik), Dimension(:,:), Allocatable :: res_sizes
 
 INTEGER(c_int) :: stat_c_int
 
-CHARACTER(5)   :: timezone
-CHARACTER(8)   :: date, time_str
-CHARACTER(9)   :: domain_char
-CHARACTER(10)  :: time
-CHARACTER(40)  :: mssg_fix_len
-CHARACTER(mcl) :: str, timer_name, domain_desc, part_desc, env_var, &
-    desc, mesh_desc, filename, elt_micro, no_nodes_char, no_elems_char, &
-    preallo_char, mem_global_char, status_global_char, size_mpi_char, nn_char
+CHARACTER(LEN=9)   :: domain_char
+CHARACTER(LEN=40)  :: mssg_fix_len
+CHARACTER(LEN=mcl) :: timer_name, rank_char, domain_desc, part_desc, &
+    desc, mesh_desc, filename, elt_micro, nn_char
 
 Character, Dimension(4*mcl) :: c_char_array
 Character, Dimension(:), Allocatable :: char_arr
 
-LOGICAL, PARAMETER :: DEBUG = .TRUE.
-logical :: success=.TRUE.
+INTEGER(ik), PARAMETER :: host_name_length = 512
+CHARACTER(host_name_length), DIMENSION(:), ALLOCATABLE :: host_list, unique_host_list
+CHARACTER(host_name_length) :: host_of_part
 
-Type(tBranch), pointer :: boundary_branch, domain_branch, part_branch, &
-    mesh_branch, meta_para, esd_result_branch
+LOGICAL, PARAMETER :: DEBUG = .TRUE.
+logical :: success=.TRUE., host_assumed_unique
+
+Type(tBranch), pointer :: boundary_branch, domain_branch, part_branch
+Type(tBranch), pointer :: mesh_branch, meta_para, esd_result_branch, result_branch
 
 Type(tMat)                :: AA, AA_org
 Type(tVec)                :: XX
@@ -111,15 +113,36 @@ Real(rk),    Dimension(24,24) :: K_loc_08
 
 ! Init worker_is_active status
 Active = 0_mik
-
-no_nodes_char="0"
-no_elems_char="0"
+collected_logs = 0_ik
 
 write(domain_char,'(I0)') domain
 
 !--------------------------------------------------------------------------
 ! Get basic infos 
 !--------------------------------------------------------------------------
+host_of_part = ""
+CALL mpi_get_processor_name(host_of_part, result_len_mpi_procs, ierr) 
+CALL print_err_stop(std_out, "mpi_get_processor_name failed", ierr)
+
+
+!------------------------------------------------------------------------------
+! Get the mpi communicators total memory usage by the pids of the threads.
+!------------------------------------------------------------------------------
+CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
+
+!------------------------------------------------------------------------------
+! Tracking (the memory usage is) intended for use during production too.
+!------------------------------------------------------------------------------
+IF (rank_mpi == 0) THEN
+    collected_logs(1) = INT(time(), ik)
+    collected_logs(8) = mem_global
+    collected_logs(15) = status_global
+END IF
+
+
+! This function does not work out well.
+! CALL get_environment_Variable("HOST", host_of_part)
+
 CALL Search_branch("Input parameters", root, meta_para, success, out_amount)
 
 CALL pd_get(meta_para, "No of mesh parts per subdomain", parts)
@@ -156,26 +179,94 @@ If (rank_mpi == 0) then
 
         End If
 
-        Write(un_lf,FMT_MSG_SEP)
     End If
 
     !------------------------------------------------------------------------------
     ! Write log and monitor file
     !------------------------------------------------------------------------------
-    Write(un_lf, FMT_MSG_xAI0) "Domain No. : ", domain
-    Write(un_lf, FMT_MSG)      "Job_dir    : "//Trim(job_dir)
+    Write(un_lf,FMT_MSG_SEP)
+    timestamp = time()
 
-    CALL DATE_AND_TIME(DATE=date, TIME=time, ZONE=timezone)
-
-    str = ''
-    str = date(7:8)//'.'//date(5:6)//'.'//date(1:4)
-    str = TRIM(str)//' '//time(1:2)//':'//time(3:4)//':'//time(5:10)
-    str = TRIM(str)//' '//timezone
     
-    WRITE(un_lf, '(2A)') 'Start time: ', TRIM(str)
+    WRITE(un_lf, '(A,I0)') 'Start time: ', timestamp
 
-    CALL get_environment_Variable("HOSTNAME", env_var)
-    Write(un_lf,FMT_MSG) "Host       : "//Trim(env_var)
+    Write(un_lf, FMT_MSG_xAI0) "Domain No.: ", domain
+    Write(un_lf, FMT_MSG)      "Job_dir:    "//Trim(job_dir)
+    Write(un_lf,FMT_MSG_SEP)
+
+    !------------------------------------------------------------------------------
+    ! Get and log the hosts of all parts
+    !------------------------------------------------------------------------------
+    IF (.NOT. ALLOCATED(host_list)) ALLOCATE(host_list(parts))
+    IF (.NOT. ALLOCATED(unique_host_list)) ALLOCATE(unique_host_list(parts))
+    
+    host_list = ""
+    host_list(1) = host_of_part
+
+    no_different_hosts = 1
+
+    unique_host_list = host_list
+
+    !------------------------------------------------------------------------------
+    ! Loop over all ranks of the sub comm
+    ! parts refers to ranks an therefore is counted from o, 
+    ! but 0 is the master and does not need so send to itself.
+    !------------------------------------------------------------------------------
+    Do ii = 1, parts-1 
+
+        IF (ii/=0) THEN
+            CALL MPI_RECV(host_list(ii), INT(host_name_length, mik), MPI_CHAR, &
+                INT(ii,mik), INT(ii,mik), comm_mpi, status_mpi, ierr)
+
+            WRITE(rank_char, "(I20)") ii
+            CALL print_err_stop(std_out, &
+                "MPI_RECV on host_of_part "//TRIM(ADJUSTL(rank_char))//" didn't succseed", ierr)
+        END IF
+
+        !------------------------------------------------------------------------------
+        ! Test whether the host is unique in the domain
+        !------------------------------------------------------------------------------
+        IF (host_list(ii) == "") CYCLE
+        
+        host_assumed_unique = .TRUE.
+        DO jj = 1, parts
+
+            IF((host_list(ii) == unique_host_list(jj)) .AND. (unique_host_list(jj) /= "")) THEN
+                host_assumed_unique = .FALSE.
+            END IF 
+        END DO
+        
+        IF (host_assumed_unique) THEN
+            no_different_hosts = no_different_hosts + 1_ik
+            unique_host_list(no_different_hosts) = host_list(ii)
+        END IF 
+
+    END Do
+
+    !------------------------------------------------------------------------------
+    ! Concatenate the string of the unique host names.
+    !------------------------------------------------------------------------------
+    mssg_fix_len = "Unique hosts of domain:"
+    WRITE(fh_cluster_log, '(A)', ADVANCE="NO") mssg_fix_len//", "//domain_char//", " 
+
+    DO ii = 1, no_different_hosts-1
+
+        WRITE(fh_cluster_log, '(A)', ADVANCE="NO") TRIM(unique_host_list(ii))//","
+    END DO
+    WRITE(fh_cluster_log, '(A)', ADVANCE="NO") TRIM(unique_host_list(no_different_hosts))
+
+    WRITE(fh_cluster_log, '(A)')
+    FLUSH(fh_cluster_log)
+
+ELSE ! (rank_mpi == 0) THEN
+
+    CALL MPI_SEND(host_of_part, INT(host_name_length, mik), MPI_CHAR, 0_mik, rank_mpi, comm_mpi, ierr)
+    CALL print_err_stop(std_out, "MPI_SEND of host_of_part didn't succeed", ierr)
+
+END IF 
+
+
+If (rank_mpi == 0) then
 
     !------------------------------------------------------------------------------
     ! Generate Geometry
@@ -196,15 +287,10 @@ If (rank_mpi == 0) then
     End if
 
     CALL end_timer(trim(timer_name))
-    
-    CALL DATE_AND_TIME(DATE=date, TIME=time, ZONE=timezone)
+        timestamp = time()
 
-    str = ''
-    str = date(7:8)//'.'//date(5:6)//'.'//date(1:4)
-    str = TRIM(str)//' '//time(1:2)//':'//time(3:4)//':'//time(5:10)
-    str = TRIM(str)//' '//timezone
-    
-    WRITE(un_lf, '(2A)') 'End time: ', TRIM(str)
+
+    WRITE(un_lf, '(A,I0)') 'End time: ', timestamp
 
     !------------------------------------------------------------------------------
     ! Look for the Domain branch
@@ -351,60 +437,23 @@ IF (rank_mpi == 0) THEN   ! Sub Comm Master
 END IF 
 
 !------------------------------------------------------------------------------
-! Calculate amount of memory to allocate.
-!------------------------------------------------------------------------------
-preallo = (part_branch%leaves(5)%dat_no * 3) / parts + 1
-
-
-!------------------------------------------------------------------------------
 ! Get the mpi communicators total memory usage by the pids of the threads.
 !------------------------------------------------------------------------------
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 !------------------------------------------------------------------------------
-! Tracking the memory usage is intended for use during production too.
+! Tracking (the memory usage is) intended for use during production too.
 !------------------------------------------------------------------------------
 IF (rank_mpi == 0) THEN
-    !------------------------------------------------------------------------------
-    ! Get global mesh_branch parameters
-    !------------------------------------------------------------------------------
-    Call Search_branch("Domain "//trim(nn_char), root, domain_branch, success)
-
-    desc = ''
-    Write(desc,'(A,I0)') 'Mesh info of '//trim(project_name)//'_', ddc_nn
-    Call search_branch(trim(desc), domain_branch, mesh_branch, success)
-
-    call pd_get(mesh_branch, 'No of nodes in mesh',  no_nodes)
-    call pd_get(mesh_branch, 'No of elements in mesh',  no_elems)
-
-    !------------------------------------------------------------------------------
-    ! Prepare key data for logging memory usage and dependencies.
-    !------------------------------------------------------------------------------
-    mssg_fix_len = ""
-    mssg_fix_len = "Before PETSc preallocation"
-    WRITE(no_nodes_char, '(I8)') no_nodes
-    WRITE(no_elems_char, '(I8)') no_elems
-    WRITE(preallo_char, '(I8)') preallo
-    WRITE(mem_global_char, '(I20)') mem_global
-    WRITE(status_global_char, '(I8)') status_global
-    WRITE(size_mpi_char, '(I8)') size_mpi
-
-    CALL DATE_AND_TIME(TIME=time)
-    time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
-
-    !------------------------------------------------------------------------------
-    ! Write to the memlog file of the mpi communicator for latter analysis by 
-    ! python and gnuplot. Formatted for combined humand and machine readability.
-    !------------------------------------------------------------------------------
-    WRITE(fh_memlog, '(A)') mssg_fix_len//", "//domain_char//&
-        &", "//TRIM(ADJUSTL(no_nodes_char))//&
-        ", "//TRIM(ADJUSTL(no_elems_char))//&
-        ", "//TRIM(ADJUSTL(preallo_char))//&
-        ", "//TRIM(ADJUSTL(mem_global_char))//&
-        ", "//TRIM(ADJUSTL(status_global_char))//&
-        ", "//TRIM(ADJUSTL(size_mpi_char))//", "//time_str
+    collected_logs(2) = INT(time(), ik)
+    collected_logs(9) = mem_global
+    collected_logs(16) = status_global
 END IF
             
+!------------------------------------------------------------------------------
+! Calculate amount of memory to allocate.
+!------------------------------------------------------------------------------
+preallo = (part_branch%leaves(5)%dat_no * 3) / parts + 1
 
 !------------------------------------------------------------------------------
 ! Create Stiffness matrix
@@ -436,21 +485,9 @@ CALL MatSetOption(AA_org,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 IF (rank_mpi == 0) THEN
-    mssg_fix_len = ""
-    mssg_fix_len = "After PETSc preallocation"
-    WRITE(mem_global_char, '(I20)') mem_global
-    WRITE(status_global_char, '(I8)') status_global
-
-    CALL DATE_AND_TIME(TIME=time)
-    time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
-
-    WRITE(fh_memlog, '(A)') mssg_fix_len//", "//domain_char//&
-        &", "//TRIM(ADJUSTL(no_nodes_char))//&
-        ", "//TRIM(ADJUSTL(no_elems_char))//&
-        ", "//TRIM(ADJUSTL(preallo_char))//&
-        ", "//TRIM(ADJUSTL(mem_global_char))//&
-        ", "//TRIM(ADJUSTL(status_global_char))//&
-        ", "//TRIM(ADJUSTL(size_mpi_char))//", "//time_str
+    collected_logs(3) = INT(time(), ik)
+    collected_logs(10) = mem_global
+    collected_logs(17) = status_global
 END IF
 
 
@@ -569,21 +606,9 @@ END IF
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 IF (rank_mpi == 0) THEN
-    mssg_fix_len = ""
-    mssg_fix_len = "Before matrix assembly"
-    WRITE(mem_global_char, '(I20)') mem_global
-    WRITE(status_global_char, '(I8)') status_global
-
-    CALL DATE_AND_TIME(TIME=time)
-    time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
-
-    WRITE(fh_memlog, '(A)') mssg_fix_len//", "//domain_char//&
-        &", "//TRIM(ADJUSTL(no_nodes_char))//&
-        ", "//TRIM(ADJUSTL(no_elems_char))//&
-        ", "//TRIM(ADJUSTL(preallo_char))//&
-        ", "//TRIM(ADJUSTL(mem_global_char))//&
-        ", "//TRIM(ADJUSTL(status_global_char))//&
-        ", "//TRIM(ADJUSTL(size_mpi_char))//", "//time_str
+    collected_logs(4) = INT(time(), ik)
+    collected_logs(11) = mem_global
+    collected_logs(18) = status_global
 END IF
 
 CALL MatAssemblyBegin(AA, MAT_FINAL_ASSEMBLY ,petsc_ierr)
@@ -633,21 +658,9 @@ END IF
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 IF (rank_mpi == 0) THEN
-    mssg_fix_len = ""
-    mssg_fix_len = "After matrix assembly"
-    WRITE(mem_global_char, '(I20)') mem_global
-    WRITE(status_global_char, '(I8)') status_global
-
-    CALL DATE_AND_TIME(TIME=time)
-    time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
-
-    WRITE(fh_memlog, '(A)') mssg_fix_len//", "//domain_char//&
-        &", "//TRIM(ADJUSTL(no_nodes_char))//&
-        ", "//TRIM(ADJUSTL(no_elems_char))//&
-        ", "//TRIM(ADJUSTL(preallo_char))//&
-        ", "//TRIM(ADJUSTL(mem_global_char))//&
-        ", "//TRIM(ADJUSTL(status_global_char))//&
-        ", "//TRIM(ADJUSTL(size_mpi_char))//", "//time_str
+    collected_logs(5) = INT(time(), ik)
+    collected_logs(12) = mem_global
+    collected_logs(19) = status_global
 END IF
 
 Do ii = 1, 24
@@ -893,21 +906,9 @@ END IF
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 IF (rank_mpi == 0) THEN
-    mssg_fix_len = ""
-    mssg_fix_len = "Before solving"
-    WRITE(mem_global_char, '(I20)') mem_global
-    WRITE(status_global_char, '(I8)') status_global
-
-    CALL DATE_AND_TIME(TIME=time)
-    time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
-
-    WRITE(fh_memlog, '(A)') mssg_fix_len//", "//domain_char//&
-        &", "//TRIM(ADJUSTL(no_nodes_char))//&
-        ", "//TRIM(ADJUSTL(no_elems_char))//&
-        ", "//TRIM(ADJUSTL(preallo_char))//&
-        ", "//TRIM(ADJUSTL(mem_global_char))//&
-        ", "//TRIM(ADJUSTL(status_global_char))//&
-        ", "//TRIM(ADJUSTL(size_mpi_char))//", "//time_str
+    collected_logs(6) = INT(time(), ik)
+    collected_logs(13) = mem_global
+    collected_logs(20) = status_global
 END IF
 
 !------------------------------------------------------------------------------
@@ -1101,21 +1102,9 @@ End Do
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 IF (rank_mpi == 0) THEN
-    mssg_fix_len = ""
-    mssg_fix_len = "After solving"
-    WRITE(mem_global_char, '(I20)') mem_global
-    WRITE(status_global_char, '(I8)') status_global
-
-    CALL DATE_AND_TIME(TIME=time)
-    time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
-
-    WRITE(fh_memlog, '(A)') mssg_fix_len//", "//domain_char//&
-        &", "//TRIM(ADJUSTL(no_nodes_char))//&
-        ", "//TRIM(ADJUSTL(no_elems_char))//&
-        ", "//TRIM(ADJUSTL(preallo_char))//&
-        ", "//TRIM(ADJUSTL(mem_global_char))//&
-        ", "//TRIM(ADJUSTL(status_global_char))//&
-        ", "//TRIM(ADJUSTL(size_mpi_char))//", "//time_str
+    collected_logs(7) = INT(time(), ik)
+    collected_logs(14) = mem_global
+    collected_logs(21) = status_global
 END IF
 
 !------------------------------------------------------------------------------
@@ -1137,7 +1126,8 @@ if (rank_mpi == 0) then
     End SELECT
 
     CALL start_timer(TRIM(timer_name), .FALSE.)
-    CALL calc_effective_material_parameters(root, comm_nn, domain, fh_mpi_worker)
+    CALL calc_effective_material_parameters(root, comm_nn, domain, &
+        fh_mpi_worker, size_mpi, comm_mpi, collected_logs)
     CALL end_timer(TRIM(timer_name))
     
 ELSE
@@ -1157,34 +1147,6 @@ CALL VecDestroy(XX,     petsc_ierr)
 Do ii = 1, 24
     CALL VecDestroy(FF(ii), petsc_ierr)
 End Do
-
-!------------------------------------------------------------------------------
-! Get and write another memory log.
-!------------------------------------------------------------------------------
-CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
-
-IF ((rank_mpi == 0) .AND. (TRIM(ADJUSTL(no_nodes_char)) /= "0")) THEN
-    mssg_fix_len = ""
-    mssg_fix_len = "End of domain"
-    WRITE(mem_global_char, '(I20)') mem_global
-    WRITE(status_global_char, '(I8)') status_global
-
-    CALL DATE_AND_TIME(TIME=time)
-    time_str = time(1:2)//':'//time(3:4)//':'//time(5:6)
-
-    WRITE(fh_memlog, '(A)') mssg_fix_len//", "//domain_char//&
-        &", "//TRIM(ADJUSTL(no_nodes_char))//&
-        ", "//TRIM(ADJUSTL(no_elems_char))//&
-        ", "//TRIM(ADJUSTL(preallo_char))//&
-        ", "//TRIM(ADJUSTL(mem_global_char))//&
-        ", "//TRIM(ADJUSTL(status_global_char))//&
-        ", "//TRIM(ADJUSTL(size_mpi_char))//", "//time_str
-
-    !------------------------------------------------------------------------------
-    ! Save to file. Minimizing I/O vs. securing the data.
-    !------------------------------------------------------------------------------
-    FLUSH(fh_memlog)
-END IF
 
 End Subroutine exec_single_domain
 

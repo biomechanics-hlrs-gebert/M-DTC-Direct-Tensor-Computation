@@ -24,7 +24,7 @@ r BINARIZE_HI           1                                              ! Typical
 r BINARIZE_LO           0                                              ! Typically 0 or 1
 ----------------------------------------------------------------------------------------------------------------
 
-p TENSOR-COMPUTATION
+p TENSOR_COMPUTATION
 r SIZE_DOMAIN           0.4  0.4  0.4                                  ! (mm)
 r YOUNG_MODULUS         5600.0                                         ! Monolithical parameter
 r POISSON_RATIO         0.3                                            ! Monolithical parameter

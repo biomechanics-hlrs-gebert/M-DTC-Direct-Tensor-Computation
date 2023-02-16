@@ -1,6 +1,6 @@
 
 p TENSOR-COMPUTATION
-r PROVENANCE_BSNM       FH01-1_mu_dev_CIF_G31                          ! From which dataset to fork from. can be empty
+r PROVENANCE_P_N_BSNM   datasets/FH01-1_mu_dev_CIF_G31                 ! From which dataset to fork from. can be empty
 
 r SIZE_DOMAIN           0.5  0.5  0.5                                  ! (mm)
 r YOUNG_MODULUS         5600.0                                         ! Monolithical parameter
