@@ -293,10 +293,10 @@ If (rank_mpi == 0) THEN
         CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF
     
-    IF ( (bone%delta(1) /= bone%delta(2)) .OR. (bone%delta(1) /= bone%delta(3)) ) THEN
-        mssg = 'Currently, the spacings of all 3 dimensions must be equal!'
-        CALL print_err_stop_slaves(mssg); GOTO 1000
-    END IF
+    ! IF ( (bone%delta(1) /= bone%delta(2)) .OR. (bone%delta(1) /= bone%delta(3)) ) THEN
+    !     mssg = 'Currently, the spacings of all 3 dimensions must be equal!'
+    !     CALL print_err_stop_slaves(mssg); GOTO 1000
+    ! END IF
 
     IF ( (xa_d(1) > xe_d(1)) .OR. (xa_d(2) > xe_d(2)) .or. (xa_d(3) > xe_d(3)) ) THEN
         mssg = 'Input parameter error: Start value of domain range larger than end value.'

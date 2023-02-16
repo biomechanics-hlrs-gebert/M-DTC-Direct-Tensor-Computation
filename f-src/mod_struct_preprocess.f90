@@ -220,10 +220,18 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     END SELECT
     !
     phi_desc%streams%units(nts) = pd_give_new_unit()
+
+    !----------------------------------------------------------------------------
+    ! CHECK ENDIANNESS
+    !----------------------------------------------------------------------------
     Open(unit=phi_desc%streams%units(nts), &
         file=phi_desc%streams%stream_files(nts), status="old", &
         action="read", access='stream', form='unformatted', &
-        position="REWIND")
+        position="REWIND", convert='big_endian')
+    !----------------------------------------------------------------------------
+    ! CHECK ENDIANNESS
+    !----------------------------------------------------------------------------
+        
     phi_desc%streams%ifopen(nts) = .TRUE.
 
     Do jj = xa_n(3), xe_n(3)

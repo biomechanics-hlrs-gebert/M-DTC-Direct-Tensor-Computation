@@ -74,7 +74,7 @@ INTEGER(kind=pd_ik)                            :: serial_pb_size
 
 INTEGER(Kind=ik) :: preallo, domain_elems, ii, jj, kk, id, stat, &
     Istart,Iend, parts, IVstart, IVend, m_size, mem_global, status_global, &
-    ddc_nn, no_different_hosts, timestamp, HU
+    ddc_nn, no_different_hosts, timestamp, HU, lower_limit, upper_limit
 
 INTEGER(ik), DIMENSION(24) :: collected_logs ! timestamps, memory_usage, pid_returned
 INTEGER(Kind=ik), Dimension(:)  , Allocatable :: nodes_in_mesh
@@ -558,19 +558,71 @@ if (TRIM(elt_micro) == "HEX08") then
         ! Need to distinguish between > and < 1000 HU. Otherwise, the young modulus
         ! may be negative, which leads to faulty results.
         !------------------------------------------------------------------------------
-        IF (HU > 1000_ik) THEN
-            factor = 1._rk / REAL((14250_ik-1000_ik),rk) * REAL((HU - 1000_ik), rk)
-                
-            K_loc_08 = Hexe08(bone)
 
-            K_loc_08 = K_loc_08! * factor
+        !------------------------------------------------------------------------------
+        ! FH01-4_cl
+        !------------------------------------------------------------------------------
+        lower_limit = 250_ik
+        upper_limit = 14250_ik
+
+        !------------------------------------------------------------------------------
+        ! FH01-1_mu_121212
+        !------------------------------------------------------------------------------
+        ! lower_limit = 22000_ik
+        ! upper_limit = 35000_ik
+
+        !------------------------------------------------------------------------------
+        ! FH01-1_mu_121240
+        !------------------------------------------------------------------------------
+        ! lower_limit = 22000_ik
+        ! upper_limit = 35000_ik
+
+
+        IF (HU > lower_limit) THEN
+            
+            IF (HU < 400_ik) THEN
+                factor = 0.2_rk - REAL(400_ik-HU, rk)*0.001_rk
+                ! factor = 0.2_rk - REAL(600_ik-HU, rk)*0.00025_rk
+            ELSE
+                factor = 0.2_rk + 0.000057762_rk * REAL(HU-400_ik, rk)
+                ! factor = 0.0_rk 
+            END IF 
+            
+            !------------------------------------------------------------------------------
+            ! FH01-4_cl
+            !------------------------------------------------------------------------------
+            ! factor = 1._rk / REAL((upper_limit-lower_limit),rk) * REAL((HU - lower_limit), rk)
+            K_loc_08 = Hexe08_FH01_4_cl(bone) * factor
+            !
+            !------------------------------------------------------------------------------
+            ! FH01-1_mu_121212
+            !------------------------------------------------------------------------------
+            ! factor = 1._rk / REAL((upper_limit-lower_limit),rk) * REAL((HU - lower_limit), rk) * 0.5
+            ! K_loc_08 = Hexe08_5600_03_121212(bone) * factor
+            !
+            !------------------------------------------------------------------------------
+            ! FH01-1_mu_121240
+            !------------------------------------------------------------------------------
+            ! factor = 1._rk / REAL((upper_limit-lower_limit),rk) * REAL((HU - lower_limit), rk) * 0.5
+            ! K_loc_08 = Hexe08_5600_03_121240(bone) * factor
+            ! 
+            ! K_loc_08 = Hexe08(bone)
+            ! K_loc_08 = Hexe08_5600_03_121212(bone)
+            ! K_loc_08 = Hexe08_5600_03_121240(bone)
+
+            ! K_loc_08 = K_loc_08 * factor
 
         ELSE
             bone_adjusted%E = 0._rk
-            K_loc_08 = Hexe08(bone_adjusted)
+            ! K_loc_08 = Hexe08(bone_adjusted)
+            
+            ! K_loc_08 = Hexe08(bone)
+            ! K_loc_08 = Hexe08_5600_03_121212(bone)
+            ! K_loc_08 = Hexe08_5600_03_121240(bone)
+            K_loc_08 = Hexe08_FH01_4_cl(bone_adjusted)
+            
         END IF 
 
-!         write(*,*) "ii: ", ii, "Parts: ", parts, "HU:", HU, " bone_adjusted%E:" , bone_adjusted%E
         idxn_08 = idxm_08
 
         CALL MatSetValues(AA, 24_8, idxm_08, 24_8 ,idxn_08, K_loc_08, ADD_VALUES, petsc_ierr)

@@ -38,7 +38,7 @@ INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0, vdim=0, grid=0
 INTEGER(ik) :: alloc_stat, parts, fh_covo, fh_cr1, fh_cr2, fh_tens, &
     domains_crawled = 0_ik, nn_comm, par_domains, activity_size, size_mpi, fh_covo_num, &
     ii, kk, ll, mm, tt, xx, par_dmn_number, jj, current_domain, pntr, &
-    aun, domains_per_comm, rank_mpi, No_of_domains, local_domain_no, last_domain_rank
+    aun, domains_per_comm = 0, rank_mpi, No_of_domains, local_domain_no, last_domain_rank
 
 REAL(rk) :: local_domain_density, sym, start, end
 REAL(rk), DIMENSION(3)   :: local_domain_opt_pos, spcng, dmn_size
@@ -200,6 +200,19 @@ READ (aun) Domain_status(:,1)
 
 CLOSE(aun)
 
+!------------------------------------------------------------------------------
+! User feedback
+!------------------------------------------------------------------------------
+WRITE(std_out, FMT_MSG_AxI0) "size_mpi:         ", size_mpi
+WRITE(std_out, FMT_MSG_AxI0) "parts:            ", parts
+WRITE(std_out, FMT_MSG_AxI0) "No_of_domains:    ", No_of_domains
+WRITE(std_out, FMT_MSG_AxI0) "par_domains:      ", par_domains
+WRITE(std_out, FMT_MSG_AxI0) "domains_per_comm: ", domains_per_comm
+
+IF (par_domains == 0_ik) THEN
+    WRITE(std_out, FMT_WRN) "0 domains per comm. Maybe a faulty meta file?"
+END IF
+ 
 !------------------------------------------------------------------------------
 ! Crawl data
 !------------------------------------------------------------------------------
