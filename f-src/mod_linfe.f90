@@ -67,21 +67,21 @@ Function phi_NN_hexe8(xi) Result(N)
 End Function phi_NN_hexe8
 
 !------------------------------------------------------------------------------
-! FUNCTION: t_geom_xi_hexe8
+! FUNCTION: t_geom_xi
 !------------------------------------------------------------------------------  
 !> @author Ralf Schneider, schneider@hlrs.de, HLRS/NUM
 !
 !> @brief
 !> Transformation for a single node from Geometry to XI-space
 !------------------------------------------------------------------------------  
-function t_geom_xi_hexe8(node,xa,xe) result(tnode)
+function t_geom_xi(node,xa,xe) result(tnode)
 
     Real(rk), Dimension(3), intent(in)  :: node, xa, xe
     Real(rk) :: tnode(3)
 
     tnode = 2._rk / (xe-xa) * node - (xe+xa) / (xe-xa)
 
-End function t_geom_xi_hexe8
+End function t_geom_xi
 
   !****************************************************************************
   !** Extract stiffness matrix (E-Matrix) from nummerical stiffnes of a cube
@@ -828,18 +828,18 @@ Function phi_NN_hexe20 (xi) Result(N)
 
     Real(rk), Intent(in), dimension(3) :: xi
     Real(rk) :: N(20)
-    Real(rk), PARAMETER :: f = 1./8., ff = 1./4., e = 1.
+    Real(rk), PARAMETER :: f = 1./8., ff = 1./4., e = 1., z = 2.
 
     N = 0._rk
 
-    N(1)  =  f * (e - xi(1)) * (e - xi(2)) * (e - xi(3)) * (-xi(1)-xi(2)-xi(3) - 2._rk)
-    N(2)  =  f * (e + xi(1)) * (e - xi(2)) * (e - xi(3)) * ( xi(1)-xi(2)-xi(3) - 2._rk)
-    N(3)  =  f * (e + xi(1)) * (e + xi(2)) * (e - xi(3)) * ( xi(1)+xi(2)-xi(3) - 2._rk)
-    N(4)  =  f * (e - xi(1)) * (e + xi(2)) * (e - xi(3)) * (-xi(1)+xi(2)-xi(3) - 2._rk)
-    N(5)  =  f * (e - xi(1)) * (e - xi(2)) * (e + xi(3)) * (-xi(1)-xi(2)+xi(3) - 2._rk)
-    N(6)  =  f * (e + xi(1)) * (e - xi(2)) * (e + xi(3)) * ( xi(1)-xi(2)+xi(3) - 2._rk)
-    N(7)  =  f * (e + xi(1)) * (e + xi(2)) * (e + xi(3)) * ( xi(1)+xi(2)+xi(3) - 2._rk)
-    N(8)  =  f * (e - xi(1)) * (e + xi(2)) * (e + xi(3)) * (-xi(1)+xi(2)+xi(3) - 2._rk)
+    N(1)  =  f * (e - xi(1)) * (e - xi(2)) * (e - xi(3)) * (-xi(1)-xi(2)-xi(3) - z)
+    N(2)  =  f * (e + xi(1)) * (e - xi(2)) * (e - xi(3)) * ( xi(1)-xi(2)-xi(3) - z)
+    N(3)  =  f * (e + xi(1)) * (e + xi(2)) * (e - xi(3)) * ( xi(1)+xi(2)-xi(3) - z)
+    N(4)  =  f * (e - xi(1)) * (e + xi(2)) * (e - xi(3)) * (-xi(1)+xi(2)-xi(3) - z)
+    N(5)  =  f * (e - xi(1)) * (e - xi(2)) * (e + xi(3)) * (-xi(1)-xi(2)+xi(3) - z)
+    N(6)  =  f * (e + xi(1)) * (e - xi(2)) * (e + xi(3)) * ( xi(1)-xi(2)+xi(3) - z)
+    N(7)  =  f * (e + xi(1)) * (e + xi(2)) * (e + xi(3)) * ( xi(1)+xi(2)+xi(3) - z)
+    N(8)  =  f * (e - xi(1)) * (e + xi(2)) * (e + xi(3)) * (-xi(1)+xi(2)+xi(3) - z)
     N(9)  = ff * (e - xi(1)**2) * (e - xi(2)   ) * (e - xi(3)   )
     N(10) = ff * (e + xi(1)   ) * (e - xi(2)**2) * (e - xi(3)   )
     N(11) = ff * (e - xi(1)**2) * (e + xi(2)   ) * (e - xi(3)   )
@@ -855,25 +855,6 @@ Function phi_NN_hexe20 (xi) Result(N)
 
 End Function phi_NN_hexe20 
 
-!------------------------------------------------------------------------------
-! FUNCTION: t_geom_xi_hexe20
-!------------------------------------------------------------------------------  
-!> @author Ralf Schneider, schneider@hlrs.de, HLRS/NUM
-!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
-!
-!> @brief
-!> Transformation for a single node from Geometry to XI-space
-!------------------------------------------------------------------------------  
-function t_geom_xi_hexe20(node,xa,xe) result(tnode)
-
-    Real(rk), Dimension(3), intent(in)  :: node, xa, xe
-    Real(rk) :: tnode(3)
-
-    tnode = 2._rk / (xe-xa) * node - (xe+xa) / (xe-xa)
-
-End function t_geom_xi_hexe20
-
-!--------------------------------------------------------------------------
 Function Hexe20(mc) Result(C_FE)
 
     TYPE(materialcard) :: mc

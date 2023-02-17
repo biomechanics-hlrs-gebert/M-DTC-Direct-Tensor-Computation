@@ -54,11 +54,11 @@ Subroutine exec_single_domain(root, comm_nn, domain, typeraw, &
 TYPE(materialcard) :: bone
 INTEGER(mik), Intent(INOUT), Dimension(no_streams) :: fh_mpi_worker
 
-Character(LEN=*) , Intent(in)  :: job_dir
-Character(LEN=*) , Intent(in)  :: typeraw
-INTEGER(kind=mik), Intent(In)  :: rank_mpi, size_mpi, comm_mpi
-INTEGER(kind=ik) , intent(in)  :: comm_nn, domain, fh_cluster_log
-INTEGER(kind=mik), intent(out) :: active
+Character(*) , Intent(in)  :: job_dir
+Character(*) , Intent(in)  :: typeraw
+INTEGER(mik), Intent(In)  :: rank_mpi, size_mpi, comm_mpi
+INTEGER(ik) , intent(in)  :: comm_nn, domain, fh_cluster_log
+INTEGER(mik), intent(out) :: active
 Type(tBranch)    , Intent(inOut) :: root
 
 REAL(rk), DIMENSION(:), Pointer     :: displ, force
@@ -67,23 +67,23 @@ REAL(rk), DIMENSION(:), Allocatable :: glob_displ, glob_force, zeros_R8
 INTEGER(mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
 INTEGER(mik) :: ierr, petsc_ierr, result_len_mpi_procs
 
-INTEGER(kind=pd_ik), Dimension(:), Allocatable :: serial_pb
-INTEGER(kind=pd_ik)                            :: serial_pb_size
+INTEGER(pd_ik), Dimension(:), Allocatable :: serial_pb
+INTEGER(pd_ik)                            :: serial_pb_size
 
 INTEGER(ik) :: preallo, domain_elems, ii, jj, kk, id, stat, &
     Istart,Iend, parts, IVstart, IVend, m_size, mem_global, status_global, &
-    ddc_nn, no_different_hosts, timestamp
+    ddc_nn, no_different_hosts, timestamp, macro_order, no_elem_nodes, no_lc
 
 INTEGER(ik), DIMENSION(24) :: collected_logs ! timestamps, memory_usage, pid_returned
-INTEGER(Kind=ik), Dimension(:)  , Allocatable :: nodes_in_mesh
-INTEGER(kind=ik), Dimension(:)  , Allocatable :: gnid_cref
-INTEGER(kind=ik), Dimension(:,:), Allocatable :: res_sizes
+INTEGER(ik), Dimension(:)  , Allocatable :: nodes_in_mesh
+INTEGER(ik), Dimension(:)  , Allocatable :: gnid_cref
+INTEGER(ik), Dimension(:,:), Allocatable :: res_sizes
 
 INTEGER(c_int) :: stat_c_int
 
-CHARACTER(LEN=9)   :: domain_char
-CHARACTER(LEN=40)  :: mssg_fix_len
-CHARACTER(LEN=mcl) :: timer_name, rank_char, domain_desc, part_desc, &
+CHARACTER(9)   :: domain_char
+CHARACTER(40)  :: mssg_fix_len
+CHARACTER(mcl) :: timer_name, rank_char, domain_desc, part_desc, &
     desc, mesh_desc, filename, elt_micro, nn_char
 
 Character, Dimension(4*mcl) :: c_char_array
@@ -361,7 +361,6 @@ If (rank_mpi == 0) then
 
     part_desc=''
     Write(part_desc,'(A,I0)')'Part_', parts
-        
     CALL search_branch(trim(part_desc), domain_branch, part_branch, success, out_amount)
 
     !------------------------------------------------------------------------------
@@ -518,11 +517,29 @@ End If
 !------------------------------------------------------------------------------
 
 !------------------------------------------------------------------------------
-! Assemble matrix
+! Get micro and macro element types
 !------------------------------------------------------------------------------
 CALL pd_get(root%branches(1), 'Element type  on micro scale', char_arr)
 elt_micro = char_to_str(char_arr)
 
+CALL pd_get(root%branches(1), 'Element order on macro scale', macro_order)
+
+!------------------------------------------------------------------------------
+! Set node number of macro element
+!------------------------------------------------------------------------------
+IF (macro_order == 1) THEN
+    no_elem_nodes = 8
+    no_lc = 24
+ELSE IF (macro_order == 2) THEN
+    no_elem_nodes = 20
+    no_lc = 60
+ELSE
+    CALL print_err_stop(std_out, "Element orders other than 1 or 2 are not supported", 1)
+END IF
+
+!------------------------------------------------------------------------------
+! Assemble matrix
+!------------------------------------------------------------------------------
 if (TRIM(elt_micro) == "HEX08") then
 
     K_loc_08 = Hexe08(bone)
@@ -565,7 +582,7 @@ else if (elt_micro == "HEX20") then
 
         kk = 1
         
-        ! Translate Topology to global dofs *
+        ! Translate Topology to global dofs
         Do jj = (ii-1)*20+1 , ii*20
             
             id = part_branch%leaves(5)%p_int8(jj)
@@ -791,7 +808,7 @@ CALL VecAssemblyEnd(FF(1), petsc_ierr)
 ! the 24th will be done afterwards when the columns and rows
 ! of A set to zero.
 !------------------------------------------------------------------------------
-Do ii = 2, 23
+Do ii = 2, no_lc-1_ik
 
     !------------------------------------------------------------------------------
     ! Get Bounds branch of LC ii
@@ -827,11 +844,11 @@ Do ii = 2, 23
 End Do
 
 !------------------------------------------------------------------------------
-! Get Bounds branch of LC 24
+! Get Bounds branch of the last Load case
 ! boundary_branch%leaves(1)%p_int8  : Boundary displacement node global ids
 ! boundary_branch%leaves(2)%p_real8 : Boundary displacement values
 !------------------------------------------------------------------------------
-write(desc,'(A,I0)') "Boundaries_"//trim(domain_char)//"_",24
+write(desc,'(A,I0)') "Boundaries_"//trim(domain_char)//"_", no_lc
 CALL search_branch(trim(desc), part_branch, boundary_branch, success, out_amount)
 
 !------------------------------------------------------------------------------

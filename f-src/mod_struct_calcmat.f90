@@ -58,9 +58,9 @@ INTEGER(ik), DIMENSION(24) :: collected_logs ! timestamps, memory_usage, pid_ret
 
 Logical :: success
 
-Character(len=*), Parameter :: link_name="struct_calcmat_fmps"
-Character(len=9)   :: nn_char
-Character(Len=mcl) :: desc
+Character(*), Parameter :: link_name="struct_calcmat_fmps"
+Character(9)   :: nn_char
+Character(mcl) :: desc
 
 Type(tBranch), Pointer :: ddc, loc_ddc, meta_para, domain_branch, mesh_branch, result_branch
 
@@ -337,9 +337,9 @@ Do ii = 1, no_lc                         ! Cycle through all load cases
           ! t_geom_xi transforms coordinates from geometry to xi space 
           ! Result(phi_nn) :  Real(rk), dimension(8)
           IF (macro_order == 1) THEN
-               tmp_nn = phi_NN_hexe8(t_geom_xi_hexe8(nodes(:,jj),min_c,max_c))
+               tmp_nn = phi_NN_hexe8(t_geom_xi(nodes(:,jj),min_c,max_c))
           ELSE IF (macro_order == 2) THEN
-               tmp_nn = phi_NN_hexe20(t_geom_xi_hexe8(nodes(:,jj),min_c,max_c))
+               tmp_nn = phi_NN_hexe20(t_geom_xi(nodes(:,jj),min_c,max_c))
           END IF 
 
           Do kk = 1,3                         ! Dof per node
