@@ -681,37 +681,37 @@ Type(tBranch), Pointer :: meta_para, domain_branch
         
             ! Nodes in facet 1
             if ( (coor(3) - min_c(3)) <= (dim_c(3) * delta_b) ) then
-                Call Determine_prescribed_displ(coor(:), min_c, max_c, &
+                Call determine_prescribed_displ(coor(:), min_c, max_c, &
                     no_nodes_macro, bnode_vals(:,b_items+1:b_items+3))
                 b_items = b_items+3
 
             ! Nodes in facet 6
             Else if ( (max_c(3) - coor(3)) <= (dim_c(3) * delta_b) ) then
-                Call Determine_prescribed_displ(coor(:), min_c, max_c, &
+                Call determine_prescribed_displ(coor(:), min_c, max_c, &
                     no_nodes_macro, bnode_vals(:,b_items+1:b_items+3))
                 b_items = b_items+3
                 
             ! Nodes in facet 2
             Else if ( (coor(2) - min_c(2)) <= (dim_c(2) * delta_b) ) then
-                Call Determine_prescribed_displ(coor(:), min_c, max_c, &
+                Call determine_prescribed_displ(coor(:), min_c, max_c, &
                     no_nodes_macro, bnode_vals(:,b_items+1:b_items+3))
                 b_items = b_items+3
                 
             ! Nodes in facet 4
             Else if ( (max_c(2) - coor(2)) <= (dim_c(2) * delta_b) ) then
-                Call Determine_prescribed_displ(coor(:), min_c, max_c, &
+                Call determine_prescribed_displ(coor(:), min_c, max_c, &
                     no_nodes_macro, bnode_vals(:,b_items+1:b_items+3))
                 b_items = b_items+3
                 
             ! Nodes in facet 5
             Else if ( (coor(1) - min_c(1)) <= (dim_c(1) * delta_b) ) then
-                Call Determine_prescribed_displ(coor(:), min_c, max_c, &
+                Call determine_prescribed_displ(coor(:), min_c, max_c, &
                     no_nodes_macro, bnode_vals(:,b_items+1:b_items+3))
                 b_items = b_items+3
                 
             ! Nodes in facet 3
             Else if ( (max_c(1) - coor(1)) <= (dim_c(1) * delta_b) ) then
-                Call Determine_prescribed_displ(coor(:), min_c, max_c, &
+                Call determine_prescribed_displ(coor(:), min_c, max_c, &
                     no_nodes_macro, bnode_vals(:,b_items+1:b_items+3))
                 b_items = b_items+3
                 

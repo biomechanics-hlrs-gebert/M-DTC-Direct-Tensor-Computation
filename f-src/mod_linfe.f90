@@ -832,6 +832,10 @@ Function phi_NN_hexe20 (xi) Result(N)
 
     N = 0._rk
 
+    !------------------------------------------------------------------------------  
+    ! ANSYS 20-Node-Bricks
+    ! https://www.mm.bme.hu/~gyebro/files/ans_help_v182/ans_thry/thy_shp8.html#thyeq1brick20nov1501
+    !------------------------------------------------------------------------------  
     N(1)  =  f * (e - xi(1)) * (e - xi(2)) * (e - xi(3)) * (-xi(1)-xi(2)-xi(3) - z)
     N(2)  =  f * (e + xi(1)) * (e - xi(2)) * (e - xi(3)) * ( xi(1)-xi(2)-xi(3) - z)
     N(3)  =  f * (e + xi(1)) * (e + xi(2)) * (e - xi(3)) * ( xi(1)+xi(2)-xi(3) - z)
@@ -840,11 +844,12 @@ Function phi_NN_hexe20 (xi) Result(N)
     N(6)  =  f * (e + xi(1)) * (e - xi(2)) * (e + xi(3)) * ( xi(1)-xi(2)+xi(3) - z)
     N(7)  =  f * (e + xi(1)) * (e + xi(2)) * (e + xi(3)) * ( xi(1)+xi(2)+xi(3) - z)
     N(8)  =  f * (e - xi(1)) * (e + xi(2)) * (e + xi(3)) * (-xi(1)+xi(2)+xi(3) - z)
+
     N(9)  = ff * (e - xi(1)**2) * (e - xi(2)   ) * (e - xi(3)   )
     N(10) = ff * (e + xi(1)   ) * (e - xi(2)**2) * (e - xi(3)   )
     N(11) = ff * (e - xi(1)**2) * (e + xi(2)   ) * (e - xi(3)   )
     N(12) = ff * (e - xi(1)   ) * (e - xi(2)**2) * (e - xi(3)   )
-    N(13) = ff * (e - xi(1)**2) * (e + xi(2)   ) * (e + xi(3)   )
+    N(13) = ff * (e - xi(1)**2) * (e - xi(2)   ) * (e + xi(3)   )
     N(14) = ff * (e + xi(1)   ) * (e - xi(2)**2) * (e + xi(3)   )
     N(15) = ff * (e - xi(1)**2) * (e + xi(2)   ) * (e + xi(3)   )
     N(16) = ff * (e - xi(1)   ) * (e - xi(2)**2) * (e + xi(3)   )
@@ -852,6 +857,33 @@ Function phi_NN_hexe20 (xi) Result(N)
     N(18) = ff * (e + xi(1)   ) * (e - xi(2)   ) * (e - xi(3)**2)
     N(19) = ff * (e + xi(1)   ) * (e + xi(2)   ) * (e - xi(3)**2)
     N(20) = ff * (e - xi(1)   ) * (e + xi(2)   ) * (e - xi(3)**2)
+
+    !------------------------------------------------------------------------------  
+    ! Code Aster
+    ! https://code-aster.org/doc/v11/en/man_r/r3/r3.01.01.pdf
+    !! Node Numbering Not compatible to ANSYS !!
+    !------------------------------------------------------------------------------  
+    ! N(1)  =  f * (e - xi(1)) * (e - xi(2)) * (e - xi(3)) * (-xi(1)-xi(2)-xi(3) - z)
+    ! N(2)  =  f * (e + xi(1)) * (e - xi(2)) * (e - xi(3)) * ( xi(1)-xi(2)-xi(3) - z)
+    ! N(3)  =  f * (e + xi(1)) * (e + xi(2)) * (e - xi(3)) * ( xi(1)+xi(2)-xi(3) - z)
+    ! N(4)  =  f * (e - xi(1)) * (e + xi(2)) * (e - xi(3)) * (-xi(1)+xi(2)-xi(3) - z)
+    ! N(5)  =  f * (e - xi(1)) * (e - xi(2)) * (e + xi(3)) * (-xi(1)-xi(2)+xi(3) - z)
+    ! N(6)  =  f * (e + xi(1)) * (e - xi(2)) * (e + xi(3)) * ( xi(1)-xi(2)+xi(3) - z)
+    ! N(7)  =  f * (e + xi(1)) * (e + xi(2)) * (e + xi(3)) * ( xi(1)+xi(2)+xi(3) - z)
+    ! N(8)  =  f * (e - xi(1)) * (e + xi(2)) * (e + xi(3)) * (-xi(1)+xi(2)+xi(3) - z)
+
+    ! N(9)  = ff * (e - xi(1)**2) * (e - xi(2)   ) * (e - xi(3)   )
+    ! N(10) = ff * (e + xi(1)   ) * (e - xi(2)**2) * (e - xi(3)   )
+    ! N(11) = ff * (e - xi(1)**2) * (e + xi(2)   ) * (e - xi(3)   )
+    ! N(12) = ff * (e - xi(1)   ) * (e - xi(2)**2) * (e - xi(3)   )
+    ! N(13) = ff * (e - xi(1)   ) * (e - xi(2)   ) * (e - xi(3)**2)
+    ! N(14) = ff * (e + xi(1)   ) * (e - xi(2)   ) * (e - xi(3)**2)
+    ! N(15) = ff * (e + xi(1)   ) * (e + xi(2)   ) * (e - xi(3)**2)
+    ! N(16) = ff * (e - xi(1)   ) * (e + xi(2)   ) * (e - xi(3)**2)
+    ! N(17) = ff * (e - xi(1)**2) * (e - xi(2)   ) * (e + xi(3)   )
+    ! N(18) = ff * (e + xi(1)   ) * (e - xi(2)**2) * (e + xi(3)   )
+    ! N(19) = ff * (e - xi(1)**2) * (e + xi(2)   ) * (e + xi(3)   )
+    ! N(20) = ff * (e - xi(1)   ) * (e - xi(2)**2) * (e + xi(3)   )
 
 End Function phi_NN_hexe20 
 

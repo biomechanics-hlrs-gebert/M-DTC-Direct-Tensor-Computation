@@ -323,7 +323,7 @@ $(obj_dir)mod_tensors$(obj_ext):$(f_src_dir)mod_tensors$(f90_ext)
 # -----------------------------------------------------------------------------
 $(obj_dir)mod_metis$(obj_ext):$(obj_dir)metis_interface$(obj_ext) $(f_src_dir)mod_metis$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_metis$(f90_ext) "-----"
-	$(f90_compiler) $(c_flags_f90) -c $(f_src_dir)mod_metis$(f90_ext) -o $@
+	$(c_compiler) $(c_flags_f90) -c $(f_src_dir)mod_metis$(f90_ext) -o $@
 	@echo 
 #
 # -----------------------------------------------------------------------------
@@ -348,7 +348,7 @@ $(obj_dir)mod_parameters$(obj_ext):$(st_mod_dir)global_std$(mod_ext) $(f_src_dir
 $(obj_dir)mod_OS$(obj_ext): $(st_mod_dir)global_std$(mod_ext) \
                             $(obj_dir)OS$(obj_ext) $(f_src_dir)mod_OS$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_OS$(f90_ext) "-----"
-	$(f90_compiler) $(c_flags_f90) -c $(f_src_dir)mod_OS$(f90_ext) -o $@
+	$(c_compiler) $(c_flags_f90) -c $(f_src_dir)mod_OS$(f90_ext) -o $@
 	@echo 
 #
 # -----------------------------------------------------------------------------

@@ -9,22 +9,17 @@ implicit none
 Real(rk), Parameter :: delta_b = 1.E-9_rk
 Character(*) , Parameter :: fmt_filename = "(A,I0,A,I0,A)"
 
-INTERFACE determine_prescribed_displ
-    MODULE PROCEDURE determine_prescribed_displ_hexe8
-    MODULE PROCEDURE determine_prescribed_displ_hexe20
-END INTERFACE determine_prescribed_displ
-
 CONTAINS
 
 !------------------------------------------------------------------------------  
-! FUNCTION: determine_prescribed_displ_hexe8
+! FUNCTION: determine_prescribed_displ
 !------------------------------------------------------------------------------  
 !> @author Ralf Schneider, schneider@hlrs.de, HLRS/NUM
 !
 !> @brief
 !> Determine prescribed displacements
 !------------------------------------------------------------------------------  
-Subroutine determine_prescribed_displ_hexe8(node, xa, xe, elnodes, bnode_vals)
+Subroutine determine_prescribed_displ(node, xa, xe, elnodes, bnode_vals)
     
     REAL(rk), INTENT(IN), DIMENSION(3) :: node, xa, xe
     INTEGER(ik), INTENT(IN) :: elnodes
@@ -34,46 +29,30 @@ Subroutine determine_prescribed_displ_hexe8(node, xa, xe, elnodes, bnode_vals)
     INTEGER(ik) :: ii
 
     ! Loadcase init
-    uu = init_displ_hexe8(elnodes)
 
-    Do ii = 1, elnodes*3
-       bnode_vals(ii,1) = sum(phi_NN_hexe8(t_geom_xi(node,xa,xe))*uu(:,1,ii))
-       bnode_vals(ii,2) = sum(phi_NN_hexe8(t_geom_xi(node,xa,xe))*uu(:,2,ii))
-       bnode_vals(ii,3) = sum(phi_NN_hexe8(t_geom_xi(node,xa,xe))*uu(:,3,ii))
-    End Do
+    IF (elnodes == 8) THEN
+        uu = init_displ_hexe8(elnodes)
 
-  End Subroutine determine_prescribed_displ_hexe8
+        Do ii = 1, elnodes*3
+            bnode_vals(ii,1) = sum(phi_NN_hexe8(t_geom_xi(node,xa,xe))*uu(:,1,ii))
+            bnode_vals(ii,2) = sum(phi_NN_hexe8(t_geom_xi(node,xa,xe))*uu(:,2,ii))
+            bnode_vals(ii,3) = sum(phi_NN_hexe8(t_geom_xi(node,xa,xe))*uu(:,3,ii))
+         End Do
 
-!------------------------------------------------------------------------------
-! FUNCTION: determine_prescribed_displ_hexe20 
-!------------------------------------------------------------------------------  
-!> @author Johannes Gebert, gebert@hlrs.de, HLRS/NUM
-!> @author Ralf Schneider, schneider@hlrs.de, HLRS/NUM
-!
-!> @brief
-!> Determine prescribed displacements
-!------------------------------------------------------------------------------  
-Subroutine determine_prescribed_displ_hexe20(node, xa, xe, elnodes, bnode_vals)
+    ELSE IF (elnodes == 20) THEN
+        uu = init_displ_hexe20(elnodes)
 
-    REAL(rk), INTENT(IN), DIMENSION(3) :: node, xa, xe
-    INTEGER(ik), INTENT(IN) :: elnodes
-    REAL(rk), DIMENSION(:,:), INTENT(OUT) :: bnode_vals
+        Do ii = 1, elnodes*3
+            bnode_vals(ii,1) = sum(phi_NN_hexe20(t_geom_xi(node,xa,xe))*uu(:,1,ii))
+            bnode_vals(ii,2) = sum(phi_NN_hexe20(t_geom_xi(node,xa,xe))*uu(:,2,ii))
+            bnode_vals(ii,3) = sum(phi_NN_hexe20(t_geom_xi(node,xa,xe))*uu(:,3,ii))
+         End Do
 
-    REAL(rk), DIMENSION(elnodes, 3 ,elnodes*3) :: uu 
-    INTEGER(ik) :: ii
+    END IF 
 
-    ! Loadcase init
-    uu = init_displ_hexe20(elnodes)
+End Subroutine determine_prescribed_displ
 
-    Do ii = 1, elnodes*3
-        bnode_vals(ii,1) = sum(phi_NN_hexe20(t_geom_xi(node,xa,xe))*uu(:,1,ii))
-        bnode_vals(ii,2) = sum(phi_NN_hexe20(t_geom_xi(node,xa,xe))*uu(:,2,ii))
-        bnode_vals(ii,3) = sum(phi_NN_hexe20(t_geom_xi(node,xa,xe))*uu(:,3,ii))
-    End Do
-
-End Subroutine determine_prescribed_displ_hexe20
-
-!------------------------------------------------------------------------------
+  !------------------------------------------------------------------------------
 ! FUNCTION: init_displ_hexe8 
 !------------------------------------------------------------------------------  
 !> @author Ralf Schneider, schneider@hlrs.de, HLRS/NUM
@@ -140,44 +119,190 @@ Function init_displ_hexe20(elnodes) Result(uu)
     INTEGER, INTENT(IN) :: elnodes
 
     REAL(rk), dimension(elnodes,3,elnodes*3) :: uu 
-    REAL(rk), PARAMETER :: eps = 1.E-6_rk, z = 0._rk
+    REAL(rk), PARAMETER :: eps = 1.E-6_rk, z = 0._rk, f = 0.99794_rk, oh=1.5_rk, h=0.5_rk
+    INTEGER(ik), PARAMETER :: ish = 1_ik ! Index shift for better compatibility with, e.g., Pyhton
 
-    uu = z   
+    uu  = z
 
-    uu(:,1,1)    = [ z  , eps, eps, z  , z  , eps, eps, z    ]
-    uu(:,2,2)    = [ z  , z  , eps, eps, z  , z  , eps, eps ]
-    uu(:,3,3)    = [ z  , z  , z  , z  , eps, eps, eps, eps ]
-    uu(:,1,4)    = [ eps, eps, z  , z  , eps, eps, z  , z    ]
-    uu(:,1,5)    = [ eps, eps, eps, eps, z  , z  , z  , z    ]
-    uu(:,2,6)    = [ z  , z  , z  , z  , eps, eps, eps, eps ]
+  ! uu( Knoten (1-20), dof (1-3), Load Case (1-60)] # independent Load Case | total Load Case
+  ! uu(:,1,1)    = [       1,       2,       3,       4,       5,       6,       7,       8,            9,      10,      11,      12,      13,      14,      15,      16,      17,      18,      19,      20 ]
 
-    uu(:,1, 7)   = [ z  , z  , z  , z  , z  , z  , z  , eps   ]
-    uu(:,2, 8)   = [ eps , z  , z  , z  , z  , z  , z  , z    ]
-    uu(:,2, 9)   = [ z  , eps , z  , z  , z  , z  , z  , z    ]
-    uu(:,3,10)   = [ eps , z  , z  , z  , z  , z  , z  , z    ]
-    uu(:,3,11)   = [ z  , eps , z  , z  , z  , z  , z  , z    ]
-    uu(:,3,12)   = [ z  , z  , eps , z  , z  , z  , z  , z    ]
-    uu(:,3,13)   = [ z  , z  , z  , eps , z  , z  , z  , z    ]
+    uu(:,ish+0,ish+0)  = [       z,     eps,     eps,       z,       z,     eps,     eps,       z,   h*eps,     eps,&
+                             h*eps,       z,   h*eps,     eps,   h*eps,       z,       z,     eps,     eps,       z ] ! Load Case 1 | X dir | Normal Stress
+    uu(:,ish+1,ish+1)  = [       z,       z,     eps,     eps,       z,       z,     eps,     eps,       z,   h*eps,&
+                               eps,   h*eps,       z,   h*eps,     eps,   h*eps,       z,       z,     eps,     eps ] ! Load Case 2 | Y dir | Normal Stress
+    uu(:,ish+2,ish+2)  = [       z,       z,       z,       z,     eps,     eps,     eps,     eps,       z,       z,&
+                                 z,       z,     eps,     eps,     eps,     eps,   h*eps,   h*eps,   h*eps,   h*eps ] ! Load Case 3 | Z dir | Normal Stress
 
-    uu(:,1,14)   = [ z  , z  , z  , eps , z  , z  , z  , z    ]
-    uu(:,1,15)   = [ z  , z  , z  , z  , eps , z  , z  , z    ]
-    uu(:,1,16)   = [ z  , z  , z  , z  , z  , eps , z  , z    ]
-    uu(:,1,17)   = [ z  , z  , z  , z  , z  , z  , eps , z    ]
+    uu(:,ish+0,ish+3)  = [     eps,     eps,       z,       z,     eps,     eps,       z,       z,     eps,   h*eps,&
+                                 z,   h*eps,     eps,   h*eps,       z,   h*eps,     eps,     eps,       z,       z ] ! Load Case 4 | Y in X dir | Shear Stress
+    uu(:,ish+0,ish+4)  = [     eps,     eps,     eps,     eps,       z,       z,       z,       z,     eps,     eps,&
+                               eps,     eps,       z,       z,       z,       z,   h*eps,   h*eps,   h*eps,   h*eps ] ! Load Case 5 | Z in X dir | Shear Stress
+    uu(:,ish+1,ish+5)  = [       z,       z,       z,       z,     eps,     eps,     eps,     eps,       z,       z,&
+                                 z,       z,     eps,     eps,     eps,     eps,   h*eps,   h*eps,   h*eps,   h*eps ] ! Load Case 6 | Z in Y dir | Shear Stress
+    
+    uu(:,ish+0,ish+6)  = [       z,       z,       z,       z,       z,       z,       z,     eps,       z,       z,&
+                                 z,       z,       z,       z,   h*eps,   h*eps,       z,       z,       z,   h*eps ] ! Other std. load cases, inherited by HEXE8
+    uu(:,ish+1,ish+7)  = [     eps,       z,       z,       z,       z,       z,       z,       z,   h*eps,       z,&
+                                 z,   h*eps,       z,       z,       z,       z,   h*eps,       z,       z,       z ] ! Other std. load cases, inherited by HEXE8
+    uu(:,ish+1,ish+8)  = [       z,     eps,       z,       z,       z,       z,       z,       z,   h*eps,   h*eps,&
+                                 z,       z,       z,       z,       z,       z,       z,   h*eps,       z,       z ] ! Other std. load cases, inherited by HEXE8
+    uu(:,ish+2,ish+9)  = [     eps,       z,       z,       z,       z,       z,       z,       z,   h*eps,       z,&
+                                 z,   h*eps,       z,       z,       z,       z,   h*eps,       z,       z,       z ] ! Other std. load cases, inherited by HEXE8
+    uu(:,ish+2,ish+10) = [       z,     eps,       z,       z,       z,       z,       z,       z,   h*eps,   h*eps,&
+                                 z,       z,       z,       z,       z,       z,       z,   h*eps,       z,       z ] ! Other std. load cases, inherited by HEXE8
+    uu(:,ish+2,ish+11) = [       z,       z,     eps,       z,       z,       z,       z,       z,       z,   h*eps,&
+                             h*eps,       z,       z,       z,       z,       z,       z,       z,   h*eps,       z ] ! Other std. load cases, inherited by HEXE8
+    uu(:,ish+2,ish+12) = [       z,       z,       z,     eps,       z,       z,       z,       z,       z,       z,&
+                             h*eps,   h*eps,       z,       z,       z,       z,       z,       z,       z,   h*eps ] ! Other std. load cases, inherited by HEXE8
 
-    uu(:,1,18)   = [ z  , z  , z  , z  , z  , z  , z  , eps   ]
-    uu(:,3,18)   = [ z  , z  , z  , z  , z  ,-2*eps, z  , z    ]
+    uu(:,ish+0,ish+13) = [       z,       z,       z,     eps,       z,       z,       z,       z,       z,       z,&
+                             h*eps,   h*eps,       z,       z,       z,       z,       z,       z,       z,   5*eps ] ! Other std. load cases, inherited by HEXE8
+    uu(:,ish+0,ish+14) = [       z,       z,       z,       z,     eps,       z,       z,       z,       z,       z,&
+                                 z,       z,   h*eps,       z,       z,   h*eps,   h*eps,       z,       z,       z ] ! Other std. load cases, inherited by HEXE8
+    uu(:,ish+0,ish+15) = [       z,       z,       z,       z,       z,     eps,       z,       z,       z,       z,&
+                                 z,       z,   h*eps,   h*eps,       z,       z,       z,   h*eps,       z,       z ] ! Other std. load cases, inherited by HEXE8
+    uu(:,ish+0,ish+16) = [       z,       z,       z,       z,       z,       z,     eps,       z,       z,       z,&
+                                 z,       z,       z,   h*eps,   h*eps,       z,       z,       z,   h*eps,       z ] ! Other std. load cases, inherited by HEXE8
 
-    uu(:,2,19)   = [ eps , z  , z  , z  , z  , z  , z  , z    ]
-    uu(:,3,19)   = [ z  , z  , z  , z  , z  , z  , -3*eps,z    ]
+    uu(:,ish+0,ish+17) = [       z,       z,       z,       z,       z,       z,       z,     eps,       z,       z,&
+                                 z,       z,       z,       z,   h*eps,   h*eps,       z,       z,       z,   h*eps ] ! Other std. load cases, inherited by HEXE8
+    uu(:,ish+2,ish+17) = [       z,       z,       z,       z,       z,  -2*eps,       z,       z,       z,       z,&
+                                 z,       z,    -eps,    -eps,       z,       z,       z,    -eps,       z,       z ] ! Other std. load cases, inherited by HEXE8
 
-    uu(:,2,20)   = [ z  , eps , z  , z  , z  , z  , z  , z    ]
-    uu(:,3,20)   = [ z  , z  , z  , z  , z  , z  , z  , -4*eps]
+    uu(:,ish+1,ish+18) = [     eps,       z,       z,       z,       z,       z,       z,       z,   h*eps,       z,&
+                                 z,   h*eps,       z,       z,       z,       z,   h*eps,       z,       z,       z ] ! Other std. load cases, inherited by HEXE8
+    uu(:,ish+2,ish+18) = [       z,       z,       z,       z,       z,       z,  -3*eps,       z,       z,       z,&
+                                 z,       z,       z, -oh*eps, -oh*eps,       z,       z,       z, -oh*eps,       z ] ! Other std. load cases, inherited by HEXE8
 
-    uu(:,2,21)   = [ z  , z  , eps , z  , z  , z  , z  , z    ]
-    uu(:,2,22)   = [ z  , z  , z  , eps , z  , z  , z  , z    ]
-    uu(:,2,23)   = [ z  , z  , z  , z  , eps , z  , z  , z    ]
+    uu(:,ish+1,ish+19) = [       z,     eps,       z,       z,       z,       z,       z,       z,   h*eps,   h*eps,&
+                                 z,       z,       z,       z,       z,   h*eps,       z,       z,       z,       z ] ! Other std. load cases, inherited by HEXE8
+    uu(:,ish+2,ish+19) = [       z,       z,       z,       z,       z,       z,       z,  -4*eps,       z,       z,&
+                                 z,       z,       z,       z,  -2*eps,  -2*eps,       z,       z,       z,  -2*eps ] ! Other std. load cases, inherited by HEXE8
 
-    uu(:,2,24)   = [ z  , z  , z  , z  , z  , eps , -eps , z    ]
+    uu(:,ish+1,ish+20) = [       z,       z,     eps,       z,       z,       z,       z,       z,       z,   h*eps,&
+                             h*eps,       z,       z,       z,       z,       z,       z,       z,   h*eps,       z ] ! Other std. load cases, inherited by HEXE8
+    uu(:,ish+1,ish+21) = [       z,       z,       z,     eps,       z,       z,       z,       z,       z,       z,&
+                             h*eps,   h*eps,       z,       z,       z,       z,       z,       z,       z,   h*eps ] ! Other std. load cases, inherited by HEXE8
+    uu(:,ish+1,ish+22) = [       z,       z,       z,       z,     eps,       z,       z,       z,       z,       z,&
+                                 z,       z,   h*eps,       z,       z,   h*eps,   h*eps,       z,       z,       z ] ! Other std. load cases, inherited by HEXE8
+
+    uu(:,ish+1,ish+23) = [       z,       z,       z,       z,       z,     eps,    -eps,       z,       z,       z,&
+                                 z,       z,   h*eps, - h*eps,       z,       z,       z,   h*eps, - h*eps,       z ] ! Other std. load cases, inherited by HEXE8
+
+    ! Node 9
+    uu(:,ish+1,ish+24) = [       z,       z,       z,       z,       z,       z,       z,       z,     eps,       z,&
+                                 z,       z,       z,       z,       z,       z,       z,       z,       z,       z ] ! HEXE20 iLC  1 | tLC 25
+    uu(:,ish+2,ish+24) = [       z,    -eps,       z,       z,       z,       z,       z,       z,     eps,       z,&
+                                 z,       z,       z,       z,       z,       z,       z,       z,       z,       z ] ! HEXE20 iLC  1 | tLC 25
+    ! Node 10
+    uu(:,ish+0,ish+25) = [       z,       z,       z,       z,       z,       z,       z,       z,       z,    -eps,&
+                                 z,       z,       z,       z,       z,       z,       z,       z,       z,       z ] ! HEXE20 iLC  2 | tLC 26
+    uu(:,ish+2,ish+25) = [       z,       z,       z,       z,       z,       z,       z,       z,       z,     eps,&
+                                 z,       z,       z,       z,       z,       z,       z,       z,       z,       z ] ! HEXE20 iLC  2 | tLC 26
+    ! Node 11
+    uu(:,ish+1,ish+26) = [       z,       z,       z,       z,       z,       z,       z,       z,       z,       z,&
+                              -eps,       z,       z,       z,       z,       z,       z,       z,       z,       z ] ! HEXE20 iLC  3 | tLC 27
+    uu(:,ish+2,ish+26) = [       z,       z,     eps,       z,       z,       z,       z,       z,       z,       z,&
+                               eps,       z,       z,       z,       z,       z,       z,       z,       z,       z ] ! HEXE20 iLC  3 | tLC 27
+    ! Node 12
+    uu(:,ish+0,ish+27) = [       z,       z,       z,       z,       z,       z,       z,       z,       z,       z,&
+                                 z,     eps,       z,       z,       z,       z,       z,       z,       z,       z ] ! HEXE20 iLC  4 | tLC 28
+    uu(:,ish+2,ish+27) = [       z,       z,       z,       z,       z,       z,       z,       z,       z,       z,&
+                                 z,     eps,       z,       z,       z,       z,       z,       z,       z,       z ] ! HEXE20 iLC  4 | tLC 28
+    ! Node 13
+    uu(:,ish+1,ish+28) = [       z,       z,       z,       z,       z,       z,       z,       z,       z,       z,&
+                                 z,       z,     eps,       z,       z,       z,       z,       z,       z,       z ] ! HEXE20 iLC  5 | tLC 29
+    uu(:,ish+2,ish+28) = [       z,       z,       z,       z,       z,       z,       z,       z,       z,       z,&
+                                 z,       z,    -eps,       z,       z,       z,       z,       z,       z,       z ] ! HEXE20 iLC  5 | tLC 29
+    ! Node 14
+    uu(:,ish+0,ish+29) = [       z,       z,       z,       z,       z,       z,       z,       z,       z,       z,&
+                                 z,       z,       z,    -eps,       z,       z,       z,       z,       z,       z ] ! HEXE20 iLC  6 | tLC 30
+    uu(:,ish+2,ish+29) = [       z,       z,       z,       z,       z,   2*eps,       z,       z,       z,       z,&
+                                 z,       z,       z,    -eps,       z,       z,       z,       z,       z,       z ] ! HEXE20 iLC  6 | tLC 30
+    ! Node 15
+    uu(:,ish+1,ish+30) = [       z,       z,       z,       z,       z,       z,       z,       z,       z,       z,&
+                                 z,       z,       z,       z,    -eps,       z,       z,       z,       z,       z ] ! HEXE20 iLC  7 | tLC 31
+    uu(:,ish+2,ish+30) = [       z,       z,   4*eps,       z,       z,       z,       z,       z,       z,       z,&
+                                 z,       z,       z,       z,    -eps,       z,       z,       z,       z,       z ] ! HEXE20 iLC  7 | tLC 31
+    ! Node 16
+    uu(:,ish+0,ish+31) = [       z,       z,       z,       z,       z,       z,       z,       z,       z,       z,&
+                                 z,       z,       z,       z,       z,     eps,       z,       z,       z,       z ] ! HEXE20 iLC  8 | tLC 32
+    uu(:,ish+2,ish+31) = [       z,       z,       z,       z,       z,       z,       z,       z,       z,       z,&
+                                 z,       z,       z,       z,       z,    -eps,       z,       z,       z,       z ] ! HEXE20 iLC  8 | tLC 32
+    ! Node 17
+    uu(:,ish+0,ish+32) = [       z,       z,       z,       z,       z,     eps,       z,       z,       z,       z,&
+                                 z,       z,       z,       z,       z,       z,     eps,       z,       z,       z ] ! HEXE20 iLC  9 | tLC 33
+    uu(:,ish+1,ish+32) = [       z,       z,       z,       z,       z,       z,       z,       z,       z,       z,&
+                                 z,       z,       z,       z,       z,       z,     eps,       z,       z,       z ] ! HEXE20 iLC  9 | tLC 33
+    ! Node 18
+    uu(:,ish+0,ish+33) = [       z,       z,       z,       z,       z,     eps,       z,       z,       z,       z,&
+                                 z,       z,       z,       z,       z,       z,       z,    -eps,       z,       z ] ! HEXE20 iLC 10 | tLC 34
+    uu(:,ish+1,ish+33) = [       z,       z,       z,       z,       z,       z,       z,       z,       z,       z,&
+                                 z,       z,       z,       z,       z,       z,       z,     eps,       z,       z ] ! HEXE20 iLC 10 | tLC 34
+    ! Node 19
+    uu(:,ish+0,ish+34) = [       z,       z,       z,       z,       z,     eps,       z,       z,       z,       z,&
+                                 z,       z,       z,       z,       z,       z,       z,       z,    -eps,       z ] ! HEXE20 iLC 11 | tLC 35
+    uu(:,ish+1,ish+34) = [       z,       z,       z,       z,       z,       z,       z,       z,       z,       z,&
+                                 z,       z,       z,       z,       z,       z,       z,       z,    -eps,       z ] ! HEXE20 iLC 11 | tLC 35
+    ! Node 20
+    uu(:,ish+0,ish+35) = [       z,       z,       z,       z,       z,       z,       z,       z,       z,       z,&
+                                 z,       z,       z,       z,       z,       z,       z,       z,       z,     eps ] ! HEXE20 iLC 12 | tLC 36
+    uu(:,ish+1,ish+35) = [       z,       z,       z,       z,       z,       z,       z,       z,       z,       z,&
+                                 z,       z,       z,       z,       z,       z,       z,       z,       z,    -eps ] ! HEXE20 iLC 12 | tLC 36
+
+    uu(:,ish+0,ish+36) = [     eps,       z,       z,       z,       z,       z,       z,       z,       z,       z,&
+                                 z,       z,       z,       z,       z,       z,       z,       z,       z,       z ] ! HEXE20 iLC 13 | tLC 37 | Single Vertex
+    uu(:,ish+1,ish+37) = [       z,     eps,       z,       z,       z,       z,       z,       z,       z,       z,&
+                                 z,       z,       z,       z,       z,       z,       z,       z,       z,       z ] ! HEXE20 iLC 14 | tLC 38 | Single Vertex
+    uu(:,ish+0,ish+38) = [       z,       z,    -eps,       z,       z,       z,       z,       z,       z,       z,&
+                                 z,       z,       z,       z,       z,       z,       z,       z,       z,       z ] ! HEXE20 iLC 15 | tLC 39 | Single Vertex
+    uu(:,ish+1,ish+39) = [       z,       z,       z,    -eps,       z,       z,       z,       z,       z,       z,&
+                                 z,       z,       z,       z,       z,       z,       z,       z,       z,       z ] ! HEXE20 iLC 16 | tLC 40 | Single Vertex
+    uu(:,ish+0,ish+40) = [       z,       z,       z,       z,     eps,       z,       z,       z,       z,       z,&
+                                 z,       z,       z,       z,       z,       z,       z,       z,       z,       z ] ! HEXE20 iLC 17 | tLC 41 | Single Vertex
+    uu(:,ish+1,ish+41) = [       z,       z,       z,       z,       z,     eps,       z,       z,       z,       z,&
+                                 z,       z,       z,       z,       z,       z,       z,       z,       z,       z ] ! HEXE20 iLC 18 | tLC 42 | Single Vertex
+    uu(:,ish+0,ish+42) = [       z,       z,       z,       z,       z,       z,    -eps,       z,       z,       z,&
+                                 z,       z,       z,       z,       z,       z,       z,       z,       z,       z ] ! HEXE20 iLC 19 | tLC 43 | Single Vertex
+    uu(:,ish+1,ish+43) = [       z,       z,       z,       z,       z,       z,       z,    -eps,       z,       z,&
+                                 z,       z,       z,       z,       z,       z,       z,       z,       z,       z ] ! HEXE20 iLC 20 | tLC 44 | Single Vertex
+
+    uu(:,ish+1,ish+44) = [       z,       z,       z,       z,       z,       z,       z,       z,       z,       z,&
+                                 z,       z,       z,       z,       z,       z,     eps,     eps,    -eps,    -eps ] ! HEXE20 iLC 21 | tLC 45 | Compress Center
+    uu(:,ish+2,ish+45) = [       z,       z,       z,   3*eps,       z,     eps,       z,       z,       z,     eps,&
+                                 z,     eps,       z,    -eps,       z,    -eps,       z,       z,       z,       z ] ! HEXE20 iLC 22 | tLC 46 | Compress Center
+    uu(:,ish+0,ish+46) = [       z,       z,       z,       z,       z,       z,       z,       z,       z,       z,&
+                                 z,       z,       z,       z,       z,       z,     eps,    -eps,    -eps,     eps ] ! HEXE20 iLC 23 | tLC 47 | Compress Center
+    uu(:,ish+2,ish+47) = [       z,       z,       z,       z,       z,       z,       z,       z,     eps,       z,&
+                               eps,       z,    -eps,       z,    -eps,       z,       z,       z,       z,       z ] ! HEXE20 iLC 24 | tLC 48 | Compress Center
+    uu(:,ish+0,ish+48) = [       z,       z,       z,       z,       z,       z,       z,       z,       z,    -eps,&
+                                 z,     eps,       z,    -eps,       z,     eps,       z,       z,       z,       z ] ! HEXE20 iLC 25 | tLC 49 | Compress Center
+    uu(:,ish+1,ish+49) = [       z,       z,       z,       z,       z,       z,       z,       z,     eps,       z,&
+                              -eps,       z,     eps,       z,    -eps,       z,       z,       z,       z,       z ] ! HEXE20 iLC 26 | tLC 50 | Compress Center
+
+    uu(:,ish+0,ish+50) = [       z,       z,       z,       z,       z,       z,       z,       z,     eps,       z,&
+                                 z,       z,       z,       z,       z,       z,       z,       z,       z,       z ] ! HEXE20 iLC 27 | tLC 51 | Move Center
+    uu(:,ish+1,ish+51) = [       z,       z,       z,       z,       z,       z,       z,       z,       z,     eps,&
+                                 z,       z,       z,       z,       z,       z,       z,       z,       z,       z ] ! HEXE20 iLC 28 | tLC 52 | Move Center
+    uu(:,ish+0,ish+52) = [       z,       z,       z,       z,       z,       z,       z,       z,       z,       z,&
+                              -eps,       z,       z,       z,       z,       z,       z,       z,       z,       z ] ! HEXE20 iLC 29 | tLC 53 | Move Center
+    uu(:,ish+1,ish+53) = [       z,       z,       z,       z,       z,       z,       z,       z,       z,       z,&
+                                 z,    -eps,       z,       z,       z,       z,       z,       z,       z,       z ] ! HEXE20 iLC 30 | tLC 54 | Move Center
+    uu(:,ish+0,ish+54) = [       z,       z,       z, f*2*eps,       z,       z,       z,       z,       z,       z,&
+                                 z,       z,     eps,       z,       z,       z,       z,       z,       z,       z ] ! HEXE20 iLC 31 | tLC 55 | Move Center
+    uu(:,ish+1,ish+55) = [       z,       z,       z,       z,       z,       z,       z,       z,       z,       z,&
+                                 z,       z,       z,     eps,       z,       z,       z,       z,       z,       z ] ! HEXE20 iLC 32 | tLC 56 | Move Center
+    uu(:,ish+0,ish+56) = [       z,       z,       z,       z,       z,       z,       z,       z,       z,       z,&
+                                 z,       z,       z,       z,    -eps,       z,       z,       z,       z,       z ] ! HEXE20 iLC 33 | tLC 57 | Move Center
+    uu(:,ish+0,ish+57) = [       z,       z,       z,       z,       z,       z,       z,       z,       z,       z,&
+                                 z,       z,       z,       z,       z,    -eps,       z,       z,       z,       z ] ! HEXE20 iLC 34 | tLC 58 | Move Center
+    uu(:,ish+2,ish+58) = [       z,       z,       z,       z,       z,       z,       z,       z,       z,       z,&
+                                 z,       z,       z,       z,       z,       z,     eps,       z,       z,       z ] ! HEXE20 iLC 35 | tLC 59 | Move Center
+    uu(:,ish+2,ish+59) = [       z,       z,       z,       z,       z,       z,       z,       z,       z,       z,&
+                                 z,       z,       z,       z,       z,       z,       z,    -eps,       z,       z ] ! HEXE20 iLC 36 | tLC 60 | Move Center
+
+
 
 End Function init_displ_hexe20
 

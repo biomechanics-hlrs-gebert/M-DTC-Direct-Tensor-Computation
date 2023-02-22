@@ -42,7 +42,7 @@ Real(rk), Dimension(12)   :: tmp_r12
 Real(rk), Dimension(3,3)  :: aa
 Real(rk), Dimension(6,6)  :: ee_orig, BB, CC, cc_mean, EE, fv,meps
 Real(rk), Dimension(0:16) :: crit_min
-Real(rk), Dimension(6,24) :: int_strain, int_stress
+Real(rk), Dimension(:,:), ALLOCATABLE :: int_strain, int_stress
 Real(rk):: E_Modul, nu, rve_strain, v_elem, v_cube
 
 Integer(mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
@@ -124,6 +124,9 @@ ELSE IF (macro_order == 2) THEN
 Else
     CALL print_err_stop(std_out, "Element orders other than 1 or 2 are not supported", 1)
 End If
+
+IF (.NOT. ALLOCATED(int_strain)) ALLOCATE(int_strain(6,no_lc))
+IF (.NOT. ALLOCATED(int_stress)) ALLOCATE(int_stress(6,no_lc))
 
 !------------------------------------------------------------------------------
 ! Get global mesh_branch parameters
@@ -307,7 +310,15 @@ End If
 !------------------------------------------------------------------------------
 ! Loadcase init
 !------------------------------------------------------------------------------
-call init_loadcase_el_order_lin(rve_strain, vv)
+If (macro_order == 1) then
+     call init_loadcase_el_order_lin(rve_strain, vv)
+     
+ELSE IF (macro_order == 2) THEN
+     call init_loadcase_el_order_quad(rve_strain, vv)
+
+Else
+     CALL print_err_stop(std_out, "Element orders other than 1 or 2 are not supported", 1)
+ End If
 
 If (out_amount == "DEBUG") THEN
     WRITE(un_lf, FMT_DBG_SEP)
@@ -372,7 +383,7 @@ CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
 
 If (out_amount /= "PRODUCTION" ) then
      Call Write_matrix(un_lf, "Domain forces", ff, fmti='std')
-End If
+End If 
 
 !------------------------------------------------------------------------------
 ! Calc effective nummerical stiffness
@@ -414,24 +425,73 @@ CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
 !     "Inverse Stiffness o f(:,1)")
 !------------------------------------------------------------------------------
 
-!------------------------------------------------------------------------------
-! Calc consistent force matrix
-!------------------------------------------------------------------------------
-Do ii = 1, 6
-    fv(1,ii) = (ff( 2,ii) + ff( 3,ii) + ff( 6,ii) + ff( 7,ii)) / ( x_D_phy(2) * x_D_phy(3) )
-    fv(2,ii) = (ff(11,ii) + ff(12,ii) + ff(15,ii) + ff(16,ii)) / ( x_D_phy(1) * x_D_phy(3) )
-    fv(3,ii) = (ff(21,ii) + ff(22,ii) + ff(23,ii) + ff(24,ii)) / ( x_D_phy(1) * x_D_phy(2) )
+If (macro_order == 1) then
+    !------------------------------------------------------------------------------
+    ! Calc consistent force matrix
+    ! 8x 8y 8z
+    !------------------------------------------------------------------------------
+    Do ii = 1, 6
+        fv(1,ii) = (ff( 2,ii) + ff( 3,ii) + ff( 6,ii) + ff( 7,ii)) / ( x_D_phy(2) * x_D_phy(3) ) ! X to X | Node 2,3,6,7
+        fv(2,ii) = (ff(11,ii) + ff(12,ii) + ff(15,ii) + ff(16,ii)) / ( x_D_phy(1) * x_D_phy(3) ) ! Y to Y | Node 3,4,7,8
+        fv(3,ii) = (ff(21,ii) + ff(22,ii) + ff(23,ii) + ff(24,ii)) / ( x_D_phy(1) * x_D_phy(2) ) ! Z to Z | Node 5,6,7,8
+    
+        fv(4,ii) = 0.5_rk * &
+            ( (ff( 3,ii) + ff( 4,ii) + ff( 7,ii) + ff( 8,ii)) / ( x_D_phy(1) * x_D_phy(3) ) + &  ! Y to X  | Node 3,4,7,8 
+            (ff(10,ii) + ff(11,ii) + ff(14,ii) + ff(15,ii)) / ( x_D_phy(2) * x_D_phy(3) ) )      ! X to Y  | Node 2,3,6,7
+        fv(5,ii) = 0.5_rk * &
+            ( (ff( 5,ii) + ff( 6,ii) + ff( 7,ii) + ff( 8,ii)) / ( x_D_phy(1) * x_D_phy(2) ) + &  ! Z to X | Node 5,6,7,8
+            (ff(18,ii) + ff(19,ii) + ff(22,ii) + ff(23,ii)) / ( x_D_phy(2) * x_D_phy(3) ) )      ! X to Z | Node 2,3,6,7 
+        fv(6,ii) = 0.5_rk * &
+            ( (ff(13,ii) + ff(14,ii) + ff(15,ii) + ff(16,ii)) / ( x_D_phy(1) * x_D_phy(2) ) + &  ! Z to Y | Node 5,6,7,8
+            (ff(19,ii) + ff(20,ii) + ff(23,ii) + ff(24,ii)) / ( x_D_phy(1) * x_D_phy(3) ) )      ! Y to Z | Node 3,4,7,8
+    End Do
 
-    fv(4,ii) = 0.5_rk * &
-        ( (ff( 3,ii) + ff( 4,ii) + ff( 7,ii) + ff( 8,ii)) / ( x_D_phy(1) * x_D_phy(3) ) + &
-        (ff(10,ii) + ff(11,ii) + ff(14,ii) + ff(15,ii)) / ( x_D_phy(2) * x_D_phy(3) ) )
-    fv(5,ii) = 0.5_rk * &
-        ( (ff( 5,ii) + ff( 6,ii) + ff( 7,ii) + ff( 8,ii)) / ( x_D_phy(1) * x_D_phy(2) ) + &
-        (ff(18,ii) + ff(19,ii) + ff(22,ii) + ff(23,ii)) / ( x_D_phy(2) * x_D_phy(3) ) )
-    fv(6,ii) = 0.5_rk * &
-        ( (ff(13,ii) + ff(14,ii) + ff(15,ii) + ff(16,ii)) / ( x_D_phy(1) * x_D_phy(2) ) + &
-        (ff(19,ii) + ff(20,ii) + ff(23,ii) + ff(24,ii)) / ( x_D_phy(1) * x_D_phy(3) ) )
-End Do
+    !  1  2  3  4  5  6  7  8   |   1  2  3  4  5  6  7  8  |   1  2  3  4  5  6  7  8
+    !  1  2  3  4  5  6  7  8   |   9 10 11 12 13 14 15 16  |  17 18 19 20 21 22 23 24
+    !  x  x  x  x  x  x  x  x   |   y  y  y  y  y  y  y  y  |   z  z  z  z  z  z  z  z       
+ELSE IF (macro_order == 2) THEN
+     !------------------------------------------------------------------------------
+     ! Calc consistent force matrix
+     !------------------------------------------------------------------------------
+     Do ii = 1, 6
+        fv(1,ii) = (ff( 2,ii) + ff( 3,ii) + ff( 6,ii) + ff( 7,ii) + &
+                ff(10,ii) + ff(14,ii) + ff(18,ii) + ff(19,ii))  / ( x_D_phy(2) * x_D_phy(3) ) ! X to X | Node 2,3,6,7,10,14,18,19
+                
+        fv(2,ii) = (ff(23,ii) + ff(24,ii) + ff(27,ii) + ff(28,ii) + &
+                ff(31,ii) + ff(35,ii) + ff(39,ii) + ff(40,ii))  / ( x_D_phy(1) * x_D_phy(3) ) ! Y to Y | Node 3,4,7,8,11,15,19,20
+                
+        fv(3,ii) = (ff(45,ii) + ff(46,ii) + ff(47,ii) + ff(48,ii) + &
+                ff(53,ii) + ff(54,ii) + ff(55,ii) + ff(56,ii))  / ( x_D_phy(1) * x_D_phy(2) ) ! Z to Z | Node 5,6,7,8,13,14,15,16
+
+        fv(4,ii) = 0.5_rk * &
+            ( (ff( 3,ii) + ff( 4,ii) + ff( 7,ii) + ff( 8,ii) + ff(11,ii) + ff(15,ii) + ff(19,ii) + ff(20,ii)) / &
+            ( x_D_phy(1) * x_D_phy(3)) + & ! Y to X | Node 3,4,7,8,11,15,19,20
+            (ff(22,ii) + ff(23,ii) + ff(26,ii) + ff(27,ii) + ff(30,ii) + ff(34,ii) + ff(38,ii) + ff(39,ii)) / &
+            ( x_D_phy(2) * x_D_phy(3) ))     ! X to Y | Node 2,3,6,7,10,14,18,19
+
+        fv(5,ii) = 0.5_rk * &
+            ( (ff( 5,ii) + ff( 6,ii) + ff( 7,ii) + ff( 8,ii) + ff(13,ii) + ff(14,ii) + ff(15,ii) + ff(16,ii)) / &
+            ( x_D_phy(1) * x_D_phy(2)) + & ! Z to X | Node 5,6,7,8,13,14,15,16
+
+            (ff(42,ii) + ff(43,ii) + ff(46,ii) + ff(47,ii) + ff(50,ii) + ff(54,ii) + ff(58,ii) + ff(59,ii)) / &
+            ( x_D_phy(2) * x_D_phy(3) ))     ! X to Z | Node 2,3,6,7,10,14,18,19
+
+        fv(6,ii) = 0.5_rk * &
+            ( (ff(25,ii) + ff(26,ii) + ff(27,ii) + ff(28,ii) + ff(33,ii) + ff(34,ii) + ff(35,ii) + ff(36,ii)) / &
+            ( x_D_phy(1) * x_D_phy(2)) + & ! Z to Y | Node 5,6,7,8,13,14,15,16
+            (ff(43,ii) + ff(44,ii) + ff(47,ii) + ff(48,ii) + ff(51,ii) + ff(55,ii) + ff(59,ii) + ff(60,ii)) / &
+            ( x_D_phy(1) * x_D_phy(3) ))     ! Y to Z | Node 3,4,7,8,11,15,19,20
+     
+    !  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20  |  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20  |  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20
+    !  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20  | 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40  | 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60
+    !  x  x  x  x  x  x  x  x  x  x  x  x  x  x  x  x  x  x  x  x  |  y  y  y  y  y  y  y  y  y  y  y  y  y  y  y  y  y  y  y  y  |  z  z  z  z  z  z  z  z  z  z  z  z  z  z  z  z  z  z  z  z
+
+    End Do
+
+End If
+
+
+
 If (out_amount /= "PRODUCTION" ) then
     Call Write_matrix(un_lf, "Konsistent force matrix", fv, fmti='std', unit='N')
 End If
@@ -450,16 +510,18 @@ End If
 !   Call Write_real_matrix(un_lf, fv ,6_ik, 6_ik, "Integrated force matrix")
 ! End If
 
+
+
 !------------------------------------------------------------------------------
 ! Calc averaged strains and stresses 
 !------------------------------------------------------------------------------
-Do jj = 1, no_lc ! 24
-  Do ii = 1,6
-     int_stress(ii,jj) = sum(edat(ii,jj,:))
-  End do
-  Do ii = 7, 12
-    int_strain(ii-6,jj) = sum(edat(ii,jj,:))
-  End Do
+Do jj = 1, no_lc 
+    Do ii = 1,6
+       int_stress(ii,jj) = sum(edat(ii,jj,:))
+    End do
+    Do ii = 7, 12
+      int_strain(ii-6,jj) = sum(edat(ii,jj,:))
+    End Do
 End Do
 
 int_strain = int_strain * v_elem / v_cube
@@ -1874,96 +1936,203 @@ subroutine init_loadcase_el_order_lin(eps,vv)
 
   end subroutine init_loadcase_el_order_lin
 
+
 !------------------------------------------------------------------------------
-! SUBROUTINE: init_loadcase_el_order_lin
+! SUBROUTINE: init_loadcase_el_order_quad
 !------------------------------------------------------------------------------
-!> @author Johannes Gebert - HLRS - NUM - gebert@hlrs.de
+!> @author Ralf Schneider - HLRS - NUM - schneider@hlrs.de
 !
 ! @Brief:
-!> 60 loadcases for quad macro elements.
+!> 24 loadcases for lin macro elements.
 !------------------------------------------------------------------------------
-SUBROUTINE init_loadcase_el_order_quad(eps,vv)
+subroutine init_loadcase_el_order_quad(e,vv)
 
-    REAL(rk), intent(in)     :: eps
-    REAL(rk), Dimension(:,:) :: vv
+Real(rk), intent(in) :: e
+Real(rk), Dimension(:,:) :: vv
+REAL(rk), PARAMETER :: z = 0._rk, f = 0.99794_rk, oh=1.5_rk, h=0.5_rk
+vv = 0._rk
 
-    REAL(rk) :: eps2, eps3, eps4, z
-
-    eps2 = eps*2._rk
-    eps3 = eps*3._rk
-    eps4 = eps*4._rk
-
-    vv = 0._rk
-    z = 0._rk
-
-    ! !                1,     2,     3,     4,     5,     6,     7,     8,     9,    10,    11,    12,    13,    14,    15,    16,    17,    18,    19,    20,    21,    22,    23,    24,    24,    24,    25,    26,    27,    28,    29,    30,    31,    32,    33,    34,    35,    36,    37,    38,    39,    40,    41,    42,    43,    44,    45,    46,    47,    48,    49,    50,    51,    52,    53,    54,    55,    56,    57,    58,    59,    60
-    ! vv( 1,:) = [     z,     z,     z,   eps,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv( 2,:) = [   eps,     z,     z,   eps,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv( 3,:) = [   eps,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv( 4,:) = [     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv( 5,:) = [     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv( 6,:) = [   eps,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv( 7,:) = [   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, eps  ,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv( 8,:) = [     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv( 9,:) = [     z,     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(10,:) = [     z,     z,     z,     z,     z,     z,     z,     z, eps   ,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,  eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    
-    ! vv(11,:) = [     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(12,:) = [     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(13,:) = [     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(14,:) = [     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(15,:) = [     z,   eps,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,  -eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(16,:) = [     z,   eps,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(17,:) = [     z,     z,     z,     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(18,:) = [     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(19,:) = [     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(20,:) = [     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    
-    ! vv(21,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(22,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps2 ,    z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(23,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps3,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(24,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(25,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(26,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(27,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(28,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(29,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(30,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    
-    ! vv(31,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(32,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(33,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(34,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(35,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(36,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(37,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(38,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(39,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(40,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    
-    ! vv(41,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(42,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(43,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(44,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(45,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(46,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(47,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(48,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(49,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(50,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    
-    ! vv(51,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(52,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(53,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(54,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(55,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(56,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(57,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(58,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(59,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    ! vv(60,:) = [     z,     z,   eps,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z, -eps4,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z,     z ]
-    
-END SUBROUTINE init_loadcase_el_order_quad
-
+vv( 1,:) = [  z,   z,   z,   e,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv( 2,:) = [  e,   z,   z,   e,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv( 3,:) = [  e,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv( 4,:) = [  z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z, 2*e,   z,   z,   z,   z,   z ]
+vv( 5,:) = [  z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv( 6,:) = [  e,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   e,   e,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv( 7,:) = [  e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv( 8,:) = [  z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv( 9,:) = [h*e,   z,   z,   e,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(10,:) = [  e,   z,   z, h*e,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(11,:) = [h*e,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z, h*e,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z ]
+vv(12,:) = [  z,   z,   z, h*e,   e,   z,   z,   z,   z,   z,   z,   z,   z, h*e,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(13,:) = [h*e,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z, h*e, h*e,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z ]
+vv(14,:) = [  e,   z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z, h*e, h*e,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(15,:) = [h*e,   z,   z,   z,   z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z, h*e, h*e,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z ]
+vv(16,:) = [  z,   z,   z, h*e,   z,   z, h*e,   z,   z,   z,   z,   z,   z,   z, h*e,   z,   z, h*e,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z ]
+vv(17,:) = [  z,   z,   z,   e, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z, h*e,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(18,:) = [  e,   z,   z,   e, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z, h*e,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(19,:) = [  e,   z,   z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z, h*e,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(20,:) = [  z,   z,   z,   z, h*e,   z, h*e,   z,   z,   z,   z,   z,   z, h*e,   z,   z,   z, h*e,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(21,:) = [  z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(22,:) = [  z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(23,:) = [  z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(24,:) = [  z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(25,:) = [  z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(26,:) = [  z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(27,:) = [  z,   e,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(28,:) = [  z,   e,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(29,:) = [  z,   z,   z,   z,   z,   z,   z, h*e, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z, h*e, h*e,&
+              z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(30,:) = [  z, h*e,   z,   z,   z,   z,   z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z, h*e,&
+            h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(31,:) = [  z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+            h*e, h*e,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(32,:) = [  z, h*e,   z,   z,   z,   z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z, h*e,   z,&
+              z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z ]
+vv(33,:) = [  z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z, h*e, h*e,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(34,:) = [  z, h*e,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,-h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z ]
+vv(35,:) = [  z,   e,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(36,:) = [  z, h*e,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z, h*e,&
+              z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(37,:) = [  z,   z,   z,   z,   z, h*e,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z, h*e,   z,&
+              z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(38,:) = [  z,   z,   z,   z,   z, h*e,   z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(39,:) = [  z,   e,   z,   z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+            h*e,   z,   z,-h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(40,:) = [  z,   e,   z,   z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,&
+              z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(41,:) = [  z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(42,:) = [  z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(43,:) = [  z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   e,   z,   z,   z, 4*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(44,:) = [  z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z, 3*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(45,:) = [  z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(46,:) = [  z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,-2*e,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z, 2*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(47,:) = [  z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,-3*e,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(48,:) = [  z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,-4*e,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(59,:) = [  z,   z,   z,   z,   z,   z,   z,   z,   z, h*e, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(50,:) = [  z,   z,   z,   z,   z,   z,   z,   z,   z,   z, h*e, h*e,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(51,:) = [  z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z, h*e, h*e,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(52,:) = [  z,   z,   z,   z,   z,   z,   z,   z,   z, h*e,   z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(53,:) = [  z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(54,:) = [  z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,oh*e,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(55,:) = [  z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,oh*e,-2*e,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(56,:) = [  z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,-2*e,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(57,:) = [  z,   z, h*e,   z,   z,   z,   z,   z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z ]
+vv(58,:) = [  z,   z, h*e,   z,   z,   z,   z,   z,   z,   z, h*e,   z,   z,   z,   z,   z,   z,  -e,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e ]
+vv(59,:) = [  z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z, h*e,   z,   z,   z,   z,   z,   z,oh*e,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+vv(60,:) = [  z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z, h*e,   z,   z,   z,   z,   z,   z,-2*e,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
+              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+     
+   end subroutine init_loadcase_el_order_quad
 End Module calcmat
  
