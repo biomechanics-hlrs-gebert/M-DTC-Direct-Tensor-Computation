@@ -137,7 +137,7 @@ INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0
 
 INTEGER(ik) :: nn, ii, jj, kk, dc, computed_domains = 0, comm_nn = 1, &
     No_of_domains, path_count, activity_size=0, alloc_stat, fh_cluster_log, &
-    free_file_handle, domains_per_comm, stat, &
+    free_file_handle, domains_per_comm, stat, no_lc=0, nl=0, &
     Domain, llimit, parts, elo_macro, vdim(3)
 
 INTEGER(pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
@@ -259,7 +259,12 @@ If (rank_mpi == 0) THEN
     CALL meta_read('MACRO_ELMNT_ORDER', m_rry, elo_macro, ios); CALL mest(ios, abrt)
     CALL meta_read('TYPE_RAW'         , m_rry, typeraw, ios); CALL mest(ios, abrt)
 
-    
+    IF (elo_macro == 1) THEN
+        no_lc = 24_ik
+    ELSE IF (elo_macro == 2) THEN
+        no_lc = 60_ik
+    END IF 
+
     IF(abrt) CALL print_err_stop(std_out, "A keyword error occured.", 1)
 
     !------------------------------------------------------------------------------
@@ -704,6 +709,8 @@ If (rank_mpi == 0) THEN
     ! End of domain                           , 3395     , 1672328, 1442071, 546, 73615236, 252, 252, 1671690747
     !------------------------------------------------------------------------------
 
+    ! for better formatting :-)
+    nl = no_lc
     CALL raise_leaves(no_leaves = add_leaves, &
         desc = [ & ! DO NOT CHANGE THE LENGTH OF THE STRINGS      ! Leaf x bytes
         "Domain number                                     " , &  !  1 x  1
@@ -735,8 +742,8 @@ If (rank_mpi == 0) THEN
         domains_per_comm,         domains_per_comm, &
         domains_per_comm * 24   ,                                                    &
         domains_per_comm,         domains_per_comm, &                                  
-        domains_per_comm * 24*24, domains_per_comm * 24*24, domains_per_comm       , &
-        domains_per_comm *  6*24, domains_per_comm *  6*24, domains_per_comm *  6*6, &
+        domains_per_comm * nl*nl, domains_per_comm * nl*nl, domains_per_comm       , &
+        domains_per_comm *  6*nl, domains_per_comm *  6*nl, domains_per_comm *  6*6, &
         domains_per_comm        , domains_per_comm *  6* 6, domains_per_comm       , &
         domains_per_comm        , domains_per_comm *     3, domains_per_comm *    9, &
         domains_per_comm *  6* 6, domains_per_comm        , domains_per_comm *    3, &

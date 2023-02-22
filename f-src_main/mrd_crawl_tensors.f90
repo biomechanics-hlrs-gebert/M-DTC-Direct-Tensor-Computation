@@ -37,13 +37,13 @@ INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0, vdim=0, grid=0
 
 INTEGER(ik) :: alloc_stat, parts, fh_covo, fh_cr1, fh_cr2, fh_tens, &
     domains_crawled = 0_ik, nn_comm, par_domains, activity_size, size_mpi, fh_covo_num, &
-    ii, kk, ll, mm, tt, xx, par_dmn_number, jj, current_domain, pntr, &
+    ii, kk, ll, mm, tt, xx, par_dmn_number, jj, current_domain, pntr, no_lc, ma_el_order, &
     aun, domains_per_comm = 0, rank_mpi, No_of_domains, local_domain_no, last_domain_rank
 
 REAL(rk) :: local_domain_density, sym, start, end
 REAL(rk), DIMENSION(3)   :: local_domain_opt_pos, spcng, dmn_size
 REAL(rk), DIMENSION(6,6) :: local_domain_tensor
-REAL(rk), DIMENSION(24,24) :: local_num_tensor
+REAL(rk), DIMENSION(:,:), ALLOCATABLE :: local_num_tensor
 
 INTEGER(8), DIMENSION(:), ALLOCATABLE :: dat_domains, dat_no_elems, dat_no_nodes, dat_collected_logs
 REAL(8), DIMENSION(:), ALLOCATABLE :: dat_densities, dat_eff_num_stiffnesses, dat_tensors, &
@@ -51,9 +51,9 @@ REAL(8), DIMENSION(:), ALLOCATABLE :: dat_densities, dat_eff_num_stiffnesses, da
 
 CHARACTER(mcl), DIMENSION(:), ALLOCATABLE :: m_rry      
 CHARACTER(mcl) :: cmd_arg_history='', target_path, file_head, binary, activity_file, stat=""
-CHARACTER(scl) :: mi_el_type, ma_el_type
+CHARACTER(scl) :: mi_el_type
 
-CHARACTER(10*mcl) :: string
+CHARACTER(100*mcl) :: string
 
 CHARACTER(20)  :: dmn_char
 CHARACTER(9)   :: covo_num_suf = ".covo.num"
@@ -124,13 +124,23 @@ CALL meta_read('MESH_PER_SUB_DMN'  , m_rry, parts, stat); IF(stat/="") STOP
 !------------------------------------------------------------------------------
 ! Macro Element order via string for more flexibility
 !------------------------------------------------------------------------------
-CALL meta_read('MACRO_ELMNT_ORDER' , m_rry, mi_el_type, stat); IF(stat/="") STOP
-CALL meta_read('MICRO_ELMNT_TYPE'  , m_rry, ma_el_type, stat); IF(stat/="") STOP
+CALL meta_read('MACRO_ELMNT_ORDER' , m_rry, ma_el_order, stat); IF(stat/="") STOP
+CALL meta_read('MICRO_ELMNT_TYPE'  , m_rry, mi_el_type, stat); IF(stat/="") STOP
 
 CALL meta_read('PROCESSORS' , m_rry, size_mpi, stat); IF(stat/="") STOP
 CALL meta_read('SIZE_DOMAIN', m_rry, dmn_size, stat); IF(stat/="") STOP
 CALL meta_read('SPACING'    , m_rry, spcng, stat); IF(stat/="") STOP
 CALL meta_read('DIMENSIONS' , m_rry, vdim, stat); IF(stat/="") STOP
+
+IF (ma_el_order == 1) THEN
+    no_lc = 24
+ELSE IF (ma_el_order == 2) THEN
+    no_lc = 60
+ELSE
+    CALL print_err_stop(std_out, "Macro element order not recognized. Chosse '1' or '2'.", 1)
+END IF 
+
+ALLOCATE(local_num_tensor(no_lc, no_lc))
 
 INQUIRE(UNIT=fhmei, OPENED=opened)
 IF(opened) CLOSE (fhmei)
@@ -148,7 +158,7 @@ WRITE(fh_covo, '(A)') TRIM(string)
 WRITE(fh_cr1, '(A)') TRIM(string)
 WRITE(fh_cr2, '(A)') TRIM(string)
 
-string = write_eff_num_stiff_header()
+string = write_eff_num_stiff_header(no_lc)
 WRITE(fh_covo_num, '(A)') TRIM(string)
 
 !------------------------------------------------------------------------------
@@ -403,7 +413,8 @@ DO rank_mpi = 1, size_mpi-1, parts
             tensor(tt)%doa_gebert     = 0._rk
             tensor(tt)%sym            = 0._rk
             tensor(tt)%mat            = 0._rk
-            tensor(tt)%num            = 0._rk
+            tensor(tt)%num8           = 0._rk
+            tensor(tt)%num20          = 0._rk
             tensor(tt)%pos            = 0._rk
             tensor(tt)%sym            = 0._rk
             tensor(tt)%mps            = 0._rk
@@ -411,7 +422,7 @@ DO rank_mpi = 1, size_mpi-1, parts
             tensor(tt)%t_duration     = 0._rk
 
             tensor(tt)%mi_el_type = "" 
-            tensor(tt)%ma_el_type = "" 
+            tensor(tt)%ma_el_order = 0_ik
             !------------------------------------------------------------------------------
             ! This value is hardcoded in ./f-src/mod_struct_calcmat.f90
             !------------------------------------------------------------------------------
@@ -457,9 +468,9 @@ DO rank_mpi = 1, size_mpi-1, parts
             ! Local numerical stiffness
             !------------------------------------------------------------------------------
             local_num_tensor = 0._rk
-            mm = (ii-1) * 24 * 24 + 1
-            DO kk = 1, 24
-            DO ll = 1, 24
+            mm = (ii-1) * no_lc * no_lc + 1
+            DO kk = 1, no_lc
+            DO ll = 1, no_lc
                 local_num_tensor(kk, ll) = dat_eff_num_stiffnesses(mm)
                 mm = mm + 1
             END DO 
@@ -507,7 +518,13 @@ DO rank_mpi = 1, size_mpi-1, parts
 
             tensor(tt)%sym  = sym
             tensor(tt)%mat  = local_domain_tensor
-            tensor(tt)%num  = local_num_tensor
+
+            IF (ma_el_order == 1) THEN
+                tensor(tt)%num8  = local_num_tensor
+
+            ELSE IF (ma_el_order == 2) THEN
+                tensor(tt)%num20 = local_num_tensor
+            END IF 
 
             tensor(tt)%pos  = local_domain_opt_pos
             tensor(tt)%dmn_size = dmn_size(1)
@@ -533,10 +550,11 @@ DO rank_mpi = 1, size_mpi-1, parts
             ! gets assigned at this place.
             !------------------------------------------------------------------------------
             tensor(tt)%mi_el_type = TRIM(mi_el_type) 
-            tensor(tt)%ma_el_type = TRIM(ma_el_type) 
+            tensor(tt)%ma_el_order = ma_el_order
 
             !------------------------------------------------------------------------------
             ! This value is hardcoded in ./f-src/mod_struct_calcmat.f90
+            ! The 24 dat_collected entries are not related to 24 load cases/dof !!
             !------------------------------------------------------------------------------
             tensor(tt)%opt_res = 1._rk 
 
@@ -548,8 +566,8 @@ DO rank_mpi = 1, size_mpi-1, parts
             WRITE(fh_tens,'(A)') TRIM(string)
 
 
-            IF(tt==1) THEN
-                CALL write_eff_num_stiff_row(tensor(tt), string)
+            IF (tt==1) THEN
+                CALL write_eff_num_stiff_row(tensor(tt), no_lc, string)
                 WRITE(fh_covo_num,'(A)') TRIM(string)
             END IF
         END DO ! ii = 1, domains_Per_comm - 1_ik
