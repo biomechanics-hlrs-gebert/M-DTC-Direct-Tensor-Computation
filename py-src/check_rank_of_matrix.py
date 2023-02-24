@@ -208,7 +208,7 @@ Rank = np.linalg.matrix_rank(UU, tol=None, hermitian=False)
 #------------------------------------------------------------------------------  
 UU *= 1000000
 print("Scaled UU:")
-print(np.around(UU.astype(int)))
+# print(np.around(UU.astype(int)))
 
 #------------------------------------------------------------------------------  
 # Diagonalize HEXE8 UU
@@ -224,7 +224,15 @@ det = np.linalg.det(UU)
 
 print("Rank        of HEXE8 displacements:", Rank)
 print("Determinant of HEXE8 displacements:", np.around(det,3))
-print('\n\n')
+
+
+#------------------------------------------------------------------------------  
+# Get Condition
+#------------------------------------------------------------------------------  
+cond = np.linalg.cond(UU)
+print("Condition   of HEXE8 displacements:", np.around(cond,3))
+
+print('\n')
 
 
 
@@ -243,7 +251,7 @@ Rank = np.linalg.matrix_rank(UU, tol=None, hermitian=False)
 #------------------------------------------------------------------------------  
 UU *= 1000000
 print("Scaled UU:")
-print(np.around(UU,12))
+# print(np.around(UU,12))
 
 #------------------------------------------------------------------------------  
 # Diagonalize HEXE20 UU
@@ -259,3 +267,9 @@ det = np.linalg.det(UU)
 
 print("Rank        of HEXE20 displacements:", Rank)
 print("Determinant of HEXE20 displacements:", np.around(det,3))
+
+#------------------------------------------------------------------------------  
+# Get Condition
+#------------------------------------------------------------------------------  
+cond = np.linalg.cond(UU)
+print("Condition   of HEXE20 displacements:", np.around(cond,3))
