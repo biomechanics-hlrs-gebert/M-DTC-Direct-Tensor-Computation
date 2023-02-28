@@ -1474,7 +1474,7 @@ IF(rank_mpi==0) THEN
         CALL execute_command_line ("echo 'JOB_FINISHED' > BATCH_RUN")
     END IF 
 
-    CALL meta_close(m_rry, no_restart_required)
+    CALL meta_close(m_rry)
 
     CALL meta_stop_ascii(fh_mon, mon_suf)
 
