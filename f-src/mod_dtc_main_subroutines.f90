@@ -453,7 +453,7 @@ END IF
 !------------------------------------------------------------------------------
 ! Calculate amount of memory to allocate.
 !------------------------------------------------------------------------------
-preallo = (part_branch%leaves(5)%dat_no * 3) / parts + 1
+! preallo = (part_branch%leaves(5)%dat_no * 3) / parts + 1
 
 !------------------------------------------------------------------------------
 ! Create Stiffness matrix
@@ -469,11 +469,11 @@ CALL MatSetSizes(AA,PETSC_DECIDE,PETSC_DECIDE,m_size,m_size,petsc_ierr)
 CALL MatSetSizes(AA_org,PETSC_DECIDE,PETSC_DECIDE,m_size,m_size,petsc_ierr)
 
 ! https://lists.mcs.anl.gov/pipermail/petsc-users/2021-January/042972.html
-CALL MatSeqAIJSetPreallocation(AA, preallo, PETSC_NULL_INTEGER, petsc_ierr)
-CALL MatMPIAIJSetPreallocation(AA, preallo, PETSC_NULL_INTEGER, preallo, PETSC_NULL_INTEGER, petsc_ierr)
+CALL MatSeqAIJSetPreallocation(AA, 0_ik, PETSC_NULL_INTEGER, petsc_ierr)
+CALL MatMPIAIJSetPreallocation(AA, 0_ik, PETSC_NULL_INTEGER, 0_ik, PETSC_NULL_INTEGER, petsc_ierr)
 
-CALL MatSeqAIJSetPreallocation(AA_org, preallo, PETSC_NULL_INTEGER, petsc_ierr)
-CALL MatMPIAIJSetPreallocation(AA_org, preallo, PETSC_NULL_INTEGER, preallo, PETSC_NULL_INTEGER, petsc_ierr)
+CALL MatSeqAIJSetPreallocation(AA_org, 0_ik, PETSC_NULL_INTEGER, petsc_ierr)
+CALL MatMPIAIJSetPreallocation(AA_org, 0_ik, PETSC_NULL_INTEGER, 0_ik, PETSC_NULL_INTEGER, petsc_ierr)
 
 CALL MatSetOption(AA    ,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
 CALL MatSetOption(AA_org,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)

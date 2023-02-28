@@ -289,10 +289,10 @@ If (rank_mpi == 0) THEN
     !------------------------------------------------------------------------------
     ! Warning / Error handling
     !------------------------------------------------------------------------------
-    IF (parts < 2) THEN
-        mssg = 'At least 2 parts per domain are required.'
-        CALL print_err_stop_slaves(mssg); GOTO 1000
-    END IF
+    ! IF (parts < 2) THEN
+    !     mssg = 'At least 2 parts per domain are required.'
+    !     CALL print_err_stop_slaves(mssg); GOTO 1000
+    ! END IF
 
     IF ( (bone%phdsize(1) /= bone%phdsize(2)) .OR. (bone%phdsize(1) /= bone%phdsize(3)) ) THEN
         mssg = 'Currently, all 3 dimensions of the physical domain size must be equal!'
@@ -1431,17 +1431,8 @@ Else
 
     End Do
 
-    !------------------------------------------------------------------------------
-    ! Close memlog file
-    !------------------------------------------------------------------------------
-    CLOSE(fh_cluster_log)
-
-    DO ii = 1, no_streams
-        CALL MPI_File_close(fh_mpi_worker(ii), ierr)
-    END DO 
-
     CALL PetscFinalize(petsc_ierr) 
-    
+
 End If
 
 IF(rank_mpi == 0) THEN
@@ -1471,8 +1462,6 @@ IF(rank_mpi == 0) THEN
 
 END IF ! (rank_mpi == 0)
 
-1000 Continue
-
 IF(rank_mpi==0) THEN
 
     !------------------------------------------------------------------------------
@@ -1493,6 +1482,8 @@ IF(rank_mpi==0) THEN
     IF(std_err/=0) CALL meta_start_ascii(std_err, '.std_err')
 
 END IF 
+
+1000 Continue
 
 CALL MPI_FILE_CLOSE(aun, ierr)
 CALL MPI_FINALIZE(ierr)

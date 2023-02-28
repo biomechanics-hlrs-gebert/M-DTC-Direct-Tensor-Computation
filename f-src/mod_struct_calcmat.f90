@@ -1936,7 +1936,6 @@ subroutine init_loadcase_el_order_lin(eps,vv)
 
   end subroutine init_loadcase_el_order_lin
 
-
 !------------------------------------------------------------------------------
 ! SUBROUTINE: init_loadcase_el_order_quad
 !------------------------------------------------------------------------------
@@ -1945,194 +1944,255 @@ subroutine init_loadcase_el_order_lin(eps,vv)
 ! @Brief:
 !> 24 loadcases for lin macro elements.
 !------------------------------------------------------------------------------
-subroutine init_loadcase_el_order_quad(e,vv)
+   subroutine init_loadcase_el_order_quad(e,vv)
 
-Real(rk), intent(in) :: e
-Real(rk), Dimension(:,:) :: vv
-REAL(rk), PARAMETER :: z = 0._rk, f = 0.99794_rk, oh=1.5_rk, h=0.5_rk
-vv = 0._rk
-
-vv( 1,:) = [  z,   z,   z,   e,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv( 2,:) = [  e,   z,   z,   e,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv( 3,:) = [  e,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv( 4,:) = [  z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z, 2*e,   z,   z,   z,   z,   z ]
-vv( 5,:) = [  z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv( 6,:) = [  e,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   e,   e,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv( 7,:) = [  e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv( 8,:) = [  z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv( 9,:) = [h*e,   z,   z,   e,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(10,:) = [  e,   z,   z, h*e,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(11,:) = [h*e,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z, h*e,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z ]
-vv(12,:) = [  z,   z,   z, h*e,   e,   z,   z,   z,   z,   z,   z,   z,   z, h*e,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(13,:) = [h*e,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z, h*e, h*e,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z ]
-vv(14,:) = [  e,   z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z, h*e, h*e,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(15,:) = [h*e,   z,   z,   z,   z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z, h*e, h*e,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z ]
-vv(16,:) = [  z,   z,   z, h*e,   z,   z, h*e,   z,   z,   z,   z,   z,   z,   z, h*e,   z,   z, h*e,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z ]
-vv(17,:) = [  z,   z,   z,   e, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z, h*e,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(18,:) = [  e,   z,   z,   e, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z, h*e,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(19,:) = [  e,   z,   z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z, h*e,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(20,:) = [  z,   z,   z,   z, h*e,   z, h*e,   z,   z,   z,   z,   z,   z, h*e,   z,   z,   z, h*e,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(21,:) = [  z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(22,:) = [  z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(23,:) = [  z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(24,:) = [  z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(25,:) = [  z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(26,:) = [  z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(27,:) = [  z,   e,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(28,:) = [  z,   e,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(29,:) = [  z,   z,   z,   z,   z,   z,   z, h*e, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z, h*e, h*e,&
-              z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(30,:) = [  z, h*e,   z,   z,   z,   z,   z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z, h*e,&
-            h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(31,:) = [  z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-            h*e, h*e,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(32,:) = [  z, h*e,   z,   z,   z,   z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z, h*e,   z,&
-              z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z ]
-vv(33,:) = [  z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z, h*e, h*e,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(34,:) = [  z, h*e,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,-h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z ]
-vv(35,:) = [  z,   e,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(36,:) = [  z, h*e,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z, h*e,&
-              z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(37,:) = [  z,   z,   z,   z,   z, h*e,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z, h*e,   z,&
-              z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(38,:) = [  z,   z,   z,   z,   z, h*e,   z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(39,:) = [  z,   e,   z,   z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-            h*e,   z,   z,-h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(40,:) = [  z,   e,   z,   z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,&
-              z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(41,:) = [  z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(42,:) = [  z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(43,:) = [  z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   e,   z,   z,   z, 4*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(44,:) = [  z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z, 3*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(45,:) = [  z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(46,:) = [  z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,-2*e,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z, 2*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(47,:) = [  z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,-3*e,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(48,:) = [  z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,-4*e,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(59,:) = [  z,   z,   z,   z,   z,   z,   z,   z,   z, h*e, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(50,:) = [  z,   z,   z,   z,   z,   z,   z,   z,   z,   z, h*e, h*e,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(51,:) = [  z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z, h*e, h*e,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(52,:) = [  z,   z,   z,   z,   z,   z,   z,   z,   z, h*e,   z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(53,:) = [  z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(54,:) = [  z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,oh*e,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(55,:) = [  z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,oh*e,-2*e,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(56,:) = [  z,   z,   e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,-2*e,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,  -e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(57,:) = [  z,   z, h*e,   z,   z,   z,   z,   z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   e,   z ]
-vv(58,:) = [  z,   z, h*e,   z,   z,   z,   z,   z,   z,   z, h*e,   z,   z,   z,   z,   z,   z,  -e,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,  -e ]
-vv(59,:) = [  z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z, h*e,   z,   z,   z,   z,   z,   z,oh*e,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
-vv(60,:) = [  z,   z, h*e,   z,   z,   z,   z,   z,   z,   z,   z,   z, h*e,   z,   z,   z,   z,   z,   z,-2*e,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,&
-              z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z,   z ]
+     Real(rk), intent(in) :: e
+     Real(rk), Dimension(:,:) :: vv
+     REAL(rk), PARAMETER :: z = 0._rk, f = 0.99794_rk, oh=1.5_rk, h=0.5_rk, zz=2.0_rk
+     vv = 0._rk
      
-   end subroutine init_loadcase_el_order_quad
-End Module calcmat
- 
+vv( 1,:) = [   z ,   z ,   z ,   e ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+    3._rk*e,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+       z ,   z,    z ,   z ,   z ,   z]
+vv( 2,:) = [   e ,   z ,   z ,   e ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+      z ,   z,    z ,   z ,   z ,   z]
+vv( 3,:) = [   e ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,-3._rk*e,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+         z ,   z,    z ,   z ,   z ,   z]
+vv( 4,:) = [   z ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 0.2_rk*e  ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+      z ,-1.5 ,   z  ,  z  ,  z  ,  z ,   z]
+vv( 5,:) = [   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   e ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z , 5._rk*e,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+         z ,   z,    z ,   z ,   z ,   z]
+vv( 6,:) = [   e ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,    5._rk*e,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 0.1_rk*e,   z ,  &
+    z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+    ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv( 7,:) = [   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,-4.  ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+      z ,   z,    z ,   z ,   z ,   z]
+vv( 8,:) = [   z ,   z ,   z ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+      z ,   z,    z ,   z ,   z ,   z]
+vv( 9,:) = [ 0.5_rk*e ,   z ,   z ,   e ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,    z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   e ,   z ,   z ,   &
+      z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(10,:) = [   e ,   z ,   z , 0.5_rk*e ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,    z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-0.9_rk*e ,   z ,   z ,   z ,   z&
+       ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(11,:) = [ 0.5_rk*e ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,    z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-  e ,   &
+      z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(12,:) = [   z ,   z ,   z , 0.5_rk*e ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 0.5_rk*e   ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+      z ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(13,:) = [ 0.5_rk*e ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 0.5_rk*e   ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+      z ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(14,:) = [   e ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,    z ,&
+ 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-0.1_rk*e,   z ,   z ,   z ,   &
+ z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-0.7 ,   z ,   z ,   z ,&
+    z ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(15,:) = [ 0.5_rk*e ,   z ,   z ,   z ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,     z ,&
+   z ,   z , 0.1_rk*e,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  &
+    z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+    ,   z ,   z ,   z ,   z, -  e ,   z ,   z ,   z]
+vv(16,:) = [   z ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,    z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   &
+      z ,   z ,   z,    z ,-  e ,   z ,   z]
+vv(17,:) = [   z ,   z ,   z ,   e , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,    z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-  e ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+      z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(18,:) = [   e ,   z ,   z ,   e , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , z,0.2_rk*e ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-  e ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+      z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(19,:) = [   e ,   z ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,    z ,&
+ 0.3_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-  e ,   z ,   z ,   z ,   z ,   z ,   z&
+    ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(20,:) = [   z ,   z ,   z ,   z , 0.5_rk*e ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z , 5._rk*e,  z ,&
+   z ,   z , 0.1_rk*e,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  &
+    z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 2.  ,   z ,   z ,   z ,   z ,   z &
+    ,   z ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(21,:) = [   z ,   z ,   z ,   z ,   z ,   z ,   z ,-2.  ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+      z ,   z,    z ,   z ,   z ,   z]
+vv(22,:) = [   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-  e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,-5._rk*e,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+         z ,   z,    z ,   z ,   z ,   z]
+vv(23,:) = [   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z , 5._rk*e,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z,    z ,   z ,   z ,   z]
+vv(24,:) = [   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,-2.  ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+      z ,   z,    z ,   z ,   z ,   z]
+vv(25,:) = [   z ,   z ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+      z ,   z,    z ,   z ,   z ,   z]
+vv(26,:) = [   z ,   z ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z , 3._rk*e,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+         z ,   z,    z ,   z ,   z ,   z]
+vv(27,:) = [   z ,   e ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+      z ,   z,    z ,   z ,   z ,   z]
+vv(28,:) = [   z ,   e ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z , 4.  ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+      z ,   z,    z ,   z ,   z ,   z]
+vv(29,:) = [   z ,   z ,   z ,   z ,   z ,   z ,   z , 0.5_rk*e , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,    z ,&
+   z ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  &
+       z ,   z ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(30,:) = [   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 3._rk*e&
+      ,   z ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(31,:) = [   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  z ,&
+   z ,   z ,   z ,   z , 5._rk*e,   z ,   z ,   z ,   z ,-0.1_rk*e,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z&
+    ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+       z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(32,:) = [   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  &
+       z , 5._rk*e,   z ,   z,    z ,   z ,   z ,   z]
+vv(33,:) = [   z ,   z ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  z ,&
+   z ,   z ,   z ,   z ,   z ,   z , 5._rk*e,   z ,   z ,   z ,   z , 0.1_rk*e,   z ,   z ,   z ,   z ,   z ,   z&
+    ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+       z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(34,:) = [   z , 0.5_rk*e ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+   ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z ,-5. ,    z ,   z ,   z ,   z]
+vv(35,:) = [   z ,   e ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-0.1_rk*e,   z ,   z ,   z ,   z , &
+     z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   &
+     z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(36,:) = [   z , 0.5_rk*e ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z , 0.1_rk*e,   z ,   z , 2.  ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+     z ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(37,:) = [   z ,   z ,   z ,   z ,   z , 0.5_rk*e ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,    z ,&
+   z ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 2.  ,   z ,   z ,   z ,   z ,   z ,   z ,  &
+       z ,   z ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(38,:) = [   z ,   z ,   z ,   z ,   z , 0.5_rk*e ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,    z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-4.  &
+   ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(39,:) = [   z ,   e ,   z ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z , 0.5_rk*e ,   z ,   z ,-0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,-  e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+     z ,   z ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(40,:) = [   z ,   e ,   z ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z , 2.  ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  &
+       z ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(41,:) = [   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-  e ,   z ,   z ,   z ,   z ,   z ,   z ,  z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+   ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z,    z ,   z ,   z ,   z]
+vv(42,:) = [   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-2.  ,   z ,   z ,   z ,   z ,   z ,  z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+   ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z,    z ,   z ,   z ,   z]
+vv(43,:) = [   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 5._rk*e,   z ,   z ,   z ,   z ,  &
+    z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z&
+     ,   z ,   z,    z ,   z ,   z ,   z]
+vv(44,:) = [   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+   ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-2.  ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z,    z ,   z ,   z ,   z]
+vv(45,:) = [   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+   ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z,    z ,   z ,   z ,   z]
+vv(46,:) = [   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  z ,&
+-0.7 ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 2.  ,   z ,   z ,   z ,   z ,   z ,   z &
+,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+  z ,   z,    z ,   z ,   z ,   z]
+vv(47,:) = [   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  z ,&
+   z ,-3._rk*e,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  &
+    z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z&
+     ,   z ,   z,    z ,   z ,   z ,   z]
+vv(48,:) = [   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  z ,&
+   z ,   z ,-3._rk*e,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  &
+    z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z&
+     ,   z ,   z,    z ,   z ,   z ,   z]
+vv(59,:) = [   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 2.  ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+   ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(50,:) = [   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 5._rk*e,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  &
+    z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z&
+     ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(51,:) = [   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 0.1_rk*e,   z ,   z ,   z ,    z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+   ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(52,:) = [   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 0.1_rk*e,   z ,   z ,   z ,   z ,   z ,    z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 4.  ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+   ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(53,:) = [   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  z ,&
+-0.1_rk*e,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-4.  ,   z ,   z ,   z ,   z ,   z ,   z , &
+  z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+  z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(54,:) = [   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  z ,&
+-  e ,-1.5 ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-1.5 ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+  z ,   z , z,  z,  z ,   z ,   z]
+vv(55,:) = [   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  z ,&
+   z ,   z ,-0.1_rk*e,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-  e ,   z ,   z ,   z ,   z ,   z ,   &
+     z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(56,:) = [   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-0.5_rk*e ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  &
+       z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(57,:) = [   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,    z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+   ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z ,   z ,   z,    z ,   z ,   e ,   z]
+vv(58,:) = [   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,    z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+   ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z ,   z ,   z,    z ,   z ,   z ,-  e]
+vv(59,:) = [   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 0.9_rk*e ,   z ,   z ,    z ,&
+   z ,   z ,   z ,-1.5 ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+   ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(60,:) = [   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 5._rk*e,   z ,      z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+   ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+
+         end subroutine init_loadcase_el_order_quad
+     
+     End Module calcmat
+      

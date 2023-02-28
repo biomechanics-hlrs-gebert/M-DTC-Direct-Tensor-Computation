@@ -251,7 +251,7 @@ Rank = np.linalg.matrix_rank(UU, tol=None, hermitian=False)
 #------------------------------------------------------------------------------  
 UU *= 1000000
 print("Scaled UU:")
-# print(np.around(UU,12))
+print(np.around(UU,12))
 
 #------------------------------------------------------------------------------  
 # Diagonalize HEXE20 UU
