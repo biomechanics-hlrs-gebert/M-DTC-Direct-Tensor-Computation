@@ -206,13 +206,16 @@ geb-lib-ld-objects = $(st_obj_dir)mod_global_std$(obj_ext) \
 out_amount=$(shell grep out_amount geb-lib/f-src/mod_global_std.f90  | cut -d '"' -f 2)
 #
 ifeq ($(out_amount),PRODUCTION)
-	oa=p
+	oa=prod
 else ifeq ($(out_amount),DEBUG)
-	oa=d
+	oa=debug
 endif
 #
-main_bin = $(bin_dir)$(bin_name)_$(trgt_vrsn)-$(oa)$(bin_suf)
-#
+ifeq ($(trgt_vrsn),)
+	main_bin = $(bin_dir)$(bin_name)_$(oa)$(bin_suf)
+else
+	main_bin = $(bin_dir)$(bin_name)_$(trgt_vrsn)_$(oa)$(bin_suf)
+endif#
 # ------------------------------------------------------------------------------
 # Build the st directory first
 # -----------------------------------------------------------------------------

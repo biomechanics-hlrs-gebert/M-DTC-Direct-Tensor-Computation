@@ -371,6 +371,7 @@ Type(tBranch), Pointer :: meta_para, domain_branch
 
         IF((fex) .AND. ((restart=="Y") .OR. (restart=="YES"))) THEN
             CALL execute_command_line("rm -r "//TRIM(filename))
+            
         ELSE IF ((fex).AND. ((restart=="N") .OR. (restart=="NO"))) THEN
             CALL print_err_stop(std_out, TRIM(filename)//" already exists and &
                 &restart -> No", 1)
@@ -469,14 +470,6 @@ Type(tBranch), Pointer :: meta_para, domain_branch
           Write(filename,'(A,A,I0,A,I0,A)')trim(job_dir),"Part-",ii,"_",ddc_nn,".vtk"
 
           INQUIRE(FILE=TRIM(filename), EXIST=fex)
-
-         !  IF((fex) .AND. ((restart=="Y") .OR. (restart=="YES"))) THEN
-         !      CALL execute_command_line("rm -r "//TRIM(filename))
-
-         !  ELSE IF ((fex).AND. ((restart=="N") .OR. (restart=="NO"))) THEN
-         !      CALL print_err_stop(std_out, TRIM(filename)//" already exists and &
-         !          &restart -> No", 1)
-         !  END IF 
 
           Call write_vtk_data_real8_vector_1D ( &
                displ, Trim(filename), "BoundDispl", .FALSE., "POINT_DATA")

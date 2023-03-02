@@ -171,7 +171,6 @@ contains
        ! Store partitioning as data on vtk unstructured grid
        !============================================================================
        if (out_amount == "DEBUG") then
-
           filename=''
           write(filename,'(A,I0,A)')trim(job_dir)//trim(project_name)//"_",ddc_nn,"_usg.vtk"
           Call write_vtk_data_int4_scalar_1D(&
