@@ -139,28 +139,16 @@ contains
     !------------------------------------------------------------------------------
     ! Check the domain for iso value inclusion
     !------------------------------------------------------------------------------
-    !If ( (min_val_phi > llimit) .Or. (max_val_phi < llimit) ) Then
     If ( (max_val_phi < llimit) ) Then
 
         If (out_amount /= "PRODUCTION" ) Write(un_lf,FMT_MSG_SEP)
-        Write(un_lf,"('EE ',A,I0,A,T77,' EE')")'Isovalue = ',llimit,' not enclosed in field'
-        Write(un_lf,"('EE ',A,I0,T77,  ' EE')")'Minimum value in PHI = ',min_val_phi
-        Write(un_lf,"('EE ',A,I0,T77,  ' EE')")'Maximum value in PHI = ',max_val_phi
+            Write(un_lf, FMT_WRN_xAI0)'Isovalue = ',llimit,' not enclosed in field'
+            Write(un_lf, FMT_WRN_xAI0)'Minimum HU value in image = ',min_val_phi
+            Write(un_lf, FMT_WRN_xAI0)'Maximum HU value in image = ',max_val_phi
         If (out_amount /= "PRODUCTION" ) Write(un_lf,FMT_MSG_SEP)
 
         no_nodes = 0
         no_elems = 0
-
-        Select Case (timer_level)
-        Case (3)
-            call end_timer("  +-- Generating quadmesh "//trim(nn_char))
-        Case (2)
-            call end_timer("  +-- Generating quadmesh "//trim(nn_char))
-        Case default
-            continue
-        End Select
-      
-        GOTO 1000
 
     Else
 
