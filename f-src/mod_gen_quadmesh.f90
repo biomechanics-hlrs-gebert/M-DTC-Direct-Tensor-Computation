@@ -30,7 +30,7 @@ contains
     Integer(2), Intent(In), optional, Dimension(1:,1:,1:) :: phi_ik2
     Integer(4), Intent(In), optional, Dimension(1:,1:,1:) :: phi_ik4
     Character(Len=scl) :: typeraw
-    Real(rk)  , Intent(in), Dimension(3) :: delta
+    Real(rk), Intent(in), Dimension(3) :: delta
 
     !------------------------------------------------------------------------------
     ! Domain decomposition

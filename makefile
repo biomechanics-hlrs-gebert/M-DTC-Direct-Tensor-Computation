@@ -206,13 +206,16 @@ geb-lib-ld-objects = $(st_obj_dir)mod_global_std$(obj_ext) \
 out_amount=$(shell grep out_amount geb-lib/f-src/mod_global_std.f90  | cut -d '"' -f 2)
 #
 ifeq ($(out_amount),PRODUCTION)
-	oa=p
+	oa=prod
 else ifeq ($(out_amount),DEBUG)
-	oa=d
+	oa=debug
 endif
 #
-main_bin = $(bin_dir)$(bin_name)_$(trgt_vrsn)-$(oa)$(bin_suf)
-#
+ifeq ($(trgt_vrsn),)
+	main_bin = $(bin_dir)$(bin_name)_$(oa)$(bin_suf)
+else
+	main_bin = $(bin_dir)$(bin_name)_$(trgt_vrsn)_$(oa)$(bin_suf)
+endif#
 # ------------------------------------------------------------------------------
 # Build the st directory first
 # -----------------------------------------------------------------------------
@@ -323,7 +326,7 @@ $(obj_dir)mod_tensors$(obj_ext):$(f_src_dir)mod_tensors$(f90_ext)
 # -----------------------------------------------------------------------------
 $(obj_dir)mod_metis$(obj_ext):$(obj_dir)metis_interface$(obj_ext) $(f_src_dir)mod_metis$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_metis$(f90_ext) "-----"
-	$(f90_compiler) $(c_flags_f90) -c $(f_src_dir)mod_metis$(f90_ext) -o $@
+	$(c_compiler) $(c_flags_f90) -c $(f_src_dir)mod_metis$(f90_ext) -o $@
 	@echo 
 #
 # -----------------------------------------------------------------------------
@@ -348,7 +351,7 @@ $(obj_dir)mod_parameters$(obj_ext):$(st_mod_dir)global_std$(mod_ext) $(f_src_dir
 $(obj_dir)mod_OS$(obj_ext): $(st_mod_dir)global_std$(mod_ext) \
                             $(obj_dir)OS$(obj_ext) $(f_src_dir)mod_OS$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_OS$(f90_ext) "-----"
-	$(f90_compiler) $(c_flags_f90) -c $(f_src_dir)mod_OS$(f90_ext) -o $@
+	$(c_compiler) $(c_flags_f90) -c $(f_src_dir)mod_OS$(f90_ext) -o $@
 	@echo 
 #
 # -----------------------------------------------------------------------------

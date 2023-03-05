@@ -24,7 +24,7 @@ Subroutine generate_geometry(root, ddc_nn, job_dir, typeraw, glob_success)
 
 Type(tBranch), Intent(InOut) :: root
 Character(LEN=*), Intent(in) :: job_dir
-integer(Kind=ik), Intent(in) :: ddc_nn
+integer(ik), Intent(in) :: ddc_nn
 Logical, Intent(Out) :: glob_success
     
 ! Chain Variables
@@ -151,11 +151,6 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     call pd_get(meta_para, "Grid spacings", delta)  
     Call pd_get(meta_para,"Number of voxels per direction",vdim)
 
-!    Call pd_get(meta_para,"Raw data stream",char_arr)
-! 
-!    typeraw = char_to_str(char_arr)
-!    deallocate(char_arr)
-
     if ( out_amount /= "PRODUCTION" ) then
        write(un_lf,FMT_MSG_AxF0) "Grid spacings", delta
        write(un_lf,FMT_MSG_AxI0) "Number of voxels per direction", vdim
@@ -166,8 +161,6 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     !----------------------------------------------------------------------------
     phi_desc = read_tree()
 
-    ! call open_stream_files(phi_desc, "read" , "old")
-        
     !----------------------------------------------------------------------------
     ! Read PHI (scalar binary values) from file
     !----------------------------------------------------------------------------
@@ -197,11 +190,6 @@ Type(tBranch), Pointer :: meta_para, domain_branch
    !----------------------------------------------------------------------------
     call pd_get(meta_para, "Grid spacings", delta)  
     Call pd_get(meta_para, "Number of voxels per direction",vdim)
-
-!    Call pd_get(meta_para,"Raw data stream",char_arr)
-! 
-!    typeraw = char_to_str(char_arr)
-!    deallocate(char_arr)
 
     if ( out_amount /= "PRODUCTION" ) then
        write(un_lf,FMT_MSG_AxF0) "Grid spacings", delta
@@ -384,18 +372,17 @@ Type(tBranch), Pointer :: meta_para, domain_branch
 
         IF((fex) .AND. ((restart=="Y") .OR. (restart=="YES"))) THEN
             CALL execute_command_line("rm -r "//TRIM(filename))
+            
         ELSE IF ((fex).AND. ((restart=="N") .OR. (restart=="NO"))) THEN
             CALL print_err_stop(std_out, TRIM(filename)//" already exists and &
                 &restart -> No", 1)
         END IF 
 
 
-
        if (elt_micro == "HEX08") then
           
           Call write_vtk_unstructured_grid(trim(filename), &
-               nodes, &
-               elems(1:8, 1:no_elems))
+               nodes, elems(1:8, 1:no_elems))
           
        else if (elt_micro == "HEX20") then
        
@@ -404,22 +391,6 @@ Type(tBranch), Pointer :: meta_para, domain_branch
                elems([1,3,5,7, 13,15,17,19, 2,4,6,8, 14,16,18,20, 9,10,11,12],1:no_elems))
        end if
 
-       !filename=''
-       !write(filename,'(A,I0,A)')trim(job_dir)//trim(project_name)//"_",ddc_nn,"_usg.inp"
-       !open(newunit=un_abq,file=trim(filename),action="write",status="replace")
-
-       !write(un_abq,'(A)')"*NODE"
-       !Do ii = 1, no_nodes
-       !   write(un_abq,'(I10,3(",",E24.16))')ii,nodes(:,ii)
-       !End Do
-
-       !write(un_abq,'(A)')"*ELEMENT, TYPE=C3D20, ELSET=Bone"
-       !Do ii = 1, no_elems
-       !   Write(un_abq,'(I0,20(",",I0))')ii, &
-       !        elems([1,3,5,7, 13,15,17,19, 2,4,6,8, 14,16,18,20, 9,10,11,12],ii)
-       !End Do
-
-       !close(un_abq)
     End if
     
     call pd_get(meta_para,"No of mesh parts per subdomain", parts)
@@ -485,14 +456,6 @@ Type(tBranch), Pointer :: meta_para, domain_branch
 
           INQUIRE(FILE=TRIM(filename), EXIST=fex)
 
-         !  IF((fex) .AND. ((restart=="Y") .OR. (restart=="YES"))) THEN
-         !      CALL execute_command_line("rm -r "//TRIM(filename))
-
-         !  ELSE IF ((fex).AND. ((restart=="N") .OR. (restart=="NO"))) THEN
-         !      CALL print_err_stop(std_out, TRIM(filename)//" already exists and &
-         !          &restart -> No", 1)
-         !  END IF 
-
           Call write_vtk_data_real8_vector_1D ( &
                displ, Trim(filename), "BoundDispl", .FALSE., "POINT_DATA")
           
@@ -529,26 +492,18 @@ Type(tBranch), Pointer :: meta_para, domain_branch
 
     ! Parameters 
     Type(tBranch), Intent(InOut) :: PMesh
-    Type(tBranch), Intent(In)    :: ddc, loc_ddc
-    Integer      , Intent(In)    :: elo_macro
+    Type(tBranch), Intent(In) :: ddc, loc_ddc
+    Integer, Intent(In) :: elo_macro
 
     Type(tBranch), Pointer :: part_b, bounds_b
     
-    Real(Kind=rk)     , Dimension(:), Allocatable :: dim_c, delta
-    Integer(Kind=ik)  , Dimension(:), Allocatable :: xa_n, xe_n
-    Real(Kind=rk)     , Dimension(3)              :: min_c, max_c, coor
-    Integer(kind=ik) :: parts, ddc_nn
-    Integer(kind=ik) :: no_nodes_macro
-    Integer(kind=ik) :: no_elem_nodes
-    
-    integer(Kind=ik) :: ii, jj, no_bnodes, b_items, nnodes
+    Real(rk), Dimension(:,:), Allocatable :: bnode_vals
+    Real(rk), Dimension(:), Allocatable :: dim_c, delta
+    Real(rk), Dimension(3) :: min_c, max_c, coor
 
-    Integer(Kind=ik), Dimension(:), Allocatable :: no_nodes_all
-    Integer(Kind=ik), Dimension(:), Allocatable :: no_elems_all
-    Integer(Kind=ik), Dimension(:), Allocatable :: no_cdofs_all
-    
-    Integer(Kind=ik), Dimension(:)  , Allocatable :: bnode_ids
-    Real(Kind=rk)   , Dimension(:,:), Allocatable :: bnode_vals
+    Integer(ik) :: parts, ddc_nn, no_nodes_macro, ii, jj, no_bnodes, b_items, nnodes
+    Integer(ik), Dimension(:), Allocatable :: &
+        no_nodes_all, no_elems_all, no_cdofs_all, xa_n, xe_n, bnode_ids
 
     !------------------------------------------------------------------------------
     ! Get Parameters of domain decomposition
@@ -571,203 +526,214 @@ Type(tBranch), Pointer :: meta_para, domain_branch
        Write(un_lf,*)
     End if
     
-    parts         = PMesh%no_branches
-    no_elem_nodes = 20
-    IF (elo_macro == 1) no_nodes_macro = 8
+    parts = PMesh%no_branches
+
+    IF (elo_macro == 1) THEN
+        no_nodes_macro = 8
+    ELSE IF (elo_macro == 2) THEN
+        no_nodes_macro = 20
+    END IF 
 
     Allocate(no_nodes_all(parts))
     Allocate(no_elems_all(parts))
     Allocate(no_cdofs_all(parts))
     
-    ! For all Parts *********************************************************
+    !------------------------------------------------------------------------------
+    ! For all Parts
+    !------------------------------------------------------------------------------
     Do jj = 1, parts
 
-       part_b => PMesh%branches(jj)
-       nnodes =  part_b%leaves(1)%dat_no
+        part_b => PMesh%branches(jj)
+        nnodes =  part_b%leaves(1)%dat_no
 
-       no_nodes_all(jj) = nnodes
-       no_elems_all(jj) = part_b%leaves(4)%dat_no
+        no_nodes_all(jj) = nnodes
+        no_elems_all(jj) = part_b%leaves(4)%dat_no
        
-       ! Determine number of boundary nodes *************
-       no_bnodes = 0
+        !------------------------------------------------------------------------------
+        ! Determine number of boundary nodes
+        !------------------------------------------------------------------------------
+        no_bnodes = 0
 
-       if ( out_amount /= "PRODUCTION" ) then
-          Write(un_lf,FMT_MSG_xAI0)'Number of nodes in Part ',jj," during preprocessing: ",nnodes
-          Write(un_lf,FMT_MSG_xAI0)'Size of p_real8 in Part ',jj,": ",size(part_b%leaves(2)%p_real8)
-       End if
+        if ( out_amount /= "PRODUCTION" ) then
+            Write(un_lf,FMT_MSG_xAI0)'Number of nodes in Part ',jj," during preprocessing: ",nnodes
+            Write(un_lf,FMT_MSG_xAI0)'Size of p_real8 in Part ',jj,": ",size(part_b%leaves(2)%p_real8)
+        End if
 
-       ! For all nodes in part **************************
-       Do ii = 1, nnodes
+        !------------------------------------------------------------------------------
+        ! For all nodes in part
+        !------------------------------------------------------------------------------
+        Do ii = 1, nnodes
 
-          coor = part_b%leaves(2)%p_real8((ii-1_ik)*3_ik+1_ik:ii*3_ik)
-          
-          ! Nodes in facet 1 ************************************************
-          if ( (coor(3) - min_c(3)) <= (dim_c(3) * delta_b) ) then
-             no_bnodes = no_bnodes + 1
-             
-          ! Nodes in facet 6 ***************************************************
-          Else if ( (max_c(3) - coor(3)) <= (dim_c(3) * delta_b) ) then
-             no_bnodes = no_bnodes + 1
-             
-          ! Nodes in facet 2 ***************************************************
-          Else if ( (coor(2) - min_c(2)) <= (dim_c(2) * delta_b) ) then
-             no_bnodes = no_bnodes + 1
-             
-          ! Nodes in facet 4 ***************************************************
-          Else if ( (max_c(2) - coor(2)) <= (dim_c(2) * delta_b) ) then
-             no_bnodes = no_bnodes + 1
-             
-          ! Nodes in facet 5 ***************************************************
-          Else if ( (coor(1) - min_c(1)) <= (dim_c(1) * delta_b) ) then
-             no_bnodes = no_bnodes + 1
-             
-          ! Nodes in facet 3 ***************************************************
-          Else if ( (max_c(1) - coor(1)) <= (dim_c(1) * delta_b) ) then
-             no_bnodes = no_bnodes + 1
-             
-          End if
+            coor = part_b%leaves(2)%p_real8((ii-1_ik)*3_ik+1_ik:ii*3_ik)
+            
+            ! Nodes in facet 1
+            if ( (coor(3) - min_c(3)) <= (dim_c(3) * delta_b) ) then
+                no_bnodes = no_bnodes + 1
+                
+            ! Nodes in facet 6
+            Else if ( (max_c(3) - coor(3)) <= (dim_c(3) * delta_b) ) then
+                no_bnodes = no_bnodes + 1
+                
+            ! Nodes in facet 2
+            Else if ( (coor(2) - min_c(2)) <= (dim_c(2) * delta_b) ) then
+                no_bnodes = no_bnodes + 1
+                
+            ! Nodes in facet 4
+            Else if ( (max_c(2) - coor(2)) <= (dim_c(2) * delta_b) ) then
+                no_bnodes = no_bnodes + 1
+                
+            ! Nodes in facet 5
+            Else if ( (coor(1) - min_c(1)) <= (dim_c(1) * delta_b) ) then
+                no_bnodes = no_bnodes + 1
+                
+            ! Nodes in facet 3
+            Else if ( (max_c(1) - coor(1)) <= (dim_c(1) * delta_b) ) then
+                no_bnodes = no_bnodes + 1
+                
+            End if
 
-       End Do
+        End Do
 
-       if ( out_amount /= "PRODUCTION" ) then
-          Write(un_lf,FMT_MSG_xAI0)'Number of constrained nodes in Part ',jj," : ",no_bnodes
+        if ( out_amount /= "PRODUCTION" ) then
+            Write(un_lf,FMT_MSG_xAI0)'Number of constrained nodes in Part ',jj," : ",no_bnodes
 
-          IF (no_bnodes == 0) THEN
-            WRITE(un_lf,FMT_MSG_AI0AxF0)'get_part_coords: min_c    of Part ',jj," : ",min_c
-            WRITE(un_lf,FMT_MSG_AI0AxF0)'get_part_coords: max_c    of Part ',jj," : ",max_c
-            WRITE(un_lf,FMT_MSG_AI0AxF0)'get_part_coords: min coor of Part ',jj," : ",minval(part_b%leaves(2)%p_real8)
-            WRITE(un_lf,FMT_MSG_AI0AxF0)'get_part_coords: max coor of Part ',jj," : ",maxval(part_b%leaves(2)%p_real8)
-          END IF 
-       End if
-       
-       Allocate(bnode_ids(no_bnodes))
-       Allocate(bnode_vals(no_nodes_macro*3,no_bnodes*3))
+            IF (no_bnodes == 0) THEN
+                WRITE(un_lf,FMT_MSG_AI0AxF0)'get_part_coords: min_c    of Part ',jj," : ",min_c
+                WRITE(un_lf,FMT_MSG_AI0AxF0)'get_part_coords: max_c    of Part ',jj," : ",max_c
+                WRITE(un_lf,FMT_MSG_AI0AxF0)'get_part_coords: min coor of Part ',jj," : ",minval(part_b%leaves(2)%p_real8)
+                WRITE(un_lf,FMT_MSG_AI0AxF0)'get_part_coords: max coor of Part ',jj," : ",maxval(part_b%leaves(2)%p_real8)
+            END IF 
+        End if
+        
+        Allocate(bnode_ids(no_bnodes))
+        Allocate(bnode_vals(no_nodes_macro*3,no_bnodes*3))
 
-       !*********************************************************************
-       ! Boundary application     
-       b_items = 0
+        !------------------------------------------------------------------------------
+        ! Boundary application     
+        !------------------------------------------------------------------------------
+        b_items = 0
 
-       Do ii = 1, nnodes
+        Do ii = 1, nnodes
 
-          coor = part_b%leaves(2)%p_real8((ii-1_ik)*3_ik+1_ik:ii*3_ik)
-          
-          ! Nodes in facet 1 ************************************************
-          if ( (coor(3) - min_c(3)) <= (dim_c(3) * delta_b) ) then
-             b_items = b_items + 1
-             bnode_ids(b_items) = part_b%leaves(3)%p_int8(ii)
+            coor = part_b%leaves(2)%p_real8((ii-1_ik)*3_ik+1_ik:ii*3_ik)
+            
+            ! Nodes in facet 1
+            if ( (coor(3) - min_c(3)) <= (dim_c(3) * delta_b) ) then
+                b_items = b_items + 1
+                bnode_ids(b_items) = part_b%leaves(3)%p_int8(ii)
 
-          ! Nodes in facet 6 ************************************************
-          Else if ( (max_c(3) - coor(3)) <= (dim_c(3) * delta_b) ) then
-             b_items = b_items + 1
-             bnode_ids(b_items) = part_b%leaves(3)%p_int8(ii)
+            ! Nodes in facet 6
+            Else if ( (max_c(3) - coor(3)) <= (dim_c(3) * delta_b) ) then
+                b_items = b_items + 1
+                bnode_ids(b_items) = part_b%leaves(3)%p_int8(ii)
 
-          ! Nodes in facet 2 ************************************************
-          Else if ( (coor(2) - min_c(2)) <= (dim_c(2) * delta_b) ) then
-             b_items = b_items + 1
-             bnode_ids(b_items) = part_b%leaves(3)%p_int8(ii)
+            ! Nodes in facet 2
+            Else if ( (coor(2) - min_c(2)) <= (dim_c(2) * delta_b) ) then
+                b_items = b_items + 1
+                bnode_ids(b_items) = part_b%leaves(3)%p_int8(ii)
 
-          ! Nodes in facet 4 ************************************************
-          Else if ( (max_c(2) - coor(2)) <= (dim_c(2) * delta_b) ) then
-             b_items = b_items + 1
-             bnode_ids(b_items) = part_b%leaves(3)%p_int8(ii)
-       
-          ! Nodes in facet 5 ************************************************
-          Else if ( (coor(1) - min_c(1)) <= (dim_c(1) * delta_b) ) then
-             b_items = b_items + 1
-             bnode_ids(b_items) = part_b%leaves(3)%p_int8(ii)
-       
-          ! Nodes in facet 3 ************************************************
-          Else if ( (max_c(1) - coor(1)) <= (dim_c(1) * delta_b) ) then
-             b_items = b_items + 1
-             bnode_ids(b_items) = part_b%leaves(3)%p_int8(ii)
+            ! Nodes in facet 4
+            Else if ( (max_c(2) - coor(2)) <= (dim_c(2) * delta_b) ) then
+                b_items = b_items + 1
+                bnode_ids(b_items) = part_b%leaves(3)%p_int8(ii)
+        
+            ! Nodes in facet 5
+            Else if ( (coor(1) - min_c(1)) <= (dim_c(1) * delta_b) ) then
+                b_items = b_items + 1
+                bnode_ids(b_items) = part_b%leaves(3)%p_int8(ii)
+        
+            ! Nodes in facet 3
+            Else if ( (max_c(1) - coor(1)) <= (dim_c(1) * delta_b) ) then
+                b_items = b_items + 1
+                bnode_ids(b_items) = part_b%leaves(3)%p_int8(ii)
 
-          End if
-          
-       End Do
+            End if
+        
+        End Do
 
-       b_items = 0
+        b_items = 0
 
-       Do ii = 1, nnodes
+        Do ii = 1, nnodes
 
-          coor = part_b%leaves(2)%p_real8((ii-1_ik)*3_ik+1_ik:ii*3_ik)
-          
-          ! Nodes in facet 1 ************************************************
-          if ( (coor(3) - min_c(3)) <= (dim_c(3) * delta_b) ) then
-             Call Determine_prescribed_displ(coor(:), min_c, max_c, &
-                  no_nodes_macro, bnode_vals(:,b_items+1:b_items+3))
-             b_items = b_items+3
+            coor = part_b%leaves(2)%p_real8((ii-1_ik)*3_ik+1_ik:ii*3_ik)
+        
+            ! Nodes in facet 1
+            if ( (coor(3) - min_c(3)) <= (dim_c(3) * delta_b) ) then
+                Call determine_prescribed_displ(coor(:), min_c, max_c, &
+                    no_nodes_macro, bnode_vals(:,b_items+1:b_items+3))
+                b_items = b_items+3
 
-          ! Nodes in facet 6 ************************************************
-          Else if ( (max_c(3) - coor(3)) <= (dim_c(3) * delta_b) ) then
-             Call Determine_prescribed_displ(coor(:), min_c, max_c, &
-                  no_nodes_macro, bnode_vals(:,b_items+1:b_items+3))
-             b_items = b_items+3
-             
-          ! Nodes in facet 2 ************************************************
-          Else if ( (coor(2) - min_c(2)) <= (dim_c(2) * delta_b) ) then
-             Call Determine_prescribed_displ(coor(:), min_c, max_c, &
-                  no_nodes_macro, bnode_vals(:,b_items+1:b_items+3))
-             b_items = b_items+3
-             
-          ! Nodes in facet 4 ************************************************
-          Else if ( (max_c(2) - coor(2)) <= (dim_c(2) * delta_b) ) then
-             Call Determine_prescribed_displ(coor(:), min_c, max_c, &
-                  no_nodes_macro, bnode_vals(:,b_items+1:b_items+3))
-             b_items = b_items+3
-             
-          ! Nodes in facet 5 ************************************************
-          Else if ( (coor(1) - min_c(1)) <= (dim_c(1) * delta_b) ) then
-             Call Determine_prescribed_displ(coor(:), min_c, max_c, &
-                  no_nodes_macro, bnode_vals(:,b_items+1:b_items+3))
-             b_items = b_items+3
-             
-          ! Nodes in facet 3 ************************************************
-          Else if ( (max_c(1) - coor(1)) <= (dim_c(1) * delta_b) ) then
-             Call Determine_prescribed_displ(coor(:), min_c, max_c, &
-                  no_nodes_macro, bnode_vals(:,b_items+1:b_items+3))
-             b_items = b_items+3
-             
-          End if
-          
-       End Do
+            ! Nodes in facet 6
+            Else if ( (max_c(3) - coor(3)) <= (dim_c(3) * delta_b) ) then
+                Call determine_prescribed_displ(coor(:), min_c, max_c, &
+                    no_nodes_macro, bnode_vals(:,b_items+1:b_items+3))
+                b_items = b_items+3
+                
+            ! Nodes in facet 2
+            Else if ( (coor(2) - min_c(2)) <= (dim_c(2) * delta_b) ) then
+                Call determine_prescribed_displ(coor(:), min_c, max_c, &
+                    no_nodes_macro, bnode_vals(:,b_items+1:b_items+3))
+                b_items = b_items+3
+                
+            ! Nodes in facet 4
+            Else if ( (max_c(2) - coor(2)) <= (dim_c(2) * delta_b) ) then
+                Call determine_prescribed_displ(coor(:), min_c, max_c, &
+                    no_nodes_macro, bnode_vals(:,b_items+1:b_items+3))
+                b_items = b_items+3
+                
+            ! Nodes in facet 5
+            Else if ( (coor(1) - min_c(1)) <= (dim_c(1) * delta_b) ) then
+                Call determine_prescribed_displ(coor(:), min_c, max_c, &
+                    no_nodes_macro, bnode_vals(:,b_items+1:b_items+3))
+                b_items = b_items+3
+                
+            ! Nodes in facet 3
+            Else if ( (max_c(1) - coor(1)) <= (dim_c(1) * delta_b) ) then
+                Call determine_prescribed_displ(coor(:), min_c, max_c, &
+                    no_nodes_macro, bnode_vals(:,b_items+1:b_items+3))
+                b_items = b_items+3
+                
+            End if
+            
+        End Do
 
-       Write(un_lf,FMT_MSG_xAI0)'Number of constrained DOF',b_items
+        Write(un_lf,FMT_MSG_xAI0)'Number of constrained DOF',b_items
 
-       no_cdofs_all(jj) = b_items
+        no_cdofs_all(jj) = b_items
 
-       call add_branch_to_branch(part_b,bounds_b)
-       call raise_branch("Boundaries", no_nodes_macro*3, 0, bounds_b)
+        call add_branch_to_branch(part_b,bounds_b)
+        call raise_branch("Boundaries", no_nodes_macro*3, 0, bounds_b)
 
-       Do ii = 1, no_nodes_macro*3
-          
-          Write(bounds_b%branches(ii)%desc,'(A,I0,A,I0)') "Boundaries"//'_',ddc_nn,'_',ii
+        Do ii = 1, no_nodes_macro*3
+            
+            Write(bounds_b%branches(ii)%desc,'(A,I0,A,I0)') "Boundaries"//'_',ddc_nn,'_',ii
 
-          ! no_bnodes == 0?! > dat_no = 0 for some specific nodes
-          call add_leaf_to_branch(bounds_b%branches(ii), &
-                                  "Boundary_Ids", no_bnodes, bnode_ids)
-          call add_leaf_to_branch(bounds_b%branches(ii), &
-                                  "Boundary_Values", no_bnodes*3,  bnode_vals(ii,:))
-       End Do
+            ! no_bnodes == 0?! > dat_no = 0 for some specific nodes
+            call add_leaf_to_branch(bounds_b%branches(ii), &
+                                    "Boundary_Ids", no_bnodes, bnode_ids)
+            call add_leaf_to_branch(bounds_b%branches(ii), &
+                                    "Boundary_Values", no_bnodes*3,  bnode_vals(ii,:))
+        End Do
 
-       DeAllocate(bnode_ids)
-       DeAllocate(bnode_vals)
+        DeAllocate(bnode_ids)
+        DeAllocate(bnode_vals)
 
-    End Do
+        End Do
 
-    call add_leaf_to_branch(PMesh, "No of nodes in parts", parts, no_nodes_all)
-    call add_leaf_to_branch(PMesh, "No of elems in parts", parts, no_elems_all)
-    call add_leaf_to_branch(PMesh, "No of cdofs in parts", parts, no_cdofs_all)
+        call add_leaf_to_branch(PMesh, "No of nodes in parts", parts, no_nodes_all)
+        call add_leaf_to_branch(PMesh, "No of elems in parts", parts, no_elems_all)
+        call add_leaf_to_branch(PMesh, "No of cdofs in parts", parts, no_cdofs_all)
+        
+        ! DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+        if (out_amount == "DEBUG") then
+        Write(un_lf,fmt_dbg_sep)
+        Write(un_lf,'(A)')"PMesh after Boundary application"
+        call log_tree(PMesh,un_lf)
+        Write(un_lf,fmt_dbg_sep)
+        End if
+        ! DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+        
+    End Subroutine generate_boundaries
     
-    ! DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-    if (out_amount == "DEBUG") then
-       Write(un_lf,fmt_dbg_sep)
-       Write(un_lf,'(A)')"PMesh after Boundary application"
-       call log_tree(PMesh,un_lf)
-       Write(un_lf,fmt_dbg_sep)
-    End if
-    ! DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-    
-  End Subroutine generate_boundaries
-  
 End Module gen_geometry
 

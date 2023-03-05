@@ -52,41 +52,41 @@ Subroutine exec_single_domain(root, comm_nn, domain, typeraw, &
     job_dir, fh_cluster_log, active, fh_mpi_worker, rank_mpi, size_mpi, comm_mpi)
 
 TYPE(materialcard) :: bone, bone_adjusted
-INTEGER(kind=mik), Intent(INOUT), Dimension(no_streams) :: fh_mpi_worker
+INTEGER(mik), Intent(INOUT), Dimension(no_streams) :: fh_mpi_worker
 
-Character(LEN=*) , Intent(in)  :: job_dir
-Character(LEN=*) , Intent(in)  :: typeraw
-INTEGER(kind=mik), Intent(In)  :: rank_mpi, size_mpi, comm_mpi
-INTEGER(kind=ik) , intent(in)  :: comm_nn, domain, fh_cluster_log
-INTEGER(kind=mik), intent(out) :: active
+Character(*) , Intent(in)  :: job_dir
+Character(*) , Intent(in)  :: typeraw
+INTEGER(mik), Intent(In)  :: rank_mpi, size_mpi, comm_mpi
+INTEGER(ik) , intent(in)  :: comm_nn, domain, fh_cluster_log
+INTEGER(mik), intent(out) :: active
 Type(tBranch)    , Intent(inOut) :: root
 
-REAL(KIND=rk), DIMENSION(:), Pointer     :: displ, force
-REAL(KIND=rk), DIMENSION(:), Allocatable :: glob_displ, glob_force
-REAL(KIND=rk), DIMENSION(:), Allocatable :: zeros_R8
+REAL(rk), DIMENSION(:), Pointer     :: displ, force
+REAL(rk), DIMENSION(:), Allocatable :: glob_displ, glob_force, zeros_R8
 REAL(rk) :: factor
 
 INTEGER(mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
 INTEGER(mik) :: ierr, petsc_ierr, result_len_mpi_procs
 
-INTEGER(kind=pd_ik), Dimension(:), Allocatable :: serial_pb
-INTEGER(kind=pd_ik)                            :: serial_pb_size
+INTEGER(pd_ik), Dimension(:), Allocatable :: serial_pb
+INTEGER(pd_ik) :: serial_pb_size
 
-INTEGER(Kind=ik) :: preallo, domain_elems, ii, jj, kk, id, stat, &
+INTEGER(ik) :: domain_elems, ii, jj, kk, id, stat, &
     Istart,Iend, parts, IVstart, IVend, m_size, mem_global, status_global, &
-    ddc_nn, no_different_hosts, timestamp, HU, lower_limit, upper_limit
+    no_different_hosts, timestamp, HU, lower_limit, upper_limit, &
+    macro_order, no_elem_nodes, no_lc
 
 INTEGER(ik), DIMENSION(24) :: collected_logs ! timestamps, memory_usage, pid_returned
-INTEGER(Kind=ik), Dimension(:)  , Allocatable :: nodes_in_mesh
-INTEGER(kind=ik), Dimension(:)  , Allocatable :: gnid_cref
-INTEGER(kind=ik), Dimension(:,:), Allocatable :: res_sizes
+INTEGER(ik), Dimension(:)  , Allocatable :: nodes_in_mesh
+INTEGER(ik), Dimension(:)  , Allocatable :: gnid_cref
+INTEGER(ik), Dimension(:,:), Allocatable :: res_sizes
 
-INTEGER(kind=c_int) :: stat_c_int
+INTEGER(c_int) :: stat_c_int
 
-CHARACTER(LEN=9)   :: domain_char
-CHARACTER(LEN=40)  :: mssg_fix_len
-CHARACTER(LEN=mcl) :: timer_name, rank_char, domain_desc, part_desc, &
-    desc, mesh_desc, filename, elt_micro, nn_char
+CHARACTER(9)   :: domain_char
+CHARACTER(40)  :: mssg_fix_len
+CHARACTER(mcl) :: timer_name, rank_char, domain_desc, part_desc, &
+    desc, mesh_desc, filename, elt_micro
 
 Character, Dimension(4*mcl) :: c_char_array
 Character, Dimension(:), Allocatable :: char_arr
@@ -99,19 +99,20 @@ LOGICAL, PARAMETER :: DEBUG = .TRUE.
 logical :: success=.TRUE., host_assumed_unique
 
 Type(tBranch), pointer :: boundary_branch, domain_branch, part_branch
-Type(tBranch), pointer :: mesh_branch, meta_para, esd_result_branch, result_branch
+Type(tBranch), pointer :: mesh_branch, meta_para, esd_result_branch
 
-Type(tMat)                :: AA, AA_org
-Type(tVec)                :: XX
-Type(tVec), Dimension(24) :: FF
-TYPE(tPETScViewer)        :: PetscViewer
-Type(tKSP)                :: KSP
+Type(tMat)         :: AA, AA_org
+Type(tVec)         :: XX
+TYPE(tPETScViewer) :: PetscViewer
+Type(tKSP)         :: KSP
 
-INTEGER(Kind=ik), Dimension(60)    :: idxm_20, idxn_20
-Real(kind=rk),    Dimension(60,60) :: K_loc_20
+INTEGER(ik), Dimension(60)    :: idxm_20, idxn_20
+Real(rk),    Dimension(60,60) :: K_loc_20
+Type(tVec), Dimension(60) :: FF_20
 
-INTEGER(Kind=ik), Dimension(24)    :: idxm_08, idxn_08
-Real(kind=rk),    Dimension(24,24) :: K_loc_08
+INTEGER(ik), Dimension(24)    :: idxm_08, idxn_08
+Real(rk),    Dimension(24,24) :: K_loc_08
+Type(tVec), Dimension(24) :: FF_08
 
 ! Init worker_is_active status
 Active = 0_mik
@@ -363,7 +364,6 @@ If (rank_mpi == 0) then
 
     part_desc=''
     Write(part_desc,'(A,I0)')'Part_', parts
-        
     CALL search_branch(trim(part_desc), domain_branch, part_branch, success, out_amount)
 
     !------------------------------------------------------------------------------
@@ -453,11 +453,6 @@ IF (rank_mpi == 0) THEN
 END IF
             
 !------------------------------------------------------------------------------
-! Calculate amount of memory to allocate.
-!------------------------------------------------------------------------------
-preallo = (part_branch%leaves(5)%dat_no * 3) / parts + 1
-
-!------------------------------------------------------------------------------
 ! Create Stiffness matrix
 ! Preallocation avoids dynamic allocations during matassembly.
 !------------------------------------------------------------------------------
@@ -471,11 +466,11 @@ CALL MatSetSizes(AA,PETSC_DECIDE,PETSC_DECIDE,m_size,m_size,petsc_ierr)
 CALL MatSetSizes(AA_org,PETSC_DECIDE,PETSC_DECIDE,m_size,m_size,petsc_ierr)
 
 ! https://lists.mcs.anl.gov/pipermail/petsc-users/2021-January/042972.html
-CALL MatSeqAIJSetPreallocation(AA, preallo, PETSC_NULL_INTEGER, petsc_ierr)
-CALL MatMPIAIJSetPreallocation(AA, preallo, PETSC_NULL_INTEGER, preallo, PETSC_NULL_INTEGER, petsc_ierr)
+CALL MatSeqAIJSetPreallocation(AA, 0_ik, PETSC_NULL_INTEGER, petsc_ierr)
+CALL MatMPIAIJSetPreallocation(AA, 0_ik, PETSC_NULL_INTEGER, 0_ik, PETSC_NULL_INTEGER, petsc_ierr)
 
-CALL MatSeqAIJSetPreallocation(AA_org, preallo, PETSC_NULL_INTEGER, petsc_ierr)
-CALL MatMPIAIJSetPreallocation(AA_org, preallo, PETSC_NULL_INTEGER, preallo, PETSC_NULL_INTEGER, petsc_ierr)
+CALL MatSeqAIJSetPreallocation(AA_org, 0_ik, PETSC_NULL_INTEGER, petsc_ierr)
+CALL MatMPIAIJSetPreallocation(AA_org, 0_ik, PETSC_NULL_INTEGER, 0_ik, PETSC_NULL_INTEGER, petsc_ierr)
 
 CALL MatSetOption(AA    ,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
 CALL MatSetOption(AA_org,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
@@ -521,7 +516,7 @@ End If
 !------------------------------------------------------------------------------
 
 !------------------------------------------------------------------------------
-! Assemble matrix
+! Get micro and macro element types
 !------------------------------------------------------------------------------
 CALL pd_get(root%branches(1), 'Element type  on micro scale', char_arr)
 elt_micro = char_to_str(char_arr)
@@ -530,7 +525,24 @@ elt_micro = char_to_str(char_arr)
 ! Hardcoded for dev
 !------------------------------------------------------------------------------
 bone_adjusted%nu = bone%nu
+CALL pd_get(root%branches(1), 'Element order on macro scale', macro_order)
 
+!------------------------------------------------------------------------------
+! Set macro element specific stuff
+!------------------------------------------------------------------------------
+IF (macro_order == 1) THEN
+    no_elem_nodes = 8
+    no_lc = 24
+ELSE IF (macro_order == 2) THEN
+    no_elem_nodes = 20
+    no_lc = 60
+ELSE
+    CALL print_err_stop(std_out, "Element orders other than 1 or 2 are not supported", 1)
+END IF
+
+!------------------------------------------------------------------------------
+! Assemble matrix
+!------------------------------------------------------------------------------
 if (TRIM(elt_micro) == "HEX08") then
 
     domain_elems = part_branch%leaves(5)%dat_no / 8
@@ -641,7 +653,7 @@ else if (elt_micro == "HEX20") then
 
         kk = 1
         
-        ! Translate Topology to global dofs *
+        ! Translate Topology to global dofs
         Do jj = (ii-1)*20+1 , ii*20
             
             id = part_branch%leaves(5)%p_int8(jj)
@@ -752,17 +764,26 @@ IF (rank_mpi == 0) THEN
     collected_logs(19) = status_global
 END IF
 
-Do ii = 1, 24
+Do ii = 1, no_lc
 
     !------------------------------------------------------------------------------
     ! Create load vectors
     !------------------------------------------------------------------------------
-    CALL VecCreate(COMM_MPI, FF(ii), petsc_ierr)
-    CALL VecSetSizes(FF(ii), PETSC_DECIDE, m_size, petsc_ierr)
-    CALL VecSetFromOptions(FF(ii), petsc_ierr)
-    CALL VecSet(FF(ii), 0._rk,petsc_ierr)
-    
-    CALL VecGetOwnershipRange(FF(ii), IVstart, IVend, petsc_ierr)
+    IF (macro_order == 1) THEN
+        CALL VecCreate(COMM_MPI, FF_08(ii), petsc_ierr)
+        CALL VecSetSizes(FF_08(ii), PETSC_DECIDE, m_size, petsc_ierr)
+        CALL VecSetFromOptions(FF_08(ii), petsc_ierr)
+        CALL VecSet(FF_08(ii), 0._rk,petsc_ierr)
+        
+        CALL VecGetOwnershipRange(FF_08(ii), IVstart, IVend, petsc_ierr)
+    ELSE IF (macro_order == 2) THEN
+        CALL VecCreate(COMM_MPI, FF_20(ii), petsc_ierr)
+        CALL VecSetSizes(FF_20(ii), PETSC_DECIDE, m_size, petsc_ierr)
+        CALL VecSetFromOptions(FF_20(ii), petsc_ierr)
+        CALL VecSet(FF_20(ii), 0._rk,petsc_ierr)
+        
+        CALL VecGetOwnershipRange(FF_20(ii), IVstart, IVend, petsc_ierr)
+    END IF
 
     If (out_amount == "DEBUG") THEN 
         Write(un_lf,"('MM ', A,I4,A,A6,2(A,I9))")&
@@ -770,11 +791,26 @@ Do ii = 1, 24
     End If
     
     !------------------------------------------------------------------------------
-    CALL VecAssemblyBegin(FF(ii), petsc_ierr)
+    IF (macro_order == 1) THEN
+        CALL VecAssemblyBegin(FF_08(ii), petsc_ierr)
+
+    ELSE IF (macro_order == 2) THEN
+        CALL VecAssemblyBegin(FF_20(ii), petsc_ierr)
+
+    END IF
+    
     ! Computations can be done while messages are transferring
 End Do
-Do ii = 1, 24 
-    CALL VecAssemblyEnd(FF(ii), petsc_ierr)
+
+Do ii = 1, no_lc 
+    IF (macro_order == 1) THEN
+        CALL VecAssemblyEnd(FF_08(ii), petsc_ierr)
+
+    ELSE IF (macro_order == 2) THEN
+        CALL VecAssemblyEnd(FF_20(ii), petsc_ierr)
+
+    END IF
+    
 End Do
 !------------------------------------------------------------------------------
 
@@ -863,16 +899,35 @@ END IF
 !------------------------------------------------------------------------------ 
 ! Compute dirichlet boundary corrections of first right hand side vector
 !------------------------------------------------------------------------------ 
-CALL MatMult(AA,XX,FF(1), petsc_ierr);
+IF (macro_order == 1) THEN
+    CALL MatMult(AA,XX,FF_08(1), petsc_ierr);
+
+ELSE IF (macro_order == 2) THEN
+    CALL MatMult(AA,XX,FF_20(1), petsc_ierr);
+    
+END IF
 
 IF(boundary_branch%leaves(2)%dat_no /= 0_ik) THEN
     ! Set zero values for dofs with prescribed displacements
-    CALL VecSetValues(FF(1), boundary_branch%leaves(2)%dat_no, &
-        gnid_cref, zeros_R8, INSERT_VALUES, petsc_ierr)
+
+    IF (macro_order == 1) THEN
+        CALL VecSetValues(FF_08(1), boundary_branch%leaves(2)%dat_no, &
+            gnid_cref, zeros_R8, INSERT_VALUES, petsc_ierr)        
+    ELSE IF (macro_order == 2) THEN
+        CALL VecSetValues(FF_20(1), boundary_branch%leaves(2)%dat_no, &
+            gnid_cref, zeros_R8, INSERT_VALUES, petsc_ierr)            
+    END IF
+    
 END IF 
 
-CALL VecAssemblyBegin(FF(1), petsc_ierr)
-CALL VecAssemblyEnd(FF(1), petsc_ierr)
+IF (macro_order == 1) THEN
+    CALL VecAssemblyBegin(FF_08(1), petsc_ierr)
+    CALL VecAssemblyEnd(FF_08(1), petsc_ierr)  
+ELSE IF (macro_order == 2) THEN
+    CALL VecAssemblyBegin(FF_20(1), petsc_ierr)
+    CALL VecAssemblyEnd(FF_20(1), petsc_ierr)         
+END IF
+
 
 !------------------------------------------------------------------------------
 ! Compute dirichlet boundary corrections of 2nd to 23rd
@@ -880,7 +935,7 @@ CALL VecAssemblyEnd(FF(1), petsc_ierr)
 ! the 24th will be done afterwards when the columns and rows
 ! of A set to zero.
 !------------------------------------------------------------------------------
-Do ii = 2, 23
+Do ii = 2, no_lc-1_ik
 
     !------------------------------------------------------------------------------
     ! Get Bounds branch of LC ii
@@ -903,24 +958,36 @@ Do ii = 2, 23
     !------------------------------------------------------------------------------ 
     ! Compute dirichlet boundary corrections of ii th right hand side vector.
     !------------------------------------------------------------------------------ 
-    CALL MatMult(AA,XX,FF(ii), petsc_ierr);
+    IF (macro_order == 1) THEN
+        CALL MatMult(AA,XX,FF_08(ii), petsc_ierr);
 
-    IF(boundary_branch%leaves(2)%dat_no /= 0_ik) THEN
-        ! Set zero values for dofs with prescribed displacements
-        CALL VecSetValues(FF(ii), boundary_branch%leaves(2)%dat_no, &
-            gnid_cref, zeros_R8, INSERT_VALUES, petsc_ierr)
-    END IF 
-
-    CALL VecAssemblyBegin(FF(ii), petsc_ierr)
+        IF(boundary_branch%leaves(2)%dat_no /= 0_ik) THEN
+            ! Set zero values for dofs with prescribed displacements
+            CALL VecSetValues(FF_08(ii), boundary_branch%leaves(2)%dat_no, &
+                gnid_cref, zeros_R8, INSERT_VALUES, petsc_ierr)
+        END IF 
     
+        CALL VecAssemblyBegin(FF_08(ii), petsc_ierr)
+    ELSE IF (macro_order == 2) THEN
+        CALL MatMult(AA,XX,FF_20(ii), petsc_ierr);
+
+        IF(boundary_branch%leaves(2)%dat_no /= 0_ik) THEN
+            ! Set zero values for dofs with prescribed displacements
+            CALL VecSetValues(FF_20(ii), boundary_branch%leaves(2)%dat_no, &
+                gnid_cref, zeros_R8, INSERT_VALUES, petsc_ierr)
+        END IF 
+    
+        CALL VecAssemblyBegin(FF_20(ii), petsc_ierr)     
+    END IF
+
 End Do
 
 !------------------------------------------------------------------------------
-! Get Bounds branch of LC 24
+! Get Bounds branch of the last Load case
 ! boundary_branch%leaves(1)%p_int8  : Boundary displacement node global ids
 ! boundary_branch%leaves(2)%p_real8 : Boundary displacement values
 !------------------------------------------------------------------------------
-write(desc,'(A,I0)') "Boundaries_"//trim(domain_char)//"_",24
+write(desc,'(A,I0)') "Boundaries_"//trim(domain_char)//"_", no_lc
 CALL search_branch(trim(desc), part_branch, boundary_branch, success, out_amount)
 
 !------------------------------------------------------------------------------
@@ -940,9 +1007,18 @@ CALL VecAssemblyEnd(XX, petsc_ierr)
 !------------------------------------------------------------------------------
 ! Finalize the open assembleys
 !------------------------------------------------------------------------------
-Do ii = 2, 23
-    CALL VecAssemblyEnd(FF(ii), petsc_ierr)
-End Do
+IF (macro_order == 1) THEN
+    Do ii = 2, no_lc-1
+        CALL VecAssemblyEnd(FF_08(ii), petsc_ierr)
+    End Do
+
+ELSE IF (macro_order == 2) THEN
+    Do ii = 2, no_lc-1
+        CALL VecAssemblyEnd(FF_20(ii), petsc_ierr)
+    End Do
+
+END IF
+
 
 !------------------------------------------------------------------------------
 ! Since we are filling XX with the prescribed displacements
@@ -954,8 +1030,13 @@ CALL VecScale(XX, -1._rk, petsc_ierr)
 !------------------------------------------------------------------------------
 ! Apply Dirichlet Boundaries to A and the 24th right hand side vector.
 !------------------------------------------------------------------------------
-CALL MatZeroRowsColumns(AA, boundary_branch%leaves(2)%dat_no, gnid_cref, &
-        0.0_8, XX, FF(24), petsc_ierr)
+IF (macro_order == 1) THEN
+    CALL MatZeroRowsColumns(AA, boundary_branch%leaves(2)%dat_no, gnid_cref, &
+        0.0_8, XX, FF_08(no_lc), petsc_ierr)
+ELSE IF (macro_order == 2) THEN
+    CALL MatZeroRowsColumns(AA, boundary_branch%leaves(2)%dat_no, gnid_cref, &
+        0.0_8, XX, FF_20(no_lc), petsc_ierr)
+END IF
 
 !------------------------------------------------------------------------------
 ! End timer
@@ -963,10 +1044,17 @@ CALL MatZeroRowsColumns(AA, boundary_branch%leaves(2)%dat_no, gnid_cref, &
 IF (rank_mpi == 0) CALL end_timer(TRIM(timer_name))
 
 If (out_amount == "DEBUG") THEN 
+
     CALL PetscViewerCreate(COMM_MPI, PetscViewer, petsc_ierr)
     CALL PetscViewerASCIIOpen(COMM_MPI,"FF.output.1", PetscViewer, petsc_ierr);
     CALL PetscViewerSetFormat(PetscViewer, PETSC_VIEWER_ASCII_DENSE, petsc_ierr)
-    CALL VecView(FF( 1), PetscViewer, petsc_ierr)
+
+    IF (macro_order == 1) THEN
+        CALL VecView(FF_08( 1), PetscViewer, petsc_ierr)
+    ELSE IF (macro_order == 2) THEN
+        CALL VecView(FF_20( 1), PetscViewer, petsc_ierr)
+    END IF
+
     CALL PetscViewerDestroy(PetscViewer, petsc_ierr)
 End If
 
@@ -1079,10 +1167,14 @@ IF (rank_mpi == 0) THEN
     
 End If ! (rank_mpi == 0) THEN
 
-Do jj = 1,24
+Do jj = 1, no_lc
     
-    CALL KSPSolve(ksp, FF(jj), XX, petsc_ierr)
-    
+    IF (macro_order == 1) THEN
+        CALL KSPSolve(ksp, FF_08(jj), XX, petsc_ierr)
+    ELSE IF (macro_order == 2) THEN
+        CALL KSPSolve(ksp, FF_20(jj), XX, petsc_ierr)
+    END IF 
+
     !------------------------------------------------------------------------------
     ! Get Bounds branch of LC jj
     ! boundary_branch%leaves(1)%p_int8  : Boundary displacement node global ids
@@ -1105,14 +1197,29 @@ Do jj = 1,24
     ! Computations can be done while messages are in transition
     CALL VecAssemblyEnd(XX, petsc_ierr)
 
+    IF (macro_order == 1) THEN
+    
+        ! Calc reaction forces
+        CALL MatMult(AA_org, XX, FF_08(jj), petsc_ierr);
+    
+        ! Get Pointer to result vector
+        CALL VecGetArrayReadF90(XX,displ,petsc_ierr)
+        
+        ! Get Pointer to force vector
+        CALL VecGetArrayReadF90(FF_08(jj),force,petsc_ierr)
+
+    ELSE IF (macro_order == 2) THEN
+    
     ! Calc reaction forces
-    CALL MatMult(AA_org, XX, FF(jj), petsc_ierr);
+        CALL MatMult(AA_org, XX, FF_20(jj), petsc_ierr);
     
-    ! Get Pointer to result vector
-    CALL VecGetArrayReadF90(XX,displ,petsc_ierr)
-    
-    ! Get Pointer to force vector
-    CALL VecGetArrayReadF90(FF(jj),force,petsc_ierr)
+        ! Get Pointer to result vector
+        CALL VecGetArrayReadF90(XX,displ,petsc_ierr)
+        
+        ! Get Pointer to force vector
+        CALL VecGetArrayReadF90(FF_20(jj),force,petsc_ierr)
+    END IF 
+
     
     !------------------------------------------------------------------------------
     ! Master/Worker
@@ -1216,7 +1323,7 @@ if (rank_mpi == 0) then
 
     CALL start_timer(TRIM(timer_name), .FALSE.)
     CALL calc_effective_material_parameters(root, comm_nn, domain, &
-        fh_mpi_worker, size_mpi, comm_mpi, collected_logs)
+        fh_mpi_worker, size_mpi, collected_logs)
     CALL end_timer(TRIM(timer_name))
     
 ELSE
@@ -1233,8 +1340,17 @@ CALL MatDestroy(AA,     petsc_ierr)
 CALL MatDestroy(AA_org, petsc_ierr)
 CALL VecDestroy(XX,     petsc_ierr)
 
-Do ii = 1, 24
-    CALL VecDestroy(FF(ii), petsc_ierr)
+Do ii = 1, no_lc
+
+    IF (macro_order == 1) THEN
+    
+        CALL VecDestroy(FF_08(ii), petsc_ierr)
+
+    ELSE IF (macro_order == 2) THEN
+    
+        CALL VecDestroy(FF_20(ii), petsc_ierr)
+    END IF 
+
 End Do
 
 End Subroutine exec_single_domain
@@ -1270,10 +1386,10 @@ End Subroutine stop_slaves
 !------------------------------------------------------------------------------  
 SUBROUTINE print_err_stop_slaves(instring, tag)
 
-CHARACTER(LEN=*), INTENT(IN), OPTIONAL :: tag
+CHARACTER(*), INTENT(IN), OPTIONAL :: tag
 
-CHARACTER(LEN=SCL) :: tag_used, frmt, frmt_stp
-CHARACTER(LEN=*), INTENT(IN) :: instring
+CHARACTER(SCL) :: tag_used, frmt, frmt_stp
+CHARACTER(*), INTENT(IN) :: instring
 
 tag_used = ""
 IF (PRESENT(tag)) tag_used=tag

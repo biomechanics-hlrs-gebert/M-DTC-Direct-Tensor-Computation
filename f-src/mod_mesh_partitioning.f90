@@ -24,15 +24,15 @@ contains
 
   Subroutine part_mesh(nodes, eind, HU_magnitudes, nnodes, ne, parts, PMesh, job_dir, ddc_nn)
 
-    !****************************************************************************
-    !** Declarations ************************************************************
+    !**************************************************************************
+    ! Declarations ************************************************************
    
-    !** Parted Mesh *************************************************************
+    ! Parted Mesh *************************************************************
     Type(tBranch)   , intent(Inout) :: PMesh
     Character(LEN=*), Intent(in) :: job_dir
     Integer(kind=ik), intent(in) :: ddc_nn
 
-    !** Metis variables *********************************************************
+    ! Metis variables *********************************************************
     Integer(kind=C_INT64_T), Intent(In) :: ne
     Integer(kind=C_INT64_T), intent(In) :: nnodes
 
@@ -51,7 +51,7 @@ contains
 
     Real(kind=C_double), Dimension(:,:), intent(in) :: nodes
 
-    !****************************************************************************
+    !**************************************************************************
     Integer(kind=ik), Dimension(:), Allocatable :: nnodes_pp, nelems_pp, nouter_nds_pp
     INTEGER(kind=ik)                            :: ii,jj,kk,idum, tmp_i8
     INTEGER(kind=ik), Dimension(:), Allocatable :: cref
@@ -97,9 +97,9 @@ contains
     nelems_pp     = 0
     nouter_nds_pp = 0
     
-    !**************************************************************************
-    !** If we should have more than one part **********************************
-    !**************************************************************************
+    !************************************************************************
+    ! If we should have more than one part **********************************
+    !************************************************************************
     If (parts > 1) then
        
        call start_timer("  +-- Prep EPTR")
@@ -132,10 +132,10 @@ contains
        
        call end_timer("  +-- Prep EPTR")
     
-       !** EXEC METIS *********************************************************
+       ! EXEC METIS *********************************************************
     
-       !** Allocate other METIS parameters ************************
-       !** These should be fitted in metis_interface.c !! *********
+       ! Allocate other METIS parameters ************************
+       ! These should be fitted in metis_interface.c !! *********
        Allocate(vwgt(ne), vsize(ne), tpwgts(parts), & 
                 depart(ne), dnpart(nn) )
 
@@ -181,7 +181,7 @@ contains
 
        call end_timer("  +-- Shift C-Style indicees")
   
-       !** Count elements per domain ******************************************
+       ! Count elements per domain ******************************************
        call start_timer("  +-- Count elements per domain")
        
        do ii = 1, ne
@@ -206,33 +206,33 @@ contains
                 desc = "PartNo", head = .TRUE.,location="CELL_DATA")
         End if
        
-       !** Split Topology *****************************************************       
+       ! Split Topology *****************************************************       
        call start_timer("  +-- Split Topology")
 
        Do ii = 1, Parts
 
-          !------------------------------------------------------------------------------
-          ! nn_el     -> Number of nodes per element
-          ! nelems_pp -> Number of Elements per part
-          !------------------------------------------------------------------------------
-          ! PMesh%branches(ii)%leaves(5) = "Topology"
-          !------------------------------------------------------------------------------
-          PMesh%branches(ii)%leaves(5)%dat_no = nn_el*nelems_pp(ii)
-          PMesh%branches(ii)%leaves(5)%pstat  = 1
-          Allocate(PMesh%branches(ii)%leaves(5)%p_int8(nn_el*nelems_pp(ii)))
+            !------------------------------------------------------------------------------
+            ! nn_el     -> Number of nodes per element
+            ! nelems_pp -> Number of Elements per part
+            !------------------------------------------------------------------------------
+            ! PMesh%branches(ii)%leaves(5) = "Topology"
+            !------------------------------------------------------------------------------
+            PMesh%branches(ii)%leaves(5)%dat_no = nn_el*nelems_pp(ii)
+            PMesh%branches(ii)%leaves(5)%pstat  = 1
+            Allocate(PMesh%branches(ii)%leaves(5)%p_int8(nn_el*nelems_pp(ii)))
 
-          !------------------------------------------------------------------------------
-          ! PMesh%branches(ii)%leaves(6) = Hounsfield units of the voxels (HU Magnitude)
-          ! As many entries as elements in part
-          !------------------------------------------------------------------------------
-          PMesh%branches(ii)%leaves(6)%dat_no = nelems_pp(ii)
-          PMesh%branches(ii)%leaves(6)%pstat  = 1
-          Allocate(PMesh%branches(ii)%leaves(6)%p_int8(nelems_pp(ii)))
-          
+            !------------------------------------------------------------------------------
+            ! PMesh%branches(ii)%leaves(6) = Hounsfield units of the voxels (HU Magnitude)
+            ! As many entries as elements in part
+            !------------------------------------------------------------------------------
+            PMesh%branches(ii)%leaves(6)%dat_no = nelems_pp(ii)
+            PMesh%branches(ii)%leaves(6)%pstat  = 1
+            Allocate(PMesh%branches(ii)%leaves(6)%p_int8(nelems_pp(ii)))
+            
 
-          If (out_amount /= "PRODUCTION" ) then
-             write(un_lf,fmt_msg_xAI0)"No Elems in part",ii,"=",nelems_pp(ii)
-          End If
+            If (out_amount /= "PRODUCTION" ) then
+                write(un_lf,fmt_msg_xAI0)"No Elems in part",ii,"=",nelems_pp(ii)
+            End If
 
        End Do
 
@@ -268,7 +268,7 @@ contains
 
        End do
 
-       !** Renumber nodes in each part starting at 1 **************************
+       ! Renumber nodes in each part starting at 1 **************************
        Do ii = 1, Parts
           
           Allocate(cref( &
@@ -295,18 +295,18 @@ contains
              
           End Do
 
-          !** Set Node pointer sizes and allocate memory ***
-          !** PMesh%branches(ii)%leaves(1) : Node Numbers
+          ! Set Node pointer sizes and allocate memory
+          ! PMesh%branches(ii)%leaves(1) : Node Numbers
           PMesh%branches(ii)%leaves(1)%dat_no = idum
           PMesh%branches(ii)%leaves(1)%pstat  = 1
           Allocate(PMesh%branches(ii)%leaves(1)%p_int8(idum))
 
-          !** PMesh%branches(ii)%leaves(2) : Coordinates
+          ! PMesh%branches(ii)%leaves(2) : Coordinates
           PMesh%branches(ii)%leaves(2)%dat_no = idum*3
           PMesh%branches(ii)%leaves(2)%pstat  = 1
           Allocate(PMesh%branches(ii)%leaves(2)%p_real8(idum*3))
 
-          !** PMesh%branches(ii)%leaves(3) : Global Node numbers
+          ! PMesh%branches(ii)%leaves(3) : Global Node numbers
           !> \todo fix inconsistent allocation of p_int8 starting from 0
           !> with dat_no not being idum+1
           PMesh%branches(ii)%leaves(3)%dat_no = idum
@@ -333,14 +333,14 @@ contains
                   nodes(:,PMesh%branches(ii)%leaves(3)%p_int8(jj))
           end Do
           
-          !***********************************************************
-          !** DEBUG OUTPUT *******************************************
+          !*********************************************************
+          ! DEBUG OUTPUT
           If (out_amount == "DEBUG") THEN 
              
-             !** Output of partitioning in vtk format *****************
+             ! Output of partitioning in vtk format
              Call start_timer("  +-- VTK Output")
              
-             !** Dynamic Allocation and reallocation takes place !!! *************
+             ! Dynamic Allocation and reallocation takes place
              elems = reshape(cref(PMesh%branches(ii)%leaves(5)%p_int8),[nn_el,nelems_pp(ii)])
              
              Write(vtk_file,'(A,A,I0,A,I0,A)')trim(job_dir),"Part-",ii,"_",ddc_nn,".vtk"
@@ -362,40 +362,40 @@ contains
              Call end_timer("  +-- VTK Output")
 
           End If
-          !** DEBUG OUTPUT *******************************************
-          !***********************************************************
+          ! DEBUG OUTPUT
+          !*********************************************************
 
           deallocate(cref)
           
        End Do
        call end_timer("  +-- Split Topology")
 
-    !**************************************************************************
-    !** If we should have exactly one part ************************************
-    !**************************************************************************
+    !************************************************************************
+    ! If we should have exactly one part ************************************
+    !************************************************************************
     else
 
-       !** Node Numbers *********************************************
+       ! Node Numbers
        PMesh%branches(1)%leaves(1)%dat_no   = nnodes
        PMesh%branches(1)%leaves(1)%pstat = 1
        Allocate(PMesh%branches(1)%leaves(1)%p_int8(nnodes))
        
-       !** Coordinates **********************************************
+       ! Coordinates 
        PMesh%branches(1)%leaves(2)%dat_no   = nnodes*3_ik
        PMesh%branches(1)%leaves(2)%pstat = 1
        Allocate(PMesh%branches(1)%leaves(2)%p_real8(nnodes*3_ik))
 
-       !** Global Node Number ***************************************
+       ! Global Node Number 
        PMesh%branches(1)%leaves(3)%dat_no   = nnodes
        PMesh%branches(1)%leaves(3)%pstat = 1
        Allocate(PMesh%branches(1)%leaves(3)%p_int8(nnodes))
 
-       !** Element Numbers ******************************************
+       ! Element Numbers 
        PMesh%branches(1)%leaves(4)%dat_no   = ne
        PMesh%branches(1)%leaves(4)%pstat = 1
        Allocate(PMesh%branches(1)%leaves(4)%p_int8(ne))
 
-       !** Topology *************************************************
+       ! Topology 
        PMesh%branches(1)%leaves(5)%dat_no   = ne*nn_el
        PMesh%branches(1)%leaves(5)%pstat = 1
        Allocate(PMesh%branches(1)%leaves(5)%p_int8(ne*nn_el))
@@ -407,21 +407,21 @@ contains
        PMesh%branches(1)%leaves(6)%pstat = 1
        Allocate(PMesh%branches(1)%leaves(6)%p_int8(ne))
 
-       !** Fill in nodes numbers and global node numbers ************
+       ! Fill in nodes numbers and global node numbers
        Do ii = 1, nnodes
           PMesh%branches(1)%leaves(1)%p_int8(ii) = ii
           PMesh%branches(1)%leaves(3)%p_int8(ii) = ii
        End Do
 
-       !** Fill in element numbers **********************************
+       ! Fill in element numbers 
        Do ii = 1, ne
           PMesh%branches(1)%leaves(4)%p_int8(ii) = ii
        End Do
 
-       !** Fill in coordinates **************************************
+       ! Fill in coordinates 
        PMesh%branches(1)%leaves(2)%p_real8 = reshape(nodes,[nnodes*3_ik])
 
-       !** Fill in topology *****************************************
+       ! Fill in topology 
        PMesh%branches(1)%leaves(5)%p_int8 = reshape(eind, [ne*nn_el])
 
        !------------------------------------------------------------------------------
