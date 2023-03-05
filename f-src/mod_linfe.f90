@@ -901,7 +901,7 @@ Function Hexe20(mc) Result(C_FE)
     nu = mc%nu
     a  = mc%delta(1) * mc%phdsize(1)
 
-    factor = (mc%E*a / (256._rk*(2.0_rk * nu**2 + nu - 1.0_rk)*2._rk*nu))
+    factor = (mc%E*a*(mc%nu*2._rk) / (256._rk*(2.0_rk * nu**2 + nu - 1.0_rk)*2._rk*nu))
 
     C_FE(1,1) = 7.407407407407407E-3_rk*(1.8816E4_rk*nu-1.2544E4_rk)
     C_FE(1,2) = -1.374814814814815E1_rk

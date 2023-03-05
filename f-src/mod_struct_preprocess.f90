@@ -149,11 +149,6 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     call pd_get(meta_para, "Grid spacings", delta)  
     Call pd_get(meta_para,"Number of voxels per direction",vdim)
 
-!    Call pd_get(meta_para,"Raw data stream",char_arr)
-! 
-!    typeraw = char_to_str(char_arr)
-!    deallocate(char_arr)
-
     if ( out_amount /= "PRODUCTION" ) then
        write(un_lf,FMT_MSG_AxF0) "Grid spacings", delta
        write(un_lf,FMT_MSG_AxI0) "Number of voxels per direction", vdim
@@ -164,8 +159,6 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     !----------------------------------------------------------------------------
     phi_desc = read_tree()
 
-    ! call open_stream_files(phi_desc, "read" , "old")
-        
     !----------------------------------------------------------------------------
     ! Read PHI (scalar binary values) from file
     !----------------------------------------------------------------------------
@@ -195,11 +188,6 @@ Type(tBranch), Pointer :: meta_para, domain_branch
    !----------------------------------------------------------------------------
     call pd_get(meta_para, "Grid spacings", delta)  
     Call pd_get(meta_para, "Number of voxels per direction",vdim)
-
-!    Call pd_get(meta_para,"Raw data stream",char_arr)
-! 
-!    typeraw = char_to_str(char_arr)
-!    deallocate(char_arr)
 
     if ( out_amount /= "PRODUCTION" ) then
        write(un_lf,FMT_MSG_AxF0) "Grid spacings", delta
@@ -390,22 +378,6 @@ Type(tBranch), Pointer :: meta_para, domain_branch
                elems([1,3,5,7, 13,15,17,19, 2,4,6,8, 14,16,18,20, 9,10,11,12],1:no_elems))
        end if
 
-       !filename=''
-       !write(filename,'(A,I0,A)')trim(job_dir)//trim(project_name)//"_",ddc_nn,"_usg.inp"
-       !open(newunit=un_abq,file=trim(filename),action="write",status="replace")
-
-       !write(un_abq,'(A)')"*NODE"
-       !Do ii = 1, no_nodes
-       !   write(un_abq,'(I10,3(",",E24.16))')ii,nodes(:,ii)
-       !End Do
-
-       !write(un_abq,'(A)')"*ELEMENT, TYPE=C3D20, ELSET=Bone"
-       !Do ii = 1, no_elems
-       !   Write(un_abq,'(I0,20(",",I0))')ii, &
-       !        elems([1,3,5,7, 13,15,17,19, 2,4,6,8, 14,16,18,20, 9,10,11,12],ii)
-       !End Do
-
-       !close(un_abq)
     End if
     
     call pd_get(meta_para,"No of mesh parts per subdomain", parts)

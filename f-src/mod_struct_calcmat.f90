@@ -490,59 +490,8 @@ ELSE IF (macro_order == 2) THEN
 
 End If
 
-
-
 If (out_amount /= "PRODUCTION" ) then
     Call Write_matrix(un_lf, "Konsistent force matrix", fv, fmti='std', unit='N')
-End If
-
-!------------------------------------------------------------------------------
-! Calc integrated force matrix
-! ------------------------------------------------------------------------------
-Do jj = 1, 6
-  Do ii = 1, 6
-     fv(ii,jj) = sum(edat(ii,jj,:))
-  End do
-End Do
-
-fv = fv * v_elem / v_cube
-If (out_amount /= "PRODUCTION" ) then
-  CALL write_matrix(un_lf, "Integrated force matrix", fv)
-End If
-
-
-
-!------------------------------------------------------------------------------
-! Calc averaged strains and stresses 
-!------------------------------------------------------------------------------
-Do jj = 1, no_lc 
-    Do ii = 1,6
-       int_stress(ii,jj) = sum(edat(ii,jj,:))
-    End do
-    Do ii = 7, 12
-      int_strain(ii-6,jj) = sum(edat(ii,jj,:))
-    End Do
-End Do
-
-int_strain = int_strain * v_elem / v_cube
-int_stress = int_stress * v_elem / v_cube
-
-If (out_amount /= "PRODUCTION" ) then
-  write(un_lf,*)
-  write(un_lf,"(150('='))")
-  Write(un_lf,"(A)")"--------- Averaged strains of loadcases ---------"
-  Write(un_lf,"(7(A20))")'-- ii --','-- E11 --','-- E22 --','-- E33 --','-- E12 --','-- E13 --','-- E23 --'
-  Do ii = 1, 24
-     write(un_lf,"(I20,6(E20.9))")ii,int_strain(:,ii)
-  End Do
-
-  write(un_lf,*)
-  write(un_lf,"(150('='))")
-  Write(un_lf,"(A)")"--------- Averaged stresses of loadcases ---------"
-  Write(un_lf,"(7(A20))")'-- ii --','-- S11 --','-- S22 --','-- S33 --','-- S12 --','-- S13 --','-- S23 --'
-  Do ii = 1, 24
-     write(un_lf,"(I20,6(E20.9))")ii,int_stress(:,ii)
-  End Do
 End If
 
 !------------------------------------------------------------------------------
@@ -562,14 +511,6 @@ CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
     Int(root%branches(3)%leaves(11)%lbound-1+(comm_nn-1)*6*no_lc, MPI_OFFSET_KIND), &
     reshape(int_strain,[6*no_lc]), &
     Int(6*no_lc, pd_mik), MPI_REAL8, status_mpi, ierr)
-
-!------------------------------------------------------------------------------
-! Calc integrated strain matrix for first 6 loadcases
-!meps = int_strain(1:6,1:6)
-!If (out_amount /= "PRODUCTION" ) then
-!   Call Write_real_matrix(un_lf, meps,6_ik, 6_ik, &
-!        "Integrated strain matrix of first 6 loadcases")
-!End If
 
 !------------------------------------------------------------------------------
 ! Calc theoretical effective stiffness
