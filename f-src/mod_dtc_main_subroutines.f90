@@ -77,8 +77,7 @@ INTEGER(ik) :: domain_elems, ii, jj, kk, id, stat, &
     macro_order, no_elem_nodes, no_lc
 
 INTEGER(ik), DIMENSION(24) :: collected_logs ! timestamps, memory_usage, pid_returned
-INTEGER(ik), Dimension(:)  , Allocatable :: nodes_in_mesh
-INTEGER(ik), Dimension(:)  , Allocatable :: gnid_cref
+INTEGER(ik), Dimension(:), Allocatable :: nodes_in_mesh, gnid_cref
 INTEGER(ik), Dimension(:,:), Allocatable :: res_sizes
 
 INTEGER(c_int) :: stat_c_int
@@ -86,7 +85,8 @@ INTEGER(c_int) :: stat_c_int
 CHARACTER(9)   :: domain_char
 CHARACTER(40)  :: mssg_fix_len
 CHARACTER(mcl) :: timer_name, rank_char, domain_desc, part_desc, &
-    desc, mesh_desc, filename, elt_micro
+    desc, mesh_desc, filename, elt_micro, map_sgmnttn=""
+CHARACTER(1) :: bin_sgmnttn=""
 
 Character, Dimension(4*mcl) :: c_char_array
 Character, Dimension(:), Allocatable :: char_arr
@@ -516,15 +516,17 @@ End If
 !------------------------------------------------------------------------------
 
 !------------------------------------------------------------------------------
-! Get micro and macro element types
+! Segmentation specific information
 !------------------------------------------------------------------------------
+CALL pd_get(root%branches(1), 'Binary segmentation', char_arr)
+bin_sgmnttn = char_to_str(char_arr)
+
+CALL pd_get(root%branches(1), 'Segmentation map', char_arr)
+map_sgmnttn = char_to_str(char_arr)
+
 CALL pd_get(root%branches(1), 'Element type  on micro scale', char_arr)
 elt_micro = char_to_str(char_arr)
 
-!------------------------------------------------------------------------------
-! Hardcoded for dev
-!------------------------------------------------------------------------------
-bone_adjusted%nu = bone%nu
 CALL pd_get(root%branches(1), 'Element order on macro scale', macro_order)
 
 !------------------------------------------------------------------------------
@@ -539,6 +541,8 @@ ELSE IF (macro_order == 2) THEN
 ELSE
     CALL print_err_stop(std_out, "Element orders other than 1 or 2 are not supported", 1)
 END IF
+
+bone_adjusted%nu = bone%nu
 
 !------------------------------------------------------------------------------
 ! Assemble matrix
@@ -564,75 +568,80 @@ if (TRIM(elt_micro) == "HEX08") then
             kk = kk + 3
         End Do
                         
-        HU = part_branch%leaves(6)%p_int8(ii)
+        IF (bin_sgmnttn == "Y") THEN
 
-        !------------------------------------------------------------------------------
-        ! Need to distinguish between > and < 1000 HU. Otherwise, the young modulus
-        ! may be negative, which leads to faulty results.
-        !------------------------------------------------------------------------------
+            HU = part_branch%leaves(6)%p_int8(ii)
 
-        !------------------------------------------------------------------------------
-        ! FH01-4_cl
-        !------------------------------------------------------------------------------
-        lower_limit = 250_ik
-        upper_limit = 14250_ik
-
-        !------------------------------------------------------------------------------
-        ! FH01-1_mu_121212
-        !------------------------------------------------------------------------------
-        ! lower_limit = 22000_ik
-        ! upper_limit = 35000_ik
-
-        !------------------------------------------------------------------------------
-        ! FH01-1_mu_121240
-        !------------------------------------------------------------------------------
-        ! lower_limit = 22000_ik
-        ! upper_limit = 35000_ik
-
-
-        IF (HU > lower_limit) THEN
-            
-            IF (HU < 400_ik) THEN
-                factor = 0.2_rk - REAL(400_ik-HU, rk)*0.001_rk
-                ! factor = 0.2_rk - REAL(600_ik-HU, rk)*0.00025_rk
-            ELSE
-                factor = 0.2_rk + 0.000057762_rk * REAL(HU-400_ik, rk)
-                ! factor = 0.0_rk 
-            END IF 
-            
+            !------------------------------------------------------------------------------
+            ! Need to distinguish between > and < 1000 HU. Otherwise, the young modulus
+            ! may be negative, which leads to faulty results.
+            !------------------------------------------------------------------------------
+    
             !------------------------------------------------------------------------------
             ! FH01-4_cl
             !------------------------------------------------------------------------------
-            ! factor = 1._rk / REAL((upper_limit-lower_limit),rk) * REAL((HU - lower_limit), rk)
-            K_loc_08 = Hexe08_FH01_4_cl(bone) * factor
-            !
+            lower_limit = 250_ik
+            upper_limit = 14250_ik
+    
             !------------------------------------------------------------------------------
             ! FH01-1_mu_121212
             !------------------------------------------------------------------------------
-            ! factor = 1._rk / REAL((upper_limit-lower_limit),rk) * REAL((HU - lower_limit), rk) * 0.5
-            ! K_loc_08 = Hexe08_5600_03_121212(bone) * factor
-            !
+            ! lower_limit = 22000_ik
+            ! upper_limit = 35000_ik
+    
             !------------------------------------------------------------------------------
             ! FH01-1_mu_121240
             !------------------------------------------------------------------------------
-            ! factor = 1._rk / REAL((upper_limit-lower_limit),rk) * REAL((HU - lower_limit), rk) * 0.5
-            ! K_loc_08 = Hexe08_5600_03_121240(bone) * factor
-            ! 
-            ! K_loc_08 = Hexe08(bone)
-            ! K_loc_08 = Hexe08_5600_03_121212(bone)
-            ! K_loc_08 = Hexe08_5600_03_121240(bone)
-
-            ! K_loc_08 = K_loc_08 * factor
-
-        ELSE
-            bone_adjusted%E = 0._rk
-            ! K_loc_08 = Hexe08(bone_adjusted)
-            
-            ! K_loc_08 = Hexe08(bone)
-            ! K_loc_08 = Hexe08_5600_03_121212(bone)
-            ! K_loc_08 = Hexe08_5600_03_121240(bone)
-            K_loc_08 = Hexe08_FH01_4_cl(bone_adjusted)
-            
+            ! lower_limit = 22000_ik
+            ! upper_limit = 35000_ik
+    
+    
+            IF (HU > lower_limit) THEN
+                
+                IF (HU < 400_ik) THEN
+                    factor = 0.2_rk - REAL(400_ik-HU, rk)*0.001_rk
+                    ! factor = 0.2_rk - REAL(600_ik-HU, rk)*0.00025_rk
+                ELSE
+                    factor = 0.2_rk + 0.000057762_rk * REAL(HU-400_ik, rk)
+                    ! factor = 0.0_rk 
+                END IF 
+                
+                !------------------------------------------------------------------------------
+                ! FH01-4_cl
+                !------------------------------------------------------------------------------
+                ! factor = 1._rk / REAL((upper_limit-lower_limit),rk) * REAL((HU - lower_limit), rk)
+                K_loc_08 = Hexe08_FH01_4_cl(bone) * factor
+                !
+                !------------------------------------------------------------------------------
+                ! FH01-1_mu_121212
+                !------------------------------------------------------------------------------
+                ! factor = 1._rk / REAL((upper_limit-lower_limit),rk) * REAL((HU - lower_limit), rk) * 0.5
+                ! K_loc_08 = Hexe08_5600_03_121212(bone) * factor
+                !
+                !------------------------------------------------------------------------------
+                ! FH01-1_mu_121240
+                !------------------------------------------------------------------------------
+                ! factor = 1._rk / REAL((upper_limit-lower_limit),rk) * REAL((HU - lower_limit), rk) * 0.5
+                ! K_loc_08 = Hexe08_5600_03_121240(bone) * factor
+                ! 
+                ! K_loc_08 = Hexe08(bone)
+                ! K_loc_08 = Hexe08_5600_03_121212(bone)
+                ! K_loc_08 = Hexe08_5600_03_121240(bone)
+    
+                ! K_loc_08 = K_loc_08 * factor
+    
+            ELSE
+                bone_adjusted%E = 0._rk
+                ! K_loc_08 = Hexe08(bone_adjusted)
+                
+                ! K_loc_08 = Hexe08(bone)
+                ! K_loc_08 = Hexe08_5600_03_121212(bone)
+                ! K_loc_08 = Hexe08_5600_03_121240(bone)
+                K_loc_08 = Hexe08_FH01_4_cl(bone_adjusted)
+                
+            END IF 
+        ELSE ! (bin_sgmnttn == "N") THEN
+            K_loc_08 = Hexe08(bone_adjusted)
         END IF 
 
         idxn_08 = idxm_08
@@ -667,17 +676,23 @@ else if (elt_micro == "HEX20") then
 
         End Do
 
-        HU = part_branch%leaves(6)%p_int8(ii)
+        IF (bin_sgmnttn == "Y") THEN
 
-        IF (HU > 1000_ik) THEN
-            factor = 1._rk / REAL((14250_ik-1000_ik),rk) * REAL((HU - 1000_ik), rk)
-                
-            K_loc_08 = Hexe08(bone)
+            HU = part_branch%leaves(6)%p_int8(ii)
 
-            K_loc_08 = K_loc_08 * factor
+            IF (HU > 1000_ik) THEN
+                factor = 1._rk / REAL((14250_ik-1000_ik),rk) * REAL((HU - 1000_ik), rk)
+                    
+                K_loc_20 = Hexe20(bone)
+    
+                K_loc_20 = K_loc_20 * factor
+            ELSE
+                bone_adjusted%E = 0._rk
+                K_loc_20 = Hexe20(bone_adjusted)
+            END IF 
+    
         ELSE
-            bone_adjusted%E = 0._rk
-            K_loc_08 = Hexe08(bone_adjusted)
+            K_loc_20 = Hexe20(bone_adjusted)
         END IF 
                 
         idxn_20 = idxm_20

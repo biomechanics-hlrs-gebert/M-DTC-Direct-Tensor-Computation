@@ -125,9 +125,10 @@ CHARACTER(mcl)  , DIMENSION(:), ALLOCATABLE :: m_rry
 CHARACTER(4*mcl) :: job_dir
 CHARACTER(mcl)   :: cmd_arg_history='', link_name = 'struct process', &
     muCT_pd_path, muCT_pd_name, binary, activity_file, desc="", memlog_file="", &
-    typeraw="", restart='N', restart_cmd_arg='U',ios="" ! U = 'undefined'
+    typeraw="", restart='N', restart_cmd_arg='U',ios="", map_sgmnttn=""
 CHARACTER(8)   :: elt_micro, output
 CHARACTER(3)   :: file_status
+CHARACTER(1) :: bin_sgmnttn=""
 
 REAL(rk) :: strain, t_start, t_end, t_duration
 
@@ -257,11 +258,25 @@ If (rank_mpi == 0) THEN
     CALL meta_read('POISSON_RATIO'    , m_rry, bone%nu, ios); CALL mest(ios, abrt)
     CALL meta_read('MACRO_ELMNT_ORDER', m_rry, elo_macro, ios); CALL mest(ios, abrt)
     CALL meta_read('TYPE_RAW'         , m_rry, typeraw, ios); CALL mest(ios, abrt)
+    CALL meta_read('BINARY_SEGMENTATION', m_rry, bin_sgmnttn, ios); CALL mest(ios, abrt)
+    CALL meta_read('SEGMENTATION_MAP'   , m_rry, map_sgmnttn, ios); CALL mest(ios, abrt)
 
     IF (elo_macro == 1) THEN
         no_lc = 24_ik
     ELSE IF (elo_macro == 2) THEN
         no_lc = 60_ik
+    END IF 
+
+    IF ((bin_sgmnttn /= "Y") .AND. (bin_sgmnttn /= "y") .AND. &
+        (bin_sgmnttn /= "N") .AND. (bin_sgmnttn /= "n")) THEN
+        CALL print_err_stop(std_out, "Keyword BINARY_SEGMENTATION not recognized.", 1)
+    END IF 
+
+    IF (bin_sgmnttn == "y") bin_sgmnttn = "Y"
+
+    IF (map_sgmnttn /= "Hounsfield") THEN
+        CALL print_err_stop(std_out, "Keyword SEGMENTATION_MAP not recognized. &
+            &Currently only 'Hounsfield' is implemented.", 1)
     END IF 
 
     IF(abrt) CALL print_err_stop(std_out, "A keyword error occured.", 1)
@@ -412,6 +427,9 @@ If (rank_mpi == 0) THEN
     CALL add_leaf_to_branch(meta_para, "Restart", 1_ik, str_to_char(restart(1:1))) 
     CALL add_leaf_to_branch(meta_para, "Number of voxels per direction", 3_ik , vdim) 
     CALL add_leaf_to_branch(meta_para, "Domains per communicator", 1_ik, [domains_per_comm]) 
+
+    CALL add_leaf_to_branch(meta_para, "Binary segmentation" , LEN(bin_sgmnttn) , str_to_char(bin_sgmnttn))      
+    CALL add_leaf_to_branch(meta_para, "Segmentation map"    , LEN(map_sgmnttn) , str_to_char(map_sgmnttn))      
 
     !------------------------------------------------------------------------------
     ! Prepare output directory via CALLing the c function.
