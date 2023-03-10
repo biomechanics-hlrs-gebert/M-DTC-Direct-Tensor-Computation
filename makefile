@@ -248,7 +248,7 @@ meradat_crawl_tensors = $(bin_dir)meRaDat_Crawl_Tensors$(bin_suf)
 # ------------------------------------------------------------------------------
 # dof evaluation executable
 # -----------------------------------------------------------------------------
-dof_evaluation = $(bin_dir)dof_evaluation$(bin_suf)
+morphometric_evaluation = $(bin_dir)morphometric_evaluation$(bin_suf)
 #
 # -----------------------------------------------------------------------------
 # Object and module dependency tree
@@ -257,7 +257,7 @@ dof_evaluation = $(bin_dir)dof_evaluation$(bin_suf)
 # -----------------------------------------------------------------------------
 .PHONY: all
 #
-all: $(main_bin) $(pd_aux_execs) $(meradat_crawl_tensors) $(dof_evaluation) end_all
+all: $(main_bin) $(pd_aux_execs) $(meradat_crawl_tensors) $(morphometric_evaluation) end_all
 #
 # -----------------------------------------------------------------------------
 # C targets
@@ -559,13 +559,13 @@ $(obj_dir)mrd_crawl_tensors$(obj_ext):$(st_mod_dir)global_std$(mod_ext)  $(st_mo
 # -----------------------------------------------------------------------------
 # dof evaluation executable 
 # -----------------------------------------------------------------------------
-$(obj_dir)dof_evaluation$(obj_ext):$(st_mod_dir)global_std$(mod_ext)  $(st_mod_dir)meta$(mod_ext) \
+$(obj_dir)morphometric_evaluation$(obj_ext):$(st_mod_dir)global_std$(mod_ext)  $(st_mod_dir)meta$(mod_ext) \
 									$(st_mod_dir)strings$(mod_ext)     $(mod_dir)puredat$(mod_ext) \
 									$(st_obj_dir)mod_user_interaction$(obj_ext) \
 									$(st_mod_dir)formatted_plain$(mod_ext) \
-									$(f-src_main)dof_evaluation$(f90_ext)
-	@echo "----- Compiling " dof_evaluation$(f90_ext) "-----"
-	$(f90_compiler) $(c_flags_f90) -c $(f-src_main)dof_evaluation$(f90_ext) -o $@
+									$(f-src_main)morphometric_evaluation$(f90_ext)
+	@echo "----- Compiling " morphometric_evaluation$(f90_ext) "-----"
+	$(f90_compiler) $(c_flags_f90) -c $(f-src_main)morphometric_evaluation$(f90_ext) -o $@
 	@echo 
 #
 # -----------------------------------------------------------------------------
@@ -630,11 +630,11 @@ $(meradat_crawl_tensors): $(geb-lib-ld-objects) $(obj_dir)mrd_crawl_tensors$(obj
 # -----------------------------------------------------------------------------
 # Final Link step of dof evaluation executable
 # -----------------------------------------------------------------------------
-$(dof_evaluation): $(geb-lib-ld-objects) $(obj_dir)dof_evaluation$(obj_ext)
+$(morphometric_evaluation): $(geb-lib-ld-objects) $(obj_dir)morphometric_evaluation$(obj_ext)
 	@echo "----------------------------------------------------------------------------------"
 	@echo '-- Linking dof evaluation executable'
 	@echo "----------------------------------------------------------------------------------"
-	$(f90_compiler) $(link_flags) $(geb-lib-ld-objects) $(obj_dir)dof_evaluation$(obj_ext) -o $@
+	$(f90_compiler) $(link_flags) $(geb-lib-ld-objects) $(obj_dir)morphometric_evaluation$(obj_ext) -o $@
 	@echo 
 #
 # --------------------------------------------------------------------------------------------------

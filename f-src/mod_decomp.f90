@@ -12,9 +12,9 @@
 !> Module with routines for domain decomposition
 module decomp
 
-  USE global_std
-  use puredat
-
+    USE global_std
+    use puredat
+    USE mechanical
   implicit none
 
   !> Type which holds informations about the global domain decomposition and 
@@ -257,8 +257,6 @@ Contains
     Integer(kind=ik), Dimension(3) :: x_D, nn_D
     Real(kind=rk)   , Dimension(3) :: x_D_phy
     Integer(kind=ik), Dimension(1) :: nn_D_max, no_dat_D
-
-    Integer(kind=ik), Dimension(3), parameter :: bpoints=[1_ik,1_ik,1_ik]
 
     !--------------------------------------------------------------------------
     ! Get phi description
