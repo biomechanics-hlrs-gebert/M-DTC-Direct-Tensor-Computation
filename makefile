@@ -214,7 +214,7 @@ endif
 ifeq ($(trgt_vrsn),)
 	main_bin = $(bin_dir)$(bin_name)_$(oa)$(bin_suf)
 else
-	main_bin = $(bin_dir)$(bin_name)_$(trgt_vrsn)_$(oa)$(bin_suf)
+	main_bin = $(bin_dir)$(bin_name)_$(trgt_vrsn)_$(oa)$(bin_suf)type
 endif#
 # ------------------------------------------------------------------------------
 # Build the st directory first
@@ -245,6 +245,11 @@ pd_aux_execs = $(pd_dump_leaf_bin) $(pd_dump_tree_bin) $(pd_leaf_diff_bin) \
 # -----------------------------------------------------------------------------
 meradat_crawl_tensors = $(bin_dir)meRaDat_Crawl_Tensors$(bin_suf)
 #
+# ------------------------------------------------------------------------------
+# dof evaluation executable
+# -----------------------------------------------------------------------------
+dof_evaluation = $(bin_dir)dof_evaluation$(bin_suf)
+#
 # -----------------------------------------------------------------------------
 # Object and module dependency tree
 #
@@ -252,7 +257,7 @@ meradat_crawl_tensors = $(bin_dir)meRaDat_Crawl_Tensors$(bin_suf)
 # -----------------------------------------------------------------------------
 .PHONY: all
 #
-all: $(main_bin) $(pd_aux_execs) $(meradat_crawl_tensors) end_all
+all: $(main_bin) $(pd_aux_execs) $(meradat_crawl_tensors) $(dof_evaluation) end_all
 #
 # -----------------------------------------------------------------------------
 # C targets
@@ -540,7 +545,7 @@ $(obj_dir)pd_merge_branch_to_tree$(obj_ext):$(mod_dir)puredat$(mod_ext) $(mod_di
 	@echo 
 #
 # -----------------------------------------------------------------------------
-# MeRaDat executables 
+# MeRaDat executable
 # -----------------------------------------------------------------------------
 $(obj_dir)mrd_crawl_tensors$(obj_ext):$(st_mod_dir)global_std$(mod_ext)  $(st_mod_dir)meta$(mod_ext) \
                                       $(st_mod_dir)strings$(mod_ext)     $(mod_dir)puredat$(mod_ext) \
@@ -549,6 +554,18 @@ $(obj_dir)mrd_crawl_tensors$(obj_ext):$(st_mod_dir)global_std$(mod_ext)  $(st_mo
                                       $(f-src_main)mrd_crawl_tensors$(f90_ext)
 	@echo "----- Compiling " mrd_crawl_tensors$(f90_ext) "-----"
 	$(f90_compiler) $(c_flags_f90) -c $(f-src_main)mrd_crawl_tensors$(f90_ext) -o $@
+	@echo 
+#
+# -----------------------------------------------------------------------------
+# dof evaluation executable 
+# -----------------------------------------------------------------------------
+$(obj_dir)dof_evaluation$(obj_ext):$(st_mod_dir)global_std$(mod_ext)  $(st_mod_dir)meta$(mod_ext) \
+									$(st_mod_dir)strings$(mod_ext)     $(mod_dir)puredat$(mod_ext) \
+									$(st_obj_dir)mod_user_interaction$(obj_ext) \
+									$(st_mod_dir)formatted_plain$(mod_ext) \
+									$(f-src_main)dof_evaluation$(f90_ext)
+	@echo "----- Compiling " dof_evaluation$(f90_ext) "-----"
+	$(f90_compiler) $(c_flags_f90) -c $(f-src_main)dof_evaluation$(f90_ext) -o $@
 	@echo 
 #
 # -----------------------------------------------------------------------------
@@ -601,13 +618,23 @@ $(pd_merge_branch_to_tree_bin): $(pd-ld-objects) $(obj_dir)pd_merge_branch_to_tr
 	@echo 
 #	
 # -----------------------------------------------------------------------------
-# Final Link step of MeRaDat executables 
+# Final Link step of MeRaDat executable
 # -----------------------------------------------------------------------------
 $(meradat_crawl_tensors): $(geb-lib-ld-objects) $(obj_dir)mrd_crawl_tensors$(obj_ext)
 	@echo "----------------------------------------------------------------------------------"
 	@echo '-- Linking MeRaDat executable'
 	@echo "----------------------------------------------------------------------------------"
 	$(f90_compiler) $(link_flags) $(geb-lib-ld-objects) $(obj_dir)mrd_crawl_tensors$(obj_ext) -o $@
+	@echo 
+#	
+# -----------------------------------------------------------------------------
+# Final Link step of dof evaluation executable
+# -----------------------------------------------------------------------------
+$(dof_evaluation): $(geb-lib-ld-objects) $(obj_dir)dof_evaluation$(obj_ext)
+	@echo "----------------------------------------------------------------------------------"
+	@echo '-- Linking dof evaluation executable'
+	@echo "----------------------------------------------------------------------------------"
+	$(f90_compiler) $(link_flags) $(geb-lib-ld-objects) $(obj_dir)dof_evaluation$(obj_ext) -o $@
 	@echo 
 #
 # --------------------------------------------------------------------------------------------------
