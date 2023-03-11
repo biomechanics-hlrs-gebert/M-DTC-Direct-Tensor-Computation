@@ -214,7 +214,7 @@ endif
 ifeq ($(trgt_vrsn),)
 	main_bin = $(bin_dir)$(bin_name)_$(oa)$(bin_suf)
 else
-	main_bin = $(bin_dir)$(bin_name)_$(trgt_vrsn)_$(oa)$(bin_suf)type
+	main_bin = $(bin_dir)$(bin_name)_$(trgt_vrsn)_$(oa)$(bin_suf)
 endif#
 # ------------------------------------------------------------------------------
 # Build the st directory first

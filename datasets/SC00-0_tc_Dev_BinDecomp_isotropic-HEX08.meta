@@ -36,6 +36,7 @@ r OUT_FMT               FMPS                                           ! Output 
 r LO_BNDS_DMN_RANGE     0    0    0                                    ! xa_n - Lower bounds of selected domain range
 r UP_BNDS_DMN_RANGE     2    2    2                                    ! xe_n - Upper bounds of selected domain range
 r RESTART               Y                                              ! Restart a (partly) computed project
+r BINARY_SEGMENTATION   y    
 
 r NEW_BSNM_FEATURE      Tensors                                        ! Last segment of basename - NO '_'
 r NEW_BSNM_PURPOSE      Pro                                            ! 3rd segment of basename - NO '_'

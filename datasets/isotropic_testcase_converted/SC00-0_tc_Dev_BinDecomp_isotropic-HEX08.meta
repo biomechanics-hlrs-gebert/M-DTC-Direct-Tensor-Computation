@@ -39,6 +39,10 @@ r POISSON_RATIO         0.3                                          ! Monolithi
 r RVE_STRAIN            0.0000001                                    ! Strain on macro element
 r MACRO_ELMNT_ORDER     1                                            ! 1=linear (HEX08), 2=quadratic (HEX20)
 r MICRO_ELMNT_TYPE      HEX08                                        ! Element type  on micro scale
+r LO_BNDS_DMN_RANGE     0 0 0 
+r LO_BNDS_DMN_RANGE     2 2 2
+
+
 r MESH_PER_SUB_DMN      2                                            ! Processors/Mesh parts per subdomain. Size_mpi-1! 
 r OUT_FMT               FMPS                                         ! Output Format
 r DBG_LVL               DEBUG                                        ! Output amount
