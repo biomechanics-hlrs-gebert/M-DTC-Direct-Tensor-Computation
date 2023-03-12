@@ -13,6 +13,7 @@
 import os, struct, argparse, sys, math
 import pandas as pd
 import numpy as np
+from scipy import stats
 #
 sys.path.insert(1, '/home/geb/00_bone_eval_chain/P_MOD_Python')
 #
@@ -25,7 +26,6 @@ from mod_colors import colors as c
 # -----------------------------------------------------------------------------
 # Demo for mod_DTC_data_connector.py 
 # -----------------------------------------------------------------------------
-print("-- Reading data")
 #
 parser = argparse.ArgumentParser(description='Give the domain size (0.6-9.6).')
 parser.add_argument('-size', action="store", dest="size", help="Input meta file).")
@@ -33,9 +33,16 @@ parser.add_argument('-size', action="store", dest="size", help="Input meta file)
 cmd_args = parser.parse_args()
 #
 if not bool(cmd_args.size):
-    size = int(cmd_args.size)
-    print("Please specify the domain size.")
+    print("EE Please specify the domain size.")
     exit(1)
+else: 
+    try:
+        size = float(cmd_args.size)
+    except: 
+        print("EE parsing the size failed.")
+        exit(2)
+#
+print("-- Reading data")
 #
 # Header 
 # Domain, Domain Size, Section x, Section y, Section z, Phys. x lo, Phys. x hi, Phys. y lo, Phys. y hi, Phys. z lo, Phys. z hi, Opt. Info, Opt. Res., Pos. alpha, Pos. eta, Pos. phi, Sym. Dev., DA, BVTV, Gray Dens., DoA Zener, DoA Gebert, mps, Spec. Norm, Micro El. Type, Macro El. Type, No. Elements, No. Nodes, t-start, t-duration, ts_InitoDmn, ts_pre-P-preallo, ts_post-P-preallo, ts_Bef-Mat-as, ts_Aft-Mat-as, ts_Bef-Solve, ts_Aft-Solve, mem_InitoDmn, mem_pre-P-preallo, mem_post-P-preallo, mem_Bef-Mat-as, mem_Aft-Mat-as, mem_Bef-Solve, mem_Aft-Solve, pR_InitoDmn, pR_pre-P-preallo, pR_post-P-preallo, pR_Bef-Mat-as, pR_Aft-Mat-as, pR_Bef-Solve, pR_Aft-Solve, size_mpi_dmn, worker_main_rank, pids_returned, S11, S21, S31, S41, S51, S61, S12, S22, S32, S42, S52, S62, S13, S23, S33, S43, S53, S63, S14, S24, S34, S44, S54, S64, S15, S25, S35, S45, S55, S65, S16, S26, S36, S46, S56, S66
@@ -47,7 +54,10 @@ elif size == 2.4:
     sets_x = dtc_sets_covo("FH01-1", "24", ["000256"]) 
 elif size == 4.8:
     sets_x = dtc_sets_covo("FH01-1", "48", ["000508"]) 
-
+elif size == 7.2:
+    sets_x = dtc_sets_covo("FH01-1", "72", ["004064"])
+elif size == 9.6:
+    sets_x = dtc_sets_covo("FH01-1", "96", ["004064"]) 
 
 # sets_x = dtc_sets_covo("FH01-1", "96", ["004064"]) 
 # sets_x = dtc_sets_covo("FH01-1", "72", ["004064"]) 
@@ -69,9 +79,9 @@ elif size == 9.6:
 # -----------------------------------------------------------------------------
 # Merge the files to combine the information
 # -----------------------------------------------------------------------------
-merged = pd.merge(sets_x.data[0], sets_y.data[0], on="Domain", how='inner')
-
 if size in [0.6,1.2,2.4,4.8]:
+    merged = pd.merge(sets_x.data[0], sets_y.data[0], on="Domain", how='inner')
+
     domain   = merged["Domain"]
     bvtv     = merged["BVTV"]
     no_nodes = merged["No. Nodes"]
@@ -81,7 +91,7 @@ if size in [0.6,1.2,2.4,4.8]:
     runtime_matrix_assembly = merged["runtime_matrix_assembly"]
     runtime_solve           = merged["runtime_solve"]
     runtime_total           = merged["runtime_total"]
-else
+else:
     domain   = sets_x.data[0]["Domain"]
     bvtv     = sets_x.data[0]["BVTV"]
     no_nodes = sets_x.data[0]["No. Nodes"]
@@ -109,8 +119,32 @@ for ii in range(len(no_nodes)):
             continue
 
         nds_per_vox_avg += nds_per_vox
-        print("-- Domain", domain[ii], " - ", round(nds_per_vox,3), "Nodes per Voxel")
+        # print("-- Domain", domain[ii], " - ", round(nds_per_vox,3), "Nodes per Voxel")
     except:
         continue
-
+print("\n\n\n")
 print("-- Average nodes per Voxel: ", nds_per_vox_avg / len(no_nodes))
+
+
+slope, intercept, r_value, p_value, std_err = stats.linregress(no_nodes,bvtv)
+print("-- r_value no_nodes,bvtv: ", r_value)
+
+if size in [0.6,1.2,2.4,4.8]:
+
+    slope, intercept, r_value, p_value, std_err = stats.linregress(no_nodes,no_elems)
+    print("-- r_value no_nodes,no_elems: ", r_value)
+
+    slope, intercept, r_value, p_value, std_err = stats.linregress(bvtv,no_elems)
+    print("-- r_value bvtv,no_elems: ", r_value)
+
+    slope, intercept, r_value, p_value, std_err = stats.linregress(no_nodes,runtime_preallocation)
+    print("-- r_value no_nodes,runtime_preallocation: ", r_value)
+
+    slope, intercept, r_value, p_value, std_err = stats.linregress(no_nodes,runtime_matrix_assembly)
+    print("-- r_value no_nodes,runtime_matrix_assembly: ", r_value)
+
+    slope, intercept, r_value, p_value, std_err = stats.linregress(no_nodes,runtime_solve)
+    print("-- r_value no_nodes,runtime_solve: ", r_value)
+
+    slope, intercept, r_value, p_value, std_err = stats.linregress(no_nodes,runtime_total)
+    print("-- r_value no_nodes,runtime_total: ", r_value)
