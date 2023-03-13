@@ -12,6 +12,7 @@
 #------------------------------------------------------------------------------
 import os, struct, argparse, sys, math
 import numpy as np
+import pandas as pd
 sys.path.insert(1, '/home/geb/00_bone_eval_chain/P_MOD_Python')
 #
 from mod_decomposition import *
@@ -26,14 +27,20 @@ factors.update({"AVG_NDS_VOX_HEX08_48": 1.2179251259194124})
 factors.update({"AVG_NDS_VOX_HEX08_72": 1.1793611129414954})
 #  factors.update({"AVG_NDS_VOX_HEX08_96": 0.5021699727716449}) not plausible!
 #
-factors.update({"FE_NODES_PER_PART_06": 3000})
-factors.update({"FE_NODES_PER_PART_12": 6000})
-factors.update({"FE_NODES_PER_PART_24": 6000})
-factors.update({"FE_NODES_PER_PART_48": 6000})
-factors.update({"FE_NODES_PER_PART_72": 6000})
-#
 # Solid FEs:
 DOF = 3
+#
+# List of optimal job sizes
+job_sizes = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096]
+#
+# Target parts per compute node [min, optimal, max]
+# target_pcn = [15, 20, 25]
+#
+# Has to be open to lower counts as the topology (job_sizes) better has to be respected 
+target_pcn = [10, 20, 22]
+#
+range_of_FEs_per_part = [1500,4000,500]
+FEs_part = range_of_FEs_per_part
 #
 # -----------------------------------------------------------------------------
 # Functions
@@ -50,6 +57,27 @@ def ik8_to_list(file):
     f.close()
 
     return(lst)
+#
+# ChatGPT:
+def cutting_stock(item_lengths, stock_length):
+    # sort the items in decreasing order
+    item_lengths.sort(reverse=True)
+    
+    # initialize the number of bins used and the current bin capacity
+    num_bins = 0
+    current_bin_capacity = 0
+    
+    # iterate through the items
+    for item_length in item_lengths:
+        # try to fit the item in the current bin
+        if current_bin_capacity >= item_length:
+            current_bin_capacity -= item_length
+        else:
+            # if the item doesn't fit in the current bin, start a new bin
+            num_bins += 1
+            current_bin_capacity = stock_length - item_length
+    
+    return num_bins
 # -----------------------------------------------------------------------------
 #
 FMT_STRING="-------------------------------------------------------------------------------"
@@ -68,6 +96,8 @@ print(
 # -----------------------------------------------------------------------------
 parser = argparse.ArgumentParser(description='Just give the meta file.')
 parser.add_argument('-metaF', action="store", dest="meta_file", help="Input meta file).")
+parser.add_argument('-ppn', action="store", dest="ppn", help="Input meta file).")
+parser.add_argument('-ncno', action="store", dest="ncno", help="Number of compute nodes).")
 
 # -----------------------------------------------------------------------------
 # Parse the command line arguments
@@ -159,40 +189,182 @@ print(FMT_STRING)
 # -----------------------------------------------------------------------------
 # Get the expected runtimes per domain
 # -----------------------------------------------------------------------------
-list_of_runtimes = []
+#
+no_of_dmns_in_comm = 0
+runtime_in_comm = 0
 #
 # Derived with analyze_runtime_to_BVTV
 dmn_size_avg=sum([float(i) for i in size_dmn])/3
 #
 if dmn_size_avg == 0.6:
     node_factor   = factors.get("AVG_NDS_VOX_HEX08_06")
-    FE_nodes_part = factors.get("FE_NODES_PER_PART_06")
 elif dmn_size_avg == 1.2:
     node_factor   = factors.get("AVG_NDS_VOX_HEX08_12")
-    FE_nodes_part = factors.get("FE_NODES_PER_PART_12")
 elif dmn_size_avg == 2.4:
     node_factor   = factors.get("AVG_NDS_VOX_HEX08_24")
-    FE_nodes_part = factors.get("FE_NODES_PER_PART_24")
 elif dmn_size_avg == 4.8:
     node_factor   = factors.get("AVG_NDS_VOX_HEX08_48")
-    FE_nodes_part = factors.get("FE_NODES_PER_PART_48")
 elif dmn_size_avg == 7.2:
     node_factor   = factors.get("AVG_NDS_VOX_HEX08_72")
-    FE_nodes_part = factors.get("FE_NODES_PER_PART_72")
+
+# -----------------------------------------------------------------------------
+# This is a normalized measure of the expected runtime. All domains use 
+# the same macro element order, the same micro element type and about the same
+# number of finite element nodes per domain. Consequently, the runtime 
+# expected is roughly the same for all. The problem collapses to a much simpler
+# version of the cutting stock problem.
+#
+# The problem posed will become a »true« cutting stock problem if the runtimes
+# change the number of FE nodes per domain. But this max only happen in a 
+# latter step.
+# -----------------------------------------------------------------------------
+# The runtime however is not removed from this code to allow for such 
+# optimization.
+# -----------------------------------------------------------------------------
+total_factors = tf_nds * tf_ma_el 
+
+#
+# -----------------------------------------------------------------------------
+# Loop over FE nodes per domain for optimizing the topology aware batch 
+# scheduling
+# -----------------------------------------------------------------------------
+for FE_nodes_part in range(FEs_part[0],FEs_part[1]+1,FEs_part[2]):
+
+    # Reset dataframes
+    catalogued_data = pd.DataFrame(columns=['domain', 'ppd', 'expected runtime'])
+    bins_per_ppd = pd.DataFrame(columns=['ppd', 'bins'])
+
+    for dmn in range(len(dmn_no_list)):
+        FE_nodes_dmn = vox_list[dmn] * node_factor
+
+        parts_per_domain = int(np.floor(FE_nodes_dmn/FE_nodes_part))
+        
+        # expected runtime may be calibrated in a latter step
+        expected_runtime = 1.0 * total_factors
+
+        new_entry = pd.DataFrame({'domain': dmn, 'ppd': parts_per_domain, 'expected runtime': expected_runtime}, index=[0])
+        catalogued_data = pd.concat([catalogued_data, new_entry])
 
 
+    min_total_time_units = 9999999999999
+    max_total_time_units = 0
+    unique_ppds = catalogued_data['ppd'].unique()
 
-for dmn in range(len(dmn_no_list)):
-    FE_nodes_dmn = vox_list[dmn] * node_factor
+    # Batches of unique parts per domain
+    for uppd in unique_ppds:
 
-    parts_per_domain = np.floor(FE_nodes_dmn/FE_nodes_part)
+        df_ppd = catalogued_data[catalogued_data['ppd'] == uppd]
+
+        expRuntime = df_ppd['expected runtime'].sum()
+
+        # print("-- No of domains with " + str(uppd) + " parts:", len(df_ppd), \
+        #     "with a total runtime of", expRuntime, "std time units")
+
+        if min_total_time_units > expRuntime:
+            min_total_time_units = expRuntime
+        if max_total_time_units < expRuntime:
+            max_total_time_units = expRuntime
+
+    target_time_budget = min_total_time_units
+
+    for uppd in unique_ppds:
+
+        df_dmns = catalogued_data[catalogued_data['ppd'] == uppd]
+
+        num_bins = cutting_stock(df_dmns["expected runtime"].tolist(), target_time_budget)
+
+        new_entry = pd.DataFrame({'ppd': uppd, 'bins': num_bins}, index=[0])
+        bins_per_ppd = pd.concat([bins_per_ppd, new_entry])
+
+    # Number of cores required with this setup
+    sum_of_cores = sum(bins_per_ppd["ppd"]*bins_per_ppd["bins"])
+
+    # -----------------------------------------------------------------------------
+    # Search for optimum packaging with topology aware compute node numbers
+    # -----------------------------------------------------------------------------
+    min_delta_cores = 999999999
+    curr_job_size = 0
+    curr_target_pcn = 0
+    for js in job_sizes:
+        for ii in range(target_pcn[0], target_pcn[2]):
+            cores_avail = ii*js
+
+            delta_cores = cores_avail-sum_of_cores
+
+            if delta_cores < min_delta_cores and delta_cores >= 0:
+                min_delta_cores = delta_cores
+
+                curr_job_size = js
+                curr_target_pcn = ii
+
+    sum_of_cores = sum(bins_per_ppd["ppd"]*bins_per_ppd["bins"])
+    print("--", bins_per_ppd)
+    print("-- FE_nodes_part:   ", FE_nodes_part)
+    print("-- sum_of_cores:   ", sum_of_cores)
+    print("-- curr_job_size:  ", curr_job_size)
+    print("-- curr_target_pcn:", curr_target_pcn)
+    print("-- ")
+    print("-- Cores available:", curr_job_size*curr_target_pcn)
+    print(FMT_STRING)
+
+
+# # -----------------------------------------------------------------------------
+# # Retrieve optimal solution
+# # -----------------------------------------------------------------------------
+# catalogued_data = pd.DataFrame(columns=['domain', 'ppd', 'expected runtime'])
+# bins_per_ppd = pd.DataFrame(columns=['ppd', 'bins'])
+# for dmn in range(len(dmn_no_list)):
+#     FE_nodes_dmn = vox_list[dmn] * node_factor
+
+#     parts_per_domain = int(np.floor(FE_nodes_dmn/best_FE_nodes_part))
     
-    expected_runtime = 
+#     # expected runtime may be calibrated in a latter step
+#     expected_runtime = 1.0 * total_factors
 
-    total_factors = tf_nds * tf_ma_el 
-
-    list_of_runtimes.append(expected_runtime * total_factors)
-
+#     new_entry = pd.DataFrame({'domain': dmn, 'ppd': parts_per_domain, 'expected runtime': expected_runtime}, index=[0])
+#     catalogued_data = pd.concat([catalogued_data, new_entry])
 
 
-print(total_factors)
+# min_total_time_units = 9999999999999
+# max_total_time_units = 0
+# unique_ppds = catalogued_data['ppd'].unique()
+
+# # Batches of unique parts per domain
+# for uppd in unique_ppds:
+
+#     df_ppd = catalogued_data[catalogued_data['ppd'] == uppd]
+
+#     expRuntime = df_ppd['expected runtime'].sum()
+
+#     print("-- No of domains with " + str(uppd) + " parts:", len(df_ppd), \
+#         "with a total runtime of", expRuntime, "std time units")
+
+#     if min_total_time_units > expRuntime:
+#         min_total_time_units = expRuntime
+#     if max_total_time_units < expRuntime:
+#         max_total_time_units = expRuntime
+
+# target_time_budget = min_total_time_units
+
+# for uppd in unique_ppds:
+
+#     df_dmns = catalogued_data[catalogued_data['ppd'] == uppd]
+
+#     num_bins = cutting_stock(df_dmns["expected runtime"].tolist(), target_time_budget)
+
+#     new_entry = pd.DataFrame({'ppd': uppd, 'bins': num_bins}, index=[0])
+#     bins_per_ppd = pd.concat([bins_per_ppd, new_entry])
+
+# # Number of cores required with this setup
+# sum_of_cores = sum(bins_per_ppd["ppd"]*bins_per_ppd["bins"])
+
+# print(FMT_STRING)
+# print("--", bins_per_ppd)
+# print(FMT_STRING)
+
+# print("-- sum_of_cores:   ", sum_of_cores)
+# print("-- best_job_size:  ", best_job_size)
+# print("-- best_target_pcn:", best_target_pcn)
+# print("-- ")
+# print("-- Cores available:", best_job_size*best_target_pcn)
+

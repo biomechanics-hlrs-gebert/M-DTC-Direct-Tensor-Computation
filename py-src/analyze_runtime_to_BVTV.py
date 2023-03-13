@@ -86,6 +86,9 @@ if size in [0.6,1.2,2.4,4.8]:
     bvtv     = merged["BVTV"]
     no_nodes = merged["No. Nodes"]
     no_elems = merged["No. Elements"]
+    cnpd     = merged["npd"]
+    ppn      = merged["ppn"]
+    ppd      = merged["ppd"]
 
     runtime_preallocation   = merged["runtime_preallocation"]
     runtime_matrix_assembly = merged["runtime_matrix_assembly"]
@@ -96,10 +99,12 @@ else:
     bvtv     = sets_x.data[0]["BVTV"]
     no_nodes = sets_x.data[0]["No. Nodes"]
 
+
+len_of_datasets = len(no_nodes)
 spcng = 0.0149500
 total_vox = int((size/spcng)+2)**3
 
-# for ii in range(len(no_nodes)):
+# for ii in range(len_of_datasets):
 #     # print(no_nodes[ii], runtime_total[ii], no_nodes[ii]/runtime_total[ii])
 #     try:
 #         print(int(no_nodes[ii]/bvtv[ii]))
@@ -110,7 +115,7 @@ print("-- Voxels of monolithic domains:", total_vox)
 
 nds_per_vox_avg = 0
 nds_per_vox = 0
-for ii in range(len(no_nodes)):
+for ii in range(len_of_datasets):
     # print(no_nodes[ii], runtime_total[ii], no_nodes[ii]/runtime_total[ii])
     try:
         nds_per_vox = no_nodes[ii] / (total_vox*bvtv[ii])
@@ -123,7 +128,7 @@ for ii in range(len(no_nodes)):
     except:
         continue
 print("\n\n\n")
-print("-- Average nodes per Voxel: ", nds_per_vox_avg / len(no_nodes))
+print("-- Average nodes per Voxel: ", nds_per_vox_avg / len_of_datasets)
 
 
 slope, intercept, r_value, p_value, std_err = stats.linregress(no_nodes,bvtv)
@@ -146,5 +151,25 @@ if size in [0.6,1.2,2.4,4.8]:
     slope, intercept, r_value, p_value, std_err = stats.linregress(no_nodes,runtime_solve)
     print("-- r_value no_nodes,runtime_solve: ", r_value)
 
-    slope, intercept, r_value, p_value, std_err = stats.linregress(no_nodes,runtime_total)
-    print("-- r_value no_nodes,runtime_total: ", r_value)
+    try:
+        slope, intercept, r_value, p_value, std_err = stats.linregress((no_nodes/runtime_total),bvtv)
+        print("-- r_value no_nodes/runtime_total,bvtv: ", r_value)
+    except:
+        pass
+
+avg_nodes_part = 0
+avg_nodes_cn = 0
+for ii in range(len_of_datasets):
+    nodes_part = no_nodes[ii]/ppd[ii]
+    nodes_cn   = no_nodes[ii]/cnpd[ii]
+
+    print("nodes_part:", round(nodes_part), "nodes_cn:", round(nodes_cn))
+
+    avg_nodes_part += nodes_part
+    avg_nodes_cn += nodes_cn
+
+avg_nodes_part = avg_nodes_part / len_of_datasets
+avg_nodes_cn = avg_nodes_cn / len_of_datasets
+
+print("avg_nodes_part:", avg_nodes_part)
+print("avg_nodes_cn:", avg_nodes_cn)
