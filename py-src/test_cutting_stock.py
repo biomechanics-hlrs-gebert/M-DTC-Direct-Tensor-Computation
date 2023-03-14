@@ -46,8 +46,3 @@ stock_length = 10
 num_bins = cutting_stock(item_lengths, stock_length)
 print("Number of bins used: ", num_bins)
 
-
-unique_cities = df['City'].unique()
-
-# print the list of unique values
-print(unique_cities)

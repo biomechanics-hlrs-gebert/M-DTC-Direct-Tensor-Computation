@@ -10,6 +10,9 @@
 #> Done in Python for better flexibility in terms of PBS batch scheduling etc.
 #> Python is way more flexible for research scripting, e.g. on the cluster.
 #------------------------------------------------------------------------------
+# Cutting stocks --> Time "logs" of best length (shortest necessary) for 
+# highest utilization of the cluster. 
+#------------------------------------------------------------------------------
 import os, struct, argparse, sys, math
 import numpy as np
 import pandas as pd
@@ -29,6 +32,8 @@ factors.update({"AVG_NDS_VOX_HEX08_72": 1.1793611129414954})
 #
 # Solid FEs:
 DOF = 3
+#
+DEBUG = False
 #
 # List of optimal job sizes
 job_sizes = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096]
@@ -96,8 +101,9 @@ print(
 # -----------------------------------------------------------------------------
 parser = argparse.ArgumentParser(description='Just give the meta file.')
 parser.add_argument('-metaF', action="store", dest="meta_file", help="Input meta file).")
-parser.add_argument('-ppn', action="store", dest="ppn", help="Input meta file).")
+# parser.add_argument('-ppn', action="store", dest="ppn", help="Input meta file).")
 parser.add_argument('-ncno', action="store", dest="ncno", help="Number of compute nodes).")
+parser.add_argument('-debug', action="store", dest="debug", help="Number of compute nodes).")
 
 # -----------------------------------------------------------------------------
 # Parse the command line arguments
@@ -120,6 +126,8 @@ basename = os.path.splitext(cmd_args.meta_file)[0]
 
 dmn_no_file= basename + ".status_preprocess"
 vox_file = basename + ".vox"
+comms_file = basename + ".comms"
+parts_file = basename + ".parts"
 
 file_missing = False
 if not os.path.exists(vox_file):
@@ -134,13 +142,19 @@ if file_missing:
     exit(2)
 
 
-# # Sample list of integers
-# int_list = [42, 13, -7, 0, 66545535]
-# f = open('integers.bin', 'wb')
-# for ii in int_list:
-#     f.write((ii).to_bytes(8, byteorder='little', signed=True))
-# f.close()
+# if bool(cmd_args.ppn):
+#     print("MM Optimizing with user defined number of parts per compute node.")
+#     target_pcn = [int(cmd_args.ppn)]
 
+if bool(cmd_args.ncno):
+    job_sizes = [int(cmd_args.ncno)]
+
+
+if bool(cmd_args.debug):
+    if cmd_args.debug[0].lower() == "y":
+        DEBUG = True
+
+    print("MM User switched on DEBUG = True.")
 
 # Domain numbers (Voxels per domain)
 
@@ -228,6 +242,11 @@ total_factors = tf_nds * tf_ma_el
 # Loop over FE nodes per domain for optimizing the topology aware batch 
 # scheduling
 # -----------------------------------------------------------------------------
+best_min_delta_cores = 999999999
+best_job_size = 0
+best_target_pcn = 0
+best_sum_of_cores = 0
+
 for FE_nodes_part in range(FEs_part[0],FEs_part[1]+1,FEs_part[2]):
 
     # Reset dataframes
@@ -239,8 +258,15 @@ for FE_nodes_part in range(FEs_part[0],FEs_part[1]+1,FEs_part[2]):
 
         parts_per_domain = int(np.floor(FE_nodes_dmn/FE_nodes_part))
         
+        # -----------------------------------------------------------------------------
+        # Get and take the effective number of FE nodes per part into account
+        # -----------------------------------------------------------------------------
+        eff_nodes_part = int(FE_nodes_dmn / parts_per_domain)
+        delta = FE_nodes_part - eff_nodes_part
+        delta_percentage = delta/(FE_nodes_part/100.0)
+
         # expected runtime may be calibrated in a latter step
-        expected_runtime = 1.0 * total_factors
+        expected_runtime = 1.0 * total_factors * (1+delta_percentage/100)
 
         new_entry = pd.DataFrame({'domain': dmn, 'ppd': parts_per_domain, 'expected runtime': expected_runtime}, index=[0])
         catalogued_data = pd.concat([catalogued_data, new_entry])
@@ -291,80 +317,80 @@ for FE_nodes_part in range(FEs_part[0],FEs_part[1]+1,FEs_part[2]):
 
             delta_cores = cores_avail-sum_of_cores
 
+            # delta cores negative --> more cores needed than available
             if delta_cores < min_delta_cores and delta_cores >= 0:
                 min_delta_cores = delta_cores
 
                 curr_job_size = js
                 curr_target_pcn = ii
+                curr_sum_of_cores = sum_of_cores
 
-    sum_of_cores = sum(bins_per_ppd["ppd"]*bins_per_ppd["bins"])
-    print("--", bins_per_ppd)
-    print("-- FE_nodes_part:   ", FE_nodes_part)
-    print("-- sum_of_cores:   ", sum_of_cores)
-    print("-- curr_job_size:  ", curr_job_size)
-    print("-- curr_target_pcn:", curr_target_pcn)
+    if DEBUG:
+        sum_of_cores = sum(bins_per_ppd["ppd"]*bins_per_ppd["bins"])
+        print("--", bins_per_ppd)
+        print("-- FE_nodes_part:   ", FE_nodes_part)
+        print("-- sum_of_cores:   ", sum_of_cores)
+        print("-- curr_job_size:  ", curr_job_size)
+        print("-- curr_target_pcn:", curr_target_pcn)
+        print("-- ")
+        print("-- Cores available:", curr_job_size*curr_target_pcn)
+        print(FMT_STRING)
+
+    if min_delta_cores < best_min_delta_cores and min_delta_cores >= 0:
+        best_min_delta_cores = min_delta_cores
+
+        best_job_size = curr_job_size
+        best_target_pcn = curr_target_pcn
+        best_sum_of_cores = curr_sum_of_cores
+        
+
+# As long as program gets debugged all the time :-)
+if DEBUG or not DEBUG:
+    print("-- best_sum_of_cores: ", best_sum_of_cores)
+    print("-- best_job_size:     ", best_job_size, "  compute nodes")
+    print("-- best_target_pcn:   ", best_target_pcn, "  parts per compute node")
     print("-- ")
-    print("-- Cores available:", curr_job_size*curr_target_pcn)
+    print("-- Cores available:", best_job_size*best_target_pcn)
+    print("-- Cores unsused:  ", (best_job_size*best_target_pcn)-best_sum_of_cores)
+    print("--", bins_per_ppd)
+
+    if bool(cmd_args.ncno):
+        print("MM Optimized with user defined number of compute nodes.")
+
     print(FMT_STRING)
 
 
-# # -----------------------------------------------------------------------------
-# # Retrieve optimal solution
-# # -----------------------------------------------------------------------------
-# catalogued_data = pd.DataFrame(columns=['domain', 'ppd', 'expected runtime'])
-# bins_per_ppd = pd.DataFrame(columns=['ppd', 'bins'])
-# for dmn in range(len(dmn_no_list)):
-#     FE_nodes_dmn = vox_list[dmn] * node_factor
-
-#     parts_per_domain = int(np.floor(FE_nodes_dmn/best_FE_nodes_part))
-    
-#     # expected runtime may be calibrated in a latter step
-#     expected_runtime = 1.0 * total_factors
-
-#     new_entry = pd.DataFrame({'domain': dmn, 'ppd': parts_per_domain, 'expected runtime': expected_runtime}, index=[0])
-#     catalogued_data = pd.concat([catalogued_data, new_entry])
+if best_sum_of_cores == 0 and bool(cmd_args.ncno):
+    print("WW No solution found. User defined parameters may not fit.")
+    print(FMT_STRING)
+    exit(5)
 
 
-# min_total_time_units = 9999999999999
-# max_total_time_units = 0
-# unique_ppds = catalogued_data['ppd'].unique()
+# -----------------------------------------------------------------------------
+# Write MPI communicators to a binary file, which can be read easily by Fortran
+# -----------------------------------------------------------------------------
+comms = cutting_stock(df_dmns["expected runtime"].tolist(), target_time_budget)
 
-# # Batches of unique parts per domain
-# for uppd in unique_ppds:
+list_of_comms = []
+for index, row in bins_per_ppd.iterrows():
+    bins = row['bins']
+    ppd = row['ppd']
+    for ii in range(bins):
+        list_of_comms.append(ppd)
 
-#     df_ppd = catalogued_data[catalogued_data['ppd'] == uppd]
 
-#     expRuntime = df_ppd['expected runtime'].sum()
+f = open(comms_file, 'wb')
+for ii in list_of_comms:
+    f.write((ii).to_bytes(8, byteorder='little', signed=True))
+f.close()
 
-#     print("-- No of domains with " + str(uppd) + " parts:", len(df_ppd), \
-#         "with a total runtime of", expRuntime, "std time units")
+# -----------------------------------------------------------------------------
+# Write the parts per domain for reading by Fortran to a binary file
+# -----------------------------------------------------------------------------
+parts_list = []
+parts_list = catalogued_data['ppd'].tolist()
 
-#     if min_total_time_units > expRuntime:
-#         min_total_time_units = expRuntime
-#     if max_total_time_units < expRuntime:
-#         max_total_time_units = expRuntime
-
-# target_time_budget = min_total_time_units
-
-# for uppd in unique_ppds:
-
-#     df_dmns = catalogued_data[catalogued_data['ppd'] == uppd]
-
-#     num_bins = cutting_stock(df_dmns["expected runtime"].tolist(), target_time_budget)
-
-#     new_entry = pd.DataFrame({'ppd': uppd, 'bins': num_bins}, index=[0])
-#     bins_per_ppd = pd.concat([bins_per_ppd, new_entry])
-
-# # Number of cores required with this setup
-# sum_of_cores = sum(bins_per_ppd["ppd"]*bins_per_ppd["bins"])
-
-# print(FMT_STRING)
-# print("--", bins_per_ppd)
-# print(FMT_STRING)
-
-# print("-- sum_of_cores:   ", sum_of_cores)
-# print("-- best_job_size:  ", best_job_size)
-# print("-- best_target_pcn:", best_target_pcn)
-# print("-- ")
-# print("-- Cores available:", best_job_size*best_target_pcn)
-
+f = open(parts_file, 'wb')
+for ii in parts_list:
+    f.write((ii).to_bytes(8, byteorder='little', signed=True))
+f.close()
