@@ -103,6 +103,7 @@ parser = argparse.ArgumentParser(description='Just give the meta file.')
 parser.add_argument('-metaF', action="store", dest="meta_file", help="Input meta file).")
 # parser.add_argument('-ppn', action="store", dest="ppn", help="Input meta file).")
 parser.add_argument('-ncno', action="store", dest="ncno", help="Number of compute nodes).")
+parser.add_argument('-idle-offset', action="store", dest="idle_offset", help="Number of compute nodes).")
 parser.add_argument('-debug', action="store", dest="debug", help="Number of compute nodes).")
 
 # -----------------------------------------------------------------------------
@@ -155,6 +156,11 @@ if bool(cmd_args.debug):
         DEBUG = True
 
     print("MM User switched on DEBUG = True.")
+
+if not bool(cmd_args.idle_offset):
+    idle_offset = 0.333
+else:
+    idle_offset = float(cmd_args.idle_offset)
 
 # Domain numbers (Voxels per domain)
 
@@ -257,13 +263,21 @@ for FE_nodes_part in range(FEs_part[0],FEs_part[1]+1,FEs_part[2]):
         FE_nodes_dmn = vox_list[dmn] * node_factor
 
         parts_per_domain = int(np.floor(FE_nodes_dmn/FE_nodes_part))
+
+        # parts_per_domain is odd:
+        # For reducing the number of different bins.
+        if parts_per_domain % 2 != 0:
+            parts_per_domain += 1
         
         # -----------------------------------------------------------------------------
         # Get and take the effective number of FE nodes per part into account
         # -----------------------------------------------------------------------------
-        eff_nodes_part = int(FE_nodes_dmn / parts_per_domain)
-        delta = FE_nodes_part - eff_nodes_part
-        delta_percentage = delta/(FE_nodes_part/100.0)
+        if parts_per_domain == 0:
+            delta_percentage = 0.0
+        else:
+            eff_nodes_part = int(FE_nodes_dmn / parts_per_domain)
+            delta = FE_nodes_part - eff_nodes_part
+            delta_percentage = delta/(FE_nodes_part/100.0)
 
         # expected runtime may be calibrated in a latter step
         expected_runtime = 1.0 * total_factors * (1+delta_percentage/100)
@@ -272,8 +286,8 @@ for FE_nodes_part in range(FEs_part[0],FEs_part[1]+1,FEs_part[2]):
         catalogued_data = pd.concat([catalogued_data, new_entry])
 
 
-    min_total_time_units = 9999999999999
-    max_total_time_units = 0
+    min_tot_t = 9999999999999
+    max_tot_t = 0
     unique_ppds = catalogued_data['ppd'].unique()
 
     # Batches of unique parts per domain
@@ -283,15 +297,14 @@ for FE_nodes_part in range(FEs_part[0],FEs_part[1]+1,FEs_part[2]):
 
         expRuntime = df_ppd['expected runtime'].sum()
 
-        # print("-- No of domains with " + str(uppd) + " parts:", len(df_ppd), \
-        #     "with a total runtime of", expRuntime, "std time units")
+        if min_tot_t > expRuntime:
+            min_tot_t = expRuntime
+        if max_tot_t < expRuntime:
+            max_tot_t = expRuntime
 
-        if min_total_time_units > expRuntime:
-            min_total_time_units = expRuntime
-        if max_total_time_units < expRuntime:
-            max_total_time_units = expRuntime
+    print("-- min_tot_t", round(min_tot_t,1), "    max_tot_t", round(max_tot_t,1))
 
-    target_time_budget = min_total_time_units
+    target_time_budget = min_tot_t + (max_tot_t-min_tot_t) * idle_offset
 
     for uppd in unique_ppds:
 
@@ -342,7 +355,9 @@ for FE_nodes_part in range(FEs_part[0],FEs_part[1]+1,FEs_part[2]):
         best_job_size = curr_job_size
         best_target_pcn = curr_target_pcn
         best_sum_of_cores = curr_sum_of_cores
-        
+
+
+print(FMT_STRING)
 
 # As long as program gets debugged all the time :-)
 if DEBUG or not DEBUG:

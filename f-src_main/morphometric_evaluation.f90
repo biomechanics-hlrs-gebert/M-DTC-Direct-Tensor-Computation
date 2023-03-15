@@ -61,8 +61,12 @@ PROGRAM morphometric_evaluation
     !------------------------------------------------------------------------------
     ! Open the given meta file and parse its basename
     !------------------------------------------------------------------------------
-    CALL meta_invoke(m_rry)
-    
+    ! Has to be given in the programs scope! And it refers to the tensor computation
+    global_meta_prgrm_mstr_app = 'dtc' 
+    global_meta_program_keyword = 'TENSOR_COMPUTATION'
+
+    CALL meta_append(m_rry, 1_4, binary, stat)
+
     !------------------------------------------------------------------------------
     ! Spawn standard out after(!) the basename is known
     !------------------------------------------------------------------------------
@@ -71,7 +75,7 @@ PROGRAM morphometric_evaluation
     CALL show_title(["Morphometric evaluation            ", &
                      "                                   ", &
                      "Johannes Gebert, M.Sc. (HLRS, NUM) "])
-    
+
     !------------------------------------------------------------------------------
     ! Parse input
     !------------------------------------------------------------------------------
@@ -122,11 +126,6 @@ PROGRAM morphometric_evaluation
         STOP
     END IF
     
-    ! IF ( (spcng(1) /= spcng(2)) .OR. (spcng(1) /= spcng(3)) ) THEN
-    !     mssg = 'Currently, the spacings of all 3 dimensions must be equal!'
-    !     STOP
-    ! END IF
-
     IF ( (xa_d(1) > xe_d(1)) .OR. (xa_d(2) > xe_d(2)) .or. (xa_d(3) > xe_d(3)) ) THEN
         WRITE(std_out, FMT_ERR) 'Input parameter error: Start value of domain range larger than end value.'
         STOP
@@ -142,11 +141,21 @@ PROGRAM morphometric_evaluation
         WRITE(std_out, FMT_ERR) 'The domains are larger than the field of view.'
         STOP
     END IF
-
     
     INQUIRE(UNIT=fhmei, OPENED=opened)
     IF(opened) CLOSE (fhmei)
     
+    vun = 61_ik
+    vox_file = TRIM(in%p_n_bsnm)//".vox"
+    INQUIRE(FILE = TRIM(vox_file), EXIST=vox_exists)
+    IF(vox_exists) CALL print_err_stop(std_out, "A vox file already exists.", 1_ik) 
+    
+    sun = 62_ik
+    sun_file = TRIM(in%p_n_bsnm)//".status_preprocess" ! compare to DTC
+    INQUIRE(FILE = TRIM(sun_file), EXIST=sun_exists)
+    IF(sun_exists) CALL print_err_stop(std_out, "A status file already exists.", 1_ik) 
+
+
     !------------------------------------------------------------------------------
     ! IMPORTANT: This calculations must be the exact same like in the 
     ! struct_process.f90 main program! Otherwise, the data may be garbage.
@@ -161,10 +170,10 @@ PROGRAM morphometric_evaluation
 
     vox_dmn = PRODUCT((x_D+(bpoints*2))) 
 
-    ALLOCATE(vox_stats(No_of_domains))
-    ALLOCATE(Domains(No_of_domains))
+    ALLOCATE(vox_stats(No_of_domains)); vox_stats = 0_ik
+    ALLOCATE(Domains(No_of_domains)); Domains = 0_ik
 
-    !------------------------------------------------------------------------------
+    !----------------------------------------------------------   --------------------
     ! Open raw file
     !------------------------------------------------------------------------------
     IF(TRIM(type_raw) == "BigEndian") THEN
@@ -177,7 +186,7 @@ PROGRAM morphometric_evaluation
 
     IF (.NOT. raw_exists) THEN
         WRITE(std_out, FMT_ERR) "The input *.raw "//TRIM(in%p_n_bsnm)//raw_suf//" file was not found."
-        GOTO 1000
+        STOP
     END IF 
 
     SELECT CASE(type)
@@ -197,15 +206,15 @@ PROGRAM morphometric_evaluation
         GOTO 1000              
     END IF 
 
-    OPEN (UNIT=51, FILE=TRIM(in%p_n_bsnm)//raw_suf, CONVERT="big_endian", ACCESS="STREAM", STATUS='OLD')
+    OPEN (UNIT=51, FILE=TRIM(in%p_n_bsnm)//raw_suf, CONVERT=datarep, ACCESS="STREAM", STATUS='OLD')
 
     SELECT CASE(type)
         CASE('ik2') 
-            ALLOCATE(rry_ik2(dims(1), dims(2), dims(3)))
+            ALLOCATE(rry_ik2(dims(1), dims(2), dims(3))); rry_ik2 = 0_2
             CALL ser_read_binary(51, TRIM(in%p_n_bsnm)//raw_suf, rry_ik2)
 
         CASE('ik4') 
-            ALLOCATE(rry_ik4(dims(1), dims(2), dims(3)))
+            ALLOCATE(rry_ik4(dims(1), dims(2), dims(3))); rry_ik4 = 0_4
             CALL ser_read_binary(51, TRIM(in%p_n_bsnm)//raw_suf, rry_ik4)
 
     END SELECT
@@ -221,25 +230,26 @@ PROGRAM morphometric_evaluation
     ! Decomposition
     ! Meta contains domain ranges 0-(n-1)
     !------------------------------------------------------------------------------
-    oo = 0
+    oo = 1
+        
     DO kk = xa_d(3), xe_d(3)
     DO jj = xa_d(2), xe_d(2)
     DO ii = xa_d(1), xe_d(1)
-        oo = oo + 1_ik
 
         Domains(oo) = ii + jj * nn_D(1) + kk * nn_D(1)*nn_D(2)
-        
+
         IF(bin_sgmnttn == "Y") CYCLE
 
-        x_D_pos = ANINT(ii * dmn_size / spcng, ik)
+        x_D_pos = INT([ii,jj,kk] * dmn_size / spcng, ik) + 1_ik
         x_D_end = (x_D_pos + x_D)            
 
         counter_BV = 0_ik
         counter_TV = 0_ik
-        Do ll = x_D_pos(3)+1, x_D_end(3)
-        Do mm = x_D_pos(2)+1, x_D_end(2)
-        Do nn = x_D_pos(1)+1, x_D_end(1)
+        ! write(*,*) "x_D_pos", x_D_pos, "x_D_end", x_D_end
 
+        Do ll = x_D_pos(3), x_D_end(3)
+        Do mm = x_D_pos(2), x_D_end(2)
+        Do nn = x_D_pos(1), x_D_end(1)
 
             ! There are more elegant solutions, but it is a rather transparent approach.
             SELECT CASE(type)
@@ -269,45 +279,20 @@ PROGRAM morphometric_evaluation
         !------------------------------------------------------------------------------
         ! Count domain number
         !------------------------------------------------------------------------------
+        oo = oo + 1_ik
 
     END DO
     END DO
     END DO
-
-    5000 CONTINUE
         
-    !------------------------------------------------------------------------------
-    ! Open *.vox file
-    !------------------------------------------------------------------------------
-    vun = give_new_unit()
-    
-    vox_file = TRIM(in%p_n_bsnm)//".vox"
-    INQUIRE(FILE = TRIM(vox_file), EXIST=vox_exists)
-    
-    IF(vox_exists) CALL print_err_stop(std_out, "A vox file already exists.", 1_ik) 
-    
     OPEN (UNIT=vun, FILE=TRIM(vox_file), ACCESS="STREAM")
-
-    !------------------------------------------------------------------------------
-    ! Open *.status file
-    !------------------------------------------------------------------------------
-    sun = give_new_unit()
-    
-    sun_file = TRIM(in%p_n_bsnm)//".status_preprocess" ! compare to DTC
-    INQUIRE(FILE = TRIM(sun_file), EXIST=sun_exists)
-    
-    IF(sun_exists) CALL print_err_stop(std_out, "A status file already exists.", 1_ik) 
-    
     OPEN (UNIT=sun, FILE=TRIM(sun_file), ACCESS="STREAM")
 
-    !------------------------------------------------------------------------------
-    ! Write everything to file once. Not with every updated domain
-    !------------------------------------------------------------------------------
     WRITE(vun) vox_stats
-    CLOSE(vun)
-
     ! Assuming, that no image will contain more than 10 Mio. domains (which is possible in the future!)
-    WRITE(sun) -Domains-10000000
+    WRITE(sun) -Domains-100000000
+
+    CLOSE(vun)
     CLOSE(sun)
     
     finished_successfully = .TRUE.    
