@@ -9,6 +9,9 @@
 !> Evaluate number of numerical degrees of freedom per domain. 
 !> Write the information to file in a useful manner.
 !------------------------------------------------------------------------------
+! This program has to read with the provenance basename and to write with the
+! actual basename!
+!------------------------------------------------------------------------------
 PROGRAM morphometric_evaluation
 
     USE global_std
@@ -39,7 +42,7 @@ PROGRAM morphometric_evaluation
     REAL(rk), DIMENSION(3) :: spcng(3), dmn_size, x_D_phy
     
     CHARACTER(mcl), DIMENSION(:), ALLOCATABLE :: m_rry      
-    CHARACTER(mcl) :: cmd_arg_history='', binary, vox_file, sun_file, stat=""
+    CHARACTER(mcl) :: cmd_arg_history='', binary, vox_file, sun_file, raw_file, stat=""
     CHARACTER(scl) :: type, type_raw, datarep
     CHARACTER(1) :: bin_sgmnttn=""
     
@@ -66,7 +69,7 @@ PROGRAM morphometric_evaluation
     global_meta_program_keyword = 'TENSOR_COMPUTATION'
 
     CALL meta_append(m_rry, 1_4, binary, stat)
-
+    
     !------------------------------------------------------------------------------
     ! Spawn standard out after(!) the basename is known
     !------------------------------------------------------------------------------
@@ -146,15 +149,17 @@ PROGRAM morphometric_evaluation
     IF(opened) CLOSE (fhmei)
     
     vun = 61_ik
-    vox_file = TRIM(in%p_n_bsnm)//".vox"
+    vox_file = TRIM(out%p_n_bsnm)//".vox"
     INQUIRE(FILE = TRIM(vox_file), EXIST=vox_exists)
     IF(vox_exists) CALL print_err_stop(std_out, "A vox file already exists.", 1_ik) 
     
     sun = 62_ik
-    sun_file = TRIM(in%p_n_bsnm)//".status_preprocess" ! compare to DTC
+    sun_file = TRIM(out%p_n_bsnm)//".status_preprocess" ! compare to DTC
     INQUIRE(FILE = TRIM(sun_file), EXIST=sun_exists)
     IF(sun_exists) CALL print_err_stop(std_out, "A status file already exists.", 1_ik) 
 
+    WRITE(std_out, FMT_TXT) "vox-file:      ", TRIM(vox_file)
+    WRITE(std_out, FMT_TXT) "sun-file:      ", TRIM(sun_file)
 
     !------------------------------------------------------------------------------
     ! IMPORTANT: This calculations must be the exact same like in the 
@@ -173,7 +178,7 @@ PROGRAM morphometric_evaluation
     ALLOCATE(vox_stats(No_of_domains)); vox_stats = 0_ik
     ALLOCATE(Domains(No_of_domains)); Domains = 0_ik
 
-    !----------------------------------------------------------   --------------------
+    !------------------------------------------------------------------------------
     ! Open raw file
     !------------------------------------------------------------------------------
     IF(TRIM(type_raw) == "BigEndian") THEN
@@ -182,10 +187,13 @@ PROGRAM morphometric_evaluation
         datarep = "native"
     END IF 
 
-    INQUIRE(FILE = TRIM(in%p_n_bsnm)//raw_suf, EXIST=raw_exists, SIZE=size_raw)
+    raw_file = TRIM(in%p_n_bsnm)//raw_suf
+    WRITE(std_out, FMT_TXT) "raw-file:      ", TRIM(raw_file)
+
+    INQUIRE(FILE = TRIM(raw_file), EXIST=raw_exists, SIZE=size_raw)
 
     IF (.NOT. raw_exists) THEN
-        WRITE(std_out, FMT_ERR) "The input *.raw "//TRIM(in%p_n_bsnm)//raw_suf//" file was not found."
+        WRITE(std_out, FMT_ERR) "The input *.raw "//TRIM(raw_file)//" file was not found."
         STOP
     END IF 
 

@@ -13,6 +13,11 @@
 # Cutting stocks --> Time "logs" of best length (shortest necessary) for 
 # highest utilization of the cluster. 
 #------------------------------------------------------------------------------
+# DTC distributes the domains in a round-robin manner. Therefore, the idling
+# time of the processors must be minimized, because the efficiency gain by 
+# adjusting the comm size to the ideal ppds have to overcompensate the idling
+# processors.
+#------------------------------------------------------------------------------
 import os, struct, argparse, sys, math
 import numpy as np
 import pandas as pd
@@ -63,6 +68,14 @@ def ik8_to_list(file):
 
     return(lst)
 #
+def hist(vox, min, max, no_bins):
+
+    bins = np.linspace(min, max, no_bins)
+    weightsa = np.ones_like(vox)/float(len(vox))
+    histogram_data = np.histogram(np.array(vox), bins, weights = weightsa)
+
+    return(histogram_data)
+#
 # ChatGPT:
 def cutting_stock(item_lengths, stock_length):
     # sort the items in decreasing order
@@ -100,11 +113,12 @@ print(
 # Set the parser for the command line arguments
 # -----------------------------------------------------------------------------
 parser = argparse.ArgumentParser(description='Just give the meta file.')
-parser.add_argument('-metaF', action="store", dest="meta_file", help="Input meta file).")
+parser.add_argument('-metaF', action="store", dest="meta_file", help="Input meta file.")
 # parser.add_argument('-ppn', action="store", dest="ppn", help="Input meta file).")
-parser.add_argument('-ncno', action="store", dest="ncno", help="Number of compute nodes).")
-parser.add_argument('-idle-offset', action="store", dest="idle_offset", help="Number of compute nodes).")
-parser.add_argument('-debug', action="store", dest="debug", help="Number of compute nodes).")
+parser.add_argument('-ncno', action="store", dest="ncno", help="Number of compute nodes.")
+parser.add_argument('-bins', action="store", dest="bins", help="Number of different sized of MPI comms.")
+parser.add_argument('-idle-offset', action="store", dest="idle_offset", help="Offset of min runtime to target runtime (0.1 => 1.1*min runtime = target runtime)")
+parser.add_argument('-debug', action="store", dest="debug", help="Number of compute nodes.")
 
 # -----------------------------------------------------------------------------
 # Parse the command line arguments
@@ -123,26 +137,6 @@ if not os.path.exists(cmd_args.meta_file):
     print("Input file »" + cmd_args.meta_file + "« does not exist.")
     exit(2)
 
-basename = os.path.splitext(cmd_args.meta_file)[0]
-
-dmn_no_file= basename + ".status_preprocess"
-vox_file = basename + ".vox"
-comms_file = basename + ".comms"
-parts_file = basename + ".parts"
-
-file_missing = False
-if not os.path.exists(vox_file):
-    print("Input file »" + vox_file + "« does not exist.")
-    file_missing = True
-
-if not os.path.exists(dmn_no_file):
-    print("Input file »" + dmn_no_file + "« does not exist.")
-    file_missing = True
-
-if file_missing: 
-    exit(2)
-
-
 # if bool(cmd_args.ppn):
 #     print("MM Optimizing with user defined number of parts per compute node.")
 #     target_pcn = [int(cmd_args.ppn)]
@@ -158,21 +152,15 @@ if bool(cmd_args.debug):
     print("MM User switched on DEBUG = True.")
 
 if not bool(cmd_args.idle_offset):
-    idle_offset = 0.333
+    idle_offset = 0.001
 else:
     idle_offset = float(cmd_args.idle_offset)
 
-# Domain numbers (Voxels per domain)
+if not bool(cmd_args.bins):
+    bins = list(range(3, 16))
+else:
+    bins = [int(cmd_args.bins)]
 
-# -----------------------------------------------------------------------------
-# Read the information per domain
-# -----------------------------------------------------------------------------
-vox_list = ik8_to_list(vox_file)
-dmn_no_list = ik8_to_list(dmn_no_file)
-
-print("-- Entries in vox_list:     ", len(vox_list))
-print("-- Entries in dmn_no_list:  ", len(dmn_no_list))
-print(FMT_STRING)
 
 # -----------------------------------------------------------------------------
 # Parse the meta file
@@ -182,6 +170,44 @@ keywords = parse_meta(cmd_args.meta_file, "TENSOR_COMPUTATION")
 mi_el_type  =  keywords.get("MICRO_ELMNT_TYPE")
 ma_el_order =  keywords.get("MACRO_ELMNT_ORDER")
 size_dmn    =  keywords.get("SIZE_DOMAIN")
+
+basename = os.path.splitext(cmd_args.meta_file)[0]
+
+dmn_no_file= basename + ".status_preprocess"
+vox_file   = basename + ".vox"
+comms_file = basename + ".comms"
+parts_file = basename + ".parts"
+
+print("-- Outputfiles: ")
+print("-- dmn_no_file: ", dmn_no_file)
+print("-- vox_file:    ", vox_file)
+print("-- comms_file:  ", comms_file)
+print("-- parts_file:  ", parts_file)
+print("--")
+
+# -----------------------------------------------------------------------------
+# Read the information per domain
+# -----------------------------------------------------------------------------
+file_missing = False
+if not os.path.exists(vox_file):
+    print("EE Input file »" + vox_file + "« does not exist.")
+    file_missing = True
+
+if not os.path.exists(dmn_no_file):
+    print("EE Input file »" + dmn_no_file + "« does not exist.")
+    file_missing = True
+
+if file_missing: 
+    print("-- Program stopped")
+    print(FMT_STRING)
+    exit(2)
+
+vox_list = ik8_to_list(vox_file)
+dmn_no_list = ik8_to_list(dmn_no_file)
+
+print("-- Entries in vox_list:     ", len(vox_list))
+print("-- Entries in dmn_no_list:  ", len(dmn_no_list))
+print(FMT_STRING)
 
 # -----------------------------------------------------------------------------
 # Define time factors (tf_) to adjust the expected runtime
@@ -217,15 +243,20 @@ runtime_in_comm = 0
 dmn_size_avg=sum([float(i) for i in size_dmn])/3
 #
 if dmn_size_avg == 0.6:
-    node_factor   = factors.get("AVG_NDS_VOX_HEX08_06")
+    node_factor = factors.get("AVG_NDS_VOX_HEX08_06")
+    FEs_part    = 3000
 elif dmn_size_avg == 1.2:
-    node_factor   = factors.get("AVG_NDS_VOX_HEX08_12")
+    node_factor = factors.get("AVG_NDS_VOX_HEX08_12")
+    FEs_part    = 6000
 elif dmn_size_avg == 2.4:
-    node_factor   = factors.get("AVG_NDS_VOX_HEX08_24")
+    node_factor = factors.get("AVG_NDS_VOX_HEX08_24")
+    FEs_part    = 6000
 elif dmn_size_avg == 4.8:
-    node_factor   = factors.get("AVG_NDS_VOX_HEX08_48")
+    node_factor = factors.get("AVG_NDS_VOX_HEX08_48")
+    FEs_part    = 6000
 elif dmn_size_avg == 7.2:
-    node_factor   = factors.get("AVG_NDS_VOX_HEX08_72")
+    node_factor = factors.get("AVG_NDS_VOX_HEX08_72")
+    FEs_part    = 6000
 
 # -----------------------------------------------------------------------------
 # This is a normalized measure of the expected runtime. All domains use 
@@ -248,131 +279,198 @@ total_factors = tf_nds * tf_ma_el
 # Loop over FE nodes per domain for optimizing the topology aware batch 
 # scheduling
 # -----------------------------------------------------------------------------
-best_min_delta_cores = 999999999
+best_wasted_core_time = 999999999
 best_job_size = 0
 best_target_pcn = 0
 best_sum_of_cores = 0
 
-for FE_nodes_part in range(FEs_part[0],FEs_part[1]+1,FEs_part[2]):
+# print("min(FE_nodes_dmn)", min(FE_nodes_dmn))
+# print("max(FE_nodes_dmn)", max(FE_nodes_dmn))
+# print("-- sum(b_a[0]):" ,sum(bins_available[0]))
+# print("-- sum(b_a[1]):" ,sum(bins_available[1]))
+# print("-- bins:" ,bins_available)
+# exit(0)
+
+# for FE_nodes_part in range(FEs_part[0],FEs_part[1]+1,FEs_part[2]):
+
+for bin in bins:
 
     # Reset dataframes
     catalogued_data = pd.DataFrame(columns=['domain', 'ppd', 'expected runtime'])
-    bins_per_ppd = pd.DataFrame(columns=['ppd', 'bins'])
+    comms_per_ppd = pd.DataFrame(columns=['ppd', 'comms'])
 
+    # Create the histogram data
+    bins_avail = hist(vox_list, min(vox_list), max(vox_list), bin)
+    bins_avail = bins_avail[1]
+
+    # calculate the parts per domain of a corresponding histogram bin
+    ppds_avail = []
+    time_budget_allocated = []
+    time_budget_required = []
+    for ii in range(len(bins_avail)-1):
+        avg_FEs_in_hist_bin = (bins_avail[ii] + bins_avail[ii+1]) / 2
+
+        ppd = int(avg_FEs_in_hist_bin/FEs_part)
+
+        # if ppd % 2 != 0:
+        #     ppd += 1
+
+        ppds_avail.append(ppd)
+        time_budget_allocated.append(0)
+        time_budget_required.append(0)
+
+    # Assign the ppd to the domain
     for dmn in range(len(dmn_no_list)):
+
         FE_nodes_dmn = vox_list[dmn] * node_factor
 
-        parts_per_domain = int(np.floor(FE_nodes_dmn/FE_nodes_part))
+        parts_per_domain = 0
+        for ii in range(len(bins_avail)-1):
+            if FE_nodes_dmn > bins_avail[ii] and FE_nodes_dmn < bins_avail[ii+1]:
+                parts_per_domain = ppds_avail[ii]
 
-        # parts_per_domain is odd:
-        # For reducing the number of different bins.
-        if parts_per_domain % 2 != 0:
-            parts_per_domain += 1
-        
         # -----------------------------------------------------------------------------
         # Get and take the effective number of FE nodes per part into account
         # -----------------------------------------------------------------------------
         if parts_per_domain == 0:
             delta_percentage = 0.0
+            delta_ratio = 0.0
         else:
             eff_nodes_part = int(FE_nodes_dmn / parts_per_domain)
-            delta = FE_nodes_part - eff_nodes_part
-            delta_percentage = delta/(FE_nodes_part/100.0)
+            delta_ratio = (FEs_part - eff_nodes_part) / FEs_part
 
         # expected runtime may be calibrated in a latter step
-        expected_runtime = 1.0 * total_factors * (1+delta_percentage/100)
+        expected_runtime = 1.0 * total_factors * (1+(delta_ratio/1000))
 
         new_entry = pd.DataFrame({'domain': dmn, 'ppd': parts_per_domain, 'expected runtime': expected_runtime}, index=[0])
         catalogued_data = pd.concat([catalogued_data, new_entry])
 
 
+    # Search for bin specific runtimes
     min_tot_t = 9999999999999
     max_tot_t = 0
-    unique_ppds = catalogued_data['ppd'].unique()
+    for ii in range(len(ppds_avail)):
+        uupd = ppds_avail[ii]
 
-    # Batches of unique parts per domain
-    for uppd in unique_ppds:
-
-        df_ppd = catalogued_data[catalogued_data['ppd'] == uppd]
-
+        df_ppd = catalogued_data[catalogued_data['ppd'] == uupd]
         expRuntime = df_ppd['expected runtime'].sum()
+        time_budget_required[ii] = expRuntime * uupd # core seconds
 
         if min_tot_t > expRuntime:
             min_tot_t = expRuntime
         if max_tot_t < expRuntime:
             max_tot_t = expRuntime
 
+
     print("-- min_tot_t", round(min_tot_t,1), "    max_tot_t", round(max_tot_t,1))
 
+    # The target_time_budget is a global one. Therefore, we have to loop over 
+    # ppds_avail twice (once to get the global target and then to operate on it)
     target_time_budget = min_tot_t + (max_tot_t-min_tot_t) * idle_offset
 
-    for uppd in unique_ppds:
+    # Calculate the actual time budgets of all comms via the cutting stock problem.
+    for ii in range(len(ppds_avail)):
+        uupd = ppds_avail[ii]
 
-        df_dmns = catalogued_data[catalogued_data['ppd'] == uppd]
+        df_dmns = catalogued_data[catalogued_data['ppd'] == uupd]
 
-        num_bins = cutting_stock(df_dmns["expected runtime"].tolist(), target_time_budget)
+        comms = cutting_stock(df_dmns["expected runtime"].tolist(), target_time_budget)
 
-        new_entry = pd.DataFrame({'ppd': uppd, 'bins': num_bins}, index=[0])
-        bins_per_ppd = pd.concat([bins_per_ppd, new_entry])
+        # core seconds = number of MPI comms * size of MPI comms * target time budet
+        time_budget_allocated[ii] = comms * uupd * target_time_budget
+
+        # Not skipping empty communicators results in processors that are idling all the time.
+        if comms == 0:
+            continue
+
+        new_entry = pd.DataFrame({'ppd': uupd, 'comms': comms}, index=[0])
+        comms_per_ppd = pd.concat([comms_per_ppd, new_entry])
 
     # Number of cores required with this setup
-    sum_of_cores = sum(bins_per_ppd["ppd"]*bins_per_ppd["bins"])
+    sum_of_cores = sum(comms_per_ppd["ppd"]*comms_per_ppd["comms"])
 
     # -----------------------------------------------------------------------------
     # Search for optimum packaging with topology aware compute node numbers
     # -----------------------------------------------------------------------------
-    min_delta_cores = 999999999
+    wasted_core_time = 9999999999999999
     curr_job_size = 0
     curr_target_pcn = 0
+    total_time_budget_allocated =  sum(time_budget_allocated)
+    total_time_budget_required =  sum(time_budget_required)
+
     for js in job_sizes:
         for ii in range(target_pcn[0], target_pcn[2]):
             cores_avail = ii*js
 
             delta_cores = cores_avail-sum_of_cores
 
+            idle_time_delta_cores = delta_cores * target_time_budget
+
+            # Allocated = all 
+            total_idle_core_time = total_time_budget_allocated - total_time_budget_required + idle_time_delta_cores
+
             # delta cores negative --> more cores needed than available
-            if delta_cores < min_delta_cores and delta_cores >= 0:
-                min_delta_cores = delta_cores
+            if total_idle_core_time < wasted_core_time and delta_cores >= 0:
+                wasted_core_time = total_idle_core_time
 
                 curr_job_size = js
                 curr_target_pcn = ii
                 curr_sum_of_cores = sum_of_cores
+                curr_no_bins = bin
+                curr_wasted_core_time = wasted_core_time
+                curr_total_time_budget_required = total_time_budget_required
+                curr_comms_per_ppd = comms_per_ppd
+                curr_catalogued_data = catalogued_data
 
     if DEBUG:
-        sum_of_cores = sum(bins_per_ppd["ppd"]*bins_per_ppd["bins"])
-        print("--", bins_per_ppd)
-        print("-- FE_nodes_part:   ", FE_nodes_part)
+        sum_of_cores = sum(curr_comms_per_ppd["ppd"]*curr_comms_per_ppd["comms"])
+        print("--", curr_comms_per_ppd)
+        print("-- Number of bins: ", curr_no_bins)
         print("-- sum_of_cores:   ", sum_of_cores)
+        print("-- Cores available:", curr_job_size*curr_target_pcn)
         print("-- curr_job_size:  ", curr_job_size)
         print("-- curr_target_pcn:", curr_target_pcn)
         print("-- ")
-        print("-- Cores available:", curr_job_size*curr_target_pcn)
+        print("-- curr_wasted_core_time:", curr_wasted_core_time)
+        print("-- curr_total_time_budget_required:", curr_total_time_budget_required)
         print(FMT_STRING)
 
-    if min_delta_cores < best_min_delta_cores and min_delta_cores >= 0:
-        best_min_delta_cores = min_delta_cores
+    if curr_wasted_core_time < best_wasted_core_time: # and curr_wasted_core_time >= 0:
+        best_wasted_core_time = curr_wasted_core_time
 
         best_job_size = curr_job_size
         best_target_pcn = curr_target_pcn
         best_sum_of_cores = curr_sum_of_cores
-
+        best_no_bins = curr_no_bins
+        best_wasted_core_time = wasted_core_time
+        best_total_time_budget_required = total_time_budget_required
+        best_comms_per_ppd = curr_comms_per_ppd
+        best_catalogued_data = curr_catalogued_data
 
 print(FMT_STRING)
 
-# As long as program gets debugged all the time :-)
-if DEBUG or not DEBUG:
-    print("-- best_sum_of_cores: ", best_sum_of_cores)
-    print("-- best_job_size:     ", best_job_size, "  compute nodes")
-    print("-- best_target_pcn:   ", best_target_pcn, "  parts per compute node")
-    print("-- ")
-    print("-- Cores available:", best_job_size*best_target_pcn)
-    print("-- Cores unsused:  ", (best_job_size*best_target_pcn)-best_sum_of_cores)
-    print("--", bins_per_ppd)
+# -----------------------------------------------------------------------------
+# User Feedback
+# -----------------------------------------------------------------------------
+bins_used = hist(vox_list, min(vox_list), max(vox_list), best_no_bins)
 
-    if bool(cmd_args.ncno):
-        print("MM Optimized with user defined number of compute nodes.")
+print("-- Cores available:        ", best_job_size*best_target_pcn)
+print("-- best_sum_of_cores:      ", best_sum_of_cores)
+print("-- Cores not in use:       ", (best_job_size*best_target_pcn)-best_sum_of_cores)
+print("-- best_job_size:          ", best_job_size, "  compute nodes")
+print("-- best_target_pcn:        ", best_target_pcn, "  parts per compute node")
+print("-- ")
+print("-- Number of bins:         ", best_no_bins)
+print("-- Bins used:              ", np.around(bins_used[1]))
+print("-- Core time idling/wasted:", round(best_wasted_core_time,2 ), " Standard time units")
+print("-- Core time required:     ", round(best_total_time_budget_required,2 ), " Standard time units")
+print("-- Theoretical efficiency: ", round(best_total_time_budget_required/(best_total_time_budget_required+best_wasted_core_time)*100,3 ), "%")
+print("--", best_comms_per_ppd)
 
-    print(FMT_STRING)
+if bool(cmd_args.ncno):
+    print("MM Optimized with user defined number of compute nodes.")
+
+print(FMT_STRING)
 
 
 if best_sum_of_cores == 0 and bool(cmd_args.ncno):
@@ -384,13 +482,11 @@ if best_sum_of_cores == 0 and bool(cmd_args.ncno):
 # -----------------------------------------------------------------------------
 # Write MPI communicators to a binary file, which can be read easily by Fortran
 # -----------------------------------------------------------------------------
-comms = cutting_stock(df_dmns["expected runtime"].tolist(), target_time_budget)
-
 list_of_comms = []
-for index, row in bins_per_ppd.iterrows():
-    bins = row['bins']
+for index, row in best_comms_per_ppd.iterrows():
+    comms = row['comms']
     ppd = row['ppd']
-    for ii in range(bins):
+    for ii in range(comms):
         list_of_comms.append(ppd)
 
 
@@ -403,7 +499,7 @@ f.close()
 # Write the parts per domain for reading by Fortran to a binary file
 # -----------------------------------------------------------------------------
 parts_list = []
-parts_list = catalogued_data['ppd'].tolist()
+parts_list = best_catalogued_data['ppd'].tolist()
 
 f = open(parts_file, 'wb')
 for ii in parts_list:
