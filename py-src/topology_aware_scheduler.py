@@ -421,6 +421,8 @@ for bin in bins:
                 curr_total_time_budget_required = total_time_budget_required
                 curr_comms_per_ppd = comms_per_ppd
                 curr_catalogued_data = catalogued_data
+            else:
+                continue
 
     if DEBUG:
         sum_of_cores = sum(curr_comms_per_ppd["ppd"]*curr_comms_per_ppd["comms"])
@@ -435,7 +437,7 @@ for bin in bins:
         print("-- curr_total_time_budget_required:", curr_total_time_budget_required)
         print(FMT_STRING)
 
-    if curr_wasted_core_time < best_wasted_core_time: # and curr_wasted_core_time >= 0:
+    if curr_wasted_core_time < best_wasted_core_time and curr_wasted_core_time >= 0:
         best_wasted_core_time = curr_wasted_core_time
 
         best_job_size = curr_job_size
@@ -499,7 +501,7 @@ f.close()
 # Write the parts per domain for reading by Fortran to a binary file
 # -----------------------------------------------------------------------------
 parts_list = []
-parts_list = best_catalogued_data['ppd'].tolist()
+# parts_list = best_catalogued_data['ppd'].tolist()
 
 f = open(parts_file, 'wb')
 for ii in parts_list:

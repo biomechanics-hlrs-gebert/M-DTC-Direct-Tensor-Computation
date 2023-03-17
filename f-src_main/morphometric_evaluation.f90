@@ -33,7 +33,8 @@ PROGRAM morphometric_evaluation
     ! You can write floats. But you will loose precision by doing that.
     ! INTEGER(ik), DIMENSION(:), ALLOCATABLE :: Domains
     ! REAL(rk), DIMENSION(:), ALLOCATABLE :: vox_stats
-    INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0, dims=0, x_D_pos=0, x_D_end, nn_D, x_D
+    INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0, dims=0, x_D_pos=0, &
+        x_D_end, nn_D, x_D, vox_min, vox_max
     
     INTEGER(ik) :: counter_BV, counter_TV, bin_hi, bin_lo, bytes, vox_dmn, &
         ii, jj, kk, ll, mm, nn, oo, vun, sun, No_of_domains, size_raw
@@ -234,15 +235,21 @@ PROGRAM morphometric_evaluation
     !------------------------------------------------------------------------------
     IF (bin_sgmnttn == "Y") vox_stats = PRODUCT((x_D+(bpoints*2))) 
 
+
+    vox_min = INT(xa_d * dmn_size / spcng, ik) + 1_ik
+    vox_max = INT(xe_d * dmn_size / spcng, ik) + 1_ik
+    WRITE(std_out,FMT_TXT_AxI0) "vox_min: ", vox_min
+    WRITE(std_out,FMT_TXT_AxI0) "vox_max: ", vox_max
+
     !------------------------------------------------------------------------------
     ! Decomposition
     ! Meta contains domain ranges 0-(n-1)
     !------------------------------------------------------------------------------
     oo = 1
         
-    DO kk = xa_d(3), xe_d(3)
-    DO jj = xa_d(2), xe_d(2)
-    DO ii = xa_d(1), xe_d(1)
+    DO kk = xa_d(3), xe_d(3) - 1_ik
+    DO jj = xa_d(2), xe_d(2) - 1_ik
+    DO ii = xa_d(1), xe_d(1) - 1_ik
 
         Domains(oo) = ii + jj * nn_D(1) + kk * nn_D(1)*nn_D(2)
 
@@ -253,7 +260,6 @@ PROGRAM morphometric_evaluation
 
         counter_BV = 0_ik
         counter_TV = 0_ik
-        ! write(*,*) "x_D_pos", x_D_pos, "x_D_end", x_D_end
 
         Do ll = x_D_pos(3), x_D_end(3)
         Do mm = x_D_pos(2), x_D_end(2)
