@@ -212,9 +212,11 @@ else ifeq ($(out_amount),DEBUG)
 endif
 #
 ifeq ($(trgt_vrsn),)
-	main_bin = $(bin_dir)$(bin_name)_$(oa)$(bin_suf)
+	main_bin = $(bin_dir)struct_process_$(oa)$(bin_suf)
+	dtc_bin = $(bin_dir)$(bin_name)_$(oa)$(bin_suf)
 else
-	main_bin = $(bin_dir)$(bin_name)_$(trgt_vrsn)_$(oa)$(bin_suf)
+	main_bin = $(bin_dir)struct_process_$(trgt_vrsn)_$(oa)$(bin_suf)
+	dtc_bin = $(bin_dir)$(bin_name)_$(trgt_vrsn)_$(oa)$(bin_suf)
 endif#
 # ------------------------------------------------------------------------------
 # Build the st directory first
@@ -226,7 +228,7 @@ st:
 # ------------------------------------------------------------------------------
 # Begin Building
 # -----------------------------------------------------------------------------
-all: st $(main_bin) 
+all: st $(main_bin) $(dtc_bin) 
 #
 # -----------------------------------------------------------------------------
 # PureDat auxiliary executables 
@@ -257,7 +259,7 @@ morphometric_evaluation = $(bin_dir)morphometric_evaluation$(bin_suf)
 # -----------------------------------------------------------------------------
 .PHONY: all
 #
-all: $(main_bin) $(pd_aux_execs) $(meradat_crawl_tensors) $(morphometric_evaluation) end_all
+all: $(main_bin) $(dtc_bin) $(pd_aux_execs) $(meradat_crawl_tensors) $(morphometric_evaluation) end_all
 #
 # -----------------------------------------------------------------------------
 # C targets
@@ -512,6 +514,29 @@ $(obj_dir)struct_process$(obj_ext):$(st_mod_dir)global_std$(mod_ext)     $(st_mo
 	@echo 
 #
 # -----------------------------------------------------------------------------
+# main Object 
+# -----------------------------------------------------------------------------
+$(obj_dir)dtc$(obj_ext):$(st_mod_dir)global_std$(mod_ext)     $(st_mod_dir)mechanical$(mod_ext) \
+								   $(st_mod_dir)meta$(mod_ext)           $(st_mod_dir)meta_puredat_interface$(mod_ext) \
+								   $(st_mod_dir)strings$(mod_ext)        $(mod_dir)gen_quadmesh$(mod_ext) \
+								   $(mod_dir)auxiliaries$(mod_ext)       $(obj_dir)OS$(obj_ext) \
+								   $(mod_dir)operating_system$(mod_ext)  $(mod_dir)puredat$(mod_ext) \
+								   $(mod_dir)decomp$(mod_ext)            $(mod_dir)timer$(mod_ext) \
+								   $(mod_dir)chain_routines$(mod_ext) \
+								   $(st_mod_dir)ser_binary$(mod_ext)     $(st_mod_dir)mpi_binary$(mod_ext) \
+								   $(st_mod_dir)system$(mod_ext) \
+								   $(obj_dir)metis_interface$(obj_ext)   $(mod_dir)metis$(mod_ext)\
+								   $(mod_dir)linfe$(mod_ext)             $(mod_dir)mesh_partitioning$(mod_ext) \
+								   $(mod_dir)write_deck$(mod_ext)        $(mod_dir)gen_geometry$(mod_ext) \
+								   $(mod_dir)tensors$(mod_ext)           $(mod_dir)mat_matrices$(mod_ext) \
+								   $(mod_dir)calcmat$(mod_ext)           $(mod_dir)puredat_com$(mod_ext) \
+								   $(mod_dir)petsc_opt$(mod_ext)         $(mod_dir)dtc_main_subroutines$(mod_ext) \
+								   $(f-src_main)dtc$(f90_ext)
+	@echo "----- Compiling " $(f-src_main)dtc$(f90_ext) "-----"
+	$(f90_compiler) $(c_flags_f90) -c $(f-src_main)dtc$(f90_ext) -o $@
+	@echo 
+#
+# -----------------------------------------------------------------------------
 # PureDat auxiliary executables 
 # -----------------------------------------------------------------------------
 $(obj_dir)pd_dump_leaf$(obj_ext):$(mod_dir)puredat$(mod_ext) $(mod_dir)puredat_com$(mod_ext) \
@@ -569,13 +594,23 @@ $(obj_dir)morphometric_evaluation$(obj_ext):$(st_mod_dir)global_std$(mod_ext)  $
 	@echo 
 #
 # -----------------------------------------------------------------------------
-# Final Link step of main 
+# Final Link step of struct_process main 
 # -----------------------------------------------------------------------------
 $(main_bin): export_revision $(c-objects) $(f-objects)
 	@echo "----------------------------------------------------------------------------------"
-	@echo '-- Final link step of $(long_name) executable'
+	@echo '-- Final link step of the struct_process executable'
 	@echo "----------------------------------------------------------------------------------"
 	$(f90_compiler) $(link_flags) $(c-objects) $(f-objects) $(lll_extra) -o $(main_bin)
+	@echo
+#
+# -----------------------------------------------------------------------------
+# Final Link step of dtc main 
+# -----------------------------------------------------------------------------
+$(dtc_bin): export_revision $(c-objects) $(f-objects)
+	@echo "----------------------------------------------------------------------------------"
+	@echo '-- Final link step of dtc executable'
+	@echo "----------------------------------------------------------------------------------"
+	$(f90_compiler) $(link_flags) $(c-objects) $(f-objects) $(lll_extra) -o $(dtc_bin)
 	@echo
 #	
 # -----------------------------------------------------------------------------

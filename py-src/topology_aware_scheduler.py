@@ -18,14 +18,17 @@
 # adjusting the comm size to the ideal ppds have to overcompensate the idling
 # processors.
 #------------------------------------------------------------------------------
-import os, struct, argparse, sys, math
+import os, struct, argparse, sys, time
 import numpy as np
 import pandas as pd
+#
 sys.path.insert(1, '/home/geb/00_bone_eval_chain/P_MOD_Python')
 #
 from mod_decomposition import *
 from mod_mechanical import *
 from mod_meta_parser import *
+#
+start_time = time.time()
 #
 factors = {}
 factors.update({"AVG_NDS_VOX_HEX08_06": 1.3908456310310637})
@@ -507,3 +510,10 @@ f = open(parts_file, 'wb')
 for ii in parts_list:
     f.write((ii).to_bytes(8, byteorder='little', signed=True))
 f.close()
+#
+end_time = time.time()
+#
+elapsed_time = end_time - start_time
+#
+print("-- Single core runtime of this script:", round(elapsed_time,1), "s")
+print(FMT_STRING)

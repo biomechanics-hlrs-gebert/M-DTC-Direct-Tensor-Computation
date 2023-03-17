@@ -66,19 +66,10 @@
 !> Struct Process main programm
 !------------------------------------------------------------------------------
 !>  \section written Written by:
+!>  Johannes Gebert
 !>  Ralf Schneider
-!>
-!>  \section modified Last modified:
-!>  by: Johannes Gebert \n
-!>  on: 11.11.2022
-!>
-!> \todo At >> Recieve Job_Dir << calculate the Job_Dir from the Domain number
-!>       and the Domain Decomposition parameters.
-!> \todo During geometry generation do not allocate the Topology field for the
-!>       max possible number of elements. Instead check with count for actual
-!>       number of elements
 !------------------------------------------------------------------------------
-Program main_struct_process
+Program dtc
 
 USE iso_c_binding
 USE global_std
@@ -124,7 +115,7 @@ CHARACTER(mcl)  , DIMENSION(:), ALLOCATABLE :: m_rry
 
 CHARACTER(4*mcl) :: job_dir
 CHARACTER(mcl)   :: cmd_arg_history='', link_name = 'struct process', &
-    muCT_pd_path, muCT_pd_name, binary, activity_file, desc="", memlog_file="", &
+    muCT_pd_path, muCT_pd_name, binary, status_file, desc="", memlog_file="", &
     typeraw="", restart='N', restart_cmd_arg='U',ios="", map_sgmnttn=""
 CHARACTER(8)   :: elt_micro, output
 CHARACTER(3)   :: file_status
@@ -132,21 +123,22 @@ CHARACTER(1) :: bin_sgmnttn=""
 
 REAL(rk) :: strain, t_start, t_end, t_duration
 
-INTEGER(ik), DIMENSION(:), ALLOCATABLE :: Domains, nn_D, Domain_stats
+INTEGER(ik), DIMENSION(:), ALLOCATABLE :: Domains, nn_D, Domain_status, comms_list, parts_list
 INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0
 
 INTEGER(ik) :: nn, ii, jj, kk, dc, computed_domains = 0, comm_nn = 1, &
-    No_of_domains, path_count, activity_size=0, alloc_stat, fh_cluster_log, &
-    free_file_handle, domains_per_comm, stat, no_lc=0, nl=0, &
-    Domain, llimit, parts, elo_macro, vdim(3)
+    No_of_domains, No_of_domains_files, path_count, activity_size=0, No_of_comms, &
+    alloc_stat, fh_cluster_log, free_file_handle, domains_per_comm, stat, &
+    no_lc=0, nl=0, Domain, llimit, parts, elo_macro, vdim(3), comms_size, parts_size
 
 INTEGER(pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
 INTEGER(pd_ik), DIMENSION(no_streams) :: dsize
 
 INTEGER(pd_ik) :: serial_root_size, add_leaves
 
-LOGICAL :: success, stat_exists, heaxist, abrt = .FALSE., already_finished=.FALSE.
-LOGICAL :: create_new_header = .FALSE., fex=.TRUE., no_restart_required = .FALSE.
+LOGICAL :: success, status_exists, comms_exists, parts_exists, &
+    heaxist, abrt = .FALSE., already_finished=.FALSE., &
+    create_new_header = .FALSE., fex=.TRUE., no_restart_required = .FALSE.
 
 !----------------------------------------------------------------------------
 CALL mpi_init(ierr)
@@ -303,21 +295,11 @@ If (rank_mpi == 0) THEN
     !------------------------------------------------------------------------------
     ! Warning / Error handling
     !------------------------------------------------------------------------------
-    ! IF (parts < 2) THEN
-    !     mssg = 'At least 2 parts per domain are required.'
-    !     CALL print_err_stop_slaves(mssg); GOTO 1000
-    ! END IF
-
     IF ( (bone%phdsize(1) /= bone%phdsize(2)) .OR. (bone%phdsize(1) /= bone%phdsize(3)) ) THEN
         mssg = 'Currently, all 3 dimensions of the physical domain size must be equal!'
         CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF
     
-    ! IF ( (bone%delta(1) /= bone%delta(2)) .OR. (bone%delta(1) /= bone%delta(3)) ) THEN
-    !     mssg = 'Currently, the spacings of all 3 dimensions must be equal!'
-    !     CALL print_err_stop_slaves(mssg); GOTO 1000
-    ! END IF
-
     IF ( (xa_d(1) > xe_d(1)) .OR. (xa_d(2) > xe_d(2)) .or. (xa_d(3) > xe_d(3)) ) THEN
         mssg = 'Input parameter error: Start value of domain range larger than end value.'
         CALL print_err_stop_slaves(mssg); GOTO 1000
@@ -335,69 +317,59 @@ If (rank_mpi == 0) THEN
     END IF
 
     !------------------------------------------------------------------------------
-    ! Calculate the number of requested domains
+    ! Check the existence of the required files.
     !------------------------------------------------------------------------------
-    No_of_domains = (xe_d(1)-xa_d(1)+1) * (xe_d(2)-xa_d(2)+1) * (xe_d(3)-xa_d(3)+1)
-
+    ! Not in a function/subroutine, because it does not save a line. Filename and 
+    ! error message have to be done here anyway.
     !------------------------------------------------------------------------------
-    ! Calculate the number of domains computed in parallel
-    ! INTEGER DIVISION! PROGRAM WILL CRASH IF LIMIT TO RESOURCE USE IS cancelled
-    !------------------------------------------------------------------------------
-    par_domains = (size_mpi-1) / parts
-
-    !------------------------------------------------------------------------------
-    ! Number of domains per communicator
-    !
-    ! This parameter is required to calculate the amount of memory to store the 
-    ! results of each rank. However, different wall times, dependent on the 
-    ! number of dof per sub-communicator will lead to race conditions. In effect, 
-    ! some sub-communicators/ranks will compute more domains than others. 
-    ! If only the memory of the avg. number of domains per sub-communicator gets
-    ! allocated, these "underestimated number of domains per sub-communicator" will
-    ! not get stored properly.
-    ! Allocating twice the amount of memory will prevent this issue. 
-    ! Another way might be to balance not by the wall-time of the domain specific
-    ! computations, but by the number of domains per group of ranks/sub-comm.
-    ! However the additional amount of memory is considerered not as problematic 
-    ! as the lost wall/compute time caused by a static distribution of the domains.
-    !------------------------------------------------------------------------------
-    domains_per_comm = CEILING(REAL(No_of_domains, rk) / REAL(par_domains, rk), ik)
-
-    domains_per_comm = domains_per_comm * 2_ik
-    
-    !------------------------------------------------------------------------------
-    ! Check whether there already is a project header and an worker_is_active tracker
-    ! Header-files are PureDat, not MeRaDat. Therefore via pro_path/pro_name
-    !------------------------------------------------------------------------------
-    activity_file = TRIM(out%p_n_bsnm)//".status"
-    INQUIRE(FILE = TRIM(activity_file), EXIST=stat_exists, SIZE=activity_size)
-
-    IF ((No_of_domains*ik /= activity_size ) .AND. (stat_exists)) THEN
-        mssg = 'Size of the status file and the number of requested domains do &
-        &not match. It is very likely that the domain ranges were modified and a &
-        &restart requested. This approach is not supported, as the stream sizes and &
-        &boundaries will get corrupted. Please set up a completely new job.'
-        CALL print_err_stop_slaves(mssg, "warning"); GOTO 1000
-    END IF
-
-    !------------------------------------------------------------------------------
-    ! Each subdomain gets computed by a user defined number of processors. This 
-    ! number of processors equals to a specific number of mesh parts.
-    ! Ideally, all processors are used. Therefore, MOD(size_mpi-1, parts) shall 
-    ! resolve without a remainder. "-1" to take the master process into account.
-    !------------------------------------------------------------------------------
-    ! This dependency is checked after the restart handling again.
-    !------------------------------------------------------------------------------
-    IF (MOD(size_mpi-1, parts) /= 0) THEN
-        WRITE(std_out, FMT_DBG_AI0xAI0) "size_mpi: ", size_mpi
-        WRITE(std_out, FMT_DBG_AI0xAI0) "parts: ", parts
-        WRITE(std_out, FMT_DBG_AI0xAI0) "MOD(size_mpi-1, parts): ", MOD(size_mpi-1, parts)
-        
-
-        mssg = 'mod(size_mpi-1,parts) /= 0 ! This case is not supported.'
+    status_file = TRIM(out%p_n_bsnm)//".status"
+    INQUIRE(FILE = TRIM(status_file), EXIST=status_exists, SIZE=activity_size)
+    IF(.NOT. status_exists) THEN
+        mssg = "No *.status file found. This version of the struct_process &
+            &requires the morphometric evaluation (binary) and the topology &
+            &aware scheduler (Python script). Those procedures create the status &
+            &file. Only the round-robin struct_process can create a stauts file &
+            &on its own."
         CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF 
-    
+
+    comms_file = TRIM(out%p_n_bsnm)//".comms"
+    INQUIRE(FILE = TRIM(comms_file), EXIST=comms_exists, SIZE=comms_size)
+    IF(.NOT. comms_exists) CALL print_err_stop_slaves("No *.comms file found."); GOTO 1000
+
+    parts_file = TRIM(out%p_n_bsnm)//".parts"
+    INQUIRE(FILE = TRIM(parts_file), EXIST=parts_exists, SIZE=parts_size)
+    IF(.NOT. parts_exists) CALL print_err_stop_slaves("No *.parts file found."); GOTO 1000
+
+
+    !------------------------------------------------------------------------------
+    ! Check the condition of the required files.
+    !------------------------------------------------------------------------------
+    IF(activity_size .NE. parts_size) THEN
+        mssg = 'The size of the *.parts and the *.status files do not match.'
+        CALL print_err_stop_slaves(mssg); GOTO 1000
+    END IF 
+
+    No_of_domains = (xe_d(1)-xa_d(1)+1) * (xe_d(2)-xa_d(2)+1) * (xe_d(3)-xa_d(3)+1)
+    No_of_domains_files = ANINT(REAL(activity_size, rk) / 8._rk)
+
+    IF(No_of_domains .NE. No_of_domains_files) THEN
+        mssg = 'The size of the auxiliary files and the requestd domain range do not match.'
+        CALL print_err_stop_slaves(mssg); GOTO 1000
+    END IF 
+
+    No_of_comms = ANINT(REAL(comms_size, rk) / 8._rk)
+
+
+    ! IF ((No_of_domains*ik /= activity_size ) .AND. (status_exists)) THEN
+    !     mssg = 'Size of the status file and the number of requested domains do &
+    !     &not match. It is very likely that the domain ranges were modified and a &
+    !     &restart requested. This approach is not supported, as the stream sizes and &
+    !     &boundaries will get corrupted. Please set up a completely new job.'
+    !     CALL print_err_stop_slaves(mssg, "warning"); GOTO 1000
+    ! END IF
+
+
     !------------------------------------------------------------------------------
     ! Raise and build meta_para tree
     ! Hardcoded, implicitly given order of the leafs. 
@@ -432,7 +404,7 @@ If (rank_mpi == 0) THEN
     CALL add_leaf_to_branch(meta_para, "Segmentation map"    , LEN(map_sgmnttn) , str_to_char(map_sgmnttn))      
 
     !------------------------------------------------------------------------------
-    ! Prepare output directory via CALLing the c function.
+    ! Prepare output directory via Calling the c function.
     ! Required, because INQUIRE only acts on files, not on directories.
     ! File exists if stat_c_int = 0 
     !------------------------------------------------------------------------------
@@ -459,21 +431,24 @@ If (rank_mpi == 0) THEN
         WRITE(fh_mon, FMT_MSG) TRIM(outpath)
     END IF
 
+
     CALL link_start(link_name, .TRUE., .FALSE., success)
     IF (.NOT. success) THEN
         mssg = "Something went wrong during link_start"
         CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF
 
-END IF
+END IF 
 
-!------------------------------------------------------------------------------
-! Send information about file
-!------------------------------------------------------------------------------
-CALL MPI_BCAST(stat_exists  , 1_mik, MPI_LOGICAL    , 0_mik, MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(status_file, INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(comms_file,  INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(parts_file,  INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
+
+
 CALL MPI_BCAST(No_of_domains, 1_mik, MPI_INTEGER8   , 0_mik, MPI_COMM_WORLD, ierr)
-CALL MPI_BCAST(activity_file, INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
-CALL MPI_BCAST(typeraw,       INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(No_of_comms,   1_mik, MPI_INTEGER8   , 0_mik, MPI_COMM_WORLD, ierr)
+
+CALL MPI_BCAST(typeraw, INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
 
 !------------------------------------------------------------------------------
 ! Allocate and init field for selected domain range
@@ -481,55 +456,72 @@ CALL MPI_BCAST(typeraw,       INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ier
 ! Required for steering the allocation of memory for writing data into 
 ! the stream files (raise leaves etc.)
 !------------------------------------------------------------------------------
-Allocate(Domains(No_of_domains), stat=alloc_stat)
+ALLOCATE(Domains(No_of_domains), stat=alloc_stat)
 CALL alloc_err("Domains", alloc_stat)
+Domains = 0_ik
 
-Allocate(Domain_stats(No_of_domains), stat=alloc_stat)
-CALL alloc_err("Domain_stats", alloc_stat)
-Domain_stats = -999_ik
-
-Allocate(domain_path(0:No_of_domains))
-domain_path = ''
 
 !------------------------------------------------------------------------------
-! Initial setup of the worker_is_active tracker
+! Initial setup of the domain status tracker
 !------------------------------------------------------------------------------
-! Tracker writes -9.999.999 if: Space within tracking is not occupied by a domain
-! Tracker writes    +Number if: Domain is computed successfully
+! Tracker -100000000-Domain_No   | Domain is planned, but not started computing
+! Tracker           -Domain_No   | Domain is started computing, but not finished
+! Tracker            Domain_No   | Domain is finished
 !
 ! If the position within the tracking file is implicitely connected to the 
 ! domain number, changes to the domain range before restart will crash the 
 ! computations (!)
+! This is even more dangerous for topology aware approaches
 !------------------------------------------------------------------------------
-IF (stat_exists) THEN
-    Call MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(activity_file), &
-        MPI_MODE_RDWR, MPI_INFO_NULL, aun, ierr)
+ALLOCATE(Domain_status(No_of_domains), stat=alloc_stat)
+CALL alloc_err("Domain_status", alloc_stat)
 
-    !------------------------------------------------------------------------------
-    ! Read the Domain stats list
-    !------------------------------------------------------------------------------
-    CALL MPI_FILE_READ(aun, Domain_stats, INT(SIZE(Domain_stats), mik), &
-        MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
-ELSE
-    Call MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(activity_file), &
-        MPI_MODE_CREATE+MPI_MODE_RDWR, MPI_INFO_NULL, aun, ierr)
-END IF ! (stat_exists)
+Call MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(status_file), MPI_MODE_RDWR, MPI_INFO_NULL, aun, ierr)
+CALL MPI_FILE_READ(aun, Domain_status, INT(SIZE(Domain_status), mik), MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
+
+
+!------------------------------------------------------------------------------
+! Read the communicators for use with the dataset
+!------------------------------------------------------------------------------
+ALLOCATE(comms_list(No_of_comms), stat=alloc_stat)
+CALL alloc_err("comms_list", alloc_stat)
+
+Call MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(comms_file), MPI_MODE_RDWR, MPI_INFO_NULL, aun, ierr)
+CALL MPI_FILE_READ(aun, comms_list, INT(SIZE(comms_list), mik), MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
+
+
+!------------------------------------------------------------------------------
+! Read the number of parts assigned to each domain (ppd). The ppd must fit
+! to the communicators read from the *.comms file.
+!------------------------------------------------------------------------------
+ALLOCATE(parts_list(No_of_domains), stat=alloc_stat)
+CALL alloc_err("parts_list", alloc_stat)
+
+Call MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(parts_file), MPI_MODE_RDWR, MPI_INFO_NULL, aun, ierr)
+CALL MPI_FILE_READ(aun, parts_list, INT(SIZE(parts_list), mik), MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
+
+
+
+ALLOCATE(domain_path(0:No_of_domains))
+domain_path = ''
+
+
 
 
 If (rank_mpi == 0) THEN
 
-    IF (stat_exists) THEN
+    IF (status_exists) THEN
         !------------------------------------------------------------------------------
         ! Read the Domain stats list
         !------------------------------------------------------------------------------
-        CALL MPI_FILE_READ(aun, Domain_stats, INT(SIZE(Domain_stats), mik), &
+        CALL MPI_FILE_READ(aun, Domain_status, INT(SIZE(Domain_status), mik), &
             MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
 
         !------------------------------------------------------------------------------
         ! Check whether computation will use resources properly.
         !------------------------------------------------------------------------------
-        DO ii=1, SIZE(domain_stats)
-            IF (domain_stats(ii) >= 0) computed_domains = computed_domains + 1 
+        DO ii=1, SIZE(Domain_status)
+            IF (Domain_status(ii) >= 0) computed_domains = computed_domains + 1 
         END DO
 
         IF (No_of_domains == computed_domains) THEN 
@@ -540,7 +532,7 @@ If (rank_mpi == 0) THEN
         END IF 
 
     ELSE
-        CALL MPI_FILE_WRITE(aun, Domain_stats, INT(SIZE(Domain_stats), mik), &
+        CALL MPI_FILE_WRITE(aun, Domain_status, INT(SIZE(Domain_status), mik), &
             MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
     END IF
 
@@ -571,7 +563,7 @@ If (rank_mpi == 0) THEN
         !------------------------------------------------------------------------------
         ! project_name --> out%p_n_bsnm/bsnm --> subdirectory with file name = bsnm.suf
         !------------------------------------------------------------------------------
-        IF ((stat_exists) .AND. (.NOT. create_new_header)) THEN
+        IF ((status_exists) .AND. (.NOT. create_new_header)) THEN
             mssg = "No restart requested, but the file '"&
                 //TRIM(out%p_n_bsnm)//".status' already exists."
             CALL print_err_stop_slaves(mssg, "warning"); GOTO 1000
@@ -1322,7 +1314,7 @@ Else
         !------------------------------------------------------------------------------
         ! Only compute the domain if it was not yet (entry in status file = -999)
         !------------------------------------------------------------------------------
-        IF (Domain_stats(nn) < 0) THEN
+        IF (Domain_status(nn) < 0) THEN
 
             !------------------------------------------------------------------------------
             ! Outpath depends on whether basic or detailed information are written to fs
@@ -1428,7 +1420,7 @@ Else
             !------------------------------------------------------------------------------
             ! Increment linear domain counter of the PETSc sub_comm instances
             ! It is important (!) to increment this variable after the check
-            ! IF (Domain_stats(nn) <= 0) THEN. Otherwise, the program will write into 
+            ! IF (Domain_status(nn) <= 0) THEN. Otherwise, the program will write into 
             ! slots that are used by previous domains.
             !------------------------------------------------------------------------------
             comm_nn = comm_nn + 1_ik
@@ -1485,7 +1477,7 @@ IF(rank_mpi==0) THEN
     ! Write the "JOB_FINISHED" keyword only if the job was finished during 
     ! this job (re)run.
     !------------------------------------------------------------------------------
-    IF ((Domain_stats(No_of_domains) == No_of_domains-1) .OR. (already_finished)) THEN ! counts from 0
+    IF ((Domain_status(No_of_domains) == No_of_domains-1) .OR. (already_finished)) THEN ! counts from 0
 
         no_restart_required = .TRUE.
         CALL execute_command_line ("echo 'JOB_FINISHED' > BATCH_RUN")
@@ -1506,4 +1498,4 @@ CALL MPI_FILE_CLOSE(aun, ierr)
 CALL MPI_FINALIZE(ierr)
 CALL print_err_stop(std_out, "MPI_FINALIZE didn't succeed", ierr)
 
-End Program main_struct_process
+End Program dtc
