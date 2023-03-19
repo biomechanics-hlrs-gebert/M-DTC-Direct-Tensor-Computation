@@ -322,6 +322,10 @@ for bin in bins:
 
         ppd = int(avg_FEs_in_hist_bin/FEs_part)
 
+        # DTC only accepts at least two parts per domain
+        if ppd == 1:
+            ppd += 1
+
         # if ppd % 2 != 0:
         #     ppd += 1
 

@@ -96,7 +96,7 @@ TYPE(materialcard) :: bone
 
 INTEGER(mik) :: ierr, rank_mpi, size_mpi, petsc_ierr, mii, mjj, &
     worker_rank_mpi, worker_size_mpi, status_un, comms_un, parts_un, &
-    par_domains, Active, request, finished = -1, worker_comm
+    Active, request, finished = -1, worker_comm
 
 INTEGER(mik), Dimension(no_streams)       :: fh_mpi_worker
 INTEGER(mik), Dimension(MPI_STATUS_SIZE)  :: status_mpi
@@ -118,22 +118,23 @@ CHARACTER(mcl)   :: cmd_arg_history='', link_name = 'struct process', &
     muCT_pd_path, muCT_pd_name, binary, status_file, comms_file, parts_file, &
     desc="", memlog_file="", typeraw="", restart='N', restart_cmd_arg='U', &
     ios="", map_sgmnttn=""
-CHARACTER(8)   :: elt_micro, output, format
+CHARACTER(8)   :: elt_micro, output
 CHARACTER(3)   :: file_status
 CHARACTER(1) :: bin_sgmnttn=""
 
 REAL(rk) :: strain, t_start, t_end, t_duration
 
 INTEGER(ik), DIMENSION(:), ALLOCATABLE :: Domains, nn_D, Domain_status, &
-    parts_list, unique_comms
+    parts_list, comm_groups, comm_ranges
+    
 INTEGER(ik), DIMENSION(:,:), ALLOCATABLE :: comms_array
 INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0
 
 INTEGER(ik) :: nn, ii, jj, kk, dc, computed_domains = 0, comm_nn = 1, max_domains_per_comm, &
-    No_of_domains, No_of_domains_files, path_count, activity_size=0, No_of_comms, &
-    alloc_stat, fh_cluster_log, free_file_handle, stat, No_of_cores_requested, &
-    no_lc=0, nl=0, Domain, llimit, parts, elo_macro, vdim(3), comms_size, parts_size
-
+    No_of_domains, No_of_domains_files, path_count, activity_size=0, No_of_comm_groups, &
+    alloc_stat, fh_cluster_log, free_file_handle, stat, No_of_cores_requested, my_global_rank, &
+    no_lc=0, nl=0, Domain, llimit, parts, elo_macro, vdim(3), comms_size, parts_size, curr_dmns_comm, &
+    my_color, rank, no_of_comms, comm_floor, comm_ceiling
 INTEGER(pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
 INTEGER(pd_ik), DIMENSION(no_streams) :: dsize
 
@@ -346,7 +347,7 @@ If (rank_mpi == 0) THEN
 
     ! comms_size is a 2D array with 3 rows 
     ! (1 for comm size, 1 for number of such comms and 1 for no of domains assigned to those comms)
-    No_of_comms = ANINT(REAL(comms_size, rk) / 8._rk / 3._rk)
+    No_of_comm_groups = ANINT(REAL(comms_size, rk) / 8._rk / 3._rk)
 
     parts_file = TRIM(out%p_n_bsnm)//".parts"
     INQUIRE(FILE = TRIM(parts_file), EXIST=parts_exists, SIZE=parts_size)
@@ -391,7 +392,7 @@ CALL MPI_BCAST(parts_file,  INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
 
 
 CALL MPI_BCAST(No_of_domains, 1_mik, MPI_INTEGER8   , 0_mik, MPI_COMM_WORLD, ierr)
-CALL MPI_BCAST(No_of_comms,   1_mik, MPI_INTEGER8   , 0_mik, MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(No_of_comm_groups,   1_mik, MPI_INTEGER8   , 0_mik, MPI_COMM_WORLD, ierr)
 
 CALL MPI_BCAST(typeraw, INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
 
@@ -424,11 +425,16 @@ CALL alloc_err("Domain_status", alloc_stat)
 CALL MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(status_file), MPI_MODE_RDWR, MPI_INFO_NULL, status_un, ierr)
 CALL MPI_FILE_READ(status_un, Domain_status, INT(SIZE(Domain_status), mik), MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
 
-
 !------------------------------------------------------------------------------
 ! Read the communicators for use with the dataset
 !------------------------------------------------------------------------------
-ALLOCATE(comms_array(3_ik,No_of_comms), stat=alloc_stat)
+ALLOCATE(comms_array(3_ik,No_of_comm_groups), stat=alloc_stat)
+CALL alloc_err("comms_array", alloc_stat)
+
+ALLOCATE(comm_groups(No_of_comm_groups), stat=alloc_stat)
+CALL alloc_err("comms_array", alloc_stat)
+
+ALLOCATE(comm_ranges(No_of_comm_groups), stat=alloc_stat)
 CALL alloc_err("comms_array", alloc_stat)
 
 CALL MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(comms_file), MPI_MODE_RDONLY, MPI_INFO_NULL, comms_un, ierr)
@@ -459,6 +465,7 @@ If (rank_mpi == 0) THEN
     WRITE(std_out, FMT_TXT_AxI0) "Number of such communicators:      ", comms_array(2,:)
     WRITE(std_out, FMT_TXT_AxI0) "Number of domains of these ppds:   ", comms_array(3,:)
     WRITE(std_out, FMT_TXT_AxI0) "Number of cores requested:         ", No_of_cores_requested
+    WRITE(std_out, FMT_SEP)
     
     IF (No_of_cores_requested .NE. size_mpi) THEN
         mssg = "The number of cores requested /= size_mpi."
@@ -493,6 +500,73 @@ If (rank_mpi == 0) THEN
     !------------------------------------------------------------------------------
     INQUIRE(FILE = TRIM(pro_path)//TRIM(pro_name)//".head", EXIST=heaxist)
 
+    !------------------------------------------------------------------------------
+    ! Raise and build meta_para tree
+    ! Hardcoded, implicitly given order of the leafs. 
+    ! DO NOT CHANGE ORDER WITHOUT MODIFYING ALL OTHER INDICES REGARDING »meta_para«
+    !------------------------------------------------------------------------------
+    Allocate(meta_para)
+    CALL raise_tree("Input parameters", meta_para)
+
+    CALL add_leaf_to_branch(meta_para, "muCT puredat pro_path"                , mcl , str_to_char(muCT_pd_path)) 
+    CALL add_leaf_to_branch(meta_para, "muCT puredat pro_name"                , mcl , str_to_char(muCT_pd_name)) 
+    CALL add_leaf_to_branch(meta_para, "Physical domain size"                 , 3_ik, bone%phdsize) 
+    CALL add_leaf_to_branch(meta_para, "Lower bounds of selected domain range", 3_ik, xa_d) 
+    CALL add_leaf_to_branch(meta_para, "Upper bounds of selected domain range", 3_ik, xe_d)      
+    
+    CALL add_leaf_to_branch(meta_para, "Grid spacings"                 , 3_ik, bone%delta) 
+    CALL add_leaf_to_branch(meta_para, "Lower limit of iso value"      , 1_ik, [llimit])      
+    CALL add_leaf_to_branch(meta_para, "Element type  on micro scale"  , len(elt_micro) , str_to_char(elt_micro))      
+    CALL add_leaf_to_branch(meta_para, "No of mesh parts per subdomain", 1_ik           , [parts]) 
+    CALL add_leaf_to_branch(meta_para, "Output Format"                 , len(output)    , str_to_char(output)) 
+    
+    CALL add_leaf_to_branch(meta_para, "Average strain on RVE"         , 1_ik, [strain])    
+    CALL add_leaf_to_branch(meta_para, "Young_s modulus"               , 1_ik, [bone%E]) 
+    CALL add_leaf_to_branch(meta_para, "Poisson_s ratio"               , 1_ik, [bone%nu]) 
+    CALL add_leaf_to_branch(meta_para, "Element order on macro scale"  , 1_ik, [elo_macro]) 
+    CALL add_leaf_to_branch(meta_para, "Output amount"                 , len(out_amount), str_to_char(out_amount)) 
+    
+    CALL add_leaf_to_branch(meta_para, "Restart", 1_ik, str_to_char(restart(1:1))) 
+    CALL add_leaf_to_branch(meta_para, "Number of voxels per direction", 3_ik , vdim) 
+    CALL add_leaf_to_branch(meta_para, "Domains per communicator", 1_ik, [max_domains_per_comm]) 
+
+    CALL add_leaf_to_branch(meta_para, "Binary segmentation" , LEN(bin_sgmnttn) , str_to_char(bin_sgmnttn))      
+    CALL add_leaf_to_branch(meta_para, "Segmentation map"    , LEN(map_sgmnttn) , str_to_char(map_sgmnttn))      
+
+    !------------------------------------------------------------------------------
+    ! Prepare output directory via Calling the c function.
+    ! Required, because INQUIRE only acts on files, not on directories.
+    ! File exists if stat_c_int = 0 
+    !------------------------------------------------------------------------------
+    c_char_array(1:LEN(TRIM(outpath)//CHAR(0))) = str_to_char(TRIM(outpath)//CHAR(0))
+    CALL Stat_Dir(c_char_array, stat_c_int)
+
+    IF(stat_c_int /= 0) THEN
+
+        CALL exec_cmd_line("mkdir -p "//TRIM(outpath), stat, 20)
+
+        IF(stat /= 0) THEN
+            mssg = 'Could not execute syscall »mkdir -p '//trim(outpath)//'«.'
+            CALL print_err_stop_slaves(mssg); GOTO 1000
+        END IF
+        
+        CALL Stat_Dir(c_char_array, stat_c_int)
+
+        IF(stat_c_int /= 0) THEN
+            mssg = 'Could not create the output directory »'//TRIM(outpath)//'«.'
+            CALL print_err_stop_slaves(mssg); GOTO 1000
+        END IF
+    ELSE 
+        WRITE(fh_mon, FMT_MSG) "Reusing the output directory"
+        WRITE(fh_mon, FMT_MSG) TRIM(outpath)
+    END IF
+
+
+    CALL link_start(link_name, .TRUE., .FALSE., success)
+    IF (.NOT. success) THEN
+        mssg = "Something went wrong during link_start"
+        CALL print_err_stop_slaves(mssg); GOTO 1000
+    END IF
 
     IF((restart == 'Y') .AND. (.NOT. heaxist)) create_new_header=.TRUE.
     !------------------------------------------------------------------------------
@@ -611,95 +685,6 @@ If (rank_mpi == 0) THEN
 
 
     !------------------------------------------------------------------------------
-    ! Allocating the space for the max. occuring number of domains per 
-    ! communicator is a waste of memory. However it is simple as well. 
-    ! (KISS principle) This may be optimized in a latter step.
-    !------------------------------------------------------------------------------
-    ! ALLOCATE(unique_comms(No_of_comms), stat=alloc_stat)
-    ! CALL alloc_err("unique_comms", alloc_stat)
-    ! unique_comms = 0_iks
-
-    ! ! O(N^2) implementation?! Not very good...
-    ! DO ii = 1, LEN(comms_array)
-    !     DO jj = 1, LEN(parts_list)
-    !         IF (comms_array(ii) == parts_list(jj)) THEN
-    !             unique_comms(ii) = unique_comms(ii) + 1_ik
-
-    !             Does that work this way?
-    !     END DO
-    ! END DO
-
-    ! max_domains_per_comm = MAX(unique_comms)
-
-    !------------------------------------------------------------------------------
-    ! Raise and build meta_para tree
-    ! Hardcoded, implicitly given order of the leafs. 
-    ! DO NOT CHANGE ORDER WITHOUT MODIFYING ALL OTHER INDICES REGARDING »meta_para«
-    !------------------------------------------------------------------------------
-    Allocate(meta_para)
-    CALL raise_tree("Input parameters", meta_para)
-
-    CALL add_leaf_to_branch(meta_para, "muCT puredat pro_path"                , mcl , str_to_char(muCT_pd_path)) 
-    CALL add_leaf_to_branch(meta_para, "muCT puredat pro_name"                , mcl , str_to_char(muCT_pd_name)) 
-    CALL add_leaf_to_branch(meta_para, "Physical domain size"                 , 3_ik, bone%phdsize) 
-    CALL add_leaf_to_branch(meta_para, "Lower bounds of selected domain range", 3_ik, xa_d) 
-    CALL add_leaf_to_branch(meta_para, "Upper bounds of selected domain range", 3_ik, xe_d)      
-    
-    CALL add_leaf_to_branch(meta_para, "Grid spacings"                 , 3_ik, bone%delta) 
-    CALL add_leaf_to_branch(meta_para, "Lower limit of iso value"      , 1_ik, [llimit])      
-    CALL add_leaf_to_branch(meta_para, "Element type  on micro scale"  , len(elt_micro) , str_to_char(elt_micro))      
-    CALL add_leaf_to_branch(meta_para, "No of mesh parts per subdomain", 1_ik           , [parts]) 
-    CALL add_leaf_to_branch(meta_para, "Output Format"                 , len(output)    , str_to_char(output)) 
-    
-    CALL add_leaf_to_branch(meta_para, "Average strain on RVE"         , 1_ik, [strain])    
-    CALL add_leaf_to_branch(meta_para, "Young_s modulus"               , 1_ik, [bone%E]) 
-    CALL add_leaf_to_branch(meta_para, "Poisson_s ratio"               , 1_ik, [bone%nu]) 
-    CALL add_leaf_to_branch(meta_para, "Element order on macro scale"  , 1_ik, [elo_macro]) 
-    CALL add_leaf_to_branch(meta_para, "Output amount"                 , len(out_amount), str_to_char(out_amount)) 
-    
-    CALL add_leaf_to_branch(meta_para, "Restart", 1_ik, str_to_char(restart(1:1))) 
-    CALL add_leaf_to_branch(meta_para, "Number of voxels per direction", 3_ik , vdim) 
-    CALL add_leaf_to_branch(meta_para, "Domains per communicator", 1_ik, [max_domains_per_comm]) 
-
-    CALL add_leaf_to_branch(meta_para, "Binary segmentation" , LEN(bin_sgmnttn) , str_to_char(bin_sgmnttn))      
-    CALL add_leaf_to_branch(meta_para, "Segmentation map"    , LEN(map_sgmnttn) , str_to_char(map_sgmnttn))      
-
-    !------------------------------------------------------------------------------
-    ! Prepare output directory via Calling the c function.
-    ! Required, because INQUIRE only acts on files, not on directories.
-    ! File exists if stat_c_int = 0 
-    !------------------------------------------------------------------------------
-    c_char_array(1:LEN(TRIM(outpath)//CHAR(0))) = str_to_char(TRIM(outpath)//CHAR(0))
-    CALL Stat_Dir(c_char_array, stat_c_int)
-
-    IF(stat_c_int /= 0) THEN
-
-        CALL exec_cmd_line("mkdir -p "//TRIM(outpath), stat, 20)
-
-        IF(stat /= 0) THEN
-            mssg = 'Could not execute syscall »mkdir -p '//trim(outpath)//'«.'
-            CALL print_err_stop_slaves(mssg); GOTO 1000
-        END IF
-        
-        CALL Stat_Dir(c_char_array, stat_c_int)
-
-        IF(stat_c_int /= 0) THEN
-            mssg = 'Could not create the output directory »'//TRIM(outpath)//'«.'
-            CALL print_err_stop_slaves(mssg); GOTO 1000
-        END IF
-    ELSE 
-        WRITE(fh_mon, FMT_MSG) "Reusing the output directory"
-        WRITE(fh_mon, FMT_MSG) TRIM(outpath)
-    END IF
-
-
-    CALL link_start(link_name, .TRUE., .FALSE., success)
-    IF (.NOT. success) THEN
-        mssg = "Something went wrong during link_start"
-        CALL print_err_stop_slaves(mssg); GOTO 1000
-    END IF
-
-    !------------------------------------------------------------------------------
     ! Ensure to update the number of leaves and the indices of these in every
     ! line of code! Also update dat_ty and dat_no in "CALL raise_leaves"
     !------------------------------------------------------------------------------
@@ -719,18 +704,15 @@ If (rank_mpi == 0) THEN
     CALL add_branch_to_branch(root, result_branch)
     CALL raise_branch("Averaged Material Properties", 0_pd_ik, add_leaves, result_branch)
 
-    !------------------------------------------------------------------------------
-    ! Former *.memlog file
-    !------------------------------------------------------------------------------
-    ! Operation, Domain, Nodes, Elems, Preallo, Mem_comm, Pids_returned, Size_mpi, time
-    ! Before PETSc preallocation              , 3395     , 1672328, 1442071, 546, 37198100, 252, 252, 1671690714
-    ! After PETSc preallocation               , 3395     , 1672328, 1442071, 546, 209263436, 252, 252, 1671690714
-    ! Before matrix assembly                  , 3395     , 1672328, 1442071, 546, 269684188, 252, 252, 1671690714
-    ! After matrix assembly                   , 3395     , 1672328, 1442071, 546, 242114948, 252, 252, 1671690715
-    ! Before solving                          , 3395     , 1672328, 1442071, 546, 242514604, 252, 252, 1671690716
-    ! After solving                           , 3395     , 1672328, 1442071, 546, 244625464, 252, 252, 1671690736
-    ! End of domain                           , 3395     , 1672328, 1442071, 546, 73615236, 252, 252, 1671690747
-    !------------------------------------------------------------------------------
+    max_domains_per_comm = 0_ik 
+    DO ii = 1, No_of_comm_groups
+
+        curr_dmns_comm = CEILING(REAL(comms_array(3,ii))/REAL(comms_array(2,ii)))
+
+        IF (curr_dmns_comm >  max_domains_per_comm) THEN
+            max_domains_per_comm = curr_dmns_comm
+        END IF 
+    END DO
 
     ! for better formatting :-)
     nl = no_lc
@@ -822,6 +804,9 @@ If (rank_mpi == 0) THEN
     !------------------------------------------------------------------------------
     Allocate(worker_is_active(size_mpi-1), stat=alloc_stat)
     CALL alloc_err("worker_is_active_List", alloc_stat)
+
+    WRITE(std_out, FMT_TXT_AxI0) "Number of cores requested:         ", No_of_cores_requested
+    WRITE(std_out, FMT_SEP)
 
     worker_is_active=0
 
@@ -939,27 +924,47 @@ ELSE
     CALL pd_get(root%branches(1), "No of mesh parts per subdomain", parts)
     CALL pd_get(root%branches(1), "Domains per communicator", max_domains_per_comm)
 
-
-
-
-
-
-
-
     !------------------------------------------------------------------------------
     ! Get the communicator, the rank is part of.
+    ! Color of MPI_COMM_SPLIT --> number of the comm
     !------------------------------------------------------------------------------
+    my_global_rank = rank_mpi
 
+    no_of_comms = SUM(comms_array(2,:))
 
+    jj = 1_ik
+    kk = 1_ik
+    rank = 0_ik
 
+    comm_ceiling = comms_array(1,kk)
 
+    DO ii = 1, no_of_comms ! ii -> color 1 to no_of_comms
 
+        ! comms_array(1,kk) --> Size of the communicator (parts per domain)
+        rank = rank + comms_array(1,kk)
 
+        comm_floor = comm_ceiling
+        comm_ceiling = rank
+
+        ! comms_array(2,kk) --> Numbers of corresponding communicaotrs
+        IF(jj==comms_array(2,kk)) THEN
+            jj = 0_ik
+            kk = kk + 1_ik
+        END IF 
+
+        jj = jj + 1_ik
+
+        IF ((rank_mpi > comm_floor) .AND. (rank_mpi <= comm_ceiling)) THEN
+            my_color = ii
+            EXIT
+        END IF
+        
+    END DO
 
     !------------------------------------------------------------------------------
     ! All Worker Ranks -- Init worker Communicators
     !------------------------------------------------------------------------------
-    CALL MPI_Comm_split(MPI_COMM_WORLD, Int((rank_mpi-1)/parts, mik), rank_mpi, worker_comm, ierr)
+    CALL MPI_Comm_split(MPI_COMM_WORLD, INT(my_color,mik), rank_mpi, worker_comm, ierr)
     CALL print_err_stop(std_out, "MPI_COMM_SPLIT couldn't split MPI_COMM_WORLD", ierr)
     
     CALL MPI_COMM_RANK(WORKER_COMM, worker_rank_mpi, ierr)
@@ -967,6 +972,10 @@ ELSE
 
     CALL MPI_COMM_SIZE(WORKER_COMM, worker_size_mpi, ierr)
     CALL print_err_stop(std_out, "MPI_COMM_SIZE couldn't retrieve worker_size_mpi", ierr)
+
+    IF (out_amount == "DEBUG") THEN
+        WRITE(std_out,*) rank_mpi, ";", worker_rank_mpi, ";", worker_size_mpi
+    END IF
 
     !------------------------------------------------------------------------------
     ! This sets the options for PETSc in-core. To alter the options
@@ -980,6 +989,7 @@ ELSE
     CALL PetscInitialize(PETSC_NULL_CHARACTER, petsc_ierr)
 
 End If
+stop
 
 ! WRITE_ROOT_COMM = MPI_COMM_WORLD
 
