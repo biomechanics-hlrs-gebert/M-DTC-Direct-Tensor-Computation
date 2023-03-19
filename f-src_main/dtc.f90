@@ -95,8 +95,8 @@ INTEGER(ik), PARAMETER :: debug = 2   ! Choose an even integer!!
 TYPE(materialcard) :: bone
 
 INTEGER(mik) :: ierr, rank_mpi, size_mpi, petsc_ierr, mii, mjj, &
-    worker_rank_mpi, worker_size_mpi, aun, par_domains, &
-    Active, request, finished = -1, worker_comm
+    worker_rank_mpi, worker_size_mpi, status_un, comms_un, parts_un, &
+    par_domains, Active, request, finished = -1, worker_comm
 
 INTEGER(mik), Dimension(no_streams)       :: fh_mpi_worker
 INTEGER(mik), Dimension(MPI_STATUS_SIZE)  :: status_mpi
@@ -115,20 +115,23 @@ CHARACTER(mcl)  , DIMENSION(:), ALLOCATABLE :: m_rry
 
 CHARACTER(4*mcl) :: job_dir
 CHARACTER(mcl)   :: cmd_arg_history='', link_name = 'struct process', &
-    muCT_pd_path, muCT_pd_name, binary, status_file, desc="", memlog_file="", &
-    typeraw="", restart='N', restart_cmd_arg='U',ios="", map_sgmnttn=""
-CHARACTER(8)   :: elt_micro, output
+    muCT_pd_path, muCT_pd_name, binary, status_file, comms_file, parts_file, &
+    desc="", memlog_file="", typeraw="", restart='N', restart_cmd_arg='U', &
+    ios="", map_sgmnttn=""
+CHARACTER(8)   :: elt_micro, output, format
 CHARACTER(3)   :: file_status
 CHARACTER(1) :: bin_sgmnttn=""
 
 REAL(rk) :: strain, t_start, t_end, t_duration
 
-INTEGER(ik), DIMENSION(:), ALLOCATABLE :: Domains, nn_D, Domain_status, comms_list, parts_list
+INTEGER(ik), DIMENSION(:), ALLOCATABLE :: Domains, nn_D, Domain_status, &
+    parts_list, unique_comms
+INTEGER(ik), DIMENSION(:,:), ALLOCATABLE :: comms_array
 INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0
 
-INTEGER(ik) :: nn, ii, jj, kk, dc, computed_domains = 0, comm_nn = 1, &
+INTEGER(ik) :: nn, ii, jj, kk, dc, computed_domains = 0, comm_nn = 1, max_domains_per_comm, &
     No_of_domains, No_of_domains_files, path_count, activity_size=0, No_of_comms, &
-    alloc_stat, fh_cluster_log, free_file_handle, domains_per_comm, stat, &
+    alloc_stat, fh_cluster_log, free_file_handle, stat, No_of_cores_requested, &
     no_lc=0, nl=0, Domain, llimit, parts, elo_macro, vdim(3), comms_size, parts_size
 
 INTEGER(pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
@@ -335,11 +338,22 @@ If (rank_mpi == 0) THEN
 
     comms_file = TRIM(out%p_n_bsnm)//".comms"
     INQUIRE(FILE = TRIM(comms_file), EXIST=comms_exists, SIZE=comms_size)
-    IF(.NOT. comms_exists) CALL print_err_stop_slaves("No *.comms file found."); GOTO 1000
+
+    IF(.NOT. comms_exists) THEN
+        CALL print_err_stop_slaves("No *.comms file found.")
+    GOTO 1000
+    END IF 
+
+    ! comms_size is a 2D array with 3 rows 
+    ! (1 for comm size, 1 for number of such comms and 1 for no of domains assigned to those comms)
+    No_of_comms = ANINT(REAL(comms_size, rk) / 8._rk / 3._rk)
 
     parts_file = TRIM(out%p_n_bsnm)//".parts"
     INQUIRE(FILE = TRIM(parts_file), EXIST=parts_exists, SIZE=parts_size)
-    IF(.NOT. parts_exists) CALL print_err_stop_slaves("No *.parts file found."); GOTO 1000
+    IF(.NOT. parts_exists) THEN
+        CALL print_err_stop_slaves("No *.parts file found.")
+        GOTO 1000
+    END IF 
 
 
     !------------------------------------------------------------------------------
@@ -347,7 +361,8 @@ If (rank_mpi == 0) THEN
     !------------------------------------------------------------------------------
     IF(activity_size .NE. parts_size) THEN
         mssg = 'The size of the *.parts and the *.status files do not match.'
-        CALL print_err_stop_slaves(mssg); GOTO 1000
+        CALL print_err_stop_slaves(mssg)
+        GOTO 1000
     END IF 
 
     No_of_domains = (xe_d(1)-xa_d(1)+1) * (xe_d(2)-xa_d(2)+1) * (xe_d(3)-xa_d(3)+1)
@@ -355,10 +370,9 @@ If (rank_mpi == 0) THEN
 
     IF(No_of_domains .NE. No_of_domains_files) THEN
         mssg = 'The size of the auxiliary files and the requestd domain range do not match.'
-        CALL print_err_stop_slaves(mssg); GOTO 1000
+        CALL print_err_stop_slaves(mssg)
+        GOTO 1000
     END IF 
-
-    No_of_comms = ANINT(REAL(comms_size, rk) / 8._rk)
 
 
     ! IF ((No_of_domains*ik /= activity_size ) .AND. (status_exists)) THEN
@@ -368,75 +382,6 @@ If (rank_mpi == 0) THEN
     !     &boundaries will get corrupted. Please set up a completely new job.'
     !     CALL print_err_stop_slaves(mssg, "warning"); GOTO 1000
     ! END IF
-
-
-    !------------------------------------------------------------------------------
-    ! Raise and build meta_para tree
-    ! Hardcoded, implicitly given order of the leafs. 
-    ! DO NOT CHANGE ORDER WITHOUT MODIFYING ALL OTHER INDICES REGARDING »meta_para«
-    !------------------------------------------------------------------------------
-    Allocate(meta_para)
-    CALL raise_tree("Input parameters", meta_para)
-
-    CALL add_leaf_to_branch(meta_para, "muCT puredat pro_path"                , mcl , str_to_char(muCT_pd_path)) 
-    CALL add_leaf_to_branch(meta_para, "muCT puredat pro_name"                , mcl , str_to_char(muCT_pd_name)) 
-    CALL add_leaf_to_branch(meta_para, "Physical domain size"                 , 3_ik, bone%phdsize) 
-    CALL add_leaf_to_branch(meta_para, "Lower bounds of selected domain range", 3_ik, xa_d) 
-    CALL add_leaf_to_branch(meta_para, "Upper bounds of selected domain range", 3_ik, xe_d)      
-    
-    CALL add_leaf_to_branch(meta_para, "Grid spacings"                 , 3_ik, bone%delta) 
-    CALL add_leaf_to_branch(meta_para, "Lower limit of iso value"      , 1_ik, [llimit])      
-    CALL add_leaf_to_branch(meta_para, "Element type  on micro scale"  , len(elt_micro) , str_to_char(elt_micro))      
-    CALL add_leaf_to_branch(meta_para, "No of mesh parts per subdomain", 1_ik           , [parts]) 
-    CALL add_leaf_to_branch(meta_para, "Output Format"                 , len(output)    , str_to_char(output)) 
-    
-    CALL add_leaf_to_branch(meta_para, "Average strain on RVE"         , 1_ik, [strain])    
-    CALL add_leaf_to_branch(meta_para, "Young_s modulus"               , 1_ik, [bone%E]) 
-    CALL add_leaf_to_branch(meta_para, "Poisson_s ratio"               , 1_ik, [bone%nu]) 
-    CALL add_leaf_to_branch(meta_para, "Element order on macro scale"  , 1_ik, [elo_macro]) 
-    CALL add_leaf_to_branch(meta_para, "Output amount"                 , len(out_amount), str_to_char(out_amount)) 
-    
-    CALL add_leaf_to_branch(meta_para, "Restart", 1_ik, str_to_char(restart(1:1))) 
-    CALL add_leaf_to_branch(meta_para, "Number of voxels per direction", 3_ik , vdim) 
-    CALL add_leaf_to_branch(meta_para, "Domains per communicator", 1_ik, [domains_per_comm]) 
-
-    CALL add_leaf_to_branch(meta_para, "Binary segmentation" , LEN(bin_sgmnttn) , str_to_char(bin_sgmnttn))      
-    CALL add_leaf_to_branch(meta_para, "Segmentation map"    , LEN(map_sgmnttn) , str_to_char(map_sgmnttn))      
-
-    !------------------------------------------------------------------------------
-    ! Prepare output directory via Calling the c function.
-    ! Required, because INQUIRE only acts on files, not on directories.
-    ! File exists if stat_c_int = 0 
-    !------------------------------------------------------------------------------
-    c_char_array(1:LEN(TRIM(outpath)//CHAR(0))) = str_to_char(TRIM(outpath)//CHAR(0))
-    CALL Stat_Dir(c_char_array, stat_c_int)
-
-    IF(stat_c_int /= 0) THEN
-
-        CALL exec_cmd_line("mkdir -p "//TRIM(outpath), stat, 20)
-
-        IF(stat /= 0) THEN
-            mssg = 'Could not execute syscall »mkdir -p '//trim(outpath)//'«.'
-            CALL print_err_stop_slaves(mssg); GOTO 1000
-        END IF
-        
-        CALL Stat_Dir(c_char_array, stat_c_int)
-
-        IF(stat_c_int /= 0) THEN
-            mssg = 'Could not create the output directory »'//TRIM(outpath)//'«.'
-            CALL print_err_stop_slaves(mssg); GOTO 1000
-        END IF
-    ELSE 
-        WRITE(fh_mon, FMT_MSG) "Reusing the output directory"
-        WRITE(fh_mon, FMT_MSG) TRIM(outpath)
-    END IF
-
-
-    CALL link_start(link_name, .TRUE., .FALSE., success)
-    IF (.NOT. success) THEN
-        mssg = "Something went wrong during link_start"
-        CALL print_err_stop_slaves(mssg); GOTO 1000
-    END IF
 
 END IF 
 
@@ -476,19 +421,18 @@ Domains = 0_ik
 ALLOCATE(Domain_status(No_of_domains), stat=alloc_stat)
 CALL alloc_err("Domain_status", alloc_stat)
 
-Call MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(status_file), MPI_MODE_RDWR, MPI_INFO_NULL, aun, ierr)
-CALL MPI_FILE_READ(aun, Domain_status, INT(SIZE(Domain_status), mik), MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
+CALL MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(status_file), MPI_MODE_RDWR, MPI_INFO_NULL, status_un, ierr)
+CALL MPI_FILE_READ(status_un, Domain_status, INT(SIZE(Domain_status), mik), MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
 
 
 !------------------------------------------------------------------------------
 ! Read the communicators for use with the dataset
 !------------------------------------------------------------------------------
-ALLOCATE(comms_list(No_of_comms), stat=alloc_stat)
-CALL alloc_err("comms_list", alloc_stat)
+ALLOCATE(comms_array(3_ik,No_of_comms), stat=alloc_stat)
+CALL alloc_err("comms_array", alloc_stat)
 
-Call MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(comms_file), MPI_MODE_RDWR, MPI_INFO_NULL, aun, ierr)
-CALL MPI_FILE_READ(aun, comms_list, INT(SIZE(comms_list), mik), MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
-
+CALL MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(comms_file), MPI_MODE_RDONLY, MPI_INFO_NULL, comms_un, ierr)
+CALL MPI_FILE_READ(comms_un, comms_array, INT(SIZE(comms_array), mik), MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
 
 !------------------------------------------------------------------------------
 ! Read the number of parts assigned to each domain (ppd). The ppd must fit
@@ -497,49 +441,48 @@ CALL MPI_FILE_READ(aun, comms_list, INT(SIZE(comms_list), mik), MPI_INTEGER8, MP
 ALLOCATE(parts_list(No_of_domains), stat=alloc_stat)
 CALL alloc_err("parts_list", alloc_stat)
 
-Call MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(parts_file), MPI_MODE_RDWR, MPI_INFO_NULL, aun, ierr)
-CALL MPI_FILE_READ(aun, parts_list, INT(SIZE(parts_list), mik), MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
-
-
+CALL MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(parts_file), MPI_MODE_RDONLY, MPI_INFO_NULL, parts_un, ierr)
+CALL MPI_FILE_READ(parts_un, parts_list, INT(SIZE(parts_list), mik), MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
 
 ALLOCATE(domain_path(0:No_of_domains))
 domain_path = ''
 
-
-
-
+!------------------------------------------------------------------------------
+! Check if the computation is already done or not.
+!------------------------------------------------------------------------------
 If (rank_mpi == 0) THEN
 
-    IF (status_exists) THEN
-        !------------------------------------------------------------------------------
-        ! Read the Domain stats list
-        !------------------------------------------------------------------------------
-        CALL MPI_FILE_READ(aun, Domain_status, INT(SIZE(Domain_status), mik), &
-            MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
+    ! +1 to account for the master process of the monolihtic topology aware approach
+    No_of_cores_requested = SUM(comms_array(1,:)*comms_array(2,:)) + 1_ik
 
-        !------------------------------------------------------------------------------
-        ! Check whether computation will use resources properly.
-        !------------------------------------------------------------------------------
-        DO ii=1, SIZE(Domain_status)
-            IF (Domain_status(ii) >= 0) computed_domains = computed_domains + 1 
-        END DO
+    WRITE(std_out, FMT_TXT_AxI0) "Groups of parts per domain (ppd):  ", comms_array(1,:)
+    WRITE(std_out, FMT_TXT_AxI0) "Number of such communicators:      ", comms_array(2,:)
+    WRITE(std_out, FMT_TXT_AxI0) "Number of domains of these ppds:   ", comms_array(3,:)
+    WRITE(std_out, FMT_TXT_AxI0) "Number of cores requested:         ", No_of_cores_requested
+    
+    IF (No_of_cores_requested .NE. size_mpi) THEN
+        mssg = "The number of cores requested /= size_mpi."
+        CALL print_err_stop_slaves(mssg)
+        GOTO 1000
+    END IF 
 
-        IF (No_of_domains == computed_domains) THEN 
-            already_finished=.TRUE.
-            mssg = "Job is already finished. No restart required."
+    DO ii=1, SIZE(Domain_status)
+        IF (Domain_status(ii) >= 0) computed_domains = computed_domains + 1 
+    END DO
 
-            CALL print_err_stop_slaves(mssg, "message"); GOTO 1000
-        END IF 
+    IF (No_of_domains == computed_domains) THEN 
+        already_finished=.TRUE.
+        
+        mssg = "Job is already finished. No restart required."
+        CALL print_err_stop_slaves(mssg, "message")
+        GOTO 1000
+    END IF 
 
-    ELSE
-        CALL MPI_FILE_WRITE(aun, Domain_status, INT(SIZE(Domain_status), mik), &
-            MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
-    END IF
 
     !------------------------------------------------------------------------------
     ! Check if INPUT header exists. If not --> create one.
     !------------------------------------------------------------------------------
-    INQUIRE(FILE = TRIM( in%p_n_bsnm)//".head", EXIST=heaxist)
+    INQUIRE(FILE = TRIM(in%p_n_bsnm)//".head", EXIST=heaxist)
     IF(.NOT. heaxist) THEN
         free_file_handle = give_new_unit()
         CALL convert_meta_to_puredat(free_file_handle, m_rry)
@@ -666,23 +609,94 @@ If (rank_mpi == 0) THEN
 
     END IF ! restart == Yes/No
 
+
     !------------------------------------------------------------------------------
-    ! Check whether computation will use resources properly.
+    ! Allocating the space for the max. occuring number of domains per 
+    ! communicator is a waste of memory. However it is simple as well. 
+    ! (KISS principle) This may be optimized in a latter step.
     !------------------------------------------------------------------------------
-    ! NOT NECESSARY? PLEASE OBSERVE...
+    ! ALLOCATE(unique_comms(No_of_comms), stat=alloc_stat)
+    ! CALL alloc_err("unique_comms", alloc_stat)
+    ! unique_comms = 0_iks
+
+    ! ! O(N^2) implementation?! Not very good...
+    ! DO ii = 1, LEN(comms_array)
+    !     DO jj = 1, LEN(parts_list)
+    !         IF (comms_array(ii) == parts_list(jj)) THEN
+    !             unique_comms(ii) = unique_comms(ii) + 1_ik
+
+    !             Does that work this way?
+    !     END DO
+    ! END DO
+
+    ! max_domains_per_comm = MAX(unique_comms)
+
     !------------------------------------------------------------------------------
-    ! IF ( MOD((No_of_domains - computed_domains) * parts, size_mpi - 1) /= 0 ) THEN
-    !     write(std_out, FMT_DBG_AI0xAI0) "No_of_domains    = ", No_of_domains
-    !     write(std_out, FMT_DBG_AI0xAI0) "computed_domains = ", computed_domains
-    !     write(std_out, FMT_DBG_AI0xAI0) "parts            = ", parts
-    !     write(std_out, FMT_DBG_AI0xAI0) "size_mpi - 1     = ", size_mpi - 1
-    !     mssg = "MOD((No_of_domains - computed_domains) * parts, size_mpi - 1) /= 0"
-    !     CALL print_err_stop_slaves(mssg, "warning"); GOTO 1000
-    ! END IF
+    ! Raise and build meta_para tree
+    ! Hardcoded, implicitly given order of the leafs. 
+    ! DO NOT CHANGE ORDER WITHOUT MODIFYING ALL OTHER INDICES REGARDING »meta_para«
+    !------------------------------------------------------------------------------
+    Allocate(meta_para)
+    CALL raise_tree("Input parameters", meta_para)
+
+    CALL add_leaf_to_branch(meta_para, "muCT puredat pro_path"                , mcl , str_to_char(muCT_pd_path)) 
+    CALL add_leaf_to_branch(meta_para, "muCT puredat pro_name"                , mcl , str_to_char(muCT_pd_name)) 
+    CALL add_leaf_to_branch(meta_para, "Physical domain size"                 , 3_ik, bone%phdsize) 
+    CALL add_leaf_to_branch(meta_para, "Lower bounds of selected domain range", 3_ik, xa_d) 
+    CALL add_leaf_to_branch(meta_para, "Upper bounds of selected domain range", 3_ik, xe_d)      
     
-    IF ( parts > size_mpi - 1 ) THEN
-        mssg = "parts > size_mpi - 1"
-        CALL print_err_stop_slaves(mssg, "warning"); GOTO 1000
+    CALL add_leaf_to_branch(meta_para, "Grid spacings"                 , 3_ik, bone%delta) 
+    CALL add_leaf_to_branch(meta_para, "Lower limit of iso value"      , 1_ik, [llimit])      
+    CALL add_leaf_to_branch(meta_para, "Element type  on micro scale"  , len(elt_micro) , str_to_char(elt_micro))      
+    CALL add_leaf_to_branch(meta_para, "No of mesh parts per subdomain", 1_ik           , [parts]) 
+    CALL add_leaf_to_branch(meta_para, "Output Format"                 , len(output)    , str_to_char(output)) 
+    
+    CALL add_leaf_to_branch(meta_para, "Average strain on RVE"         , 1_ik, [strain])    
+    CALL add_leaf_to_branch(meta_para, "Young_s modulus"               , 1_ik, [bone%E]) 
+    CALL add_leaf_to_branch(meta_para, "Poisson_s ratio"               , 1_ik, [bone%nu]) 
+    CALL add_leaf_to_branch(meta_para, "Element order on macro scale"  , 1_ik, [elo_macro]) 
+    CALL add_leaf_to_branch(meta_para, "Output amount"                 , len(out_amount), str_to_char(out_amount)) 
+    
+    CALL add_leaf_to_branch(meta_para, "Restart", 1_ik, str_to_char(restart(1:1))) 
+    CALL add_leaf_to_branch(meta_para, "Number of voxels per direction", 3_ik , vdim) 
+    CALL add_leaf_to_branch(meta_para, "Domains per communicator", 1_ik, [max_domains_per_comm]) 
+
+    CALL add_leaf_to_branch(meta_para, "Binary segmentation" , LEN(bin_sgmnttn) , str_to_char(bin_sgmnttn))      
+    CALL add_leaf_to_branch(meta_para, "Segmentation map"    , LEN(map_sgmnttn) , str_to_char(map_sgmnttn))      
+
+    !------------------------------------------------------------------------------
+    ! Prepare output directory via Calling the c function.
+    ! Required, because INQUIRE only acts on files, not on directories.
+    ! File exists if stat_c_int = 0 
+    !------------------------------------------------------------------------------
+    c_char_array(1:LEN(TRIM(outpath)//CHAR(0))) = str_to_char(TRIM(outpath)//CHAR(0))
+    CALL Stat_Dir(c_char_array, stat_c_int)
+
+    IF(stat_c_int /= 0) THEN
+
+        CALL exec_cmd_line("mkdir -p "//TRIM(outpath), stat, 20)
+
+        IF(stat /= 0) THEN
+            mssg = 'Could not execute syscall »mkdir -p '//trim(outpath)//'«.'
+            CALL print_err_stop_slaves(mssg); GOTO 1000
+        END IF
+        
+        CALL Stat_Dir(c_char_array, stat_c_int)
+
+        IF(stat_c_int /= 0) THEN
+            mssg = 'Could not create the output directory »'//TRIM(outpath)//'«.'
+            CALL print_err_stop_slaves(mssg); GOTO 1000
+        END IF
+    ELSE 
+        WRITE(fh_mon, FMT_MSG) "Reusing the output directory"
+        WRITE(fh_mon, FMT_MSG) TRIM(outpath)
+    END IF
+
+
+    CALL link_start(link_name, .TRUE., .FALSE., success)
+    IF (.NOT. success) THEN
+        mssg = "Something went wrong during link_start"
+        CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF
 
     !------------------------------------------------------------------------------
@@ -747,16 +761,16 @@ If (rank_mpi == 0) THEN
         "Optimized Effective stiffness CR_2                " , &  ! 23 x  6* 6
         "Effective density                                 "], &  ! 24 x  1
         dat_ty = [(4_1, ii=1, 4), (5_1, ii=5, add_leaves)], &
-        dat_no = [ domains_per_comm, &
-        domains_per_comm,         domains_per_comm, &
-        domains_per_comm * 24   ,                                                    &
-        domains_per_comm,         domains_per_comm, &                                  
-        domains_per_comm * nl*nl, domains_per_comm * nl*nl, domains_per_comm       , &
-        domains_per_comm *  6*nl, domains_per_comm *  6*nl, domains_per_comm *  6*6, &
-        domains_per_comm        , domains_per_comm *  6* 6, domains_per_comm       , &
-        domains_per_comm        , domains_per_comm *     3, domains_per_comm *    9, &
-        domains_per_comm *  6* 6, domains_per_comm        , domains_per_comm *    3, &
-        domains_per_comm *     9, domains_per_comm *  6* 6, domains_per_comm      ], &
+        dat_no = [ max_domains_per_comm, &
+        max_domains_per_comm,         max_domains_per_comm, &
+        max_domains_per_comm * 24   ,                                                    &
+        max_domains_per_comm,         max_domains_per_comm, &                                  
+        max_domains_per_comm * nl*nl, max_domains_per_comm * nl*nl, max_domains_per_comm       , &
+        max_domains_per_comm *  6*nl, max_domains_per_comm *  6*nl, max_domains_per_comm *  6*6, &
+        max_domains_per_comm        , max_domains_per_comm *  6* 6, max_domains_per_comm       , &
+        max_domains_per_comm        , max_domains_per_comm *     3, max_domains_per_comm *    9, &
+        max_domains_per_comm *  6* 6, max_domains_per_comm        , max_domains_per_comm *    3, &
+        max_domains_per_comm *     9, max_domains_per_comm *  6* 6, max_domains_per_comm      ], &
         branch = result_branch)
 
     result_branch%leaves(:)%pstat = -1
@@ -817,22 +831,25 @@ If (rank_mpi == 0) THEN
     ! Start Workers
     !------------------------------------------------------------------------------
     CALL Start_Timer("Broadcast Init meta_para")
+END IF 
 
-    CALL mpi_bcast(outpath,       INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
-    CALL mpi_bcast(project_name , INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
-    
-    CALL mpi_bcast(serial_root_size, 1_mik, MPI_INTEGER8, 0_mik, MPI_COMM_WORLD, ierr)
-    CALL mpi_bcast(serial_root , INT(serial_root_size, mik), MPI_INTEGER8, 0_mik,&
-        MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(outpath      , INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(project_name , INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(serial_root_size, 1_mik, MPI_INTEGER8, 0_mik, MPI_COMM_WORLD, ierr)
+
+
+IF(rank_mpi == 0) THEN
+
+    CALL mpi_bcast(serial_root , INT(serial_root_size, mik), MPI_INTEGER8, 0_mik, MPI_COMM_WORLD, ierr)
 
     deallocate(serial_root)
     CALL End_Timer("Broadcast Init meta_para")
 
     !------------------------------------------------------------------------------
     ! Execute collective mpi_comm_split. Since mpi_comm_world rank 0 is
-    ! the head master worker_comm is not needed and it should not be in
-    ! any worker group and communicator. With MPI_UNDEFINED passed as
-    ! color worker_comm gets the value MPI_COMM_NULL
+    ! the head master, the worker_comm is not needed. It mustn't be part of 
+    ! any worker communicator. With MPI_UNDEFINED passed as
+    ! color, the worker_comm gets the value MPI_COMM_NULL
     !------------------------------------------------------------------------------
     CALL MPI_Comm_split(MPI_COMM_WORLD, MPI_UNDEFINED, rank_mpi, worker_comm, ierr)
     IF (ierr /=0) THEN
@@ -844,15 +861,12 @@ If (rank_mpi == 0) THEN
 !------------------------------------------------------------------------------
 ! Ranks > 0 -- Worker slaves
 !------------------------------------------------------------------------------
-Else
+ELSE
     CALL Start_Timer("Broadcast Init meta_para")
      
     !------------------------------------------------------------------------------
     ! Broadcast recieve init parameters
     !------------------------------------------------------------------------------
-    CALL MPI_BCAST(outpath      , INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
-    CALL MPI_BCAST(project_name , INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
-    CALL MPI_BCAST(serial_root_size, 1_mik, MPI_INTEGER8, 0_mik, MPI_COMM_WORLD, ierr)
  
     pro_path = outpath
     pro_name = project_name
@@ -923,7 +937,24 @@ Else
     End Do
 
     CALL pd_get(root%branches(1), "No of mesh parts per subdomain", parts)
-    CALL pd_get(root%branches(1), "Domains per communicator", domains_per_comm)
+    CALL pd_get(root%branches(1), "Domains per communicator", max_domains_per_comm)
+
+
+
+
+
+
+
+
+    !------------------------------------------------------------------------------
+    ! Get the communicator, the rank is part of.
+    !------------------------------------------------------------------------------
+
+
+
+
+
+
 
     !------------------------------------------------------------------------------
     ! All Worker Ranks -- Init worker Communicators
@@ -1242,7 +1273,7 @@ Else
         ! so far. Therefore, only increment comm_nn if this entry no 0
         !------------------------------------------------------------------------------
         CALL MPI_FILE_READ_AT(fh_mpi_worker(4), & 
-            Int(root%branches(3)%leaves(1)%lbound-1+(domains_per_comm-1-1), MPI_OFFSET_KIND), &
+            Int(root%branches(3)%leaves(1)%lbound-1+(max_domains_per_comm-1-1), MPI_OFFSET_KIND), &
             comm_nn, 1_mik, & 
             MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
         
@@ -1281,14 +1312,14 @@ Else
         ! leaves 22 --> Last leaf, contains density
 
         !------------------------------------------------------------------------------
-        ! (domains_per_comm*24)-1 because the last int8 entry has 24 ints.
+        ! (max_domains_per_comm*24)-1 because the last int8 entry has 24 ints.
         !------------------------------------------------------------------------------
         CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
-            Int(root%branches(3)%leaves(4)%lbound-1+((domains_per_comm*24)-1), MPI_OFFSET_KIND), &
+            Int(root%branches(3)%leaves(4)%lbound-1+((max_domains_per_comm*24)-1), MPI_OFFSET_KIND), &
             INT(Domain, KIND=ik), 1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
 
         CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-            Int(root%branches(3)%leaves(24)%lbound-1+(domains_per_comm-1), MPI_OFFSET_KIND), &
+            Int(root%branches(3)%leaves(24)%lbound-1+(max_domains_per_comm-1), MPI_OFFSET_KIND), &
             1_rk, 1_pd_mik, MPI_REAL8, status_mpi, ierr)
 
 
@@ -1399,7 +1430,7 @@ Else
                 !------------------------------------------------------------------------------
                 ! Store activity information
                 !------------------------------------------------------------------------------
-                Call MPI_FILE_WRITE_AT(aun, INT(((nn-1) * ik), MPI_OFFSET_KIND), &
+                Call MPI_FILE_WRITE_AT(status_un, INT(((nn-1) * ik), MPI_OFFSET_KIND), &
                     Domain, 1_mik, MPI_INTEGER8, status_mpi, ierr)
 
                 !------------------------------------------------------------------------------
@@ -1414,7 +1445,7 @@ Else
             ! Mark the current position within the stream.
             !------------------------------------------------------------------------------
             CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
-                INT(root%branches(3)%leaves(1)%lbound-1+(domains_per_comm-1-1), MPI_OFFSET_KIND), &
+                INT(root%branches(3)%leaves(1)%lbound-1+(max_domains_per_comm-1-1), MPI_OFFSET_KIND), &
                 INT(comm_nn, KIND=ik), 1_mik, MPI_INTEGER8, status_mpi, ierr)
 
             !------------------------------------------------------------------------------
@@ -1494,7 +1525,7 @@ END IF
 
 1000 Continue
 
-CALL MPI_FILE_CLOSE(aun, ierr)
+CALL MPI_FILE_CLOSE(status_un, ierr)
 CALL MPI_FINALIZE(ierr)
 CALL print_err_stop(std_out, "MPI_FINALIZE didn't succeed", ierr)
 

@@ -176,7 +176,7 @@ size_dmn    =  keywords.get("SIZE_DOMAIN")
 
 basename = os.path.splitext(cmd_args.meta_file)[0]
 
-dmn_no_file= basename + ".status_preprocess"
+dmn_no_file= basename + ".status"
 vox_file   = basename + ".vox"
 comms_file = basename + ".comms"
 parts_file = basename + ".parts"
@@ -205,10 +205,10 @@ if file_missing:
     print(FMT_STRING)
     exit(2)
 
-vox_list = ik8_to_list(vox_file)
+nds_list = ik8_to_list(vox_file)
 dmn_no_list = ik8_to_list(dmn_no_file)
 
-print("-- Entries in vox_list:     ", len(vox_list))
+print("-- Entries in nds_list:     ", len(nds_list))
 print("-- Entries in dmn_no_list:  ", len(dmn_no_list))
 print(FMT_STRING)
 
@@ -282,7 +282,7 @@ total_factors = tf_nds * tf_ma_el
 # Loop over FE nodes per domain for optimizing the topology aware batch 
 # scheduling
 # -----------------------------------------------------------------------------
-best_wasted_core_time = 999999999
+best_wct = 999999999
 best_job_size = 0
 best_target_pcn = 0
 best_sum_of_cores = 0
@@ -296,14 +296,21 @@ best_sum_of_cores = 0
 
 # for FE_nodes_part in range(FEs_part[0],FEs_part[1]+1,FEs_part[2]):
 
+# -----------------------------------------------------------------------------
+# Adjust the list of voxels per domain by the node_factor. Otherwise, the 
+# histogram will fail to cover all domains.
+# -----------------------------------------------------------------------------
+for ii in range(len(nds_list)):
+    nds_list[ii] *= node_factor
+
 for bin in bins:
 
     # Reset dataframes
     catalogued_data = pd.DataFrame(columns=['domain', 'ppd', 'expected runtime'])
-    comms_per_ppd = pd.DataFrame(columns=['ppd', 'comms'])
+    comms_per_ppd = pd.DataFrame(columns=['ppd', 'comms', 'No of Domains'])
 
     # Create the histogram data
-    bins_avail = hist(vox_list, min(vox_list), max(vox_list), bin)
+    bins_avail = hist(nds_list, min(nds_list), max(nds_list), bin)
     bins_avail = bins_avail[1]
 
     # calculate the parts per domain of a corresponding histogram bin
@@ -322,15 +329,21 @@ for bin in bins:
         time_budget_allocated.append(0)
         time_budget_required.append(0)
 
+    checksum = 0
+    checksummm = 0
     # Assign the ppd to the domain
     for dmn in range(len(dmn_no_list)):
 
-        FE_nodes_dmn = vox_list[dmn] * node_factor
-
+        FE_nodes_dmn = nds_list[dmn]
+    
+        checksummm += 1
         parts_per_domain = 0
         for ii in range(len(bins_avail)-1):
-            if FE_nodes_dmn > bins_avail[ii] and FE_nodes_dmn < bins_avail[ii+1]:
+
+            # -1 and +1 because >= and <= will not work.
+            if FE_nodes_dmn > bins_avail[ii]-1 and FE_nodes_dmn < bins_avail[ii+1]+1:
                 parts_per_domain = ppds_avail[ii]
+                checksum += 1
 
         # -----------------------------------------------------------------------------
         # Get and take the effective number of FE nodes per part into account
@@ -347,7 +360,6 @@ for bin in bins:
 
         new_entry = pd.DataFrame({'domain': dmn, 'ppd': parts_per_domain, 'expected runtime': expected_runtime}, index=[0])
         catalogued_data = pd.concat([catalogued_data, new_entry])
-
 
     # Search for bin specific runtimes
     min_tot_t = 9999999999999
@@ -379,27 +391,32 @@ for bin in bins:
 
         comms = cutting_stock(df_dmns["expected runtime"].tolist(), target_time_budget)
 
-        # core seconds = number of MPI comms * size of MPI comms * target time budet
-        time_budget_allocated[ii] = comms * uupd * target_time_budget
+        # core seconds = number of MPI comms * size of MPI comms * target time budget
+        # +1 to acco
+        time_budget_allocated[ii] = (comms * uupd + 1) * target_time_budget
 
         # Not skipping empty communicators results in processors that are idling all the time.
         if comms == 0:
             continue
 
-        new_entry = pd.DataFrame({'ppd': uupd, 'comms': comms}, index=[0])
+        new_entry = pd.DataFrame({'ppd': uupd, 'comms': comms, 'No of Domains': df_dmns.shape[0]}, index=[0])
         comms_per_ppd = pd.concat([comms_per_ppd, new_entry])
 
-    # Number of cores required with this setup
-    sum_of_cores = sum(comms_per_ppd["ppd"]*comms_per_ppd["comms"])
+    
+    # -----------------------------------------------------------------------------
+    # Number of cores required with this setup. +1 to account for the master 
+    # process in the monolithic topology aware approach.
+    # -----------------------------------------------------------------------------
+    sum_of_cores = sum(comms_per_ppd["ppd"]*comms_per_ppd["comms"]) + 1
 
     # -----------------------------------------------------------------------------
     # Search for optimum packaging with topology aware compute node numbers
     # -----------------------------------------------------------------------------
-    wasted_core_time = 9999999999999999
+    wct = 9999999999999999
     curr_job_size = 0
     curr_target_pcn = 0
-    total_time_budget_allocated =  sum(time_budget_allocated)
-    total_time_budget_required =  sum(time_budget_required)
+    ttb_allocated =  sum(time_budget_allocated) # total time budget (ttb)
+    ttb_required =  sum(time_budget_required)
 
     for js in job_sizes:
         for ii in range(target_pcn[0], target_pcn[2]):
@@ -410,18 +427,18 @@ for bin in bins:
             idle_time_delta_cores = delta_cores * target_time_budget
 
             # Allocated = all 
-            total_idle_core_time = total_time_budget_allocated - total_time_budget_required + idle_time_delta_cores
+            total_idle_core_time = ttb_allocated - ttb_required + idle_time_delta_cores
 
             # delta cores negative --> more cores needed than available
-            if total_idle_core_time < wasted_core_time and delta_cores >= 0:
-                wasted_core_time = total_idle_core_time
+            if total_idle_core_time < wct and delta_cores >= 0:
+                wct = total_idle_core_time
 
                 curr_job_size = js
                 curr_target_pcn = ii
                 curr_sum_of_cores = sum_of_cores
                 curr_no_bins = bin
-                curr_wasted_core_time = wasted_core_time
-                curr_total_time_budget_required = total_time_budget_required
+                curr_wct = wct # wasted core time
+                curr_ttb_required = ttb_required
                 curr_comms_per_ppd = comms_per_ppd
                 curr_catalogued_data = catalogued_data
             else:
@@ -436,19 +453,19 @@ for bin in bins:
         print("-- curr_job_size:  ", curr_job_size)
         print("-- curr_target_pcn:", curr_target_pcn)
         print("-- ")
-        print("-- curr_wasted_core_time:", curr_wasted_core_time)
-        print("-- curr_total_time_budget_required:", curr_total_time_budget_required)
+        print("-- curr_wct:", curr_wct)
+        print("-- curr_ttb_required:", curr_ttb_required)
         print(FMT_STRING)
 
-    if curr_wasted_core_time < best_wasted_core_time and curr_wasted_core_time >= 0:
-        best_wasted_core_time = curr_wasted_core_time
+    if curr_wct < best_wct and curr_wct >= 0:
+        best_wct = curr_wct
 
         best_job_size = curr_job_size
         best_target_pcn = curr_target_pcn
         best_sum_of_cores = curr_sum_of_cores
         best_no_bins = curr_no_bins
-        best_wasted_core_time = wasted_core_time
-        best_total_time_budget_required = total_time_budget_required
+        best_wct = wct
+        best_ttb_required = ttb_required
         best_comms_per_ppd = curr_comms_per_ppd
         best_catalogued_data = curr_catalogued_data
 
@@ -457,7 +474,7 @@ print(FMT_STRING)
 # -----------------------------------------------------------------------------
 # User Feedback
 # -----------------------------------------------------------------------------
-bins_used = hist(vox_list, min(vox_list), max(vox_list), best_no_bins)
+bins_used = hist(nds_list, min(nds_list), max(nds_list), best_no_bins)
 
 print("-- Cores available:        ", best_job_size*best_target_pcn)
 print("-- best_sum_of_cores:      ", best_sum_of_cores)
@@ -467,9 +484,9 @@ print("-- best_target_pcn:        ", best_target_pcn, "  parts per compute node"
 print("-- ")
 print("-- Number of bins:         ", best_no_bins)
 print("-- Bins used:              ", np.around(bins_used[1]))
-print("-- Core time idling/wasted:", round(best_wasted_core_time,2 ), " Standard time units")
-print("-- Core time required:     ", round(best_total_time_budget_required,2 ), " Standard time units")
-print("-- Theoretical efficiency: ", round(best_total_time_budget_required/(best_total_time_budget_required+best_wasted_core_time)*100,3 ), "%")
+print("-- Core time idling/wasted:", round(best_wct,2 ), " Standard time units")
+print("-- Core time required:     ", round(best_ttb_required,2 ), " Standard time units")
+print("-- Theoretical efficiency: ", round(best_ttb_required/(best_ttb_required+best_wct)*100,3 ), "%")
 print("--", best_comms_per_ppd)
 
 if bool(cmd_args.ncno):
@@ -487,25 +504,34 @@ if best_sum_of_cores == 0 and bool(cmd_args.ncno):
 # -----------------------------------------------------------------------------
 # Write MPI communicators to a binary file, which can be read easily by Fortran
 # -----------------------------------------------------------------------------
-list_of_comms = []
-for index, row in best_comms_per_ppd.iterrows():
-    comms = row['comms']
-    ppd = row['ppd']
-    for ii in range(comms):
-        list_of_comms.append(ppd)
+list_of_comms = best_comms_per_ppd['ppd'].tolist()
+list_of_NoofComms = best_comms_per_ppd['comms'].tolist()
+list_of_NoDmns = best_comms_per_ppd['No of Domains'].tolist()
 
-
+no_of_domains_checksum = 0
+last_value = 0
 f = open(comms_file, 'wb')
-for ii in list_of_comms:
-    f.write((ii).to_bytes(8, byteorder='little', signed=True))
+for ii in range(len(list_of_comms)):
+    if ii > 0 and last_value == list_of_comms[ii]:
+        continue
+
+    f.write(list_of_comms[ii].to_bytes(8, byteorder='little', signed=True))
+    f.write(list_of_NoofComms[ii].to_bytes(8, byteorder='little', signed=True))
+    f.write(list_of_NoDmns[ii].to_bytes(8, byteorder='little', signed=True))
+    
+    no_of_domains_checksum += list_of_NoDmns[ii]
+
+    last_value = list_of_comms[ii]
+
 f.close()
+
+print("-- Number of domains written to files:", no_of_domains_checksum)
 
 # -----------------------------------------------------------------------------
 # Write the parts per domain for reading by Fortran to a binary file
 # -----------------------------------------------------------------------------
-parts_list = []
-# parts_list = best_catalogued_data['ppd'].tolist()
-
+parts_list = best_catalogued_data['ppd'].tolist()
+#
 f = open(parts_file, 'wb')
 for ii in parts_list:
     f.write((ii).to_bytes(8, byteorder='little', signed=True))

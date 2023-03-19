@@ -103,7 +103,7 @@ f90_inc_path = -I$(PETSC_INCPATH) # -I$(PARMETIS_INCPATH)
 # ------------------------------------------------------------------------------
 # Library paths for external libraries 
 # -----------------------------------------------------------------------------
-lib_path_flag = -L$(LAPACK_LIBPATH) -L$(METIS_LIBPATH) -L$(PETSC_LIBPATH) -L$(PARMETIS_LIBPATH)
+lib_path_flag = -L$(LAPACK_LIBPATH) -L$(METIS_LIBPATH) -L$(PETSC_LIBPATH) # -L$(PARMETIS_LIBPATH)
 #
 # -----------------------------------------------------------------------------
 # Choose Lapack
@@ -125,7 +125,7 @@ include $(st_path)/make.flags
 # -----------------------------------------------------------------------------
 # Linker flags for chain links
 # -----------------------------------------------------------------------------
-link_flags = $(lib_path_flag)  -g # -fopenmp -g # -pg 
+link_flags = $(lib_path_flag)   # -fopenmp -g # -pg 
 export link_flags
 # endif
 #
@@ -173,8 +173,10 @@ f-objects = $(st_obj_dir)mod_global_std$(obj_ext) \
 			$(obj_dir)mod_gen_quadmesh$(obj_ext) \
 			$(obj_dir)mod_struct_preprocess$(obj_ext) \
 			$(obj_dir)mod_struct_calcmat$(obj_ext) \
-			$(obj_dir)mod_dtc_main_subroutines$(obj_ext) \
-			$(obj_dir)struct_process$(obj_ext)
+			$(obj_dir)mod_dtc_main_subroutines$(obj_ext)
+#
+f-sp-object = $(obj_dir)struct_process$(obj_ext)
+f-dtc-object = $(obj_dir)dtc$(obj_ext)
 #
 # -----------------------------------------------------------------------------
 # For linking
@@ -596,21 +598,21 @@ $(obj_dir)morphometric_evaluation$(obj_ext):$(st_mod_dir)global_std$(mod_ext)  $
 # -----------------------------------------------------------------------------
 # Final Link step of struct_process main 
 # -----------------------------------------------------------------------------
-$(main_bin): export_revision $(c-objects) $(f-objects)
+$(main_bin): export_revision $(c-objects) $(f-objects) $(f-sp-object)
 	@echo "----------------------------------------------------------------------------------"
 	@echo '-- Final link step of the struct_process executable'
 	@echo "----------------------------------------------------------------------------------"
-	$(f90_compiler) $(link_flags) $(c-objects) $(f-objects) $(lll_extra) -o $(main_bin)
+	$(f90_compiler) $(link_flags) $(c-objects) $(f-objects) $(f-sp-object) $(lll_extra) -o $(main_bin)
 	@echo
 #
 # -----------------------------------------------------------------------------
 # Final Link step of dtc main 
 # -----------------------------------------------------------------------------
-$(dtc_bin): export_revision $(c-objects) $(f-objects)
+$(dtc_bin): export_revision $(c-objects) $(f-objects) $(f-dtc-object)
 	@echo "----------------------------------------------------------------------------------"
 	@echo '-- Final link step of dtc executable'
 	@echo "----------------------------------------------------------------------------------"
-	$(f90_compiler) $(link_flags) $(c-objects) $(f-objects) $(lll_extra) -o $(dtc_bin)
+	$(f90_compiler) $(link_flags) $(c-objects) $(f-objects) $(f-dtc-object) $(lll_extra) -o $(dtc_bin)
 	@echo
 #	
 # -----------------------------------------------------------------------------

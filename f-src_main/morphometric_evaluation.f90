@@ -155,7 +155,7 @@ PROGRAM morphometric_evaluation
     IF(vox_exists) CALL print_err_stop(std_out, "A vox file already exists.", 1_ik) 
     
     sun = 62_ik
-    sun_file = TRIM(out%p_n_bsnm)//".status_preprocess" ! compare to DTC
+    sun_file = TRIM(out%p_n_bsnm)//".status" ! compare to DTC
     INQUIRE(FILE = TRIM(sun_file), EXIST=sun_exists)
     IF(sun_exists) CALL print_err_stop(std_out, "A status file already exists.", 1_ik) 
 
