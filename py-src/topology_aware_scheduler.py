@@ -478,6 +478,9 @@ print(FMT_STRING)
 # -----------------------------------------------------------------------------
 # User Feedback
 # -----------------------------------------------------------------------------
+if bool(cmd_args.bins):
+    best_no_bins = int(cmd_args.bins)
+
 bins_used = hist(nds_list, min(nds_list), max(nds_list), best_no_bins)
 
 print("-- Cores available:        ", best_job_size*best_target_pcn)

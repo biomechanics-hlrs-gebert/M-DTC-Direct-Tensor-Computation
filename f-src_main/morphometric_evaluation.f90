@@ -155,7 +155,7 @@ PROGRAM morphometric_evaluation
     IF(vox_exists) CALL print_err_stop(std_out, "A vox file already exists.", 1_ik) 
     
     sun = 62_ik
-    sun_file = TRIM(out%p_n_bsnm)//".status_preprocess" ! compare to DTC
+    sun_file = TRIM(out%p_n_bsnm)//".status" ! compare to DTC
     INQUIRE(FILE = TRIM(sun_file), EXIST=sun_exists)
     IF(sun_exists) CALL print_err_stop(std_out, "A status file already exists.", 1_ik) 
 
@@ -247,11 +247,11 @@ PROGRAM morphometric_evaluation
     !------------------------------------------------------------------------------
     oo = 1
         
-    DO kk = xa_d(3), xe_d(3) - 1_ik
-    DO jj = xa_d(2), xe_d(2) - 1_ik
-    DO ii = xa_d(1), xe_d(1) - 1_ik
+    DO kk = xa_d(3), xe_d(3) 
+    DO jj = xa_d(2), xe_d(2) 
+    DO ii = xa_d(1), xe_d(1) 
 
-        Domains(oo) = ii + jj * nn_D(1) + kk * nn_D(1)*nn_D(2)
+        Domains(oo) = ii + jj * (nn_D(1)+1) + kk * (nn_D(1)+1) * (nn_D(2)+1)
 
         IF(bin_sgmnttn == "Y") CYCLE
 
@@ -304,8 +304,8 @@ PROGRAM morphometric_evaluation
 
     WRITE(vun) vox_stats
     ! Assuming, that no image will contain more than 10 Mio. domains (which is possible in the future!)
-    WRITE(sun) -Domains-100000000
-
+    WRITE(sun) (-Domains-100000000)
+    
     CLOSE(vun)
     CLOSE(sun)
     
