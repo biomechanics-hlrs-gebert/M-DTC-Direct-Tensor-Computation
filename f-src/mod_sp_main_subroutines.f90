@@ -45,19 +45,19 @@ CONTAINS
 !> @param[out]   active        Whether thread is active
 !> @param[in]    fh_mpi_worker File handle of sub comm
 !> @param[in]    worker_rank_mpi
-!> @param[in]    parts
+!> @param[in]    worker_size_mpi
 !> @param[in]    comm_mpi
 !------------------------------------------------------------------------------
 Subroutine exec_single_domain(root, comm_nn, domain, typeraw, &
-    job_dir, fh_cluster_log, active, fh_mpi_worker, worker_rank_mpi, parts, comm_mpi)
+    job_dir, fh_cluster_log, active, fh_mpi_worker, worker_rank_mpi, worker_size_mpi, comm_mpi)
 
 TYPE(materialcard) :: bone, bone_adjusted
 INTEGER(mik), Intent(INOUT), Dimension(no_streams) :: fh_mpi_worker
 
 Character(*) , Intent(in)  :: job_dir
 Character(*) , Intent(in)  :: typeraw
-INTEGER(mik), Intent(In)  :: worker_rank_mpi, comm_mpi
-INTEGER(ik) , intent(in)  :: parts, comm_nn, domain, fh_cluster_log
+INTEGER(mik), Intent(In)  :: worker_rank_mpi, worker_size_mpi, comm_mpi
+INTEGER(ik) , intent(in)  :: comm_nn, domain, fh_cluster_log
 INTEGER(mik), intent(out) :: active
 Type(tBranch)    , Intent(inOut) :: root
 
@@ -72,7 +72,7 @@ INTEGER(pd_ik), Dimension(:), Allocatable :: serial_pb
 INTEGER(pd_ik) :: serial_pb_size
 
 INTEGER(ik) :: domain_elems, ii, jj, kk, id, stat, &
-    Istart,Iend, IVstart, IVend, m_size, mem_global, status_global, &
+    Istart,Iend, parts, IVstart, IVend, m_size, mem_global, status_global, &
     no_different_hosts, timestamp, HU, lower_limit, upper_limit, &
     macro_order, no_elem_nodes, no_lc
 
@@ -148,6 +148,7 @@ END IF
 
 CALL Search_branch("Input parameters", root, meta_para, success, out_amount)
 
+CALL pd_get(meta_para, "No of mesh parts per subdomain", parts)
 CALL pd_get(meta_para, "Physical domain size" , bone%phdsize, 3)
 CALL pd_get(meta_para, "Grid spacings" , bone%delta, 3)
 CALL pd_get(meta_para, "Young_s modulus" , bone%E)
@@ -283,7 +284,7 @@ If (worker_rank_mpi == 0) then
 
     CALL start_timer(trim(timer_name), .FALSE.)
 
-    CALL generate_geometry(root, domain, job_dir, typeraw, parts, success)
+    CALL generate_geometry(root, domain, job_dir, typeraw, success)
 
     if (.not. success) write(std_out, FMT_WRN)"generate_geometry() failed."
     
@@ -352,8 +353,10 @@ If (worker_rank_mpi == 0) then
         !------------------------------------------------------------------------------
         CALL serialize_branch(part_branch, serial_pb, serial_pb_size, .TRUE.)
 
-        CALL mpi_send(serial_pb_size, 1_mik, MPI_INTEGER8, Int(ii,mik), Int(ii,mik), COMM_MPI, ierr)
-        CALL mpi_send(serial_pb, INT(serial_pb_size,mik), MPI_INTEGER8, Int(ii,mik), Int(ii,mik), COMM_MPI, ierr)
+        CALL mpi_send(serial_pb_size, 1_mik, MPI_INTEGER8, Int(ii,mik), Int(ii,mik), &
+            COMM_MPI, ierr)
+        CALL mpi_send(serial_pb, INT(serial_pb_size,mik), MPI_INTEGER8, &
+            Int(ii,mik), Int(ii,mik), COMM_MPI, ierr)
 
         Deallocate(serial_pb)
         
@@ -408,6 +411,7 @@ End If ! (worker_rank_mpi == 0) then
 !------------------------------------------------------------------------------
 ! Abort this domain in case of a fatal error in reading the mesh branch.
 !------------------------------------------------------------------------------
+IF(.NOT. success) write(*,*) "My process failed, rank:", worker_rank_mpi
 
 
 IF(.NOT. success) GOTO 1000
@@ -475,7 +479,6 @@ CALL MatMPIAIJSetPreallocation(AA_org, 0_ik, PETSC_NULL_INTEGER, 0_ik, PETSC_NUL
 CALL MatSetOption(AA    ,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
 CALL MatSetOption(AA_org,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
 
- 
 
 !------------------------------------------------------------------------------
 ! Get and write another memory log.
@@ -544,7 +547,6 @@ ELSE
 END IF
 
 bone_adjusted%nu = bone%nu
- 
 
 !------------------------------------------------------------------------------
 ! Assemble matrix
@@ -706,14 +708,13 @@ else if (elt_micro == "HEX20") then
 
 end if
 
- 
 
 IF (worker_rank_mpi == 0) THEN   ! Sub Comm Master
     SELECT CASE (timer_level)
     CASE (1)
         timer_name = "+-- MatAssemblyBegin "//TRIM(domain_char)
     CASE default
-        timer_name = "MatAssemblayBegin"
+        timer_name = "MatAssemblyBegin"
     End SELECT
     
     CALL start_timer(TRIM(timer_name), .FALSE.)
@@ -729,14 +730,12 @@ IF (worker_rank_mpi == 0) THEN
     collected_logs(11) = mem_global
     collected_logs(18) = status_global
 END IF
- write(*,*) "Im here DTC_MSR8"
 
 CALL MatAssemblyBegin(AA, MAT_FINAL_ASSEMBLY ,petsc_ierr)
 CALL MatAssemblyBegin(AA_org, MAT_FINAL_ASSEMBLY ,petsc_ierr)
 ! Computations can be done while messages are in transition
 CALL MatAssemblyEnd(AA, MAT_FINAL_ASSEMBLY ,petsc_ierr)
 CALL MatAssemblyEnd(AA_org, MAT_FINAL_ASSEMBLY ,petsc_ierr)
- write(*,*) "Im here DTC_MSR9"
 
 !------------------------------------------------------------------------------
 ! End timer
@@ -832,6 +831,7 @@ Do ii = 1, no_lc
     END IF
     
 End Do
+!------------------------------------------------------------------------------
 
 !------------------------------------------------------------------------------
 ! Get Bounds branch of LC 1
@@ -855,7 +855,6 @@ Do ii = 1, boundary_branch%leaves(1)%dat_no
     gnid_cref(kk:kk+2) = [id, id+1, id+2]
     kk= kk + 3
 End Do
- write(*,*) "Im here DTC_MSR10"
 
 !------------------------------------------------------------------------------ 
 ! Create solution vector
@@ -895,7 +894,6 @@ If (out_amount == "DEBUG") THEN
     CALL VecView(XX, PetscViewer, petsc_ierr)
     CALL PetscViewerDestroy(PetscViewer, petsc_ierr)
 End If
- write(*,*) "Im here DTC_MSR11"
 
 !------------------------------------------------------------------------------
 ! At this point the right hand side vectors, filled with zeros and
@@ -949,7 +947,6 @@ ELSE IF (macro_order == 2) THEN
     CALL VecAssemblyEnd(FF_20(1), petsc_ierr)         
 END IF
 
- write(*,*) "Im here DTC_MSR12"
 
 !------------------------------------------------------------------------------
 ! Compute dirichlet boundary corrections of 2nd to 23rd
@@ -1040,7 +1037,6 @@ ELSE IF (macro_order == 2) THEN
     End Do
 
 END IF
- write(*,*) "Im here DTC_MSR13"
 
 
 !------------------------------------------------------------------------------
@@ -1080,7 +1076,6 @@ If (out_amount == "DEBUG") THEN
 
     CALL PetscViewerDestroy(PetscViewer, petsc_ierr)
 End If
- write(*,*) "Im here DTC_MSR14"
 
 !------------------------------------------------------------------------------
 ! At this point the right hand side vectors are modified with the      
@@ -1187,7 +1182,7 @@ IF (worker_rank_mpi == 0) THEN
     ! Allocate global forces result
     Allocate(glob_force(0:m_size-1))
     ! Allocate local bounds for global result
-    Allocate(res_sizes(2,parts-1))
+    Allocate(res_sizes(2,worker_size_mpi-1))
     
 End If ! (worker_rank_mpi == 0) THEN
 
@@ -1253,10 +1248,10 @@ Do jj = 1, no_lc
             MPI_Integer8,  0_mik, worker_rank_mpi, COMM_MPI, ierr)
         
         CALL mpi_send(displ, Int(IVend-IVstart,mik), &
-            MPI_Real8,  0_mik, Int(worker_rank_mpi+parts,mik), COMM_MPI, ierr)
+            MPI_Real8,  0_mik, Int(worker_rank_mpi+worker_size_mpi,mik), COMM_MPI, ierr)
 
         CALL mpi_send(force, Int(IVend-IVstart,mik), &
-            MPI_Real8,  0_mik, Int(worker_rank_mpi+2*parts,mik), COMM_MPI, ierr)
+            MPI_Real8,  0_mik, Int(worker_rank_mpi+2*worker_size_mpi,mik), COMM_MPI, ierr)
 
     Else ! Master
 
@@ -1269,7 +1264,7 @@ Do jj = 1, no_lc
         !------------------------------------------------------------------------------
         ! Recv bounds of local results
         !------------------------------------------------------------------------------
-        Do ii = 1, parts-1
+        Do ii = 1, worker_size_mpi-1
             CALL mpi_recv(res_sizes(:,ii), 2_mik, MPI_Integer8,  Int(ii, mik), &
                 Int(ii, mik), COMM_MPI, status_mpi, ierr)
         End Do
@@ -1277,15 +1272,15 @@ Do jj = 1, no_lc
         !------------------------------------------------------------------------------
         ! Recv local parts of global result
         !------------------------------------------------------------------------------
-        Do ii = 1, parts-1
+        Do ii = 1, worker_size_mpi-1
             CALL mpi_recv(glob_displ(res_sizes(1,ii):res_sizes(2,ii)-1), &
                 Int(res_sizes(2,ii)-res_sizes(1,ii),mik), &
-                MPI_Integer8,  Int(ii, mik), Int(ii+parts, mik), &
+                MPI_Integer8,  Int(ii, mik), Int(ii+worker_size_mpi, mik), &
                 COMM_MPI, status_mpi, ierr)
 
             CALL mpi_recv(glob_force(res_sizes(1,ii):res_sizes(2,ii)-1), &
                 Int(res_sizes(2,ii)-res_sizes(1,ii),mik), &
-                MPI_Integer8,  Int(ii, mik), Int(ii+2*parts, mik) , &
+                MPI_Integer8,  Int(ii, mik), Int(ii+2*worker_size_mpi, mik) , &
                 COMM_MPI, status_mpi, ierr)
         End Do
 
@@ -1347,7 +1342,7 @@ if (worker_rank_mpi == 0) then
 
     CALL start_timer(TRIM(timer_name), .FALSE.)
     CALL calc_effective_material_parameters(root, comm_nn, domain, &
-        fh_mpi_worker, INT(parts,mik), collected_logs)
+        fh_mpi_worker, worker_size_mpi, collected_logs)
     CALL end_timer(TRIM(timer_name))
     
 ELSE

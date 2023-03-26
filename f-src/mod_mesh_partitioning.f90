@@ -12,11 +12,11 @@ module mesh_partitioning
   
   Type T_PMesh
 
-     Integer(kind=ik) :: nnodes, nelems, nouter_nds
+     Integer(ik) :: nnodes, nelems, nouter_nds
 
-     INTEGER(KIND=IK), DIMENSION(:) , Allocatable :: NN, ncolor, cneigh, bnodes
-     REAL(KIND=RK)   , DIMENSION(:,:), Allocatable :: COOR
-     INTEGER(KIND=IK), DIMENSION(:,:), Allocatable :: EIND,neigh
+     INTEGER(IK), DIMENSION(:) , Allocatable :: NN, ncolor, cneigh, bnodes
+     REAL(RK)   , DIMENSION(:,:), Allocatable :: COOR
+     INTEGER(IK), DIMENSION(:,:), Allocatable :: EIND,neigh
 
   End type T_PMesh
 
@@ -29,37 +29,37 @@ contains
    
     ! Parted Mesh *************************************************************
     Type(tBranch)   , intent(Inout) :: PMesh
-    Character(LEN=*), Intent(in) :: job_dir
-    Integer(kind=ik), intent(in) :: ddc_nn
+    Character(*), Intent(in) :: job_dir
+    Integer(ik), intent(in) :: ddc_nn
 
     ! Metis variables *********************************************************
-    Integer(kind=C_INT64_T), Intent(In) :: ne
-    Integer(kind=C_INT64_T), intent(In) :: nnodes
+    Integer(C_INT64_T), Intent(In) :: ne
+    Integer(C_INT64_T), intent(In) :: nnodes
 
-    Integer(kind=C_INT64_T)                              :: nn
-    Integer(kind=C_INT64_T), Dimension(:),   Allocatable :: eptr
-    Integer(kind=C_INT64_T), Dimension(:,:), Allocatable :: eind
-    Integer(kind=C_INT64_T), Dimension(:)  , Allocatable :: HU_magnitudes
-    Integer(kind=C_INT64_T), Dimension(:),   Allocatable :: vwgt, vsize
-    Integer(kind=C_INT64_T)                              :: ncommon
-    Integer(kind=C_INT64_T), Intent(in)                  :: parts
-    Real   (kind=c_double) , Dimension(:)  , Allocatable :: tpwgts
-    Integer(kind=C_INT64_T), Dimension(40)               :: options
-    Integer(kind=C_INT64_T)                              :: objval
-    Integer(kind=C_INT64_T), Dimension(:)  , Allocatable :: depart
-    Integer(kind=C_INT64_T), Dimension(:)  , Allocatable :: dnpart
+    Integer(C_INT64_T)                              :: nn
+    Integer(C_INT64_T), Dimension(:),   Allocatable :: eptr
+    Integer(C_INT64_T), Dimension(:,:), Allocatable :: eind
+    Integer(C_INT64_T), Dimension(:)  , Allocatable :: HU_magnitudes
+    Integer(C_INT64_T), Dimension(:),   Allocatable :: vwgt, vsize
+    Integer(C_INT64_T)                              :: ncommon
+    Integer(C_INT64_T), Intent(in)                  :: parts
+    Real   (c_double) , Dimension(:)  , Allocatable :: tpwgts
+    Integer(C_INT64_T), Dimension(40)               :: options
+    Integer(C_INT64_T)                              :: objval
+    Integer(C_INT64_T), Dimension(:)  , Allocatable :: depart
+    Integer(C_INT64_T), Dimension(:)  , Allocatable :: dnpart
 
-    Real(kind=C_double), Dimension(:,:), intent(in) :: nodes
+    Real(C_double), Dimension(:,:), intent(in) :: nodes
 
     !**************************************************************************
-    Integer(kind=ik), Dimension(:), Allocatable :: nnodes_pp, nelems_pp, nouter_nds_pp
-    INTEGER(kind=ik)                            :: ii,jj,kk,idum, tmp_i8
-    INTEGER(kind=ik), Dimension(:), Allocatable :: cref
-    Character(Len=mcl)                          :: desc, filename
-    INTEGER(kind=ik), Dimension(1,2)            :: bounds
-    Character(len=mcl)                          :: vtk_file
-    Integer(kind=ik), Dimension(:,:), Allocatable :: elems
-    Integer(kind=ik)                              :: nn_el
+    Integer(ik), Dimension(:), Allocatable :: nnodes_pp, nelems_pp, nouter_nds_pp
+    INTEGER(ik)                            :: ii,jj,kk,idum, tmp_i8
+    INTEGER(ik), Dimension(:), Allocatable :: cref
+    Character(mcl)                         :: desc, filename
+    INTEGER(ik), Dimension(1,2)            :: bounds
+    Character(mcl)                           :: vtk_file
+    Integer(ik), Dimension(:,:), Allocatable :: elems
+    Integer(ik)                              :: nn_el
     
     !== Code ====================================================================
 

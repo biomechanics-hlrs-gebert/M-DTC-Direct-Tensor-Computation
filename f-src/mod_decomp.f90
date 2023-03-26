@@ -22,34 +22,34 @@ module decomp
   Type tDecomp
      
      !> Number of domain in global numbering scheme
-     Integer(kind=ik) :: nn
+     Integer(ik) :: nn
 
      !> Maximum number of domains in global numbering sheme
-     Integer(kind=ik) :: nn_D_max
+     Integer(ik) :: nn_D_max
      !> Number of points in complete decomposed volume
-     Integer(kind=ik), Dimension(3) :: x_VD
+     Integer(ik), Dimension(3) :: x_VD
 
      !> Position of Domain on each axis in global numbering sheme
-     Integer(kind=ik) :: nn_1, nn_2, nn_3
+     Integer(ik) :: nn_1, nn_2, nn_3
      !> Number of points in domain
-     Integer(kind=ik) :: no_dat_D
+     Integer(ik) :: no_dat_D
 
      !> Points on each domain edge
-     Integer(kind=ik), Dimension(3) :: x_D
+     Integer(ik), Dimension(3) :: x_D
      !> Physical dimension of domain
-     Real(kind=rk), Dimension(3) :: x_D_phy
+     Real(rk), Dimension(3) :: x_D_phy
      !> Number of Domains on each axis
-     Integer(kind=ik), Dimension(3) :: nn_D
+     Integer(ik), Dimension(3) :: nn_D
      !> Lower left and upper right corner of domain
-     Integer(kind=ik), Dimension(3) :: xa_n, xe_n
+     Integer(ik), Dimension(3) :: xa_n, xe_n
      !> Lower left and upper right corner of extended domain
-     Integer(kind=ik), Dimension(3) :: xa_n_ext, xe_n_ext
+     Integer(ik), Dimension(3) :: xa_n_ext, xe_n_ext
 
      !> Grid spacing / Voxel size
-     Real(kind=rk), Dimension(3) :: delta
+     Real(rk), Dimension(3) :: delta
 
      !> Boundary points (Domain extension)
-     Integer(kind=ik), Dimension(3) :: bpoints = (/1_ik, 1_ik, 1_ik/)
+     Integer(ik), Dimension(3) :: bpoints = (/1_ik, 1_ik, 1_ik/)
 
   End type tDecomp
   
@@ -60,11 +60,11 @@ module decomp
      !> Field content description
      Character, Dimension(:), Allocatable :: desc
      !> Field origin (in voxel coordinates)
-     Integer(Kind=4), Dimension(3) :: orig
+     Integer(4), Dimension(3) :: orig
      !> Field dimension (in voxel coordinates) 
      !> => No. of voxels on each domain axis
-     Integer(Kind=ik), Dimension(3) :: vdim
-     Real(kind=rk)  , Dimension(3) :: delta, shift
+     Integer(ik), Dimension(3) :: vdim
+     Real(rk)  , Dimension(3) :: delta, shift
 
   End Type tScalar_field
 
@@ -91,8 +91,8 @@ Contains
   !> the subdomain is done by the input paramaters nn and x_D
   Function calc_decomp_domain(nn, x_D, phi_desc, un) Result(dc)
 
-    Integer(Kind=ik)              , Intent(In) :: nn
-    Integer(Kind=ik), Dimension(3), Intent(In) :: x_D
+    Integer(ik)              , Intent(In) :: nn
+    Integer(ik), Dimension(3), Intent(In) :: x_D
     Type(tScalar_Field)           , Intent(in) :: phi_desc
     Integer                       , Intent(In) :: un
 
@@ -158,18 +158,18 @@ Contains
   !> The description of phi is passed as a puredat tBranch structure
   Function calc_decomp_general(x_D_phy, phi_desc) Result(dc)
 
-    Real(Kind=rk)   , Dimension(3), Intent(In)    :: x_D_phy
+    Real(rk)   , Dimension(3), Intent(In)    :: x_D_phy
     Type(tBranch)                 , Intent(inOut) :: phi_desc
 
     Type(tBranch)                                 :: dc
 
-    Real(Kind=rk)   , Dimension(:), Allocatable   :: delta
-    Integer(kind=ik) , Dimension(:), Allocatable   :: vdim
+    Real(rk)   , Dimension(:), Allocatable   :: delta
+    Integer(ik) , Dimension(:), Allocatable   :: vdim
 
-    Integer(kind=ik), Dimension(3)                :: x_D, nn_D
-    Integer(kind=ik), Dimension(1)                :: nn_D_max, no_dat_D
+    Integer(ik), Dimension(3)                :: x_D, nn_D
+    Integer(ik), Dimension(1)                :: nn_D_max, no_dat_D
 
-    Integer(kind=ik), Dimension(3), parameter     :: bpoints=[1_ik,1_ik,1_ik]
+    Integer(ik), Dimension(3), parameter     :: bpoints=[1_ik,1_ik,1_ik]
 
     !--------------------------------------------------------------------------
     ! Get phi description
@@ -246,7 +246,7 @@ Contains
   !> The description of phi is passed as a puredat tBranch structure
   Function calc_general_ddc_params(x_D_phy_in, phi_desc) Result(dc)
 
-    Real(Kind=rk), Dimension(3), Intent(In) :: x_D_phy_in
+    Real(rk), Dimension(3), Intent(In) :: x_D_phy_in
     Type(tBranch), Intent(inOut) :: phi_desc
 
     Type(tBranch):: dc
@@ -254,9 +254,9 @@ Contains
     Real(rk), Dimension(3) :: delta
     Integer(ik), Dimension(3) :: vdim
 
-    Integer(kind=ik), Dimension(3) :: x_D, nn_D
-    Real(kind=rk)   , Dimension(3) :: x_D_phy
-    Integer(kind=ik), Dimension(1) :: nn_D_max, no_dat_D
+    Integer(ik), Dimension(3) :: x_D, nn_D
+    Real(rk)   , Dimension(3) :: x_D_phy
+    Integer(ik), Dimension(1) :: nn_D_max, no_dat_D
 
     !--------------------------------------------------------------------------
     ! Get phi description
@@ -331,7 +331,7 @@ Contains
 !!$  !> selected by the input parameter nn
 !!$  Function calc_decomp_domain_from_general(nn, g_ddc) Result(ddc)
 !!$
-!!$    Integer(Kind=ik)              , Intent(In) :: nn
+!!$    Integer(ik)              , Intent(In) :: nn
 !!$    Type(tBranch)                 , Intent(In) :: g_ddc
 !!$
 !!$    Type(tDecomp)                              :: ddc
@@ -388,9 +388,9 @@ Contains
     Type(tDecomp)      , Intent(In) :: ddc
     Type(tScalar_Field), Intent(In) :: field
 
-    Integer(Kind=2), Dimension(*), intent(out) :: phi
+    Integer(2), Dimension(*), intent(out) :: phi
 
-    integer(Kind=ik)                :: ii, jj, nn, ma
+    integer(ik)                :: ii, jj, nn, ma
 
     nn = 1
     
@@ -422,9 +422,9 @@ Contains
     Type(tScalar_Field), Intent(In)               :: field
     type(tBranch), pointer , Intent(In),optional  :: phi_branch
 
-    Integer(Kind=4), Dimension(*), intent(out)    :: phi
+    Integer(4), Dimension(*), intent(out)    :: phi
 
-    integer(Kind=ik)                :: ii, jj, nn, ma, lb = 0,kk
+    integer(ik)                :: ii, jj, nn, ma, lb = 0,kk
 
     character(len=256)              :: fname
 

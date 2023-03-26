@@ -135,7 +135,7 @@ INTEGER(ik) :: nn, ii, jj, kk, ll, dc, computed_domains = 0, comm_nn = 1, max_do
     alloc_stat, fh_cluster_log, free_file_handle, stat, No_of_cores_requested, my_global_rank, &
     no_lc=0, nl=0, Domain, llimit, parts, elo_macro, vdim(3), comms_size, parts_size, &
     global_color, rank, no_of_comms, comm_floor, comm_ceiling, comm_color, round_robin_skip, &
-    max_skip, comm_counter, dmn_status, comm_pntr
+    max_skip, comm_counter, dmn_status, comm_pntr, add_leaf_pntr
 INTEGER(pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
 INTEGER(pd_ik), DIMENSION(no_streams) :: dsize
 
@@ -249,7 +249,6 @@ If (rank_mpi == 0) THEN
     CALL meta_read('LO_BNDS_DMN_RANGE', m_rry, xa_d, ios); CALL mest(ios, abrt)
     CALL meta_read('UP_BNDS_DMN_RANGE', m_rry, xe_d, ios); CALL mest(ios, abrt)
     CALL meta_read('BINARIZE_LO'      , m_rry, llimit, ios); CALL mest(ios, abrt)
-    CALL meta_read('MESH_PER_SUB_DMN' , m_rry, parts, ios); CALL mest(ios, abrt)
     CALL meta_read('RVE_STRAIN'       , m_rry, strain, ios); CALL mest(ios, abrt)
     CALL meta_read('YOUNG_MODULUS'    , m_rry, bone%E, ios); CALL mest(ios, abrt)
     CALL meta_read('POISSON_RATIO'    , m_rry, bone%nu, ios); CALL mest(ios, abrt)
@@ -526,16 +525,17 @@ If (rank_mpi == 0) THEN
     CALL add_leaf_to_branch(meta_para, "Grid spacings"                 , 3_ik, bone%delta) 
     CALL add_leaf_to_branch(meta_para, "Lower limit of iso value"      , 1_ik, [llimit])      
     CALL add_leaf_to_branch(meta_para, "Element type  on micro scale"  , len(elt_micro) , str_to_char(elt_micro))      
-    CALL add_leaf_to_branch(meta_para, "No of mesh parts per subdomain", 1_ik           , [parts]) 
     CALL add_leaf_to_branch(meta_para, "Output Format"                 , len(output)    , str_to_char(output)) 
-    
     CALL add_leaf_to_branch(meta_para, "Average strain on RVE"         , 1_ik, [strain])    
+
     CALL add_leaf_to_branch(meta_para, "Young_s modulus"               , 1_ik, [bone%E]) 
     CALL add_leaf_to_branch(meta_para, "Poisson_s ratio"               , 1_ik, [bone%nu]) 
     CALL add_leaf_to_branch(meta_para, "Element order on macro scale"  , 1_ik, [elo_macro]) 
     CALL add_leaf_to_branch(meta_para, "Output amount"                 , len(out_amount), str_to_char(out_amount)) 
+    add_leaf_pntr = 14_ik
     
     CALL add_leaf_to_branch(meta_para, "Restart", 1_ik, str_to_char(restart(1:1))) 
+
     CALL add_leaf_to_branch(meta_para, "Number of voxels per direction", 3_ik , vdim) 
     CALL add_leaf_to_branch(meta_para, "Domains per communicator", 1_ik, [max_domains_per_comm]) 
 
@@ -679,8 +679,8 @@ If (rank_mpi == 0) THEN
         ! Hardcoded, implicitly given order of the leaves. 
         ! DO NOT CHANGE INDICES WITHOUT MODYFING THE »add_leaf_to_branch« SEQUENCES.
         !------------------------------------------------------------------------------
-        meta_para%leaves(15)%p_char = str_to_char(out_amount)
-        meta_para%leaves(16)%p_char = "Y"
+        meta_para%leaves(add_leaf_pntr)%p_char = str_to_char(out_amount)
+        meta_para%leaves(add_leaf_pntr+1_ik)%p_char = "Y"
 
         If (out_amount == "DEBUG") THEN 
             Write(un_lf,fmt_dbg_sep)
@@ -787,15 +787,6 @@ If (rank_mpi == 0) THEN
     ! due to the inhomogeneous comm sizes.
     !------------------------------------------------------------------------------
     CALL pd_get(ddc,"nn_D", nn_D)
-
-
-                                !!!!------------------------------------------------------------------------------
-                                !!!! Generate worker_is_active_List
-                                !!!!------------------------------------------------------------------------------
-                                !!!! Allocate(worker_is_active(size_mpi-1), stat=alloc_stat)
-                                !!!! CALL alloc_err("worker_is_active_List", alloc_stat)
-
-                                !!!! worker_is_active=0
 
     CALL End_Timer("Init Process")
 
@@ -915,7 +906,7 @@ Do ii = xa_d(1), xe_d(1)
 
     Write(domain_path(dc),'(A,"/",I0)') Trim(domain_path(path_count)),dc
 
-    Domains(nn) = ii + jj * nn_D(1) + kk * nn_D(1)*nn_D(2)
+    Domains(nn) = ii + jj * (nn_D(1)+1) + kk * (nn_D(1)+1) * (nn_D(2)+1)
 
     nn = nn + 1_ik
 End Do
@@ -931,7 +922,6 @@ End Do
 !------------------------------------------------------------------------------
 IF(rank_mpi /= 0) THEN  
 
-    CALL pd_get(root%branches(1), "No of mesh parts per subdomain", parts)
     CALL pd_get(root%branches(1), "Domains per communicator", max_domains_per_comm)
 
     !------------------------------------------------------------------------------
@@ -995,10 +985,6 @@ IF(rank_mpi /= 0) THEN
     CALL MPI_COMM_SIZE(WORKER_COMM, worker_size_mpi, ierr)
     CALL print_err_stop(std_out, "MPI_COMM_SIZE couldn't retrieve worker_size_mpi", ierr)
 
-    ! IF (out_amount == "DEBUG") THEN
-    !     WRITE(std_out,*) rank_mpi, ";", worker_rank_mpi, ";", worker_size_mpi
-    ! END IF
-
     !------------------------------------------------------------------------------
     ! This sets the options for PETSc in-core. To alter the options
     ! add them in Set_PETSc_Options in Module pets_opt in file
@@ -1014,12 +1000,12 @@ End If
 !------------------------------------------------------------------------------
 ! All Ranks -- Init MPI request and status lists
 !------------------------------------------------------------------------------
-Allocate(req_list(size_mpi-1), stat=alloc_stat)
-CALL alloc_err("req_list", alloc_stat)
-req_list=0
+! Allocate(req_list(size_mpi-1), stat=alloc_stat)
+! CALL alloc_err("req_list", alloc_stat)
+! req_list=0
 
-Allocate(statuses_mpi(MPI_STATUS_SIZE, size_mpi-1), stat=alloc_stat)
-CALL alloc_err("statuses_mpi", alloc_stat)
+! Allocate(statuses_mpi(MPI_STATUS_SIZE, size_mpi-1), stat=alloc_stat)
+! CALL alloc_err("statuses_mpi", alloc_stat)
 
 !------------------------------------------------------------------------------
 ! Global ranks > 0 -- Workers
@@ -1046,223 +1032,124 @@ IF (rank_mpi /= 0) THEN
     END IF 
 
     CALL MPI_BCAST(comm_nn, 1_mik , MPI_INTEGER8, 0_mik, WORKER_COMM, ierr)
+       
+    !------------------------------------------------------------------------------
+    ! Global 
+    !------------------------------------------------------------------------------
+    ! Open Stream files to write data to master-worker rank directories
+    !------------------------------------------------------------------------------
+    pro_path = outpath
+    pro_name = project_name     
 
-    IF (worker_rank_mpi == 0)  THEN
-        
-        !------------------------------------------------------------------------------
-        ! Global 
-        !------------------------------------------------------------------------------
-        ! Open Stream files to write data to master-worker rank directories
-        !------------------------------------------------------------------------------
-        pro_path = outpath
-        pro_name = project_name     
+    !------------------------------------------------------------------------------
+    ! Distribute the first half of the batch of domains per size of communicator in a 
+    ! round-robin manner. The second half is implemented on a first-come first-serve basis.
+    ! This may reduce race conditions and improve the distribution of the domains to 
+    ! communicators that fit their demand of processors in an efficient way. If we distribute
+    ! the domains in a round-robin manner all the time, then many communicators may wait for 
+    ! the last to complete which can scrap the whole gain of performance.
+    !------------------------------------------------------------------------------
+    max_skip = FLOOR(REAL(max_domains_per_comm)/2._rk)
 
-        !------------------------------------------------------------------------------
-        ! Distribute the first half of the batch of domains per size of communicator in a 
-        ! round-robin manner. The second half is implemented on a first-come first-serve basis.
-        ! This may reduce race conditions and improve the distribution of the domains to 
-        ! communicators that fit their demand of processors in an efficient way. If we distribute
-        ! the domains in a round-robin manner all the time, then many communicators may wait for 
-        ! the last to complete which can scrap the whole gain of performance.
-        !------------------------------------------------------------------------------
-        max_skip = FLOOR(REAL(max_domains_per_comm)/2._rk)
+    nn = 0_ik
+    comm_counter = 0_ik
+    round_robin_skip = 0_ik
+    DO  WHILE (nn < No_of_domains) 
 
-        nn = 0_ik
-        comm_counter = 0_ik
-        round_robin_skip = 0_ik
-        DO  WHILE (nn < No_of_domains) 
+        ! Iterate domain numbers
+        nn = nn + 1_mik
 
-            ! Iterate domain numbers
-            nn = nn + 1_mik
-
-            ! Only »accept« domains if they need as many parts as the communicator has processors
-            IF (parts_list(nn) == worker_size_mpi) THEN
-                comm_counter = comm_counter + 1_ik
-                parts = worker_size_mpi
-            ELSE
-                CYCLE
-            END IF 
-                
-            ! The first batch of domains within a specific comm group are assigned to their 
-            ! corresponding communicator in the order as they are mentioned in the *.parts files.
-            ! This helps avoiding race conditions
-            IF ((comm_color < comm_counter) .AND. (skip_active)) CYCLE
+        ! Only »accept« domains if they need as many parts as the communicator has processors
+        IF (parts_list(nn) == worker_size_mpi) THEN
+            comm_counter = comm_counter + 1_ik
+            parts = worker_size_mpi
+        ELSE
+            CYCLE
+        END IF 
             
-            ! Reset the comm_counter as long the round_robin skip is active. 
-            ! This ensures distributing the domains in a controlled way without race conditions.
-            !
-            ! This if/else MUST come *after* checking parts_list(nn) == worker_size_mpi. Otherwise, 
-            ! too many "foreign" domains are computed on this communicator.
-            IF (round_robin_skip <= max_skip) THEN
-                round_robin_skip = round_robin_skip + 1_ik
-                comm_counter = 0_ik
-            ELSE
-                skip_active = .FALSE.
-            END IF 
-
-            CALL MPI_FILE_READ_AT(status_un, Int(nn*ik, MPI_OFFSET_KIND), dmn_status, &
-                1_mik, MPI_INTEGER8, status_mpi, ierr)
+        ! The first batch of domains within a specific comm group are assigned to their 
+        ! corresponding communicator in the order as they are mentioned in the *.parts files.
+        ! This helps avoiding race conditions
+        IF ((comm_color < comm_counter) .AND. (skip_active)) CYCLE
         
-            IF (dmn_status > -100000000_ik) CYCLE
+        ! Reset the comm_counter as long the round_robin skip is active. 
+        ! This ensures distributing the domains in a controlled way without race conditions.
+        !
+        ! This if/else MUST come *after* checking parts_list(nn) == worker_size_mpi. Otherwise, 
+        ! too many "foreign" domains are computed on this communicator.
+        IF (round_robin_skip <= max_skip) THEN
+            round_robin_skip = round_robin_skip + 1_ik
+            comm_counter = 0_ik
+        ELSE
+            skip_active = .FALSE.
+        END IF 
 
-            !------------------------------------------------------------------------------
-            ! Start working on the domain
-            !------------------------------------------------------------------------------
-            dmn_status = dmn_status + 100000000
-
-            ! Mark the beginning of computing the Domain
-            CALL MPI_FILE_WRITE_AT(status_un, Int(nn*ik, MPI_OFFSET_KIND), dmn_status, &
-                1_mik, MPI_INTEGER8, status_mpi, ierr)
-
-            WRITE(std_out,FMT_TXT_AxI0) "Starting domain ", nn
-
-            !------------------------------------------------------------------------------
-            !Generate worker_is_active_List
-            !------------------------------------------------------------------------------
-            Allocate(worker_is_active(parts), stat=alloc_stat)
-            CALL alloc_err("worker_is_active_List", alloc_stat)
-
-            worker_is_active=0
-
-            !------------------------------------------------------------------------------
-            ! Now that the domain is assigned to a communicator, we start distributing 
-            ! the parts to the worker comms.
-            !------------------------------------------------------------------------------
-            ! Send information for all parts to the corresponding ranks.
-            ! From global "first worker rank of specific domain" to "global last worker 
-            ! rank of specific domain"
-            !------------------------------------------------------------------------------
-            ! jj --> Worker
-            !------------------------------------------------------------------------------
-write(*,*) "parts", parts
-            Do mjj = 1_mik, mii + parts-1
-
-                worker_is_active(mjj) = 1_mik
-                !------------------------------------------------------------------------------
-                ! Start worker
-                !------------------------------------------------------------------------------
-write(*,*) "Im here M10"
-                CALL mpi_send(worker_is_active(mjj), 1_mik, MPI_INTEGER4, mjj, mjj, WORKER_COMM, ierr)
-                CALL print_err_stop(std_out, "MPI_SEND of worker_is_active didn't succeed", ierr)
-write(*,*) "Im here M11"
-
-                !------------------------------------------------------------------------------
-                ! Send Domain number
-                !------------------------------------------------------------------------------
-                CALL mpi_send(nn, 1_mik, MPI_INTEGER8, mjj, mjj, WORKER_COMM,ierr)
-                CALL print_err_stop(std_out, "MPI_SEND of Domain number didn't succeed", ierr)
-write(*,*) "Im here M12"
-                
-                if (out_amount /= "PRODUCTION") then
-                    CALL mpi_send(domain_path(nn), Int(4*mcl,mik), MPI_CHARACTER, mjj, mjj, WORKER_COMM,ierr)
-                    CALL print_err_stop(std_out, "MPI_SEND of Domain path didn't succeed", ierr)
-                End if
-            End Do
-write(*,*) "Im here M13"
-
-            WRITE(fh_mon, FMT_MSG_xAI0) "Domain ", Domains(nn), " at Ranks ", mii, " to ", mii + parts-1
-            FLUSH(fh_mon)
-
-            !------------------------------------------------------------------------------
-            ! Worker has finished
-            !------------------------------------------------------------------------------
-            CALL MPI_IRECV(worker_is_active(mii), 1_mik, MPI_INTEGER4, mii, mii, WORKER_COMM, req_list(mii), ierr)
-            CALL print_err_stop(std_out, "MPI_IRECV of worker_is_active(mii) didn't succeed", ierr)
-            write(*,*) "Im here M14"
-
-            !------------------------------------------------------------------------------
-            ! Only the master worker is allowed to send a 'finished' flag. 
-            ! Otherwise, index mii will screw up.
-            !------------------------------------------------------------------------------
-            Call MPI_WAITANY(size_mpi-1_mik, req_list, finished, status_mpi, ierr)
-            CALL print_err_stop(std_out, &
-            "MPI_WAITANY on req_list for IRECV of worker_is_active(mii) didn't succeed", ierr)
-            write(*,*) "Im here M15"
-
-            IF(finished /= MPI_UNDEFINED) mii = finished
-
-            !------------------------------------------------------------------------------
-            ! Finish the domain
-            !------------------------------------------------------------------------------
-            dmn_status = dmn_status * (-1_ik)
-
-            CALL MPI_FILE_WRITE_AT(status_un, Int(nn*ik, MPI_OFFSET_KIND), dmn_status, &
-                1_mik, MPI_INTEGER8, status_mpi, ierr)
-                write(*,*) "Im here M15"
-
-        End Do
-        
-        !------------------------------------------------------------------------------
-        ! Extend project_name and outpath with rank - only for domain specific master!
-        !------------------------------------------------------------------------------
-        WRITE(outpath,'(A,A,I7.7,A)')    TRIM(outpath), "Rank_", rank_mpi, "/"
-        WRITE(project_name,'(A,A,I7.7)') TRIM(project_name), "_", rank_mpi
+        CALL MPI_FILE_READ_AT(status_un, Int((nn-1)*ik, MPI_OFFSET_KIND), dmn_status, &
+            1_mik, MPI_INTEGER8, status_mpi, ierr)
+    
+        IF (dmn_status > -100000000_ik) CYCLE
 
         !------------------------------------------------------------------------------
-        ! Prepare output directory via CALLing the c function.
-        ! File exists if stat_c_int = 0 
+        ! Start working on the domain
         !------------------------------------------------------------------------------
-        c_char_array(1:LEN(TRIM(outpath)//CHAR(0))) = str_to_char(TRIM(outpath)//CHAR(0))
-        CALL Stat_Dir(c_char_array, stat_c_int)
+        dmn_status = dmn_status + 100000000
 
-        IF(stat_c_int /= 0) THEN
+        ! Mark the beginning of computing the Domain
+        CALL MPI_FILE_WRITE_AT(status_un, Int((nn-1)*ik, MPI_OFFSET_KIND), dmn_status, &
+            1_mik, MPI_INTEGER8, status_mpi, ierr)
 
-            CALL exec_cmd_line("mkdir -p "//TRIM(outpath), stat)
+        IF (worker_rank_mpi == 0) WRITE(std_out,FMT_TXT_AxI0) "Starting domain ", dmn_status*(-1)
 
-            IF(stat /= 0) CALL print_err_stop(std_out, &
-                'Could not execute syscall »mkdir -p '//trim(outpath)//'«.', 1)
-
-            CALL Stat_Dir(c_char_array, stat_c_int)
-
-            IF(stat_c_int /= 0) THEN
-                mssg = 'Could not create the output directory »'//TRIM(outpath)//'«.'
-                CALL print_err_stop(std_out, mssg, 1)
-            END IF
-        END IF
-
-
-        memlog_file=TRIM(outpath)//TRIM(project_name)//'.memlog'
-        INQUIRE (FILE = memlog_file, EXIST = fex)
-
-        file_status="NEW"
-        IF(fex) file_status="OLD"
-
-        fh_cluster_log = give_new_unit()
-
-        OPEN(UNIT=fh_cluster_log, FILE=TRIM(memlog_file), ACTION='WRITE', &
-            ACCESS="SEQUENTIAL", STATUS=file_status)
-
-        WRITE(fh_cluster_log, '(A)') &
-            "Operation, Domain, Nodes, Elems, Preallo, "//&
-            "Mem_comm, Pids_returned, Size_mpi, time"
-
-
-        CALL link_start(link_name, .True., .True.)
-
-
-    ELSE IF ((worker_rank_mpi /= 0) .AND. (rank_mpi /= 0)) THEN ! Worker threads of the sub communicator
-        !------------------------------------------------------------------------------
-        ! Set fh_cluster_log = -1 for clarifying the state of the worker threads
-        !------------------------------------------------------------------------------
-        fh_cluster_log = -1_ik
-
-
-                                !!!!!------------------------------------------------------------------------------
-                                !!!!! Send new directory/filename
-                                !!!!! It is the Rank_ and not the root directory! Do not delete this sequence!
-                                !!!!! Root dir was send via broadcast, because the worker masters are not 
-                                !!!!! determined at the beginning of the program.
-                                !!!!!------------------------------------------------------------------------------
-                                !!!!! CALL MPI_BCAST(outpath,      INT(mcl, mik), MPI_CHAR, 0_mik, WORKER_COMM, ierr)
-                                !!!!! CALL MPI_BCAST(project_name, INT(mcl, mik), MPI_CHAR, 0_mik, WORKER_COMM, ierr)
-        
-        
+        IF ((dmn_status*(-1) /= Domains(nn)) .AND. (out_amount == "DEBUG")) THEN
+            WRITE(std_out,FMT_ERR_AxI0) "dmn_status*(-1)", dmn_status*(-1) 
+            WRITE(std_out,FMT_ERR_AxI0) "Domains(nn)", Domains(nn)          
+            CALL print_err_stop(std_out, "dmn_status*(-1) /= Domains(nn)", 1)
+        END IF 
 
         !------------------------------------------------------------------------------
-        ! Worker Loop
+        ! Generate worker_is_active_List
         !------------------------------------------------------------------------------
-        Do
-            !------------------------------------------------------------------------------
+        ! IF (.NOT. ALLOCATED(worker_is_active)) THEN
+        !     Allocate(worker_is_active(parts), stat=alloc_stat)
+        !     CALL alloc_err("worker_is_active_List", alloc_stat)
+        ! END IF 
+        ! worker_is_active=0_mik
+
+        !------------------------------------------------------------------------------
+        ! Now that the domain is assigned to a communicator, we start distributing 
+        ! the parts to the worker comms.
+        !------------------------------------------------------------------------------
+        ! Send information for all parts to the corresponding ranks.
+        ! From global "first worker rank of specific domain" to "global last worker 
+        ! rank of specific domain"
+        !------------------------------------------------------------------------------
+        ! jj --> Worker
+        !------------------------------------------------------------------------------
+        ! mii = worker_rank_mpi
+
+    
+        ! Do mjj = 1_mik, mii + parts-1
+
+        !     worker_is_active(mjj) = 1_mik
+        !     !------------------------------------------------------------------------------
+        !     ! Start worker
+        !     !------------------------------------------------------------------------------
+        !     CALL mpi_send(worker_is_active(mjj), 1_mik, MPI_INTEGER4, mjj, mjj, WORKER_COMM, ierr)
+        !     CALL print_err_stop(std_out, "MPI_SEND of worker_is_active didn't succeed", ierr)
+
+        !     !------------------------------------------------------------------------------
+        !     ! Send Domain number
+        !     !------------------------------------------------------------------------------
+        !     CALL mpi_send(nn, 1_mik, MPI_INTEGER8, mjj, mjj, WORKER_COMM,ierr)
+        !     CALL print_err_stop(std_out, "MPI_SEND of Domain number didn't succeed", ierr)
+            
+        !     if (out_amount /= "PRODUCTION") then
+        !         CALL mpi_send(domain_path(nn), Int(4*mcl,mik), MPI_CHARACTER, mjj, mjj, WORKER_COMM,ierr)
+        !         CALL print_err_stop(std_out, "MPI_SEND of Domain path didn't succeed", ierr)
+        !     End if
+        ! End Do
+
+           !------------------------------------------------------------------------------
             ! Basically "mark end of file"
             !------------------------------------------------------------------------------
             ! Write last segments to streams. 
@@ -1284,149 +1171,222 @@ write(*,*) "Im here M13"
             !------------------------------------------------------------------------------
             ! (max_domains_per_comm*24)-1 because the last int8 entry has 24 ints.
             !------------------------------------------------------------------------------
-            CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
-                Int(root%branches(3)%leaves(4)%lbound-1+((max_domains_per_comm*24)-1), MPI_OFFSET_KIND), &
-                INT(Domain, KIND=ik), 1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
+        CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
+        Int(root%branches(3)%leaves(4)%lbound-1+((max_domains_per_comm*24)-1), MPI_OFFSET_KIND), &
+        INT(Domain, KIND=ik), 1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
+        IF (worker_rank_mpi == 0) write(*,*) "Im here M2"
 
+        CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
+            Int(root%branches(3)%leaves(24)%lbound-1+(max_domains_per_comm-1), MPI_OFFSET_KIND), &
+            1_rk, 1_pd_mik, MPI_REAL8, status_mpi, ierr)
+        IF (worker_rank_mpi == 0) write(*,*) "Im here M3"
+
+                                !------------------------------------------------------------------------------
+                                ! Start workers
+                                !------------------------------------------------------------------------------
+                                ! CALL MPI_RECV(active, 1_mik, MPI_INTEGER4, 0_mik, worker_rank_mpi, WORKER_COMM, status_mpi, ierr)
+                                ! CALL print_err_stop(std_out, "MPI_RECV on Active didn't succseed", ierr)
+
+                                ! !------------------------------------------------------------------------------
+                                ! ! Stop workers
+                                ! !------------------------------------------------------------------------------
+                                ! IF (active == -1) EXIT
+
+                                !------------------------------------------------------------------------------
+                                ! Receive domain numbers
+                                !------------------------------------------------------------------------------
+                                ! CALL mpi_recv(nn, 1_mik, MPI_INTEGER8, 0_mik, worker_rank_mpi, WORKER_COMM, status_mpi, ierr)
+                                ! CALL print_err_stop(std_out, "MPI_RECV on Domain didn't succeed", ierr)
+
+        Domain = Domains(nn)
+
+        !------------------------------------------------------------------------------
+        ! Only compute the domain if it was not yet
+        !------------------------------------------------------------------------------
+        ! IF (Domain_status(nn) < 0) THEN
+
+        !------------------------------------------------------------------------------
+        ! Outpath depends on whether basic or detailed information are written to fs
+        !------------------------------------------------------------------------------
+        ! IF (out_amount /= "PRODUCTION") THEN
+        !     !------------------------------------------------------------------------------
+        !     ! Receive Job_Dir
+        !     !------------------------------------------------------------------------------
+        !     CALL mpi_recv(job_dir, Int(4*mcl,mik), mpi_character, 0_mik, worker_rank_mpi, WORKER_COMM, status_mpi, ierr)
+        !     CALL print_err_stop(std_out, "MPI_RECV on Domain path didn't succeed", ierr)
+        ! ELSE
+        ! job_dir = outpath
+        job_dir = domain_path(nn)
+        ! End if
+
+        
+        IF (job_dir(len(job_dir):len(job_dir)) /= "/") job_dir = trim(job_dir)//"/"
+
+        !------------------------------------------------------------------------------
+        ! Track the start time of the computation of a domain.
+        !------------------------------------------------------------------------------
+        CALL CPU_TIME(t_start)
+
+        !==============================================================================
+        ! Compute a domain
+        !==============================================================================
+        CALL exec_single_domain(root, comm_nn, Domain, typeraw, job_dir, fh_cluster_log, &
+            Active, fh_mpi_worker, worker_rank_mpi, parts, worker_comm)
+        !==============================================================================
+        IF (worker_rank_mpi == 0) write(*,*) "Im here M4"
+
+        !------------------------------------------------------------------------------
+        ! Track the duration of the computation of a domain.
+        !------------------------------------------------------------------------------
+        CALL CPU_TIME(t_end)
+        t_duration = t_end - t_start
+
+        !------------------------------------------------------------------------------
+        ! Organize Results
+        !------------------------------------------------------------------------------
+        IF (worker_rank_mpi==0) THEN
+            IF (worker_rank_mpi == 0) write(*,*) "Im here M5"
+        
+            !------------------------------------------------------------------------------
+            ! Write the start time to file
+            !------------------------------------------------------------------------------
+            ! CALL add_leaf_to_branch(result_branch, "Start Time", 1_pd_ik, [t_start])
             CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-                Int(root%branches(3)%leaves(24)%lbound-1+(max_domains_per_comm-1), MPI_OFFSET_KIND), &
-                1_rk, 1_pd_mik, MPI_REAL8, status_mpi, ierr)
-                write(*,*) "Im here w10"
+                Int(root%branches(3)%leaves(2)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
+                t_start, 1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
 
             !------------------------------------------------------------------------------
-            ! Start workers
+            ! Write the duration to file
             !------------------------------------------------------------------------------
-            CALL MPI_RECV(active, 1_mik, MPI_INTEGER4, 0_mik, worker_rank_mpi, WORKER_COMM, status_mpi, ierr)
-            CALL print_err_stop(std_out, "MPI_RECV on Active didn't succseed", ierr)
-            write(*,*) "Im here w11"
+            ! CALL add_leaf_to_branch(result_branch, "Duration", 1_pd_ik, [t_duration])
+            CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
+                Int(root%branches(3)%leaves(3)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
+                t_duration, 1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
 
-            !------------------------------------------------------------------------------
-            ! Stop workers
-            !------------------------------------------------------------------------------
-            IF (active == -1) EXIT
 
-            !------------------------------------------------------------------------------
-            ! Receive domain numbers
-            !------------------------------------------------------------------------------
-            CALL mpi_recv(nn, 1_mik, MPI_INTEGER8, 0_mik, worker_rank_mpi, WORKER_COMM, status_mpi, ierr)
-            CALL print_err_stop(std_out, "MPI_RECV on Domain didn't succeed", ierr)
-            write(*,*) "Im here w12"
-
-            Domain = Domains(nn)
+            CALL Start_Timer("Write Worker Root Branch")
 
             !------------------------------------------------------------------------------
-            ! Only compute the domain if it was not yet
+            ! Set these variables again...
             !------------------------------------------------------------------------------
-            IF (Domain_status(nn) < 0) THEN
+            pro_path = outpath
+            pro_name = project_name     
+                                
+            !------------------------------------------------------------------------------
+            ! Store header file
+            !------------------------------------------------------------------------------
+            CALL Write_Tree(root%branches(3)) ! Branch with 'Averaged Material Properties'
+            ! ../../../bin/pd_dump_leaf_x86_64 $PWD/ results_0000001 7
+        
+            CALL End_Timer("Write Worker Root Branch")
 
-                !------------------------------------------------------------------------------
-                ! Outpath depends on whether basic or detailed information are written to fs
-                !------------------------------------------------------------------------------
-                IF (out_amount /= "PRODUCTION") THEN
-                    !------------------------------------------------------------------------------
-                    ! Receive Job_Dir
-                    !------------------------------------------------------------------------------
-                    CALL mpi_recv(job_dir, Int(4*mcl,mik), mpi_character, 0_mik, worker_rank_mpi, WORKER_COMM, status_mpi, ierr)
-                    CALL print_err_stop(std_out, "MPI_RECV on Domain path didn't succeed", ierr)
-                ELSE
-                    job_dir = outpath
-                End if
-write(*,*) "Im here w13"
-                
-                IF (job_dir(len(job_dir):len(job_dir)) /= "/") job_dir = trim(job_dir)//"/"
+            !------------------------------------------------------------------------------
+            ! Store activity information
+            !------------------------------------------------------------------------------
+            Call MPI_FILE_WRITE_AT(status_un, INT(((nn-1) * ik), MPI_OFFSET_KIND), &
+                Domain, 1_mik, MPI_INTEGER8, status_mpi, ierr)
 
-                !------------------------------------------------------------------------------
-                ! Track the start time of the computation of a domain.
-                !------------------------------------------------------------------------------
-                CALL CPU_TIME(t_start)
-write(*,*) "Starting the single domain now"
-                !==============================================================================
-                ! Compute a domain
-                !==============================================================================
-                CALL exec_single_domain(root, comm_nn, Domain, typeraw, job_dir, fh_cluster_log, &
-                    Active, fh_mpi_worker, worker_rank_mpi, worker_size_mpi, worker_comm)
-                !==============================================================================
+            !------------------------------------------------------------------------------
+            ! Deallocate results of this domain. Potential memory leak.
+            !------------------------------------------------------------------------------
+            WRITE(desc,'(A,I0)')"Domain ", Domain
+            CALL delete_branch_from_branch(TRIM(desc), root, dsize)
 
-                !------------------------------------------------------------------------------
-                ! Track the duration of the computation of a domain.
-                !------------------------------------------------------------------------------
-                CALL CPU_TIME(t_end)
-                t_duration = t_end - t_start
+        END IF
 
-                !------------------------------------------------------------------------------
-                ! Organize Results
-                !------------------------------------------------------------------------------
-                IF (worker_rank_mpi==0) THEN
-                
-                    !------------------------------------------------------------------------------
-                    ! Write the start time to file
-                    !------------------------------------------------------------------------------
-                    ! CALL add_leaf_to_branch(result_branch, "Start Time", 1_pd_ik, [t_start])
-                    CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-                        Int(root%branches(3)%leaves(2)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
-                        t_start, 1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
+        !------------------------------------------------------------------------------
+        ! Mark the current position within the stream.
+        !------------------------------------------------------------------------------
+        CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
+            INT(root%branches(3)%leaves(1)%lbound-1+(max_domains_per_comm-1-1), MPI_OFFSET_KIND), &
+            INT(comm_nn, KIND=ik), 1_mik, MPI_INTEGER8, status_mpi, ierr)
 
-                    !------------------------------------------------------------------------------
-                    ! Write the duration to file
-                    !------------------------------------------------------------------------------
-                    ! CALL add_leaf_to_branch(result_branch, "Duration", 1_pd_ik, [t_duration])
-                    CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-                        Int(root%branches(3)%leaves(3)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
-                        t_duration, 1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
+        !------------------------------------------------------------------------------
+        ! Increment linear domain counter of the PETSc sub_comm instances
+        ! It is important (!) to increment this variable after the check
+        ! IF (Domain_status(nn) <= 0) THEN. Otherwise, the program will write into 
+        ! slots that are used by previous domains.
+        !------------------------------------------------------------------------------
+        comm_nn = comm_nn + 1_ik
+
+        IF (worker_rank_mpi == 0) write(*,*) "Im here M6"
 
 
-                    CALL Start_Timer("Write Worker Root Branch")
 
-                    !------------------------------------------------------------------------------
-                    ! Set these variables again...
-                    !------------------------------------------------------------------------------
-                    pro_path = outpath
-                    pro_name = project_name     
-                                        
-                    !------------------------------------------------------------------------------
-                    ! Store header file
-                    !------------------------------------------------------------------------------
-                    CALL Write_Tree(root%branches(3)) ! Branch with 'Averaged Material Properties'
-                    ! ../../../bin/pd_dump_leaf_x86_64 $PWD/ results_0000001 7
-                
-                    CALL End_Timer("Write Worker Root Branch")
 
-                    !------------------------------------------------------------------------------
-                    ! Store activity information
-                    !------------------------------------------------------------------------------
-                    Call MPI_FILE_WRITE_AT(status_un, INT(((nn-1) * ik), MPI_OFFSET_KIND), &
-                        Domain, 1_mik, MPI_INTEGER8, status_mpi, ierr)
 
-                    !------------------------------------------------------------------------------
-                    ! Deallocate results of this domain. Potential memory leak.
-                    !------------------------------------------------------------------------------
-                    WRITE(desc,'(A,I0)')"Domain ", Domain
-                    CALL delete_branch_from_branch(TRIM(desc), root, dsize)
 
-                END IF
 
-                !------------------------------------------------------------------------------
-                ! Mark the current position within the stream.
-                !------------------------------------------------------------------------------
-                CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
-                    INT(root%branches(3)%leaves(1)%lbound-1+(max_domains_per_comm-1-1), MPI_OFFSET_KIND), &
-                    INT(comm_nn, KIND=ik), 1_mik, MPI_INTEGER8, status_mpi, ierr)
 
-                !------------------------------------------------------------------------------
-                ! Increment linear domain counter of the PETSc sub_comm instances
-                ! It is important (!) to increment this variable after the check
-                ! IF (Domain_status(nn) <= 0) THEN. Otherwise, the program will write into 
-                ! slots that are used by previous domains.
-                !------------------------------------------------------------------------------
-                comm_nn = comm_nn + 1_ik
+        !------------------------------------------------------------------------------
+        ! Worker has finished
+        !------------------------------------------------------------------------------
 
-            END IF 
 
-        End Do
 
-        CALL PetscFinalize(petsc_ierr) 
+        ! CALL MPI_IRECV(worker_is_active(mii), 1_mik, MPI_INTEGER4, mii, mii, WORKER_COMM, req_list(mii), ierr)
+        ! CALL print_err_stop(std_out, "MPI_IRECV of worker_is_active(mii) didn't succeed", ierr)
 
-    END IF ! (worker_rank_mpi == 0) THEN
+        ! !------------------------------------------------------------------------------
+        ! ! Only the master worker is allowed to send a 'finished' flag. 
+        ! ! Otherwise, index mii will screw up.
+        ! !------------------------------------------------------------------------------
+        ! Call MPI_WAITANY(size_mpi-1_mik, req_list, finished, status_mpi, ierr)
+        ! CALL print_err_stop(std_out, &
+        ! "MPI_WAITANY on req_list for IRECV of worker_is_active(mii) didn't succeed", ierr)
+
+        ! IF(finished /= MPI_UNDEFINED) mii = finished
+
+        !------------------------------------------------------------------------------
+        ! Finish the domain
+        !------------------------------------------------------------------------------
+
+        IF (worker_rank_mpi == 0)  THEN
+
+            WRITE(fh_mon, FMT_MSG_xAI0) "Domain ", Domains(nn), " at Ranks ", rank_mpi, " to ", worker_rank_mpi + parts-1
+            FLUSH(fh_mon)
+
+            dmn_status = dmn_status * (-1_ik)
+
+            CALL MPI_FILE_WRITE_AT(status_un, Int((nn-1)*ik, MPI_OFFSET_KIND), dmn_status, &
+                1_mik, MPI_INTEGER8, status_mpi, ierr)
+            write(*,*) "Im here M15"
+        END IF 
+    End Do
+         
+
+
+    ! ELSE IF ((worker_rank_mpi /= 0) .AND. (rank_mpi /= 0)) THEN ! Worker threads of the sub communicator
+        !------------------------------------------------------------------------------
+        ! Set fh_cluster_log = -1 for clarifying the state of the worker threads
+        !------------------------------------------------------------------------------
+        ! fh_cluster_log = -1_ik
+
+
+                                !!!!!------------------------------------------------------------------------------
+                                !!!!! Send new directory/filename
+                                !!!!! It is the Rank_ and not the root directory! Do not delete this sequence!
+                                !!!!! Root dir was send via broadcast, because the worker masters are not 
+                                !!!!! determined at the beginning of the program.
+                                !!!!!------------------------------------------------------------------------------
+                                !!!!! CALL MPI_BCAST(outpath,      INT(mcl, mik), MPI_CHAR, 0_mik, WORKER_COMM, ierr)
+                                !!!!! CALL MPI_BCAST(project_name, INT(mcl, mik), MPI_CHAR, 0_mik, WORKER_COMM, ierr)
+        
+        
+
+        !------------------------------------------------------------------------------
+        ! Worker Loop
+        !------------------------------------------------------------------------------
+        ! Do
+ 
+
+            ! END IF 
+
+        ! End Do
+
+    CALL PetscFinalize(petsc_ierr) 
+
+    ! END IF ! (worker_rank_mpi == 0) THEN
 END IF ! (rank_mpi == 0) THEN
 
 CALL MPI_FILE_CLOSE(status_un, ierr)

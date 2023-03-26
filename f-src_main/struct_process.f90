@@ -1024,6 +1024,7 @@ If (rank_mpi==0) Then
 
         nn = nn + 1_ik
         
+        ! Main worker calls back as active
         Call MPI_IRECV(worker_is_active(mii), 1_mik, MPI_INTEGER4, mii, mii, MPI_COMM_WORLD, req_list(mii), ierr)
         CALL print_err_stop(std_out, "MPI_IRECV of worker_is_active(mii) didn't succeed", INT(ierr, ik))
 

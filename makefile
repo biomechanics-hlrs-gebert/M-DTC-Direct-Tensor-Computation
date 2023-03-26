@@ -171,12 +171,11 @@ f-objects = $(st_obj_dir)mod_global_std$(obj_ext) \
 			$(obj_dir)mod_mesh_partitioning$(obj_ext) \
 			$(obj_dir)mod_write_deck$(obj_ext) \
 			$(obj_dir)mod_gen_quadmesh$(obj_ext) \
-			$(obj_dir)mod_struct_preprocess$(obj_ext) \
 			$(obj_dir)mod_struct_calcmat$(obj_ext) \
-			$(obj_dir)mod_dtc_main_subroutines$(obj_ext)
 #
-f-sp-object = $(obj_dir)struct_process$(obj_ext)
-f-dtc-object = $(obj_dir)dtc$(obj_ext)
+f-dtc-objects = $(obj_dir)mod_dtc_preprocess$(obj_ext) \
+				$(obj_dir)mod_dtc_main_subroutines$(obj_ext) \
+				$(obj_dir)dtc$(obj_ext) 
 #
 # -----------------------------------------------------------------------------
 # For linking
@@ -214,10 +213,8 @@ else ifeq ($(out_amount),DEBUG)
 endif
 #
 ifeq ($(trgt_vrsn),)
-	main_bin = $(bin_dir)struct_process_$(oa)$(bin_suf)
 	dtc_bin = $(bin_dir)$(bin_name)_$(oa)$(bin_suf)
 else
-	main_bin = $(bin_dir)struct_process_$(trgt_vrsn)_$(oa)$(bin_suf)
 	dtc_bin = $(bin_dir)$(bin_name)_$(trgt_vrsn)_$(oa)$(bin_suf)
 endif#
 # ------------------------------------------------------------------------------
@@ -230,7 +227,7 @@ st:
 # ------------------------------------------------------------------------------
 # Begin Building
 # -----------------------------------------------------------------------------
-all: st $(main_bin) $(dtc_bin) 
+all: st $(dtc_bin) 
 #
 # -----------------------------------------------------------------------------
 # PureDat auxiliary executables 
@@ -261,7 +258,7 @@ morphometric_evaluation = $(bin_dir)morphometric_evaluation$(bin_suf)
 # -----------------------------------------------------------------------------
 .PHONY: all
 #
-all: $(main_bin) $(dtc_bin) $(pd_aux_execs) $(meradat_crawl_tensors) $(morphometric_evaluation) end_all
+all: $(dtc_bin) $(pd_aux_execs) $(meradat_crawl_tensors) $(morphometric_evaluation) end_all
 #
 # -----------------------------------------------------------------------------
 # C targets
@@ -451,19 +448,19 @@ $(obj_dir)mod_gen_quadmesh$(obj_ext):$(st_mod_dir)global_std$(mod_ext)  $(mod_di
 	@echo "----- Compiling " $(f_src_dir)mod_gen_quadmesh$(f90_ext) "-----"
 	$(f90_compiler) $(c_flags_f90) -c $(f_src_dir)mod_gen_quadmesh$(f90_ext) -o $@
 	@echo 
-#
+
 # -----------------------------------------------------------------------------
 # Geometry and loadcase setup 
 # -----------------------------------------------------------------------------
-$(obj_dir)mod_struct_preprocess$(obj_ext):$(st_mod_dir)global_std$(mod_ext)     $(st_mod_dir)strings$(mod_ext) \
+$(obj_dir)mod_dtc_preprocess$(obj_ext):$(st_mod_dir)global_std$(mod_ext)     $(st_mod_dir)strings$(mod_ext) \
                                           $(mod_dir)decomp$(mod_ext)            $(mod_dir)timer$(mod_ext) \
                                           $(mod_dir)chain_routines$(mod_ext)    $(mod_dir)vtkio$(mod_ext) \
                                           $(obj_dir)metis_interface$(obj_ext)   $(mod_dir)metis$(mod_ext) \
                                           $(mod_dir)linfe$(mod_ext)             $(mod_dir)mesh_partitioning$(mod_ext) \
                                           $(mod_dir)puredat$(mod_ext)           $(mod_dir)gen_quadmesh$(mod_ext) \
-                                          $(mod_dir)write_deck$(mod_ext)        $(f_src_dir)mod_struct_preprocess$(f90_ext)
-	@echo "----- Compiling " $(f_src_dir)mod_struct_preprocess$(f90_ext) "-----"
-	$(f90_compiler) $(c_flags_f90) -c $(f_src_dir)mod_struct_preprocess$(f90_ext) -o $@
+                                          $(mod_dir)write_deck$(mod_ext)        $(f_src_dir)mod_dtc_preprocess$(f90_ext)
+	@echo "----- Compiling " $(f_src_dir)mod_dtc_preprocess$(f90_ext) "-----"
+	$(f90_compiler) $(c_flags_f90) -c $(f_src_dir)mod_dtc_preprocess$(f90_ext) -o $@
 	@echo 
 #
 # -----------------------------------------------------------------------------
@@ -495,29 +492,6 @@ $(obj_dir)mod_dtc_main_subroutines$(obj_ext):$(st_mod_dir)global_std$(mod_ext) $
 # -----------------------------------------------------------------------------
 # main Object 
 # -----------------------------------------------------------------------------
-$(obj_dir)struct_process$(obj_ext):$(st_mod_dir)global_std$(mod_ext)     $(st_mod_dir)mechanical$(mod_ext) \
-								   $(st_mod_dir)meta$(mod_ext)           $(st_mod_dir)meta_puredat_interface$(mod_ext) \
-								   $(st_mod_dir)strings$(mod_ext)        $(mod_dir)gen_quadmesh$(mod_ext) \
-								   $(mod_dir)auxiliaries$(mod_ext)       $(obj_dir)OS$(obj_ext) \
-								   $(mod_dir)operating_system$(mod_ext)  $(mod_dir)puredat$(mod_ext) \
-								   $(mod_dir)decomp$(mod_ext)            $(mod_dir)timer$(mod_ext) \
-								   $(mod_dir)chain_routines$(mod_ext) \
-								   $(st_mod_dir)ser_binary$(mod_ext)     $(st_mod_dir)mpi_binary$(mod_ext) \
-								   $(st_mod_dir)system$(mod_ext) \
-								   $(obj_dir)metis_interface$(obj_ext)   $(mod_dir)metis$(mod_ext)\
-								   $(mod_dir)linfe$(mod_ext)             $(mod_dir)mesh_partitioning$(mod_ext) \
-								   $(mod_dir)write_deck$(mod_ext)        $(mod_dir)gen_geometry$(mod_ext) \
-								   $(mod_dir)tensors$(mod_ext)           $(mod_dir)mat_matrices$(mod_ext) \
-								   $(mod_dir)calcmat$(mod_ext)           $(mod_dir)puredat_com$(mod_ext) \
-								   $(mod_dir)petsc_opt$(mod_ext)         $(mod_dir)dtc_main_subroutines$(mod_ext) \
-								   $(f-src_main)struct_process$(f90_ext)
-	@echo "----- Compiling " $(f-src_main)struct_process$(f90_ext) "-----"
-	$(f90_compiler) $(c_flags_f90) -c $(f-src_main)struct_process$(f90_ext) -o $@
-	@echo 
-#
-# -----------------------------------------------------------------------------
-# main Object 
-# -----------------------------------------------------------------------------
 $(obj_dir)dtc$(obj_ext):$(st_mod_dir)global_std$(mod_ext)     $(st_mod_dir)mechanical$(mod_ext) \
 								   $(st_mod_dir)meta$(mod_ext)           $(st_mod_dir)meta_puredat_interface$(mod_ext) \
 								   $(st_mod_dir)strings$(mod_ext)        $(mod_dir)gen_quadmesh$(mod_ext) \
@@ -529,10 +503,10 @@ $(obj_dir)dtc$(obj_ext):$(st_mod_dir)global_std$(mod_ext)     $(st_mod_dir)mecha
 								   $(st_mod_dir)system$(mod_ext) \
 								   $(obj_dir)metis_interface$(obj_ext)   $(mod_dir)metis$(mod_ext)\
 								   $(mod_dir)linfe$(mod_ext)             $(mod_dir)mesh_partitioning$(mod_ext) \
-								   $(mod_dir)write_deck$(mod_ext)        $(mod_dir)gen_geometry$(mod_ext) \
+								   $(mod_dir)write_deck$(mod_ext)        \
 								   $(mod_dir)tensors$(mod_ext)           $(mod_dir)mat_matrices$(mod_ext) \
 								   $(mod_dir)calcmat$(mod_ext)           $(mod_dir)puredat_com$(mod_ext) \
-								   $(mod_dir)petsc_opt$(mod_ext)         $(mod_dir)dtc_main_subroutines$(mod_ext) \
+								   $(mod_dir)petsc_opt$(mod_ext)         \
 								   $(f-src_main)dtc$(f90_ext)
 	@echo "----- Compiling " $(f-src_main)dtc$(f90_ext) "-----"
 	$(f90_compiler) $(c_flags_f90) -c $(f-src_main)dtc$(f90_ext) -o $@
@@ -596,23 +570,13 @@ $(obj_dir)morphometric_evaluation$(obj_ext):$(st_mod_dir)global_std$(mod_ext)  $
 	@echo 
 #
 # -----------------------------------------------------------------------------
-# Final Link step of struct_process main 
-# -----------------------------------------------------------------------------
-$(main_bin): export_revision $(c-objects) $(f-objects) $(f-sp-object)
-	@echo "----------------------------------------------------------------------------------"
-	@echo '-- Final link step of the struct_process executable'
-	@echo "----------------------------------------------------------------------------------"
-	$(f90_compiler) $(link_flags) $(c-objects) $(f-objects) $(f-sp-object) $(lll_extra) -o $(main_bin)
-	@echo
-#
-# -----------------------------------------------------------------------------
 # Final Link step of dtc main 
 # -----------------------------------------------------------------------------
-$(dtc_bin): export_revision $(c-objects) $(f-objects) $(f-dtc-object)
+$(dtc_bin): export_revision $(c-objects) $(f-objects) $(f-dtc-objects)
 	@echo "----------------------------------------------------------------------------------"
 	@echo '-- Final link step of dtc executable'
 	@echo "----------------------------------------------------------------------------------"
-	$(f90_compiler) $(link_flags) $(c-objects) $(f-objects) $(f-dtc-object) $(lll_extra) -o $(dtc_bin)
+	$(f90_compiler) $(link_flags) $(c-objects) $(f-objects) $(f-dtc-objects) $(lll_extra) -o $(dtc_bin)
 	@echo
 #	
 # -----------------------------------------------------------------------------
@@ -728,7 +692,7 @@ clean:
 	@echo "----------------------------------------------------------------------------------"
 	@echo "-- Cleaning MAIN binary"
 	@echo "----------------------------------------------------------------------------------"
-	$(clean_cmd) $(main_bin)
+	$(clean_cmd) $(dtc_bin)
 #	
 cleanall: clean
 	@echo "----------------------------------------------------------------------------------"
