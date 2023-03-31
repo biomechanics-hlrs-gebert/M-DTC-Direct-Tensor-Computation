@@ -1769,7 +1769,6 @@ EE_Orig = EE
           CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
                Int(root%branches(3)%leaves(4)%lbound-1+(comm_nn-1)*24, MPI_OFFSET_KIND), &
                collected_logs, 24_pd_mik, MPI_INTEGER8, status_mpi, ierr)
-
      END IF
 
     DEALLOCATE(tmp_nn, delta, x_D_phy)

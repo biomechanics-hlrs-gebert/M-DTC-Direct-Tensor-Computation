@@ -40,10 +40,9 @@ Type(tBranch), Pointer :: loc_ddc, ddc, bounds_b
 Type(tBranch), Pointer :: meta_para, domain_branch
 
     ! Mesh Variables 
-    Real(rk)   , Dimension(:,:) , Allocatable :: nodes, displ
-    Integer(ik), Dimension(:)   , Allocatable :: elem_col,node_col, cref
-    Integer(ik), Dimension(:,:) , Allocatable :: elems
-    INTEGER(ik), DIMENSION(:)   , ALLOCATABLE :: HU_magnitudes
+    Real(rk)   , Dimension(:,:), Allocatable :: nodes, displ
+    Integer(ik), Dimension(:,:), Allocatable :: elems
+    Integer(ik), Dimension(:), Allocatable :: elem_col,node_col, cref, HU_magnitudes
 
     Character(mcl) :: elt_micro, desc, filename, typeraw
     Character(scl) :: restart
@@ -67,7 +66,7 @@ Type(tBranch), Pointer :: meta_para, domain_branch
 
     Logical :: success, fex
     
-    Character(len=9) :: nn_char
+    Character(9) :: nn_char
 
     write(nn_char,'(I0)')ddc_nn
     glob_success = .TRUE.

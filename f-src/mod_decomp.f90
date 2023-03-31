@@ -91,11 +91,9 @@ Contains
   !> the subdomain is done by the input paramaters nn and x_D
   Function calc_decomp_domain(nn, x_D, phi_desc, un) Result(dc)
 
-    Integer(ik)              , Intent(In) :: nn
-    Integer(ik), Dimension(3), Intent(In) :: x_D
-    Type(tScalar_Field)           , Intent(in) :: phi_desc
-    Integer                       , Intent(In) :: un
-
+    Integer(ik), Intent(In) :: nn, x_D(3)
+    Type(tScalar_Field), Intent(in) :: phi_desc
+    Integer, Intent(In) :: un
     Type(tDecomp) :: dc
 
     !--------------------------------------------------------------------------

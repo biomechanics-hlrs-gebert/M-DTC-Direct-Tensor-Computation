@@ -35,8 +35,8 @@ TYPE(domain_data), DIMENSION(3) :: tensor
 INTEGER(ik), DIMENSION(:,:), ALLOCATABLE :: Domain_status
 INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0, vdim=0, grid=0
 
-INTEGER(ik) :: alloc_stat, parts, fh_covo, fh_cr1, fh_cr2, fh_tens, &
-    domains_crawled = 0_ik, nn_comm, par_domains, activity_size, size_mpi, fh_covo_num, &
+INTEGER(ik) :: alloc_stat, parts, fh_covo, fh_cr1, fh_cr2, fh_tens, dat_no_highscore, &
+    domains_crawled = 0_ik, nn_comm, activity_size, size_mpi, fh_covo_num, dat_no, &
     ii, kk, ll, mm, tt, xx, par_dmn_number, jj, current_domain, pntr, no_lc, ma_el_order, &
     aun, domains_per_comm = 0, rank_mpi, No_of_domains, local_domain_no, last_domain_rank
 
@@ -61,7 +61,7 @@ CHARACTER(5)   :: covo_suf = ".covo"
 CHARACTER(4)   :: cr1_suf = ".cr1", cr2_suf = ".cr2"
 CHARACTER(1)   :: tt_char, restart_cmd_arg='U' ! U = 'undefined'
 
-LOGICAL :: success=.FALSE., stat_exists=.FALSE., opened=.FALSE., last_domain=.FALSE.
+LOGICAL :: success=.FALSE., stat_exists=.FALSE., opened=.FALSE., last_domain=.FALSE., ex=.FALSE.
 
 CALL CPU_TIME(start)
 
@@ -76,9 +76,6 @@ IF (in%full=='') THEN
         "The *.covo file printed acts as the input file for M-ROT. ", &
         "Only empty fields are computed in M-ROT.                  " ])    
 
-    !------------------------------------------------------------------------------
-    ! On std_out since file of std_out is not spawned
-    !------------------------------------------------------------------------------
     CALL print_err_stop(6, "No input file given", 1)
 END IF
 
@@ -91,16 +88,6 @@ CALL meta_invoke(m_rry)
 ! the proper basename for meta_start_ascii.
 out = in
 
-!------------------------------------------------------------------------------
-! Redirect std_out into a file in case std_out is not useful by environment.
-!------------------------------------------------------------------------------
-std_out = 6 ! determine_sout()
-
-!------------------------------------------------------------------------------
-! Spawn standard out after(!) the basename is known
-!------------------------------------------------------------------------------
-IF(std_out/=6) CALL meta_start_ascii(std_out, '.std_out')
-
 CALL show_title(["Johannes Gebert, M.Sc. (HLRS, NUM) "])
 
 !------------------------------------------------------------------------------
@@ -109,35 +96,42 @@ CALL show_title(["Johannes Gebert, M.Sc. (HLRS, NUM) "])
 CALL meta_check_contains_program ('TENSOR_COMPUTATION', m_rry, success)
 
 IF (.NOT. success) THEN
-    CALL print_trimmed(std_out, &
-        "The program 'TENSOR_COMPUTATION' apparently did not run successfully. &
+    CALL print_trimmed(6, &
+        "The program 'TENSOR_COMPUTATION' probably did not run successfully. &
         &Maybe it crashed or was stopped by purpose. However, it can also point &
         &to an incorrect implementation.", &
         FMT_WRN)    
-    WRITE(std_out, FMT_WRN_SEP)
+    WRITE(6, FMT_WRN_SEP)
 END IF
 
-CALL meta_read('LO_BNDS_DMN_RANGE' , m_rry, xa_d, stat); IF(stat/="") STOP
-CALL meta_read('UP_BNDS_DMN_RANGE' , m_rry, xe_d, stat); IF(stat/="") STOP
-CALL meta_read('MESH_PER_SUB_DMN'  , m_rry, parts, stat); IF(stat/="") STOP
+CALL meta_read('LO_BNDS_DMN_RANGE',m_rry,xa_d,stat);IF(stat/="") WRITE(6,FMT_ERR) TRIM(stat)
+CALL meta_read('UP_BNDS_DMN_RANGE',m_rry,xe_d,stat);IF(stat/="") WRITE(6,FMT_ERR) TRIM(stat)
 
 !------------------------------------------------------------------------------
 ! Macro Element order via string for more flexibility
 !------------------------------------------------------------------------------
-CALL meta_read('MACRO_ELMNT_ORDER' , m_rry, ma_el_order, stat); IF(stat/="") STOP
-CALL meta_read('MICRO_ELMNT_TYPE'  , m_rry, mi_el_type, stat); IF(stat/="") STOP
+CALL meta_read('MACRO_ELMNT_ORDER',m_rry,ma_el_order,stat);IF(stat/="") WRITE(6,FMT_ERR) TRIM(stat)
+CALL meta_read('MICRO_ELMNT_TYPE' ,m_rry,mi_el_type,stat);IF(stat/="") WRITE(6,FMT_ERR) TRIM(stat)
 
-CALL meta_read('PROCESSORS' , m_rry, size_mpi, stat); IF(stat/="") STOP
-CALL meta_read('SIZE_DOMAIN', m_rry, dmn_size, stat); IF(stat/="") STOP
-CALL meta_read('SPACING'    , m_rry, spcng, stat); IF(stat/="") STOP
-CALL meta_read('DIMENSIONS' , m_rry, vdim, stat); IF(stat/="") STOP
+CALL meta_read('PROCESSORS' ,m_rry,size_mpi,stat);IF(stat/="") WRITE(6,FMT_ERR) TRIM(stat)
+CALL meta_read('SIZE_DOMAIN',m_rry,dmn_size,stat);IF(stat/="") WRITE(6,FMT_ERR) TRIM(stat)
+CALL meta_read('SPACING'    ,m_rry,spcng,stat);IF(stat/="") WRITE(6,FMT_ERR) TRIM(stat)
+CALL meta_read('DIMENSIONS' ,m_rry,vdim,stat);IF(stat/="") WRITE(6,FMT_ERR) TRIM(stat)
+IF(stat/="") STOP
+
+! Optional:
+CALL meta_read('MESH_PER_SUB_DMN' ,m_rry,parts,stat)
+IF(stat/="") THEN
+    WRITE(6, FMT_TXT) "Keyword "//TRIM(stat)//" not active."
+    WRITE(6, FMT_WRN_SEP)
+END IF 
 
 IF (ma_el_order == 1) THEN
     no_lc = 24
 ELSE IF (ma_el_order == 2) THEN
     no_lc = 60
 ELSE
-    CALL print_err_stop(std_out, "Macro element order not recognized. Chosse '1' or '2'.", 1)
+    CALL print_err_stop(6, "Macro element order not recognized. Chosse '1' or '2'.", 1)
 END IF 
 
 ALLOCATE(local_num_tensor(no_lc, no_lc))
@@ -169,12 +163,6 @@ WRITE(fh_covo_num, '(A)') TRIM(string)
 !------------------------------------------------------------------------------
 No_of_domains = (xe_d(1)-xa_d(1)+1) * (xe_d(2)-xa_d(2)+1) * (xe_d(3)-xa_d(3)+1)
 
-par_domains = (size_mpi-1) / parts
-
-domains_per_comm = CEILING(REAL(No_of_domains, rk) / REAL(par_domains, rk), ik)
-
-domains_per_comm = domains_per_comm
-
 !------------------------------------------------------------------------------
 ! Allocate memory. Only necessary for one single PETSc sub comm of the DTC.
 ! Directories/Ranks get crawled one by one.
@@ -194,14 +182,14 @@ INQUIRE(FILE = TRIM(activity_file), EXIST=stat_exists, SIZE=activity_size)
 
 IF(.NOT. stat_exists) THEN
     mssg = "No status file found. Please check the input and/or computation."
-    CALL print_err_stop(std_out, mssg, 1_ik) 
+    CALL print_err_stop(6, mssg, 1_ik) 
 END IF 
 
 IF(activity_size /= No_of_domains * ik) THEN
     mssg = "File size and number of computed domains does not match. &
         &Please check the boundaries, hexdump the status file and have a look, &
         &if the kind of the integers of this file is correct (INT64/8)."
-    CALL print_err_stop(std_out, mssg, 1_ik)
+    CALL print_err_stop(6, mssg, 1_ik)
 END IF
 
 OPEN (UNIT=aun, FILE=TRIM(activity_file), ACCESS="STREAM")
@@ -213,25 +201,14 @@ CLOSE(aun)
 !------------------------------------------------------------------------------
 ! User feedback
 !------------------------------------------------------------------------------
-WRITE(std_out, FMT_MSG_AxI0) "size_mpi:         ", size_mpi
-WRITE(std_out, FMT_MSG_AxI0) "parts:            ", parts
-WRITE(std_out, FMT_MSG_AxI0) "No_of_domains:    ", No_of_domains
-WRITE(std_out, FMT_MSG_AxI0) "par_domains:      ", par_domains
-WRITE(std_out, FMT_MSG_AxI0) "domains_per_comm: ", domains_per_comm
+WRITE(6, FMT_MSG_AxI0) "size_mpi:         ", size_mpi
+WRITE(6, FMT_MSG_AxI0) "No_of_domains:    ", No_of_domains
 
-IF (par_domains == 0_ik) THEN
-    WRITE(std_out, FMT_WRN) "0 domains per comm. Maybe a faulty meta file?"
-END IF
- 
 !------------------------------------------------------------------------------
 ! Crawl data
 !------------------------------------------------------------------------------
 par_dmn_number=0
-
-DO rank_mpi = 1, size_mpi-1, parts
-    par_dmn_number = par_dmn_number + 1
-
-    nn_comm = 1_ik
+DO rank_mpi = 1, size_mpi-1
 
     target_path = TRIM(in%p_n_bsnm)//"/"
     file_head = "results"
@@ -241,6 +218,16 @@ DO rank_mpi = 1, size_mpi-1, parts
 
     WRITE(pro_path,'(A,A,I7.7,A)') TRIM(target_path), "Rank_", rank_mpi, "/"
     WRITE(pro_name,'(A,A,I7.7)')   TRIM(file_head), "_", rank_mpi
+
+    ! Search for valid  directories
+    INQUIRE(FILE=pro_path, EXIST=ex)
+    IF(.NOT. ex) CYCLE
+
+    dat_no_highscore=0
+
+    par_dmn_number = par_dmn_number + 1
+
+    nn_comm = 1_ik
 
     !------------------------------------------------------------------------------
     ! Read PureDat tree
@@ -257,11 +244,13 @@ DO rank_mpi = 1, size_mpi-1, parts
     CALL get_leaf_with_num(rank_data, 2_pd_ik, domain_no, success)
 
     IF(ALLOCATED(dat_domains)) DEALLOCATE(dat_domains)
+    IF(dat_no_highscore<domain_no%dat_no) dat_no_highscore = domain_no%dat_no
     ALLOCATE(dat_domains(domain_no%dat_no), stat=alloc_stat)
 
-    CALL print_err_stop(std_out, "Allocating 'dat_domains' failed.", alloc_stat)
-    CALL pd_read_leaf(rank_data%streams, domain_no, dat_domains)
+    dat_no = domain_no%dat_no
 
+    CALL print_err_stop(6, "Allocating 'dat_domains' failed.", alloc_stat)
+    CALL pd_read_leaf(rank_data%streams, domain_no, dat_domains)
     last_domain_rank = MAXVAL(dat_domains)
 
     !------------------------------------------------------------------------------
@@ -270,9 +259,10 @@ DO rank_mpi = 1, size_mpi-1, parts
     CALL get_leaf_with_num(rank_data, 3_pd_ik, no_elems, success)
 
     IF(ALLOCATED(dat_no_elems)) DEALLOCATE(dat_no_elems)
+    IF(dat_no_highscore<no_elems%dat_no) dat_no_highscore = no_elems%dat_no
     ALLOCATE(dat_no_elems(no_elems%dat_no), stat=alloc_stat)
 
-    CALL print_err_stop(std_out, "Allocating 'dat_no_elems' failed.", alloc_stat)
+    CALL print_err_stop(6, "Allocating 'dat_no_elems' failed.", alloc_stat)
     CALL pd_read_leaf(rank_data%streams, no_elems, dat_no_elems)
 
     !------------------------------------------------------------------------------
@@ -281,9 +271,10 @@ DO rank_mpi = 1, size_mpi-1, parts
     CALL get_leaf_with_num(rank_data, 4_pd_ik, no_nodes, success)
 
     IF(ALLOCATED(dat_no_nodes)) DEALLOCATE(dat_no_nodes)
+    IF(dat_no_highscore<no_nodes%dat_no) dat_no_highscore = no_nodes%dat_no
     ALLOCATE(dat_no_nodes(no_nodes%dat_no), stat=alloc_stat)
 
-    CALL print_err_stop(std_out, "Allocating 'dat_no_nodes' failed.", alloc_stat)
+    CALL print_err_stop(6, "Allocating 'dat_no_nodes' failed.", alloc_stat)
     CALL pd_read_leaf(rank_data%streams, no_nodes, dat_no_nodes)
 
     !------------------------------------------------------------------------------
@@ -292,9 +283,10 @@ DO rank_mpi = 1, size_mpi-1, parts
     CALL get_leaf_with_num(rank_data, 5_pd_ik, collected_logs, success)
 
     IF(ALLOCATED(dat_collected_logs)) DEALLOCATE(dat_collected_logs)
+    IF(dat_no_highscore<no_nodes%dat_no) dat_no_highscore = no_nodes%dat_no
     ALLOCATE(dat_collected_logs(collected_logs%dat_no), stat=alloc_stat)
 
-    CALL print_err_stop(std_out, "Allocating 'dat_collected_logs' failed.", alloc_stat)
+    CALL print_err_stop(6, "Allocating 'dat_collected_logs' failed.", alloc_stat)
     CALL pd_read_leaf(rank_data%streams, collected_logs, dat_collected_logs)
 
     !------------------------------------------------------------------------------
@@ -303,9 +295,10 @@ DO rank_mpi = 1, size_mpi-1, parts
     CALL get_leaf_with_num(rank_data, 6_pd_ik, t_start, success)
 
     IF(ALLOCATED(dat_t_start)) DEALLOCATE(dat_t_start)
+    IF(dat_no_highscore<t_start%dat_no) dat_no_highscore = t_start%dat_no
     ALLOCATE(dat_t_start(t_start%dat_no), stat=alloc_stat)
 
-    CALL print_err_stop(std_out, "Allocating 'dat_t_start' failed.", alloc_stat)
+    CALL print_err_stop(6, "Allocating 'dat_t_start' failed.", alloc_stat)
     CALL pd_read_leaf(rank_data%streams, t_start, dat_t_start)
 
     !------------------------------------------------------------------------------
@@ -314,9 +307,10 @@ DO rank_mpi = 1, size_mpi-1, parts
     CALL get_leaf_with_num(rank_data, 7_pd_ik, t_duration, success)
 
     IF(ALLOCATED(dat_t_duration)) DEALLOCATE(dat_t_duration)
+    IF(dat_no_highscore<t_duration%dat_no) dat_no_highscore = t_duration%dat_no
     ALLOCATE(dat_t_duration(t_duration%dat_no), stat=alloc_stat)
 
-    CALL print_err_stop(std_out, "Allocating 'dat_t_duration' failed.", alloc_stat)
+    CALL print_err_stop(6, "Allocating 'dat_t_duration' failed.", alloc_stat)
     CALL pd_read_leaf(rank_data%streams, t_duration, dat_t_duration)
 
     !------------------------------------------------------------------------------
@@ -325,9 +319,10 @@ DO rank_mpi = 1, size_mpi-1, parts
     CALL get_leaf_with_num(rank_data, 9_pd_ik, eff_num_stiffness, success)
         
     IF(ALLOCATED(dat_eff_num_stiffnesses)) DEALLOCATE(dat_eff_num_stiffnesses)
+    IF(dat_no_highscore<eff_num_stiffness%dat_no) dat_no_highscore = eff_num_stiffness%dat_no
     ALLOCATE(dat_eff_num_stiffnesses(eff_num_stiffness%dat_no), stat=alloc_stat)
 
-    CALL print_err_stop(std_out, "Allocating 'dat_eff_num_stiffnesses' failed.", alloc_stat)
+    CALL print_err_stop(6, "Allocating 'dat_eff_num_stiffnesses' failed.", alloc_stat)
     CALL pd_read_leaf(rank_data%streams, eff_num_stiffness, dat_eff_num_stiffnesses)
 
     !------------------------------------------------------------------------------
@@ -336,9 +331,10 @@ DO rank_mpi = 1, size_mpi-1, parts
     CALL get_leaf_with_num(rank_data, 25_pd_ik, density, success)
     
     IF(ALLOCATED(dat_densities)) DEALLOCATE(dat_densities)
+    IF(dat_no_highscore<density%dat_no) dat_no_highscore = density%dat_no
     ALLOCATE(dat_densities(density%dat_no), stat=alloc_stat)
     
-    CALL print_err_stop(std_out, "Allocating 'dat_densities' failed.", alloc_stat)
+    CALL print_err_stop(6, "Allocating 'dat_densities' failed.", alloc_stat)
     CALL pd_read_leaf(rank_data%streams, density, dat_densities)
 
     DO tt = 1, 3
@@ -368,15 +364,15 @@ DO rank_mpi = 1, size_mpi-1, parts
         !------------------------------------------------------------------------------
         ! User feedback
         !------------------------------------------------------------------------------
-        WRITE(std_out, FMT_TXT_xAI0) &
+        WRITE(6, FMT_TXT_xAI0) &
             "Crawling "//TRIM(tensor(tt)%opt_crit)//" of DTC rank ", &
-            rank_mpi, "       ", par_dmn_number, " of ", par_domains   
+            rank_mpi, "       ", par_dmn_number
 
         IF(ALLOCATED(dat_tensors)) DEALLOCATE(dat_tensors)
         ALLOCATE(dat_tensors(tensors%dat_no), stat=alloc_stat)
     
         WRITE(tt_char, '(I0)') tt
-        CALL print_err_stop(std_out, "Allocating 'dat_tensors("//tt_char//")' failed.", alloc_stat)
+        CALL print_err_stop(6, "Allocating 'dat_tensors("//tt_char//")' failed.", alloc_stat)
         CALL pd_read_leaf(rank_data%streams, tensors, dat_tensors)
 
         !------------------------------------------------------------------------------
@@ -385,7 +381,7 @@ DO rank_mpi = 1, size_mpi-1, parts
         IF(tt/= 1) THEN
             IF(ALLOCATED(dat_pos)) DEALLOCATE(dat_pos)
             ALLOCATE(dat_pos(leaf_pos%dat_no), stat=alloc_stat)
-            CALL print_err_stop(std_out, "Allocating 'dat_pos("//tt_char//")' failed.", alloc_stat)
+            CALL print_err_stop(6, "Allocating 'dat_pos("//tt_char//")' failed.", alloc_stat)
             CALL pd_read_leaf(rank_data%streams, leaf_pos, dat_pos)
         END IF 
 
@@ -393,7 +389,7 @@ DO rank_mpi = 1, size_mpi-1, parts
         ! Begin searching for the domain to extract
         !------------------------------------------------------------------------------
         last_domain = .FALSE.
-        DO ii = 1, domains_Per_comm 
+        DO ii = 1, dat_no 
 
             !------------------------------------------------------------------------------
             ! Quite a naive implementation
@@ -497,7 +493,7 @@ DO rank_mpi = 1, size_mpi-1, parts
 
             IF(mrd_dbg_lvl == "DEBUG") THEN
                 WRITE(dmn_char, '(I0)') local_domain_no
-                CALL write_matrix(std_out, "Effective stiffness of domain "//dmn_char, &
+                CALL write_matrix(6, "Effective stiffness of domain "//dmn_char, &
                     local_domain_tensor, fmti='std', unit='MPa')
             END IF 
 
@@ -570,7 +566,7 @@ DO rank_mpi = 1, size_mpi-1, parts
                 CALL write_eff_num_stiff_row(tensor(tt), no_lc, string)
                 WRITE(fh_covo_num,'(A)') TRIM(string)
             END IF
-        END DO ! ii = 1, domains_Per_comm - 1_ik
+        END DO ! ii = 1, dat_no_highscore
 
     END DO ! tt = 1, 3
 
@@ -598,11 +594,11 @@ CALL meta_stop_ascii(fh_cr1, cr1_suf)
 CALL meta_stop_ascii(fh_cr2, cr2_suf)
 CALL meta_stop_ascii(fh_covo_num, covo_num_suf)
 
-WRITE(std_out, FMT_TXT_SEP)
-WRITE(std_out, FMT_TXT_xAF0) "Program finished successfully in ", end-start, " seconds."
-WRITE(std_out, FMT_TXT_SEP)
+WRITE(6, FMT_TXT_SEP)
+WRITE(6, FMT_TXT_xAF0) "Program finished successfully in ", end-start, " seconds."
+WRITE(6, FMT_TXT_SEP)
 
-IF(std_out /= 6) CALL meta_stop_ascii(fh=std_out, suf='.std_out')
+IF(6 /= 6) CALL meta_stop_ascii(fh=6, suf='.6')
 
 END PROGRAM mrd_crawl_tensors
 

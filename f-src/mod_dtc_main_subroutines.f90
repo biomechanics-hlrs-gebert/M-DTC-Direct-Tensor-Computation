@@ -42,23 +42,21 @@ CONTAINS
 !> @param[in]    lin_domain    Linear, internal, domain number
 !> @param[in]    domain        ddc domain number
 !> @param[in]    job_dir       Job directory (Rank_...)
-!> @param[out]   active        Whether thread is active
 !> @param[in]    fh_mpi_worker File handle of sub comm
 !> @param[in]    worker_rank_mpi
 !> @param[in]    parts
 !> @param[in]    comm_mpi
 !------------------------------------------------------------------------------
-Subroutine exec_single_domain(root, comm_nn, domain, typeraw, &
-    job_dir, fh_cluster_log, active, fh_mpi_worker, worker_rank_mpi, parts, comm_mpi)
+Subroutine exec_single_domain(root, comm_nn, domain, type_raw, &
+    job_dir, fh_cluster_log, fh_mpi_worker, worker_rank_mpi, parts, comm_mpi)
 
 TYPE(materialcard) :: bone, bone_adjusted
 INTEGER(mik), Intent(INOUT), Dimension(no_streams) :: fh_mpi_worker
 
 Character(*) , Intent(in)  :: job_dir
-Character(*) , Intent(in)  :: typeraw
+Character(*) , Intent(in)  :: type_raw
 INTEGER(mik), Intent(In)  :: worker_rank_mpi, comm_mpi
 INTEGER(ik) , intent(in)  :: parts, comm_nn, domain, fh_cluster_log
-INTEGER(mik), intent(out) :: active
 Type(tBranch)    , Intent(inOut) :: root
 
 REAL(rk), DIMENSION(:), Pointer     :: displ, force
@@ -85,7 +83,8 @@ INTEGER(c_int) :: stat_c_int
 CHARACTER(9)   :: domain_char
 CHARACTER(40)  :: mssg_fix_len
 CHARACTER(mcl) :: timer_name, rank_char, domain_desc, part_desc, &
-    desc, mesh_desc, filename, elt_micro, map_sgmnttn=""
+    desc, mesh_desc, filename, elt_micro, map_sgmnttn="", &
+    read_path, read_name, write_path, write_name
 CHARACTER(1) :: bin_sgmnttn=""
 
 Character, Dimension(4*mcl) :: c_char_array
@@ -114,8 +113,6 @@ INTEGER(ik), Dimension(24)    :: idxm_08, idxn_08
 Real(rk),    Dimension(24,24) :: K_loc_08
 Type(tVec), Dimension(24) :: FF_08
 
-! Init worker_is_active status
-Active = 0_mik
 collected_logs = 0_ik
 
 write(domain_char,'(I0)') domain
@@ -126,7 +123,6 @@ write(domain_char,'(I0)') domain
 host_of_part = ""
 CALL mpi_get_processor_name(host_of_part, result_len_mpi_procs, ierr) 
 CALL print_err_stop(std_out, "mpi_get_processor_name failed", ierr)
-
 
 !------------------------------------------------------------------------------
 ! Get the mpi communicators total memory usage by the pids of the threads.
@@ -143,8 +139,7 @@ IF (worker_rank_mpi == 0) THEN
 END IF
 
 
-! This function does not work out well.
-! CALL get_environment_Variable("HOST", host_of_part)
+
 
 CALL Search_branch("Input parameters", root, meta_para, success, out_amount)
 
@@ -157,7 +152,7 @@ CALL pd_get(meta_para, "Poisson_s ratio" , bone%nu)
 ! Rank = 0 -- Local master of comm_mpi
 !------------------------------------------------------------------------------
 If (worker_rank_mpi == 0) then
-
+   
     !------------------------------------------------------------------------------
     ! Create job directory in case of non-production run
     !------------------------------------------------------------------------------
@@ -283,13 +278,20 @@ If (worker_rank_mpi == 0) then
 
     CALL start_timer(trim(timer_name), .FALSE.)
 
-    CALL generate_geometry(root, domain, job_dir, typeraw, parts, success)
+    write_path = pro_path
+    write_name = pro_name
+
+    CALL generate_geometry(root, domain, job_dir, type_raw, parts, success)
+    
+    read_path = pro_path ! For documentary purposes 
+    read_name = pro_name ! For documentary purposes     
+    pro_path = write_path
+    pro_name = write_name
 
     if (.not. success) write(std_out, FMT_WRN)"generate_geometry() failed."
     
     CALL end_timer(trim(timer_name))
-        timestamp = time()
-
+    timestamp = time()
 
     WRITE(un_lf, '(A,I0)') 'End time: ', timestamp
 
@@ -494,7 +496,7 @@ END IF
 !------------------------------------------------------------------------------
 IF (worker_rank_mpi == 0) CALL end_timer(TRIM(timer_name))
 
-If (out_amount == "DEBUG") THEN 
+If (out_amount == "DEBUG-ALL") THEN 
     CALL MatGetOwnershipRange(AA, Istart, Iend, petsc_ierr)
     Write(un_lf,"('MM ', A,I4,A,A6,2(A,I9))")&
         "MPI rank : ",worker_rank_mpi,"| matrix ownership for ","A    ", ":",Istart," -- " , Iend
@@ -545,7 +547,6 @@ END IF
 
 bone_adjusted%nu = bone%nu
  
-
 !------------------------------------------------------------------------------
 ! Assemble matrix
 !------------------------------------------------------------------------------
@@ -646,6 +647,8 @@ if (TRIM(elt_micro) == "HEX08") then
             K_loc_08 = Hexe08(bone_adjusted)
         END IF 
 
+        K_loc_08 = Hexe08(bone)
+
         idxn_08 = idxm_08
 
         CALL MatSetValues(AA, 24_8, idxm_08, 24_8 ,idxn_08, K_loc_08, ADD_VALUES, petsc_ierr)
@@ -729,14 +732,12 @@ IF (worker_rank_mpi == 0) THEN
     collected_logs(11) = mem_global
     collected_logs(18) = status_global
 END IF
- write(*,*) "Im here DTC_MSR8"
 
 CALL MatAssemblyBegin(AA, MAT_FINAL_ASSEMBLY ,petsc_ierr)
 CALL MatAssemblyBegin(AA_org, MAT_FINAL_ASSEMBLY ,petsc_ierr)
 ! Computations can be done while messages are in transition
 CALL MatAssemblyEnd(AA, MAT_FINAL_ASSEMBLY ,petsc_ierr)
 CALL MatAssemblyEnd(AA_org, MAT_FINAL_ASSEMBLY ,petsc_ierr)
- write(*,*) "Im here DTC_MSR9"
 
 !------------------------------------------------------------------------------
 ! End timer
@@ -805,7 +806,7 @@ Do ii = 1, no_lc
         CALL VecGetOwnershipRange(FF_20(ii), IVstart, IVend, petsc_ierr)
     END IF
 
-    If (out_amount == "DEBUG") THEN 
+    If (out_amount == "DEBUG-ALL") THEN 
         Write(un_lf,"('MM ', A,I4,A,A6,2(A,I9))")&
             "MPI rank : ",worker_rank_mpi,"| vector ownership for ","F", ":",IVstart," -- " , IVend
     End If
@@ -855,7 +856,6 @@ Do ii = 1, boundary_branch%leaves(1)%dat_no
     gnid_cref(kk:kk+2) = [id, id+1, id+2]
     kk= kk + 3
 End Do
- write(*,*) "Im here DTC_MSR10"
 
 !------------------------------------------------------------------------------ 
 ! Create solution vector
@@ -886,7 +886,7 @@ CALL VecGetOwnershipRange(XX, IVstart, IVend, petsc_ierr)
 !------------------------------------------------------------------------------
 IF (worker_rank_mpi == 0) CALL end_timer(TRIM(timer_name))
 
-If (out_amount == "DEBUG") THEN 
+If (out_amount == "DEBUG-ALL") THEN ! May end up in a fort.* file in the root directory
     Write(un_lf,"('MM ', A,I4,A,A6,2(A,I9))") &
         "MPI rank : ",worker_rank_mpi,"| vector ownership for ","X", ":",IVstart," -- " , IVend
     CALL PetscViewerCreate(COMM_MPI, PetscViewer, petsc_ierr)
@@ -895,7 +895,6 @@ If (out_amount == "DEBUG") THEN
     CALL VecView(XX, PetscViewer, petsc_ierr)
     CALL PetscViewerDestroy(PetscViewer, petsc_ierr)
 End If
- write(*,*) "Im here DTC_MSR11"
 
 !------------------------------------------------------------------------------
 ! At this point the right hand side vectors, filled with zeros and
@@ -948,8 +947,6 @@ ELSE IF (macro_order == 2) THEN
     CALL VecAssemblyBegin(FF_20(1), petsc_ierr)
     CALL VecAssemblyEnd(FF_20(1), petsc_ierr)         
 END IF
-
- write(*,*) "Im here DTC_MSR12"
 
 !------------------------------------------------------------------------------
 ! Compute dirichlet boundary corrections of 2nd to 23rd
@@ -1040,8 +1037,6 @@ ELSE IF (macro_order == 2) THEN
     End Do
 
 END IF
- write(*,*) "Im here DTC_MSR13"
-
 
 !------------------------------------------------------------------------------
 ! Since we are filling XX with the prescribed displacements
@@ -1080,7 +1075,6 @@ If (out_amount == "DEBUG") THEN
 
     CALL PetscViewerDestroy(PetscViewer, petsc_ierr)
 End If
- write(*,*) "Im here DTC_MSR14"
 
 !------------------------------------------------------------------------------
 ! At this point the right hand side vectors are modified with the      
@@ -1244,7 +1238,6 @@ Do jj = 1, no_lc
         CALL VecGetArrayReadF90(FF_20(jj),force,petsc_ierr)
     END IF 
 
-    
     !------------------------------------------------------------------------------
     ! Master/Worker
     !------------------------------------------------------------------------------
@@ -1344,12 +1337,12 @@ if (worker_rank_mpi == 0) then
     CASE default
         timer_name = "calc_eff_stiffness"
     End SELECT
-
+    
     CALL start_timer(TRIM(timer_name), .FALSE.)
     CALL calc_effective_material_parameters(root, comm_nn, domain, &
         fh_mpi_worker, INT(parts,mik), collected_logs)
     CALL end_timer(TRIM(timer_name))
-    
+
 ELSE
     DEALLOCATE(part_branch)
 End if

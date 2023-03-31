@@ -20,32 +20,31 @@ Implicit None
 
 Contains
 
-Subroutine generate_geometry(root, ddc_nn, job_dir, typeraw, parts, glob_success)
+Subroutine generate_geometry(root, domain, job_dir, type_raw, parts, glob_success)
 
-Type(tBranch), Intent(InOut) :: root
-Character(LEN=*), Intent(in) :: job_dir
-integer(ik), Intent(in) :: ddc_nn, parts
-Logical, Intent(Out) :: glob_success
-    
-! Chain Variables
-Character(Len=*), Parameter :: link_name = 'gen_quadmesh'
+    Type(tBranch), Intent(InOut) :: root
+    Character(LEN=*), Intent(in) :: job_dir
+    integer(ik), Intent(in) :: domain, parts
+    Logical, Intent(Out) :: glob_success
+        
+    ! Chain Variables
+    Character(Len=*), Parameter :: link_name = 'gen_quadmesh'
 
-! Puredat Variables
-Type(tBranch) :: phi_desc
+    ! Puredat Variables
+    Type(tBranch) :: phi_desc
 
-! Decomp Variables 
-Type(tBranch), Pointer :: loc_ddc, ddc, bounds_b
+    ! Decomp Variables 
+    Type(tBranch), Pointer :: loc_ddc, ddc, bounds_b
 
-! Branch pointers
-Type(tBranch), Pointer :: meta_para, domain_branch
+    ! Branch pointers
+    Type(tBranch), Pointer :: meta_para, domain_branch
 
     ! Mesh Variables 
     Real(rk)   , Dimension(:,:) , Allocatable :: nodes, displ
-    Integer(ik), Dimension(:)   , Allocatable :: elem_col,node_col, cref
     Integer(ik), Dimension(:,:) , Allocatable :: elems
-    INTEGER(ik), DIMENSION(:)   , ALLOCATABLE :: HU_magnitudes
+    Integer(ik), Dimension(:), Allocatable :: elem_col,node_col, cref, HU_magnitudes
 
-    Character(mcl) :: elt_micro, desc, filename, typeraw
+    Character(mcl) :: elt_micro, desc, filename, type_raw
     Character(scl) :: restart
     Integer(ik)   :: elo_macro,alloc_stat
     
@@ -64,12 +63,11 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     Integer(ik), Dimension(:), Allocatable :: bpoints,x_D,nn_D, vdim
     Integer(ik), Dimension(3) :: xa_n, xe_n, xa_n_ext, xe_n_ext
     Integer(ik) :: nn_1,nn_2,nn_3, ii,jj, pos_f, first_bytes, llimit, no_nodes=0, no_elems=0
-
     Logical :: success, fex
     
-    Character(len=9) :: nn_char
+    Character(9) :: nn_char
 
-    write(nn_char,'(I0)')ddc_nn
+    write(nn_char,'(I0)')domain
     glob_success = .TRUE.
 
     !----------------------------------------------------------------------------
@@ -84,9 +82,10 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     !----------------------------------------------------------------------------
     ! Calculate special parameters of domain decomposition
     !----------------------------------------------------------------------------
-    nn_3 = INT( ddc_nn / ( nn_D(1)*nn_D(2) ))
-    nn_2 = INT(( ddc_nn - nn_D(1)*nn_D(2)*nn_3 ) / ( nn_D(1) ))
-    nn_1 = ( ddc_nn - nn_D(1)*nn_D(2)*nn_3 - nn_D(1)*nn_2 )
+    nn_D = nn_D + 1_ik
+    nn_3 = INT( domain / ( nn_D(1)*nn_D(2) ))
+    nn_2 = INT(( domain - nn_D(1)*nn_D(2)*nn_3 ) / ( nn_D(1) ))
+    nn_1 = ( domain - nn_D(1)*nn_D(2)*nn_3 - nn_D(1)*nn_2 )
 
     xa_n = [x_D(1) * nn_1 + bpoints(1) + 1, &
             x_D(2) * nn_2 + bpoints(2) + 1, &
@@ -103,7 +102,7 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     ! Add domain branch to root
     !----------------------------------------------------------------------------
     desc=''
-    Write(desc,'(A,I0)')"Domain ", ddc_nn
+    Write(desc,'(A,I0)')"Domain ", domain
     call add_branch_to_branch(root, domain_branch)
     
     call raise_branch(trim(desc), 0_pd_ik, 0_pd_ik, domain_branch)
@@ -112,12 +111,12 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     ! Add branch for local ddc params to domain branch
     !----------------------------------------------------------------------------
     desc=''
-    Write(desc,'(A,I0)') "Local domain Decomposition of domain no ", ddc_nn
+    Write(desc,'(A,I0)') "Local domain Decomposition of domain no ", domain
 
     call add_branch_to_branch(domain_branch, loc_ddc)
     call raise_branch(trim(desc), 0_pd_ik, 0_pd_ik, loc_ddc)
 
-    call add_leaf_to_branch(loc_ddc, "nn"      , 1_pd_ik, [ddc_nn])
+    call add_leaf_to_branch(loc_ddc, "nn"      , 1_pd_ik, [domain])
     call add_leaf_to_branch(loc_ddc, "nn_i"    , 3_pd_ik, [nn_1, nn_2, nn_3])
     call add_leaf_to_branch(loc_ddc, "xa_n"    , 3_pd_ik, xa_n    )
     call add_leaf_to_branch(loc_ddc, "xe_n"    , 3_pd_ik, xe_n    )
@@ -164,7 +163,7 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     !----------------------------------------------------------------------------
     ! Read PHI (scalar binary values) from file
     !----------------------------------------------------------------------------
-    SELECT CASE(TRIM(ADJUSTL(typeraw)))
+    SELECT CASE(TRIM(ADJUSTL(type_raw)))
     CASE('ik1')
         multiplier = 1_ik
         allocate(Phi_ik1(xa_n(1):xe_n(1), xa_n(2):xe_n(2), xa_n(3):xe_n(3)), stat=alloc_stat)
@@ -178,6 +177,7 @@ Type(tBranch), Pointer :: meta_para, domain_branch
 
     call alloc_err("phi", alloc_stat)
 
+    first_bytes = 0_ik
     DO ii=1, phi_desc%no_leaves
         IF (TRIM(phi_desc%leaves(ii)%desc) == "Scalar data") THEN
             first_bytes = INT(phi_desc%leaves(ii)%lbound, 8)
@@ -200,7 +200,7 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     ! Set datatype
     ! intent(inout) from open_stream_files did not copy the units(!)
     !----------------------------------------------------------------------------
-    SELECT CASE(TRIM(ADJUSTL(typeraw)))
+    SELECT CASE(TRIM(ADJUSTL(type_raw)))
         CASE('ik1'); nts=1
         CASE('ik2'); nts=2
         CASE('ik4'); nts=3
@@ -210,21 +210,18 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     phi_desc%streams%units(nts) = pd_give_new_unit()
 
     !----------------------------------------------------------------------------
-    ! CHECK ENDIANNESS
+    ! Check if the file is open, if not open, but not multiple times.
     !----------------------------------------------------------------------------
     Open(unit=phi_desc%streams%units(nts), &
         file=phi_desc%streams%stream_files(nts), status="old", &
         action="read", access='stream', form='unformatted', &
-        position="REWIND", convert='big_endian')
-    !----------------------------------------------------------------------------
-    ! CHECK ENDIANNESS
-    !----------------------------------------------------------------------------
-        
+        position="REWIND", convert='big_endian') 
+
     phi_desc%streams%ifopen(nts) = .TRUE.
 
     Do jj = xa_n(3), xe_n(3)
-       Do ii = xa_n(2), xe_n(2)
-
+        Do ii = xa_n(2), xe_n(2)
+        
             pos_f = INT((INT(vdim(1)*vdim(2)*(jj         - 1_8), 8) + &
                          INT(vdim(1)*        (ii         - 1_8), 8) + &
                          INT(                (xa_n(1)    - 1_8), 8) + &
@@ -238,13 +235,11 @@ Type(tBranch), Pointer :: meta_para, domain_branch
         End Do
     End Do
 
-    ! call close_stream_files(phi_desc)
     SELECT CASE(nts)
         CASE(1); close(phi_desc%streams%units(1))
         CASE(2); close(phi_desc%streams%units(2))
         CASE(3); close(phi_desc%streams%units(3))
     END SELECT
-
 
     Select Case (timer_level)
     Case (3)
@@ -268,21 +263,21 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     !------------------------------------------------------------------------------
     Call Search_branch("Global domain decomposition", root, ddc, success)
 
-    SELECT CASE(TRIM(ADJUSTL(typeraw)))
+    SELECT CASE(TRIM(ADJUSTL(type_raw)))
         CASE('ik1')
             call gen_quadmesh_from_phi(delta, ddc, loc_ddc, llimit, elt_micro, &
-             nodes, elems, HU_magnitudes, node_col, elem_col, no_nodes, no_elems, &
-             typeraw, phi_ik1=Phi_ik1)
+                nodes, elems, HU_magnitudes, node_col, elem_col, no_nodes, no_elems, &
+                type_raw, phi_ik1=Phi_ik1)
 
         CASE('ik2')
             call gen_quadmesh_from_phi(delta, ddc, loc_ddc, llimit, elt_micro, &
-             nodes, elems, HU_magnitudes, node_col, elem_col, no_nodes, no_elems, &
-             typeraw, phi_ik2=Phi_ik2)
+                nodes, elems, HU_magnitudes, node_col, elem_col, no_nodes, no_elems, &
+                type_raw, phi_ik2=Phi_ik2)
 
         CASE('ik4')
             call gen_quadmesh_from_phi(delta, ddc, loc_ddc, llimit, elt_micro, &
-             nodes, elems, HU_magnitudes, node_col, elem_col, no_nodes, no_elems, &
-             typeraw, phi_ik4=Phi_ik4)
+                nodes, elems, HU_magnitudes, node_col, elem_col, no_nodes, no_elems, &
+                type_raw, phi_ik4=Phi_ik4)
 
     END SELECT
 
@@ -299,7 +294,7 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     if (out_amount == "DEBUG") then
 
        filename=''
-       write(filename,'(A,I0,A)')trim(job_dir)//trim(project_name)//"_",ddc_nn,"_phi.vtk"
+       write(filename,'(A,I0,A)') trim(job_dir)//trim(project_name)//"_",domain,"_phi.vtk"
        !------------------------------------------------------------------------------
        ! Check existance of vtk file 
        !------------------------------------------------------------------------------
@@ -320,15 +315,15 @@ Type(tBranch), Pointer :: meta_para, domain_branch
        !------------------------------------------------------------------------------
        ! Write structured points 
        !------------------------------------------------------------------------------
-        SELECT CASE(TRIM(ADJUSTL(typeraw)))
+        SELECT CASE(TRIM(ADJUSTL(type_raw)))
             CASE('ik1')
-                CALL write_ser_vtk(filename, typeraw, delta, x_D, &
+                CALL write_ser_vtk(filename, type_raw, delta, x_D, &
                     (Real(xa_n,rk)-[0.5_rk,0.5_rk,0.5_rk])*delta, Phi_ik1)
             CASE('ik2')
-                CALL write_ser_vtk(filename, typeraw, delta, x_D, &
+                CALL write_ser_vtk(filename, type_raw, delta, x_D, &
                     (Real(xa_n,rk)-[0.5_rk,0.5_rk,0.5_rk])*delta, Phi_ik2)
             CASE('ik4')
-                CALL write_ser_vtk(filename, typeraw, delta, x_D, &
+                CALL write_ser_vtk(filename, type_raw, delta, x_D, &
                     (Real(xa_n,rk)-[0.5_rk,0.5_rk,0.5_rk])*delta, Phi_ik4)
         END SELECT
 
@@ -366,7 +361,7 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     if (out_amount == "DEBUG") then
 
        filename=''
-       write(filename,'(A,I0,A)')trim(job_dir)//trim(project_name)//"_",ddc_nn,"_usg.vtk"
+       write(filename,'(A,I0,A)')trim(job_dir)//trim(project_name)//"_",domain,"_usg.vtk"
        
        INQUIRE(FILE=TRIM(filename), EXIST=fex)
 
@@ -396,19 +391,15 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     Call pd_get(meta_para,'Element order on macro scale', elo_macro)
     
     !------------------------------------------------------------------------------
-    ! Perform domain decomposition by metis
-    !------------------------------------------------------------------------------
-    
-    !------------------------------------------------------------------------------
     ! Add branch for mesh to domain branch
     !------------------------------------------------------------------------------
     desc=''
-    Write(desc,'(A,I0)')'Mesh info of '//trim(project_name)//'_',ddc_nn
+    Write(desc,'(A,I0)')'Mesh info of '//trim(project_name)//'_',domain
    
     call add_branch_to_branch(domain_branch, PMesh)
     call raise_branch(trim(desc), parts, 0_pd_ik, PMesh)
 
-    Call part_mesh(nodes, elems, HU_magnitudes, no_nodes, no_elems, parts, PMesh, job_dir, ddc_nn)
+    Call part_mesh(nodes, elems, HU_magnitudes, no_nodes, no_elems, parts, PMesh, job_dir, domain)
    
     call add_leaf_to_branch(PMesh, "No of nodes in mesh",  1_pd_ik, [no_nodes])
     call add_leaf_to_branch(PMesh, "No of elements in mesh",  1_pd_ik, [no_elems])
@@ -418,7 +409,7 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     !------------------------------------------------------------------------------
     Call Search_branch("Global domain decomposition", root, ddc, success)
     desc=''
-    Write(desc,'(A,I0)')"Local domain Decomposition of domain no ",ddc_nn
+    Write(desc,'(A,I0)')"Local domain Decomposition of domain no ",domain
     Call Search_branch(trim(desc), root, loc_ddc, success)
     
     Call generate_boundaries(PMesh, ddc, loc_ddc, elo_macro)
@@ -451,7 +442,7 @@ Type(tBranch), Pointer :: meta_para, domain_branch
           End Do
           
           filename = ""
-          Write(filename,'(A,A,I0,A,I0,A)')trim(job_dir),"Part-",ii,"_",ddc_nn,".vtk"
+          Write(filename,'(A,A,I0,A,I0,A)')trim(job_dir),"Part-",ii,"_",domain,".vtk"
 
           INQUIRE(FILE=TRIM(filename), EXIST=fex)
 
@@ -500,14 +491,14 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     Real(rk), Dimension(:), Allocatable :: dim_c, delta
     Real(rk), Dimension(3) :: min_c, max_c, coor
 
-    Integer(ik) :: parts, ddc_nn, no_nodes_macro, ii, jj, no_bnodes, b_items, nnodes
+    Integer(ik) :: parts, domain, no_nodes_macro, ii, jj, no_bnodes, b_items, nnodes
     Integer(ik), Dimension(:), Allocatable :: &
         no_nodes_all, no_elems_all, no_cdofs_all, xa_n, xe_n, bnode_ids
 
     !------------------------------------------------------------------------------
     ! Get Parameters of domain decomposition
     !------------------------------------------------------------------------------
-    call pd_get(loc_ddc, "nn",      ddc_nn)
+    call pd_get(loc_ddc, "nn",      domain)
     call pd_get(ddc,     "x_D_phy", dim_c )
     call pd_get(loc_ddc, "xa_n",    xa_n  )
     call pd_get(loc_ddc, "xe_n",    xe_n  )
@@ -705,7 +696,7 @@ Type(tBranch), Pointer :: meta_para, domain_branch
 
         Do ii = 1, no_nodes_macro*3
             
-            Write(bounds_b%branches(ii)%desc,"(2(A,I0))") "Boundaries_",ddc_nn,'_',ii
+            Write(bounds_b%branches(ii)%desc,"(2(A,I0))") "Boundaries_",domain,'_',ii
             ! no_bnodes == 0?! > dat_no = 0 for some specific nodes
             CALL add_leaf_to_branch(bounds_b%branches(ii), "Boundary_Ids", no_bnodes, bnode_ids)
             CALL add_leaf_to_branch(bounds_b%branches(ii), "Boundary_Values", no_bnodes*3,  bnode_vals(ii,:))

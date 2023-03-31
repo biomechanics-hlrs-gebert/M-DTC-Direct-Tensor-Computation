@@ -21,6 +21,7 @@
 import os, struct, argparse, sys, time
 import numpy as np
 import pandas as pd
+from pathlib import Path
 #
 sys.path.insert(1, '/home/geb/00_bone_eval_chain/P_MOD_Python')
 #
@@ -478,9 +479,6 @@ print(FMT_STRING)
 # -----------------------------------------------------------------------------
 # User Feedback
 # -----------------------------------------------------------------------------
-if bool(cmd_args.bins):
-    best_no_bins = int(cmd_args.bins)
-
 bins_used = hist(nds_list, min(nds_list), max(nds_list), best_no_bins)
 
 print("-- Cores available:        ", best_job_size*best_target_pcn)
@@ -550,3 +548,30 @@ elapsed_time = end_time - start_time
 #
 print("-- Single core runtime of this script:", round(elapsed_time,1), "s")
 print(FMT_STRING)
+
+
+# -----------------------------------------------------------------------------
+# Create directories now
+# -----------------------------------------------------------------------------
+main_process = 0
+worker_main_rank = 1
+
+path_spec = basename + "/" + f"Rank_{worker_main_rank:07}"
+Path(path_spec).mkdir(parents=True, exist_ok=True)
+
+for ii in range(len(list_of_comms)):
+
+    ppd = list_of_comms[ii]
+    comms_of_ppd = list_of_NoofComms[ii]
+
+    for jj in range(comms_of_ppd):
+        worker_main_rank += ppd
+
+        path_spec = basename + "/" + f"Rank_{worker_main_rank:07}"
+        Path(path_spec).mkdir(parents=True, exist_ok=True)
+
+# Simple workaround to remove the last directory, which is not needed.
+Path(path_spec).rmdir()
+
+path_spec = basename + "/results_domains"
+Path(path_spec).mkdir(parents=True, exist_ok=True)
