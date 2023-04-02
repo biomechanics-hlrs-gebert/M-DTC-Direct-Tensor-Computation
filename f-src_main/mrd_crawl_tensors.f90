@@ -201,8 +201,9 @@ CLOSE(aun)
 !------------------------------------------------------------------------------
 ! User feedback
 !------------------------------------------------------------------------------
-WRITE(6, FMT_MSG_AxI0) "size_mpi:         ", size_mpi
-WRITE(6, FMT_MSG_AxI0) "No_of_domains:    ", No_of_domains
+WRITE(6, FMT_TXT_AxI0) "size_mpi:      ", size_mpi
+WRITE(6, FMT_TXT_AxI0) "No_of_domains: ", No_of_domains
+WRITE(6, FMT_SEP)
 
 !------------------------------------------------------------------------------
 ! Crawl data

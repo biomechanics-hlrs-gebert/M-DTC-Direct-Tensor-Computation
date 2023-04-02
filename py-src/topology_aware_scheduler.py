@@ -120,7 +120,7 @@ parser = argparse.ArgumentParser(description='Just give the meta file.')
 parser.add_argument('-metaF', action="store", dest="meta_file", help="Input meta file.")
 # parser.add_argument('-ppn', action="store", dest="ppn", help="Input meta file).")
 parser.add_argument('-ncno', action="store", dest="ncno", help="Number of compute nodes.")
-parser.add_argument('-bins', action="store", dest="bins", help="Number of different sized of MPI comms.")
+parser.add_argument('-bins', action="store", dest="bins", help="Number of different sized of MPI groups.")
 parser.add_argument('-idle-offset', action="store", dest="idle_offset", help="Offset of min runtime to target runtime (0.1 => 1.1*min runtime = target runtime)")
 parser.add_argument('-debug', action="store", dest="debug", help="Number of compute nodes.")
 
@@ -177,14 +177,16 @@ size_dmn    =  keywords.get("SIZE_DOMAIN")
 
 basename = os.path.splitext(cmd_args.meta_file)[0]
 
-dmn_no_file= basename + ".status"
-vox_file   = basename + ".vox"
-comms_file = basename + ".comms"
-parts_file = basename + ".parts"
+dmn_no_file = basename + ".status"
+vox_file    = basename + ".vox"
+groups_file = basename + ".groups"
+comms_file  = basename + ".comms"
+parts_file  = basename + ".parts"
 
 print("-- Outputfiles: ")
 print("-- dmn_no_file: ", dmn_no_file)
 print("-- vox_file:    ", vox_file)
+print("-- groups_file: ", groups_file)
 print("-- comms_file:  ", comms_file)
 print("-- parts_file:  ", parts_file)
 print("--")
@@ -308,7 +310,7 @@ for bin in bins:
 
     # Reset dataframes
     catalogued_data = pd.DataFrame(columns=['domain', 'ppd', 'expected runtime'])
-    comms_per_ppd = pd.DataFrame(columns=['ppd', 'comms', 'No of Domains'])
+    comms_per_ppd = pd.DataFrame(columns=['ppd', 'groups', 'No of Domains'])
 
     # Create the histogram data
     bins_avail = hist(nds_list, min(nds_list), max(nds_list), bin)
@@ -388,23 +390,23 @@ for bin in bins:
     # ppds_avail twice (once to get the global target and then to operate on it)
     target_time_budget = min_tot_t + (max_tot_t-min_tot_t) * idle_offset
 
-    # Calculate the actual time budgets of all comms via the cutting stock problem.
+    # Calculate the actual time budgets of all groups via the cutting stock problem.
     for ii in range(len(ppds_avail)):
         uupd = ppds_avail[ii]
 
         df_dmns = catalogued_data[catalogued_data['ppd'] == uupd]
 
-        comms = cutting_stock(df_dmns["expected runtime"].tolist(), target_time_budget)
+        groups = cutting_stock(df_dmns["expected runtime"].tolist(), target_time_budget)
 
-        # core seconds = number of MPI comms * size of MPI comms * target time budget
+        # core seconds = number of MPI groups * size of MPI groups * target time budget
         # +1 to acco
-        time_budget_allocated[ii] = (comms * uupd + 1) * target_time_budget
+        time_budget_allocated[ii] = (groups * uupd + 1) * target_time_budget
 
         # Not skipping empty communicators results in processors that are idling all the time.
-        if comms == 0:
+        if groups == 0:
             continue
 
-        new_entry = pd.DataFrame({'ppd': uupd, 'comms': comms, 'No of Domains': df_dmns.shape[0]}, index=[0])
+        new_entry = pd.DataFrame({'ppd': uupd, 'groups': groups, 'No of Domains': df_dmns.shape[0]}, index=[0])
         comms_per_ppd = pd.concat([comms_per_ppd, new_entry])
 
     
@@ -412,7 +414,7 @@ for bin in bins:
     # Number of cores required with this setup. +1 to account for the master 
     # process in the monolithic topology aware approach.
     # -----------------------------------------------------------------------------
-    sum_of_cores = sum(comms_per_ppd["ppd"]*comms_per_ppd["comms"]) + 1
+    sum_of_cores = sum(comms_per_ppd["ppd"]*comms_per_ppd["groups"]) + 1
 
     # -----------------------------------------------------------------------------
     # Search for optimum packaging with topology aware compute node numbers
@@ -450,7 +452,7 @@ for bin in bins:
                 continue
 
     if DEBUG:
-        sum_of_cores = sum(curr_comms_per_ppd["ppd"]*curr_comms_per_ppd["comms"])
+        sum_of_cores = sum(curr_comms_per_ppd["ppd"]*curr_comms_per_ppd["groups"])
         print("--", curr_comms_per_ppd)
         print("-- Number of bins: ", curr_no_bins)
         print("-- sum_of_cores:   ", sum_of_cores)
@@ -510,12 +512,12 @@ if best_sum_of_cores == 0 and bool(cmd_args.ncno):
 # Write MPI communicators to a binary file, which can be read easily by Fortran
 # -----------------------------------------------------------------------------
 list_of_comms = best_comms_per_ppd['ppd'].tolist()
-list_of_NoofComms = best_comms_per_ppd['comms'].tolist()
+list_of_NoofComms = best_comms_per_ppd['groups'].tolist()
 list_of_NoDmns = best_comms_per_ppd['No of Domains'].tolist()
 
 no_of_domains_checksum = 0
 last_value = 0
-f = open(comms_file, 'wb')
+f = open(groups_file, 'wb')
 for ii in range(len(list_of_comms)):
     if ii > 0 and last_value == list_of_comms[ii]:
         continue
@@ -542,12 +544,14 @@ for ii in parts_list:
     f.write((ii).to_bytes(8, byteorder='little', signed=True))
 f.close()
 #
-end_time = time.time()
-#
-elapsed_time = end_time - start_time
-#
-print("-- Single core runtime of this script:", round(elapsed_time,1), "s")
-print(FMT_STRING)
+
+# -----------------------------------------------------------------------------
+# Write the comms file for reading by Fortran to a binary file
+# -----------------------------------------------------------------------------
+f = open(comms_file, 'wb')
+for ii in range(len(parts_list)):
+    f.write((0).to_bytes(4, byteorder='little', signed=True))
+f.close()
 
 
 # -----------------------------------------------------------------------------
@@ -575,3 +579,14 @@ Path(path_spec).rmdir()
 
 path_spec = basename + "/results_domains"
 Path(path_spec).mkdir(parents=True, exist_ok=True)
+
+
+# -----------------------------------------------------------------------------
+# Create directories now
+# -----------------------------------------------------------------------------
+end_time = time.time()
+#
+elapsed_time = end_time - start_time
+#
+print("-- Single core runtime of this script:", round(elapsed_time,1), "s")
+print(FMT_STRING)

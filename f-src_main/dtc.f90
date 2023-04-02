@@ -96,7 +96,7 @@ TYPE(materialcard) :: bone
 
 INTEGER(mik) :: ierr, rank_mpi, size_mpi, petsc_ierr, mii, mjj, &
     worker_rank_mpi, worker_size_mpi, status_un, comms_un, parts_un, &
-    Active, request, finished = -1, worker_comm
+    Active, request, finished = -1, worker_comm, comms_dmn_un
 
 INTEGER(mik), Dimension(no_streams)       :: fh_mpi_worker
 INTEGER(mik), Dimension(MPI_STATUS_SIZE)  :: status_mpi
@@ -114,34 +114,35 @@ CHARACTER(4*mcl), DIMENSION(:), ALLOCATABLE :: domain_path
 CHARACTER(mcl)  , DIMENSION(:), ALLOCATABLE :: m_rry      
 
 CHARACTER(4*mcl) :: job_dir
-CHARACTER(mcl)   :: cmd_arg_history='', link_name = 'struct process', &
-    muCT_pd_path, muCT_pd_name, binary, status_file, comms_file, parts_file, &
+CHARACTER(mcl)   :: cmd_arg_history='', link_name = 'struct process', comms_dmn_file, &
+    muCT_pd_path, muCT_pd_name, binary, status_file, groups_file, parts_file, &
     desc="", memlog_file="", type_raw="", restart='N', restart_cmd_arg='U', &
     ios="", map_sgmnttn=""
-CHARACTER(8)   :: elt_micro, output
-CHARACTER(3)   :: file_status
+CHARACTER(10) :: probably_failed_char
+CHARACTER(8) :: elt_micro, output
+CHARACTER(3) :: file_status
 CHARACTER(1) :: bin_sgmnttn=""
 
-REAL(rk) :: strain, t_start, t_end, t_duration
+REAL(rk) :: strain, t_start, t_end, t_duration, time_wasted, now, comm_fin_time, final_time
 
 INTEGER(ik), DIMENSION(:), ALLOCATABLE :: Domains, nn_D, Domain_status, &
-    parts_list, comm_groups, comm_ranges, dmns_per_comm
+    parts_list, comm_groups, comm_ranges, dmns_per_comm, comms_dmn_list
     
 INTEGER(ik), DIMENSION(:,:), ALLOCATABLE :: comms_array
 INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0
 
 INTEGER(ik) :: nn, ii, jj, kk, ll, dc, computed_domains = 0, comm_nn = 1, max_domains_per_comm, &
-    No_of_domains, No_of_domains_files, path_count, activity_size=0, No_of_comm_groups, &
+    No_of_domains, No_of_domains_files, path_count, activity_size=0, No_of_comm_groups, comms_feedback, &
     alloc_stat, fh_cluster_log, free_file_handle, stat, No_of_cores_requested, my_global_rank, &
-    no_lc=0, nl=0, Domain, llimit, parts, elo_macro, vdim(3), comms_size, parts_size, &
-    global_color, rank, no_of_comms, comm_floor, comm_ceiling, comm_color, round_robin_skip, &
-    max_skip, comm_counter, dmn_status, comm_pntr, add_leaf_pntr
+    no_lc=0, nl=0, Domain, llimit, parts, elo_macro, vdim(3), groups_size, parts_size, ident_comms, &
+    global_color, rank, no_of_comms, comm_floor, comm_ceiling, comm_color, round_robin_skip, mesh_p_per_dmn, &
+    max_skip, comm_counter, dmn_status, comm_pntr, add_leaf_pntr, comms_dmn_size, probably_failed
 INTEGER(pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
 INTEGER(pd_ik), DIMENSION(no_streams) :: dsize
 
 INTEGER(pd_ik) :: serial_root_size, add_leaves
 
-LOGICAL :: success, status_exists, comms_exists, parts_exists, &
+LOGICAL :: success, status_exists, groups_exists, parts_exists, exist, comms_dmn_exists,&
     heaxist, abrt = .FALSE., already_finished=.FALSE., skip_active = .TRUE., &
     create_new_header = .FALSE., fex=.TRUE., no_restart_required = .FALSE.
 
@@ -270,6 +271,9 @@ If (rank_mpi == 0) THEN
         CALL print_err_stop(std_out, "Keyword BINARY_SEGMENTATION not recognized.", 1)
     END IF 
 
+    IF ((restart == "Y") .OR. (restart == "y")) restart = "Y"
+    IF ((restart == "N") .OR. (restart == "n")) restart = "N"
+
     IF (bin_sgmnttn == "y") bin_sgmnttn = "Y"
 
     IF (map_sgmnttn /= "Hounsfield") THEN
@@ -331,22 +335,30 @@ If (rank_mpi == 0) THEN
         CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF 
 
-    comms_file = TRIM(out%p_n_bsnm)//".comms"
-    INQUIRE(FILE = TRIM(comms_file), EXIST=comms_exists, SIZE=comms_size)
+    groups_file = TRIM(out%p_n_bsnm)//".groups"
+    INQUIRE(FILE = TRIM(groups_file), EXIST=groups_exists, SIZE=groups_size)
 
-    IF(.NOT. comms_exists) THEN
-        CALL print_err_stop_slaves("No *.comms file found.")
+    IF(.NOT. groups_exists) THEN
+        CALL print_err_stop_slaves("No *.groups file found.")
     GOTO 1000
     END IF 
 
-    ! comms_size is a 2D array with 3 rows 
+    ! groups_size is a 2D array with 3 rows 
     ! (1 for comm size, 1 for number of such comms and 1 for no of domains assigned to those comms)
-    No_of_comm_groups = ANINT(REAL(comms_size, rk) / 8._rk / 3._rk)
+    No_of_comm_groups = ANINT(REAL(groups_size, rk) / 8._rk / 3._rk)
 
     parts_file = TRIM(out%p_n_bsnm)//".parts"
     INQUIRE(FILE = TRIM(parts_file), EXIST=parts_exists, SIZE=parts_size)
     IF(.NOT. parts_exists) THEN
         CALL print_err_stop_slaves("No *.parts file found.")
+        GOTO 1000
+    END IF 
+
+    ! comm_of_domain -> which communicator computed which domain
+    comms_dmn_file = TRIM(out%p_n_bsnm)//".comms"
+    INQUIRE(FILE = TRIM(comms_dmn_file), EXIST=comms_dmn_exists, SIZE=comms_dmn_size)
+    IF((comms_dmn_exists) .AND. (restart == "N")) THEN
+        CALL print_err_stop_slaves("*.comms file already exists, no restart requested.")
         GOTO 1000
     END IF 
 
@@ -372,8 +384,9 @@ If (rank_mpi == 0) THEN
 END IF 
 
 CALL MPI_BCAST(status_file, INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
-CALL MPI_BCAST(comms_file,  INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(groups_file,  INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
 CALL MPI_BCAST(parts_file,  INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(comms_dmn_file,  INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
 
 
 CALL MPI_BCAST(No_of_domains,     1_mik, MPI_INTEGER8, 0_mik, MPI_COMM_WORLD, ierr)
@@ -426,9 +439,11 @@ CALL alloc_err("comm_ranges", alloc_stat)
 ALLOCATE(dmns_per_comm(No_of_comm_groups), stat=alloc_stat)
 CALL alloc_err("dmns_per_comm", alloc_stat)
 
-CALL MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(comms_file), MPI_MODE_RDONLY, MPI_INFO_NULL, comms_un, ierr)
+CALL MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(groups_file), MPI_MODE_RDONLY, MPI_INFO_NULL, comms_un, ierr)
 CALL MPI_FILE_READ(comms_un, comms_array, INT(SIZE(comms_array), mik), MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
 CALL MPI_FILE_CLOSE(comms_un, ierr)
+
+no_of_comms = SUM(comms_array(2,:))
 
 !------------------------------------------------------------------------------
 ! Read the number of parts assigned to each domain (ppd). The ppd must fit
@@ -445,6 +460,7 @@ CALL MPI_FILE_CLOSE(parts_un, ierr)
 ALLOCATE(domain_path(0:No_of_domains))
 domain_path = ''
 
+CALL MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(comms_dmn_file), MPI_MODE_RDWR, MPI_INFO_NULL,  comms_dmn_un, ierr)
 
 !------------------------------------------------------------------------------
 ! Check if the computation is already done or not.
@@ -808,7 +824,6 @@ IF(rank_mpi == 0) THEN
         CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF 
 
-
 !------------------------------------------------------------------------------
 ! Ranks > 0 -- Worker slaves
 !------------------------------------------------------------------------------
@@ -908,8 +923,6 @@ IF(rank_mpi /= 0) THEN
     !------------------------------------------------------------------------------
     my_global_rank = rank_mpi
 
-    no_of_comms = SUM(comms_array(2,:))
-
     jj = 1_ik
     kk = 1_ik
     ll = 1_ik
@@ -942,14 +955,15 @@ IF(rank_mpi /= 0) THEN
             ! Color within the groups of communicators with the same size to avoid race conditions.
             comm_color = ll
 
-            ! Pointer to the location of the communicator to the input comm data arrays
-            ! comm_pntr = kk
             EXIT
         END IF
 
         ll = ll + 1_ik
         
     END DO
+
+    ! Makeshift workaround to prevent race conditions
+    CALL SLEEP(comm_color)
 
     !------------------------------------------------------------------------------
     ! All Worker Ranks -- Init worker Communicators
@@ -982,7 +996,6 @@ End If
 ! MPI communicators is done manually. In this f-src, it is incorporated 
 ! into the general routine for assigning domains to communicators.
 !------------------------------------------------------------------------------
-
 IF (rank_mpi /= 0) THEN
 
     IF (worker_rank_mpi == 0) THEN
@@ -1078,11 +1091,12 @@ IF (rank_mpi /= 0) THEN
     max_skip = FLOOR(REAL(max_domains_per_comm)/2._rk)
 
     nn = 0_ik
-    comm_counter = 0_ik
+    comm_counter = -1_ik
     round_robin_skip = 0_ik
     DO  WHILE (nn < No_of_domains) 
 
         IF (worker_rank_mpi == 0) THEN
+            
             ! Iterate domain numbers
             nn = nn + 1_mik
 
@@ -1092,11 +1106,11 @@ IF (rank_mpi /= 0) THEN
             ELSE
                 CYCLE
             END IF 
-                
+
             ! The first batch of domains within a specific comm group are assigned to their 
             ! corresponding communicator in the order as they are mentioned in the *.parts files.
             ! This helps avoiding race conditions
-            IF ((comm_color < comm_counter) .AND. (skip_active)) CYCLE
+             IF ((comm_color < comm_counter) .AND. (skip_active)) CYCLE
             
             ! Reset the comm_counter as long the round_robin skip is active. 
             ! This ensures distributing the domains in a controlled way without race conditions.
@@ -1105,7 +1119,7 @@ IF (rank_mpi /= 0) THEN
             ! too many "foreign" domains are computed on this communicator.
             IF (round_robin_skip <= max_skip) THEN
                 round_robin_skip = round_robin_skip + 1_ik
-                comm_counter = 0_ik
+                comm_counter = -1_ik
             ELSE
                 skip_active = .FALSE.
             END IF 
@@ -1115,10 +1129,11 @@ IF (rank_mpi /= 0) THEN
         
             IF (dmn_status > -100000000_ik) CYCLE
 
-            !------------------------------------------------------------------------------
-            ! Start working on the domain
-            !------------------------------------------------------------------------------
             dmn_status = dmn_status + 100000000
+
+            ! Write to file which comm is responsible for the domain
+            CALL MPI_FILE_WRITE_AT(comms_dmn_un, Int((nn-1)*mik, MPI_OFFSET_KIND), rank_mpi, &
+                1_mik, MPI_INTEGER4, status_mpi, ierr)
 
             ! Mark the beginning of computing the Domain
             CALL MPI_FILE_WRITE_AT(status_un, Int((nn-1)*ik, MPI_OFFSET_KIND), dmn_status, &
@@ -1164,9 +1179,15 @@ IF (rank_mpi /= 0) THEN
             Int(root%branches(3)%leaves(24)%lbound-1+(max_domains_per_comm-1), MPI_OFFSET_KIND), &
             1_rk, 1_pd_mik, MPI_REAL8, status_mpi, ierr)
         
+        !------------------------------------------------------------------------------
+        ! Finish the communicator if all domains are done.
+        ! Otherwise, receive a proper domain number (other than -94)
+        !------------------------------------------------------------------------------
         CALL MPI_BCAST(Domain,  1_mik, MPI_INTEGER8, 0_mik, WORKER_COMM, ierr)
+        IF(Domain == -94_ik) GOTO 1000
+
         CALL MPI_BCAST(comm_nn, 1_mik, MPI_INTEGER8, 0_mik, WORKER_COMM, ierr)
-        
+
         IF (out_amount == "DEBUG") THEN
             job_dir = domain_path(nn)
         ELSE
@@ -1220,11 +1241,12 @@ IF (rank_mpi /= 0) THEN
             CALL Start_Timer("Write Worker Root Branch")
 
             !------------------------------------------------------------------------------
-            ! Store header file
+            ! Read this data by:
+            ! ../../../bin/pd_dump_leaf_x86_64 $PWD/ results_0000001 7
             !------------------------------------------------------------------------------
             CALL Write_Tree(root%branches(3)) ! Branch with 'Averaged Material Properties'
-            ! ../../../bin/pd_dump_leaf_x86_64 $PWD/ results_0000001 7
-        
+            
+            
             CALL End_Timer("Write Worker Root Branch")
 
             !------------------------------------------------------------------------------
@@ -1259,7 +1281,6 @@ IF (rank_mpi /= 0) THEN
         !------------------------------------------------------------------------------
         ! Finish the domain
         !------------------------------------------------------------------------------
-
         IF (worker_rank_mpi == 0)  THEN
 
             dmn_status = dmn_status * (-1_ik)
@@ -1271,13 +1292,96 @@ IF (rank_mpi /= 0) THEN
 
     CALL PetscFinalize(petsc_ierr) 
 
-END IF ! (rank_mpi == 0) THEN
+    CALL CPU_TIME(final_time)
+
+    !------------------------------------------------------------------------------
+    ! Tell the global main rank that this communicator is done computing stuff.
+    ! Tell the worker ranks by sending Domain=-94 to stop via GOTO 1000
+    !------------------------------------------------------------------------------
+    CALL MPI_SEND(final_time, 1_mik, MPI_DOUBLE_PRECISION, 0_mik, rank_mpi, MPI_COMM_WORLD, ierr)
+    CALL print_err_stop(std_out, "MPI_SEND of final_time didn't succeed", ierr)
+
+    CALL MPI_BCAST(-94_ik,  1_mik, MPI_INTEGER8, 0_mik, WORKER_COMM, ierr)
+
+ELSE ! --> rank_mpi == 0
+
+    !------------------------------------------------------------------------------
+    ! Ask all the different communicator whether they are done computing stuff.
+    ! Can be done with a trivial send/recv even if it is a blocking communication.
+    ! All the threads are "finished" anyway.
+    !------------------------------------------------------------------------------
+    jj = 1_ik
+    kk = 1_ik
+    rank = 1_ik
+    time_wasted = 0._rk
+
+    CALL MPI_RECV(comm_fin_time, 1_mik, MPI_DOUBLE_PRECISION, 1_mik, 1_mik, MPI_COMM_WORLD, status_mpi, ierr)
+    CALL print_err_stop(std_out, "MPI_RECV on active didn't succseed", ierr)
+
+    !------------------------------------------------------------------------------
+    ! Get the amount of time wasted
+    !------------------------------------------------------------------------------
+    CALL CPU_TIME(now)
+
+    time_wasted = time_wasted + ((now - comm_fin_time) * mesh_p_per_dmn)
+
+    DO ii = 1, no_of_comms-1_ik
+
+        mesh_p_per_dmn = comms_array(1,kk)
+
+        ! comms_array(1,kk) --> Size of the communicator (parts per domain)
+        rank = rank + mesh_p_per_dmn
+
+        ! comms_array(2,kk) --> Numbers of corresponding communicaotrs
+        IF(jj==comms_array(2,kk)) THEN
+            jj = 0_ik
+            kk = kk + 1_ik
+        END IF 
+
+        jj = jj + 1_ik
+
+        write(*,*) "RANK: ", rank
+        CALL MPI_RECV(comm_fin_time, 1_mik, MPI_DOUBLE_PRECISION, INT(rank,mik), INT(rank,mik), MPI_COMM_WORLD, status_mpi, ierr)
+        CALL print_err_stop(std_out, "MPI_RECV on active didn't succseed", ierr)
+
+        !------------------------------------------------------------------------------
+        ! Get the amount of time wasted
+        !------------------------------------------------------------------------------
+        CALL CPU_TIME(now)
+
+        time_wasted = time_wasted + ((now - comm_fin_time) * mesh_p_per_dmn)
+
+    END DO
+
+    !------------------------------------------------------------------------------
+    ! Check the comms file whether there was a domain not computed
+    !------------------------------------------------------------------------------
+    DO nn = 1, no_of_domains
+
+        CALL MPI_FILE_READ_AT(comms_dmn_un, Int((nn-1)*ik, MPI_OFFSET_KIND), comms_feedback, &
+            1_mik, MPI_INTEGER8, status_mpi, ierr)
+
+        IF(comms_feedback == 0_ik) probably_failed = probably_failed + 1_ik
+
+    END DO
+
+    IF (probably_failed > 0_ik) THEN
+        WRITE(probably_failed_char, '(I10)') probably_failed
+
+        mssg = TRIM(ADJUSTL(probably_failed_char))//" domains probably were not computed."
+        CALL print_trimmed(std_out, TRIM(mssg), FMT_WRN)
+    END IF 
+
+END IF ! IF (rank_mpi /= 0) THEN
+
+! May help to gracefully stop the program in case of an error.
+1000 CONTINUE
 
 CALL MPI_FILE_CLOSE(status_un, ierr)
+CALL MPI_FILE_CLOSE(comms_dmn_un, ierr)
 
 CALL MPI_FINALIZE(ierr)
 CALL print_err_stop(std_out, "MPI_FINALIZE didn't succeed", ierr)
-
 
 IF(rank_mpi==0) THEN
 
@@ -1291,16 +1395,16 @@ IF(rank_mpi==0) THEN
         CALL execute_command_line ("echo 'JOB_FINISHED' > BATCH_RUN")
     END IF 
 
+    CALL CPU_TIME(final_time)
+
+    time_wasted = time_wasted + (final_time - now) * size_mpi
+
+    CALL meta_write('SECONDS_WASTED', "s", time_wasted)
+
     CALL meta_close(m_rry)
 
     IF(std_err/=6) CALL meta_stop_ascii(std_out, '.std_out')
     IF(std_err/=0) CALL meta_start_ascii(std_err, '.std_err')
-
-END IF 
-
-1000 Continue
-
-IF(rank_mpi == 0) THEN
 
     If (out_amount == "DEBUG") THEN
         Write(fh_log, fmt_dbg_sep)
@@ -1310,6 +1414,10 @@ IF(rank_mpi == 0) THEN
     END If
 
     CALL link_end(link_name,.True.)
+   
+    WRITE(std_out, FMT_TXT_SEP)
+    WRITE(std_out, FMT_TXT_xAF0) "Program finished successfully."
+    WRITE(std_out, FMT_TXT_SEP)
 
 END IF ! (rank_mpi == 0)
 
