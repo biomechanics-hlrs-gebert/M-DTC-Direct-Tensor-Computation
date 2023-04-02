@@ -96,7 +96,7 @@ TYPE(materialcard) :: bone
 
 INTEGER(mik) :: ierr, rank_mpi, size_mpi, petsc_ierr, mii, mjj, &
     worker_rank_mpi, worker_size_mpi, status_un, comms_un, parts_un, &
-    Active, request, finished = -1, worker_comm, comms_dmn_un
+    Active, request, finished = -1, worker_comm, comms_dmn_un, runtime_un
 
 INTEGER(mik), Dimension(no_streams)       :: fh_mpi_worker
 INTEGER(mik), Dimension(MPI_STATUS_SIZE)  :: status_mpi
@@ -117,7 +117,7 @@ CHARACTER(4*mcl) :: job_dir
 CHARACTER(mcl)   :: cmd_arg_history='', link_name = 'struct process', comms_dmn_file, &
     muCT_pd_path, muCT_pd_name, binary, status_file, groups_file, parts_file, &
     desc="", memlog_file="", type_raw="", restart='N', restart_cmd_arg='U', &
-    ios="", map_sgmnttn=""
+    ios="", map_sgmnttn="", runtime_file
 CHARACTER(10) :: probably_failed_char
 CHARACTER(8) :: elt_micro, output
 CHARACTER(3) :: file_status
@@ -144,7 +144,7 @@ INTEGER(pd_ik) :: serial_root_size, add_leaves
 
 LOGICAL :: success, status_exists, groups_exists, parts_exists, exist, comms_dmn_exists,&
     heaxist, abrt = .FALSE., already_finished=.FALSE., skip_active = .TRUE., &
-    create_new_header = .FALSE., fex=.TRUE., no_restart_required = .FALSE.
+    create_new_header = .FALSE., fex=.TRUE., no_restart_required = .FALSE., runtime_exists=.FALSE.
 
 !----------------------------------------------------------------------------
 CALL mpi_init(ierr)
@@ -356,12 +356,19 @@ If (rank_mpi == 0) THEN
 
     ! comm_of_domain -> which communicator computed which domain
     comms_dmn_file = TRIM(out%p_n_bsnm)//".comms"
-    INQUIRE(FILE = TRIM(comms_dmn_file), EXIST=comms_dmn_exists, SIZE=comms_dmn_size)
+    INQUIRE(FILE = TRIM(comms_dmn_file), EXIST=comms_dmn_exists)
     IF((comms_dmn_exists) .AND. (restart == "N")) THEN
         CALL print_err_stop_slaves("*.comms file already exists, no restart requested.")
         GOTO 1000
     END IF 
 
+    ! comm_of_domain -> which communicator computed which domain
+    runtime_file = TRIM(out%p_n_bsnm)//".rtac"
+    INQUIRE(FILE = TRIM(runtime_file), EXIST=runtime_exists)
+    IF((runtime_exists) .AND. (restart == "N")) THEN
+        CALL print_err_stop_slaves("*.rtac file already exists, no restart requested.")
+        GOTO 1000
+    END IF 
 
     !------------------------------------------------------------------------------
     ! Check the condition of the required files.
@@ -387,6 +394,7 @@ CALL MPI_BCAST(status_file, INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
 CALL MPI_BCAST(groups_file,  INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
 CALL MPI_BCAST(parts_file,  INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
 CALL MPI_BCAST(comms_dmn_file,  INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(runtime_file,  INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
 
 
 CALL MPI_BCAST(No_of_domains,     1_mik, MPI_INTEGER8, 0_mik, MPI_COMM_WORLD, ierr)
@@ -461,6 +469,7 @@ ALLOCATE(domain_path(0:No_of_domains))
 domain_path = ''
 
 CALL MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(comms_dmn_file), MPI_MODE_RDWR, MPI_INFO_NULL,  comms_dmn_un, ierr)
+CALL MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(runtime_file), MPI_MODE_RDWR, MPI_INFO_NULL,  runtime_un, ierr)
 
 !------------------------------------------------------------------------------
 ! Check if the computation is already done or not.
@@ -1287,7 +1296,20 @@ IF (rank_mpi /= 0) THEN
 
             CALL MPI_FILE_WRITE_AT(status_un, Int((nn-1)*ik, MPI_OFFSET_KIND), dmn_status, &
                 1_mik, MPI_INTEGER8, status_mpi, ierr)
+
+            !------------------------------------------------------------------------------
+            ! Track the runtime used per domain for analysis whether this process steering
+            ! is more energy efficient than the previous one.
+            ! This t_duration is identical to the one in the *.covo files. It's tracked
+            ! again for different kinds of analysis. By comparing domains with *.covo 
+            ! files, the analysis of sp/dtc runtimes is easier. The tuning of the 
+            ! topology aware scheduler is expected to be simpler by analysis of the *.rt*
+            ! files. Both may be removed to save overhead once everything is analyzed. 
+            !------------------------------------------------------------------------------
+            CALL MPI_FILE_WRITE_AT(runtime_un, Int((nn-1)*mik, MPI_OFFSET_KIND), & 
+                t_duration, 1_mik, MPI_DOUBLE_PRECISION, status_mpi, ierr)
         END IF 
+
     End Do
 
     CALL PetscFinalize(petsc_ierr) 
@@ -1340,7 +1362,6 @@ ELSE ! --> rank_mpi == 0
 
         jj = jj + 1_ik
 
-        write(*,*) "RANK: ", rank
         CALL MPI_RECV(comm_fin_time, 1_mik, MPI_DOUBLE_PRECISION, INT(rank,mik), INT(rank,mik), MPI_COMM_WORLD, status_mpi, ierr)
         CALL print_err_stop(std_out, "MPI_RECV on active didn't succseed", ierr)
 
@@ -1397,14 +1418,11 @@ IF(rank_mpi==0) THEN
 
     CALL CPU_TIME(final_time)
 
-    time_wasted = time_wasted + (final_time - now) * size_mpi
+    time_wasted = (time_wasted + (final_time - now) * size_mpi) / 3600._rk
 
-    CALL meta_write('SECONDS_WASTED', "s", time_wasted)
+    CALL meta_write('CORE_HOURS_WASTED', "(h)", time_wasted)
 
     CALL meta_close(m_rry)
-
-    IF(std_err/=6) CALL meta_stop_ascii(std_out, '.std_out')
-    IF(std_err/=0) CALL meta_start_ascii(std_err, '.std_err')
 
     If (out_amount == "DEBUG") THEN
         Write(fh_log, fmt_dbg_sep)
@@ -1418,6 +1436,9 @@ IF(rank_mpi==0) THEN
     WRITE(std_out, FMT_TXT_SEP)
     WRITE(std_out, FMT_TXT_xAF0) "Program finished successfully."
     WRITE(std_out, FMT_TXT_SEP)
+
+    IF(std_err/=6) CALL meta_stop_ascii(std_out, '.std_out')
+    IF(std_err/=0) CALL meta_start_ascii(std_err, '.std_err')
 
 END IF ! (rank_mpi == 0)
 

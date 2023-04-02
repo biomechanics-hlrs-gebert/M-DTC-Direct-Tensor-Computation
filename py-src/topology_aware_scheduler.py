@@ -22,6 +22,7 @@ import os, struct, argparse, sys, time
 import numpy as np
 import pandas as pd
 from pathlib import Path
+import struct
 #
 sys.path.insert(1, '/home/geb/00_bone_eval_chain/P_MOD_Python')
 #
@@ -182,6 +183,7 @@ vox_file    = basename + ".vox"
 groups_file = basename + ".groups"
 comms_file  = basename + ".comms"
 parts_file  = basename + ".parts"
+exp_rt_file  = basename + ".rtex"
 
 print("-- Outputfiles: ")
 print("-- dmn_no_file: ", dmn_no_file)
@@ -189,6 +191,7 @@ print("-- vox_file:    ", vox_file)
 print("-- groups_file: ", groups_file)
 print("-- comms_file:  ", comms_file)
 print("-- parts_file:  ", parts_file)
+print("-- exp_rt_file: ", exp_rt_file)
 print("--")
 
 # -----------------------------------------------------------------------------
@@ -544,6 +547,30 @@ for ii in parts_list:
     f.write((ii).to_bytes(8, byteorder='little', signed=True))
 f.close()
 #
+
+# -----------------------------------------------------------------------------
+# Write the expected runtimes to a binary file
+# -----------------------------------------------------------------------------
+exp_rt_list = best_catalogued_data['expected runtime'].tolist()
+#
+f = open(exp_rt_file, 'wb')
+for ii in exp_rt_list:
+    float_num = struct.pack("f", ii)
+    f.write(float_num)
+f.close()
+#
+# with open("floats.bin", "rb") as f:
+
+#     # Read the file content as a byte string
+#     file_content = f.read()
+
+#     # Determine the number of floats in the file
+#     num_floats = len(file_content) // 4
+
+#     # Unpack the byte string into a list of floats
+#     floats = struct.unpack("f" * num_floats, file_content)
+
+#     print(floats)
 
 # -----------------------------------------------------------------------------
 # Write the comms file for reading by Fortran to a binary file
