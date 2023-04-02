@@ -94,21 +94,19 @@ INTEGER(ik), PARAMETER :: debug = 2   ! Choose an even integer!!
 
 TYPE(materialcard) :: bone
 
-INTEGER(mik) :: ierr, rank_mpi, size_mpi, petsc_ierr, mii, mjj, &
+INTEGER(mik) :: ierr, rank_mpi, size_mpi, petsc_ierr, &
     worker_rank_mpi, worker_size_mpi, status_un, comms_un, parts_un, &
-    Active, request, finished = -1, worker_comm, comms_dmn_un, runtime_un
+    worker_comm, comms_dmn_un, runtime_un
 
-INTEGER(mik), Dimension(no_streams)       :: fh_mpi_worker
+INTEGER(mik), Dimension(no_streams) :: fh_mpi_worker
 INTEGER(mik), Dimension(MPI_STATUS_SIZE)  :: status_mpi
-INTEGER(mik), Dimension(:,:), Allocatable :: statuses_mpi
-INTEGER(mik), Dimension(:)  , Allocatable :: worker_is_active, req_list
 
 INTEGER(c_int) :: stat_c_int
 
-Type(tBranch)          :: root, phi_tree
+Type(tBranch) :: root, phi_tree
 Type(tBranch), pointer :: ddc, meta_para, result_branch
 
-CHARACTER, DIMENSION(4*mcl)          :: c_char_array
+CHARACTER, DIMENSION(4*mcl) :: c_char_array
 CHARACTER, DIMENSION(:), ALLOCATABLE :: char_arr
 CHARACTER(4*mcl), DIMENSION(:), ALLOCATABLE :: domain_path
 CHARACTER(mcl)  , DIMENSION(:), ALLOCATABLE :: m_rry      
@@ -126,7 +124,7 @@ CHARACTER(1) :: bin_sgmnttn=""
 REAL(rk) :: strain, t_start, t_end, t_duration, time_wasted, now, comm_fin_time, final_time
 
 INTEGER(ik), DIMENSION(:), ALLOCATABLE :: Domains, nn_D, Domain_status, &
-    parts_list, comm_groups, comm_ranges, dmns_per_comm, comms_dmn_list
+    parts_list, comm_groups, comm_ranges, dmns_per_comm
     
 INTEGER(ik), DIMENSION(:,:), ALLOCATABLE :: comms_array
 INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0
@@ -134,15 +132,15 @@ INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0
 INTEGER(ik) :: nn, ii, jj, kk, ll, dc, computed_domains = 0, comm_nn = 1, max_domains_per_comm, &
     No_of_domains, No_of_domains_files, path_count, activity_size=0, No_of_comm_groups, comms_feedback, &
     alloc_stat, fh_cluster_log, free_file_handle, stat, No_of_cores_requested, my_global_rank, &
-    no_lc=0, nl=0, Domain, llimit, parts, elo_macro, vdim(3), groups_size, parts_size, ident_comms, &
+    no_lc=0, nl=0, Domain, llimit, parts, elo_macro, vdim(3), groups_size, parts_size, &
     global_color, rank, no_of_comms, comm_floor, comm_ceiling, comm_color, round_robin_skip, mesh_p_per_dmn, &
-    max_skip, comm_counter, dmn_status, comm_pntr, add_leaf_pntr, comms_dmn_size, probably_failed
+    max_skip, comm_counter, dmn_status, add_leaf_pntr, probably_failed
 INTEGER(pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
 INTEGER(pd_ik), DIMENSION(no_streams) :: dsize
 
 INTEGER(pd_ik) :: serial_root_size, add_leaves
 
-LOGICAL :: success, status_exists, groups_exists, parts_exists, exist, comms_dmn_exists,&
+LOGICAL :: success, status_exists, groups_exists, parts_exists, comms_dmn_exists,&
     heaxist, abrt = .FALSE., already_finished=.FALSE., skip_active = .TRUE., &
     create_new_header = .FALSE., fex=.TRUE., no_restart_required = .FALSE., runtime_exists=.FALSE.
 
