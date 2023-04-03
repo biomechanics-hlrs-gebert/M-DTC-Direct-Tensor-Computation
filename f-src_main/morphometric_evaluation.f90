@@ -246,7 +246,6 @@ PROGRAM morphometric_evaluation
     ! Meta contains domain ranges 0-(n-1)
     !------------------------------------------------------------------------------
     oo = 1
-        
     DO kk = xa_d(3), xe_d(3) 
     DO jj = xa_d(2), xe_d(2) 
     DO ii = xa_d(1), xe_d(1) 
@@ -260,6 +259,11 @@ PROGRAM morphometric_evaluation
 
         counter_BV = 0_ik
         counter_TV = 0_ik
+
+        ! Workaround
+        IF(x_D_end(1) > dims(1)) x_D_end(1) = dims(1)
+        IF(x_D_end(2) > dims(2)) x_D_end(2) = dims(2)
+        IF(x_D_end(3) > dims(3)) x_D_end(3) = dims(3)
 
         Do ll = x_D_pos(3), x_D_end(3)
         Do mm = x_D_pos(2), x_D_end(2)

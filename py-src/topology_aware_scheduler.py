@@ -38,7 +38,7 @@ factors.update({"AVG_NDS_VOX_HEX08_12": 1.2743639355748966})
 factors.update({"AVG_NDS_VOX_HEX08_24": 1.2596287755834055})
 factors.update({"AVG_NDS_VOX_HEX08_48": 1.2179251259194124})
 factors.update({"AVG_NDS_VOX_HEX08_72": 1.1793611129414954})
-#  factors.update({"AVG_NDS_VOX_HEX08_96": 0.5021699727716449}) not plausible!
+factors.update({"AVG_NDS_VOX_HEX08_96": 0.5021699727716449}) # not plausible!
 #
 # Solid FEs:
 DOF = 3
@@ -52,7 +52,7 @@ job_sizes = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096]
 # target_pcn = [15, 20, 25]
 #
 # Has to be open to lower counts as the topology (job_sizes) better has to be respected 
-target_pcn = [10, 20, 22]
+target_pcn = [5, 20, 100]
 #
 range_of_FEs_per_part = [1500,4000,500]
 FEs_part = range_of_FEs_per_part
@@ -103,7 +103,7 @@ def cutting_stock(item_lengths, stock_length):
     return num_bins
 # -----------------------------------------------------------------------------
 #
-FMT_STRING="-------------------------------------------------------------------------------"
+FMT_SEP="-------------------------------------------------------------------------------"
 #
 # -----------------------------------------------------------------------------
 # User output
@@ -183,15 +183,19 @@ vox_file    = basename + ".vox"
 groups_file = basename + ".groups"
 comms_file  = basename + ".comms"
 parts_file  = basename + ".parts"
-exp_rt_file  = basename + ".rtex"
+exp_rtex_file = basename + ".rtex"
+exp_rtac_file = basename + ".rtac"
+meta_file     = basename + ".meta"
 
 print("-- Outputfiles: ")
-print("-- dmn_no_file: ", dmn_no_file)
+print("-- meta_file:   ", meta_file)
 print("-- vox_file:    ", vox_file)
-print("-- groups_file: ", groups_file)
 print("-- comms_file:  ", comms_file)
 print("-- parts_file:  ", parts_file)
-print("-- exp_rt_file: ", exp_rt_file)
+print("-- dmn_no_file: ", dmn_no_file)
+print("-- groups_file: ", groups_file)
+print("-- exp_rtex_file: ", exp_rtex_file)
+print("-- exp_rtac_file: ", exp_rtac_file)
 print("--")
 
 # -----------------------------------------------------------------------------
@@ -208,7 +212,7 @@ if not os.path.exists(dmn_no_file):
 
 if file_missing: 
     print("-- Program stopped")
-    print(FMT_STRING)
+    print(FMT_SEP)
     exit(2)
 
 nds_list = ik8_to_list(vox_file)
@@ -216,7 +220,7 @@ dmn_no_list = ik8_to_list(dmn_no_file)
 
 print("-- Entries in nds_list:     ", len(nds_list))
 print("-- Entries in dmn_no_list:  ", len(dmn_no_list))
-print(FMT_STRING)
+print(FMT_SEP)
 
 # -----------------------------------------------------------------------------
 # Define time factors (tf_) to adjust the expected runtime
@@ -239,7 +243,7 @@ elif int(ma_el_order[0]) == 2:
 
 print("-- Time factor - nodes:     ", tf_nds)
 print("-- Time factor - load cases:", tf_ma_el)
-print(FMT_STRING)
+print(FMT_SEP)
 
 # -----------------------------------------------------------------------------
 # Get the expected runtimes per domain
@@ -253,19 +257,30 @@ dmn_size_avg=sum([float(i) for i in size_dmn])/3
 #
 if dmn_size_avg == 0.6:
     node_factor = factors.get("AVG_NDS_VOX_HEX08_06")
-    FEs_part    = 3000
+    suggested = 3000
 elif dmn_size_avg == 1.2:
     node_factor = factors.get("AVG_NDS_VOX_HEX08_12")
-    FEs_part    = 6000
+    suggested = 6000
 elif dmn_size_avg == 2.4:
     node_factor = factors.get("AVG_NDS_VOX_HEX08_24")
-    FEs_part    = 6000
+    suggested = 6000
 elif dmn_size_avg == 4.8:
     node_factor = factors.get("AVG_NDS_VOX_HEX08_48")
-    FEs_part    = 6000
+    suggested = 6000
 elif dmn_size_avg == 7.2:
     node_factor = factors.get("AVG_NDS_VOX_HEX08_72")
-    FEs_part    = 6000
+    suggested = 6000
+elif dmn_size_avg == 9.6:
+    node_factor = factors.get("AVG_NDS_VOX_HEX08_72")
+    suggested = 6000
+
+# Currently not in use
+FEs_part[0] = suggested / 2 
+FEs_part[1] = suggested * 2 
+FEs_part[2] = suggested / 8
+
+print("-- Suggested pcno:", suggested)
+print(FMT_SEP)
 
 # -----------------------------------------------------------------------------
 # This is a normalized measure of the expected runtime. All domains use 
@@ -300,7 +315,7 @@ best_sum_of_cores = 0
 # print("-- bins:" ,bins_available)
 # exit(0)
 
-# for FE_nodes_part in range(FEs_part[0],FEs_part[1]+1,FEs_part[2]):
+# for FE_nodes_part in range(FEs_part[1],FEs_part[1]+1,FEs_part[2]):
 
 # -----------------------------------------------------------------------------
 # Adjust the list of voxels per domain by the node_factor. Otherwise, the 
@@ -326,7 +341,7 @@ for bin in bins:
     for ii in range(len(bins_avail)-1):
         avg_FEs_in_hist_bin = (bins_avail[ii] + bins_avail[ii+1]) / 2
 
-        ppd = int(avg_FEs_in_hist_bin/FEs_part)
+        ppd = int(avg_FEs_in_hist_bin/suggested)
 
         # DTC only accepts at least two parts per domain
         if ppd == 1:
@@ -363,10 +378,12 @@ for bin in bins:
             delta_ratio = 0.0
         else:
             eff_nodes_part = int(FE_nodes_dmn / parts_per_domain)
-            delta_ratio = (FEs_part - eff_nodes_part) / FEs_part
+            delta_ratio = (suggested - eff_nodes_part) / suggested
 
         # expected runtime may be calibrated in a latter step
-        expected_runtime = 1.0 * total_factors * (1+(delta_ratio/1000))
+        expected_runtime = 1.0 * total_factors / (1+(delta_ratio))
+        # expected_runtime = 1.0 * total_factors * (1+(delta_ratio/1000))
+        # expected_runtime = 1.0 * total_factors * delta_ratio
 
         new_entry = pd.DataFrame({'domain': dmn, 'ppd': parts_per_domain, 'expected runtime': expected_runtime}, index=[0])
         catalogued_data = pd.concat([catalogued_data, new_entry])
@@ -423,6 +440,7 @@ for bin in bins:
     # Search for optimum packaging with topology aware compute node numbers
     # -----------------------------------------------------------------------------
     wct = 9999999999999999
+    curr_wct = 9999999999999999
     curr_job_size = 0
     curr_target_pcn = 0
     ttb_allocated =  sum(time_budget_allocated) # total time budget (ttb)
@@ -465,7 +483,7 @@ for bin in bins:
         print("-- ")
         print("-- curr_wct:", curr_wct)
         print("-- curr_ttb_required:", curr_ttb_required)
-        print(FMT_STRING)
+        print(FMT_SEP)
 
     if curr_wct < best_wct and curr_wct >= 0:
         best_wct = curr_wct
@@ -479,36 +497,45 @@ for bin in bins:
         best_comms_per_ppd = curr_comms_per_ppd
         best_catalogued_data = curr_catalogued_data
 
-print(FMT_STRING)
+print(FMT_SEP)
 
 # -----------------------------------------------------------------------------
 # User Feedback
 # -----------------------------------------------------------------------------
-bins_used = hist(nds_list, min(nds_list), max(nds_list), best_no_bins)
+fail = False
+try:
+    bins_used = hist(nds_list, min(nds_list), max(nds_list), best_no_bins)
 
-print("-- Cores available:        ", best_job_size*best_target_pcn)
-print("-- best_sum_of_cores:      ", best_sum_of_cores)
-print("-- Cores not in use:       ", (best_job_size*best_target_pcn)-best_sum_of_cores)
-print("-- best_job_size:          ", best_job_size, "  compute nodes")
-print("-- best_target_pcn:        ", best_target_pcn, "  parts per compute node")
-print("-- ")
-print("-- Number of bins:         ", best_no_bins)
-print("-- Bins used:              ", np.around(bins_used[1]))
-print("-- Core time idling/wasted:", round(best_wct,2 ), " Standard time units")
-print("-- Core time required:     ", round(best_ttb_required,2 ), " Standard time units")
-print("-- Theoretical efficiency: ", round(best_ttb_required/(best_ttb_required+best_wct)*100,3 ), "%")
-print("--", best_comms_per_ppd)
+    print("-- Cores available:        ", best_job_size*best_target_pcn)
+    print("-- best_sum_of_cores:      ", best_sum_of_cores)
+    print("-- Cores not in use:       ", (best_job_size*best_target_pcn)-best_sum_of_cores)
+    print("-- best_job_size:          ", best_job_size, "  compute nodes")
+    print("-- best_target_pcn:        ", best_target_pcn, "  parts per compute node")
+    print("-- ")
+    print("-- Number of bins:         ", best_no_bins)
+    print("-- Bins used:              ", np.around(bins_used[1]))
+    print("-- Core time idling/wasted:", round(best_wct,2 ), " Standard time units")
+    print("-- Core time required:     ", round(best_ttb_required,2 ), " Standard time units")
+
+    theo_eff = round(best_ttb_required/(best_ttb_required+best_wct)*100,3 )
+    print("-- Theoretical efficiency: ", theo_eff, "%")
+    print("--", best_comms_per_ppd)
+except:
+    fail = True
+
+if best_sum_of_cores == 0 and bool(cmd_args.ncno) or fail:
+    print("EE No solution found. User defined parameters may not fit.")
+    print(FMT_SEP)
+    exit(5)
+
+
+
 
 if bool(cmd_args.ncno):
     print("MM Optimized with user defined number of compute nodes.")
 
-print(FMT_STRING)
+print(FMT_SEP)
 
-
-if best_sum_of_cores == 0 and bool(cmd_args.ncno):
-    print("WW No solution found. User defined parameters may not fit.")
-    print(FMT_STRING)
-    exit(5)
 
 
 # -----------------------------------------------------------------------------
@@ -553,24 +580,22 @@ f.close()
 # -----------------------------------------------------------------------------
 exp_rt_list = best_catalogued_data['expected runtime'].tolist()
 #
-f = open(exp_rt_file, 'wb')
+f = open(exp_rtex_file, 'wb')
 for ii in exp_rt_list:
     float_num = struct.pack("f", ii)
     f.write(float_num)
 f.close()
+
+# -----------------------------------------------------------------------------
+# Prepare the actual runtimes for use by DTC
+# -----------------------------------------------------------------------------
+exp_rt_list = best_catalogued_data['expected runtime'].tolist()
 #
-# with open("floats.bin", "rb") as f:
-
-#     # Read the file content as a byte string
-#     file_content = f.read()
-
-#     # Determine the number of floats in the file
-#     num_floats = len(file_content) // 4
-
-#     # Unpack the byte string into a list of floats
-#     floats = struct.unpack("f" * num_floats, file_content)
-
-#     print(floats)
+float_num = struct.pack("f", 0.0)
+f = open(exp_rtac_file, 'wb')
+for ii in range(len(parts_list)):
+    f.write((0).to_bytes(8, byteorder='little', signed=True))
+f.close()
 
 # -----------------------------------------------------------------------------
 # Write the comms file for reading by Fortran to a binary file
@@ -608,6 +633,20 @@ path_spec = basename + "/results_domains"
 Path(path_spec).mkdir(parents=True, exist_ok=True)
 
 
+
+# -----------------------------------------------------------------------------
+# Update the meta file with the expected efficiency
+# -----------------------------------------------------------------------------
+with open(meta_file, 'a') as f:
+    f.write("r EXPECTED_EFFICIENCY   " + str(theo_eff/100.0) + '\n')
+    f.write("r NCNO                  " + str(best_job_size) + '\n')
+
+f.close()
+
+
+
+
+
 # -----------------------------------------------------------------------------
 # Create directories now
 # -----------------------------------------------------------------------------
@@ -616,4 +655,6 @@ end_time = time.time()
 elapsed_time = end_time - start_time
 #
 print("-- Single core runtime of this script:", round(elapsed_time,1), "s")
-print(FMT_STRING)
+print(FMT_SEP)
+
+

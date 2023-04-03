@@ -518,14 +518,15 @@ If (rank_mpi == 0) THEN
     !------------------------------------------------------------------------------
     ! Prepare allocating the output data structure for struct_calcmat and for the process steering
     !------------------------------------------------------------------------------
-    max_domains_per_comm = 0_ik 
-    DO ii = 1, No_of_comm_groups
+    ! max_domains_per_comm = 0_ik 
+    ! DO ii = 1, No_of_comm_groups
 
-        dmns_per_comm(ii) = CEILING(REAL(comms_array(3,ii))/REAL(comms_array(2,ii)))
+    !     dmns_per_comm(ii) = CEILING(REAL()/REAL(comms_array(2,ii)))
 
-    END DO
+    ! END DO
 
-    max_domains_per_comm = MAXVAL(dmns_per_comm)
+    ! Worst case assumption -> Max number of domains that may occur.
+    max_domains_per_comm = MAXVAL(comms_array(3,:))
 
     !------------------------------------------------------------------------------
     ! Raise and build meta_para tree
@@ -1304,8 +1305,9 @@ IF (rank_mpi /= 0) THEN
             ! topology aware scheduler is expected to be simpler by analysis of the *.rt*
             ! files. Both may be removed to save overhead once everything is analyzed. 
             !------------------------------------------------------------------------------
-            CALL MPI_FILE_WRITE_AT(runtime_un, Int((nn-1)*mik, MPI_OFFSET_KIND), & 
+            CALL MPI_FILE_WRITE_AT(runtime_un, Int((nn-1)*rk, MPI_OFFSET_KIND), & 
                 t_duration, 1_mik, MPI_DOUBLE_PRECISION, status_mpi, ierr)
+
         END IF 
 
     End Do

@@ -32,13 +32,13 @@ TYPE(tLeaf), POINTER :: domain_no, eff_num_stiffness, density, tensors, leaf_pos
 TYPE(tBranch)        :: rank_data
 TYPE(domain_data), DIMENSION(3) :: tensor
 
-INTEGER(ik), DIMENSION(:,:), ALLOCATABLE :: Domain_status
+INTEGER(ik), DIMENSION(:,:), ALLOCATABLE :: Domain_status, comms_array
 INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0, vdim=0, grid=0
 
 INTEGER(ik) :: alloc_stat, parts, fh_covo, fh_cr1, fh_cr2, fh_tens, dat_no_highscore, &
     domains_crawled = 0_ik, nn_comm, activity_size, size_mpi, fh_covo_num, dat_no, &
     ii, kk, ll, mm, tt, xx, par_dmn_number, jj, current_domain, pntr, no_lc, ma_el_order, &
-    aun, domains_per_comm = 0, rank_mpi, No_of_domains, local_domain_no, last_domain_rank
+    aun, rank_mpi, No_of_domains, local_domain_no, last_domain_rank, fh, comms_rry_x, groups_size
 
 REAL(rk) :: local_domain_density, sym, start, end
 REAL(rk), DIMENSION(3)   :: local_domain_opt_pos, spcng, dmn_size
@@ -50,18 +50,20 @@ REAL(8), DIMENSION(:), ALLOCATABLE :: dat_densities, dat_eff_num_stiffnesses, da
     dat_pos, dat_t_start, dat_t_duration
 
 CHARACTER(mcl), DIMENSION(:), ALLOCATABLE :: m_rry      
-CHARACTER(mcl) :: cmd_arg_history='', target_path, file_head, binary, activity_file, stat=""
+CHARACTER(mcl) :: cmd_arg_history='', target_path, head_path, file_head, binary, &
+    activity_file, stat="", groups_file=""
 CHARACTER(scl) :: mi_el_type
 
 CHARACTER(100*mcl) :: string
 
-CHARACTER(20)  :: dmn_char
-CHARACTER(9)   :: covo_num_suf = ".covo.num"
-CHARACTER(5)   :: covo_suf = ".covo"
-CHARACTER(4)   :: cr1_suf = ".cr1", cr2_suf = ".cr2"
-CHARACTER(1)   :: tt_char, restart_cmd_arg='U' ! U = 'undefined'
+CHARACTER(20) :: dmn_char
+CHARACTER(9)  :: covo_num_suf = ".covo.num"
+CHARACTER(5)  :: covo_suf = ".covo"
+CHARACTER(4)  :: cr1_suf = ".cr1", cr2_suf = ".cr2"
+CHARACTER(1)  :: tt_char, restart_cmd_arg='U' ! U = 'undefined'
 
-LOGICAL :: success=.FALSE., stat_exists=.FALSE., opened=.FALSE., last_domain=.FALSE., ex=.FALSE.
+LOGICAL :: success=.FALSE., stat_exists=.FALSE., opened=.FALSE., last_domain=.FALSE., &
+    ex=.FALSE., groups_exists=.FALSE.
 
 CALL CPU_TIME(start)
 
@@ -113,7 +115,36 @@ CALL meta_read('UP_BNDS_DMN_RANGE',m_rry,xe_d,stat);IF(stat/="") WRITE(6,FMT_ERR
 CALL meta_read('MACRO_ELMNT_ORDER',m_rry,ma_el_order,stat);IF(stat/="") WRITE(6,FMT_ERR) TRIM(stat)
 CALL meta_read('MICRO_ELMNT_TYPE' ,m_rry,mi_el_type,stat);IF(stat/="") WRITE(6,FMT_ERR) TRIM(stat)
 
-CALL meta_read('PROCESSORS' ,m_rry,size_mpi,stat);IF(stat/="") WRITE(6,FMT_ERR) TRIM(stat)
+
+!------------------------------------------------------------------------------
+! This program is used to crawl the traditional sp and the dtc.
+! Therefore, we must check if the *.groups file of the dtc is given.
+! If not and if the meta-file does not provide the correct answer, the user
+! may see that sth. unexpected happend by taking a look at size_mpi.
+!------------------------------------------------------------------------------
+groups_file = TRIM(in%p_n_bsnm)//".groups"
+INQUIRE(FILE = TRIM(groups_file), EXIST=groups_exists, SIZE=groups_size)
+
+IF(groups_exists) THEN
+    fh = 94_ik
+
+    comms_rry_x = ANINT(REAL(groups_size,rk)/REAL(rk,rk)/3._rk)
+
+    ALLOCATE(comms_array(3_ik,comms_rry_x))
+
+    OPEN (UNIT=fh, FILE=groups_file, ACCESS="STREAM", FORM="UNFORMATTED") 
+    READ (UNIT=fh) comms_array
+    CLOSE(UNIT=fh)
+
+    size_mpi = SUM(comms_array(1,:)*comms_array(2,:)) + 1_ik
+
+    WRITE(std_out, FMT_TXT) "Number of processors read from the groups-file:", size_mpi
+ELSE
+    CALL meta_read('PROCESSORS' ,m_rry,size_mpi,stat);IF(stat/="") WRITE(6,FMT_ERR) TRIM(stat)
+    WRITE(std_out, FMT_TXT) "Number of processors read from the meta-file:", size_mpi
+END IF 
+
+
 CALL meta_read('SIZE_DOMAIN',m_rry,dmn_size,stat);IF(stat/="") WRITE(6,FMT_ERR) TRIM(stat)
 CALL meta_read('SPACING'    ,m_rry,spcng,stat);IF(stat/="") WRITE(6,FMT_ERR) TRIM(stat)
 CALL meta_read('DIMENSIONS' ,m_rry,vdim,stat);IF(stat/="") WRITE(6,FMT_ERR) TRIM(stat)
@@ -220,8 +251,15 @@ DO rank_mpi = 1, size_mpi-1
     WRITE(pro_path,'(A,A,I7.7,A)') TRIM(target_path), "Rank_", rank_mpi, "/"
     WRITE(pro_name,'(A,A,I7.7)')   TRIM(file_head), "_", rank_mpi
 
+    WRITE(head_path,'(A,A,I7.7,A)') TRIM(pro_path), "/results_", rank_mpi, ".head"
+
+    !------------------------------------------------------------------------------
     ! Search for valid  directories
+    !------------------------------------------------------------------------------
     INQUIRE(FILE=pro_path, EXIST=ex)
+    IF(.NOT. ex) CYCLE
+
+    INQUIRE(FILE=head_path, EXIST=ex)
     IF(.NOT. ex) CYCLE
 
     dat_no_highscore=0
@@ -390,6 +428,7 @@ DO rank_mpi = 1, size_mpi-1
         ! Begin searching for the domain to extract
         !------------------------------------------------------------------------------
         last_domain = .FALSE.
+
         DO ii = 1, dat_no 
 
             !------------------------------------------------------------------------------
@@ -507,12 +546,21 @@ DO rank_mpi = 1, size_mpi-1
             ! Compute additional parameters.
             !------------------------------------------------------------------------------
             tensor(tt)%dmn  = dat_domains(ii)
-            tensor(tt)%bvtv = dat_densities(ii)
+
+            !------------------------------------------------------------------------------
+            ! The density written to the file is a good check for the validity of the 
+            ! input data. 
+            !------------------------------------------------------------------------------
+            IF ((dat_densities(ii) < 0._rk) .OR. (dat_densities(ii) > 1._rk)) THEN
+                CYCLE
+            ELSE
+                tensor(tt)%bvtv = dat_densities(ii)
+            END IF 
+
             tensor(tt)%no_elems = dat_no_elems(ii)
             tensor(tt)%no_nodes = dat_no_nodes(ii)
             tensor(tt)%t_start    = dat_t_start(ii)
             tensor(tt)%t_duration = dat_t_duration(ii)
-
             tensor(tt)%sym  = sym
             tensor(tt)%mat  = local_domain_tensor
 
