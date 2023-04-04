@@ -45,6 +45,9 @@ DOF = 3
 #
 DEBUG = False
 #
+#
+USER_DEF_RATIO = 1.0
+#
 # List of optimal job sizes
 job_sizes = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096]
 #
@@ -373,12 +376,26 @@ for bin in bins:
         # -----------------------------------------------------------------------------
         # Get and take the effective number of FE nodes per part into account
         # -----------------------------------------------------------------------------
+
+
+                            # ###############################################################################
+                            # ##### Inject target factors here ##############################################
+                            # tf    = [1.15356, 1.77793, 2.4023,  2.82787, 3.25344, 3.04901, 2.84457, 2.13608, 1.42758, 1.59531, 1.76303, 2.54851, 3.33399, 3.69061]
+                            # Parts = [ 4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16, 17]
+                            # ###############################################################################
+                            # ###############################################################################
+                            # if parts_per_domain in Parts:
+                            #     for pp in range(len(Parts)): 
+                            #         if parts_per_domain == Parts[pp]:
+                            #             USER_DEF_RATIO = tf[pp]
+
         if parts_per_domain == 0:
             delta_percentage = 0.0
             delta_ratio = 0.0
         else:
             eff_nodes_part = int(FE_nodes_dmn / parts_per_domain)
-            delta_ratio = (suggested - eff_nodes_part) / suggested
+            delta_ratio = (suggested - eff_nodes_part) / suggested * USER_DEF_RATIO 
+
 
         # expected runtime may be calibrated in a latter step
         expected_runtime = 1.0 * total_factors / (1+(delta_ratio))
@@ -638,14 +655,11 @@ Path(path_spec).mkdir(parents=True, exist_ok=True)
 # Update the meta file with the expected efficiency
 # -----------------------------------------------------------------------------
 with open(meta_file, 'a') as f:
-    f.write("r EXPECTED_EFFICIENCY   " + str(theo_eff/100.0) + '\n')
-    f.write("r NCNO                  " + str(best_job_size) + '\n')
+    f.write("w EXPECTED_EFFICIENCY   " + str(theo_eff/100.0) + '\n')
+    f.write("w CORES_REQUESTED       " + str(best_sum_of_cores) + '\n')
+    f.write("w NCNO                  " + str(best_job_size) + '\n')
 
 f.close()
-
-
-
-
 
 # -----------------------------------------------------------------------------
 # Create directories now
