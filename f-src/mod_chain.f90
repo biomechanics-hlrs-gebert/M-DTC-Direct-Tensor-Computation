@@ -266,7 +266,7 @@ Contains
    CHARACTER(LEN=*), INTENT(IN) :: in_var
 
    IF (io_stat /= 0) Then
-      WRITE(mssg, '(A,I4,A)') "Allocation of var ", TRIM(in_var), " failed."
+      WRITE(mssg, '(3A)') "Allocation of var ", TRIM(in_var), " failed."
       CALL print_err_stop(un_mon, mssg, io_stat)
    End IF
 

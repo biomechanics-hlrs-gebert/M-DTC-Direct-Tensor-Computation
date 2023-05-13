@@ -22,6 +22,7 @@ contains
     Call PetscOptionsSetValue(PETSC_NULL_OPTIONS,"-mat_type"    , "mpiaij",petsc_ierr)
     Call PetscOptionsSetValue(PETSC_NULL_OPTIONS,"-pc_type"     , "jacobi",petsc_ierr)
     Call PetscOptionsSetValue(PETSC_NULL_OPTIONS,"-ksp_type"    , "cg"    ,petsc_ierr)
+    ! Call PetscOptionsSetValue(PETSC_NULL_OPTIONS,"-start_in_debugger"    , ""  ,petsc_ierr)
     
     IF(out_amount == "DEBUG") THEN
       Call PetscOptionsSetValue(PETSC_NULL_OPTIONS,"-ksp_monitor" , ""      ,petsc_ierr)

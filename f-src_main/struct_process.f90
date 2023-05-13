@@ -70,7 +70,7 @@
 !>
 !>  \section modified Last modified:
 !>  by: Johannes Gebert \n
-!>  on: 03.01.2022
+!>  on: 11.11.2022
 !>
 !> \todo At >> Recieve Job_Dir << calculate the Job_Dir from the Domain number
 !>       and the Domain Decomposition parameters.
@@ -137,16 +137,16 @@ INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0
 
 INTEGER(ik) :: nn, ii, jj, kk, dc, computed_domains = 0, comm_nn = 1, &
     No_of_domains, path_count, activity_size=0, alloc_stat, fh_cluster_log, &
-    free_file_handle, domains_per_comm, stat, &
-    Domain, llimit, parts, elo_macro, vdim(3)
+    free_file_handle, domains_per_comm, stat, no_lc=0, nl=0, &
+    Domain, llimit, parts, elo_macro, vdim(3), cn
 
 INTEGER(pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
 INTEGER(pd_ik), DIMENSION(no_streams) :: dsize
 
 INTEGER(pd_ik) :: serial_root_size, add_leaves
 
-LOGICAL :: success, stat_exists, heaxist, abrt = .FALSE., already_finished=.FALSE.
-LOGICAL :: create_new_header = .FALSE., fex=.TRUE., no_restart_required = .FALSE.
+LOGICAL :: success, stat_exists, heaxist, abrt = .FALSE., already_finished=.FALSE., &
+    create_new_header = .FALSE., fex=.TRUE., no_restart_required = .FALSE., mem_critical = .FALSE.
 
 !----------------------------------------------------------------------------
 CALL mpi_init(ierr)
@@ -173,7 +173,6 @@ If (rank_mpi == 0) THEN
     !------------------------------------------------------------------------------
     ! Batch feedback
     !------------------------------------------------------------------------------
-    CALL execute_command_line ("echo 'JOB_STARTED' > BATCH_RUN")
 
     !------------------------------------------------------------------------------
     ! Parse the command arguments
@@ -253,13 +252,19 @@ If (rank_mpi == 0) THEN
     CALL meta_read('UP_BNDS_DMN_RANGE', m_rry, xe_d, ios); CALL mest(ios, abrt)
     CALL meta_read('BINARIZE_LO'      , m_rry, llimit, ios); CALL mest(ios, abrt)
     CALL meta_read('MESH_PER_SUB_DMN' , m_rry, parts, ios); CALL mest(ios, abrt)
+    CALL meta_read('COMPUTE_NODES'    , m_rry, cn, ios); CALL mest(ios, abrt)
     CALL meta_read('RVE_STRAIN'       , m_rry, strain, ios); CALL mest(ios, abrt)
     CALL meta_read('YOUNG_MODULUS'    , m_rry, bone%E, ios); CALL mest(ios, abrt)
     CALL meta_read('POISSON_RATIO'    , m_rry, bone%nu, ios); CALL mest(ios, abrt)
     CALL meta_read('MACRO_ELMNT_ORDER', m_rry, elo_macro, ios); CALL mest(ios, abrt)
     CALL meta_read('TYPE_RAW'         , m_rry, typeraw, ios); CALL mest(ios, abrt)
 
-    
+    IF (elo_macro == 1) THEN
+        no_lc = 24_ik
+    ELSE IF (elo_macro == 2) THEN
+        no_lc = 60_ik
+    END IF 
+
     IF(abrt) CALL print_err_stop(std_out, "A keyword error occured.", 1)
 
     !------------------------------------------------------------------------------
@@ -284,10 +289,10 @@ If (rank_mpi == 0) THEN
     !------------------------------------------------------------------------------
     ! Warning / Error handling
     !------------------------------------------------------------------------------
-    IF (parts < 2) THEN
-        mssg = 'At least 2 parts per domain are required.'
-        CALL print_err_stop_slaves(mssg); GOTO 1000
-    END IF
+    ! IF (parts < 2) THEN
+    !     mssg = 'At least 2 parts per domain are required.'
+    !     CALL print_err_stop_slaves(mssg); GOTO 1000
+    ! END IF
 
     IF ( (bone%phdsize(1) /= bone%phdsize(2)) .OR. (bone%phdsize(1) /= bone%phdsize(3)) ) THEN
         mssg = 'Currently, all 3 dimensions of the physical domain size must be equal!'
@@ -450,6 +455,7 @@ END IF
 !------------------------------------------------------------------------------
 CALL MPI_BCAST(stat_exists  , 1_mik, MPI_LOGICAL    , 0_mik, MPI_COMM_WORLD, ierr)
 CALL MPI_BCAST(No_of_domains, 1_mik, MPI_INTEGER8   , 0_mik, MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(cn           , 1_mik, MPI_INTEGER8   , 0_mik, MPI_COMM_WORLD, ierr)
 CALL MPI_BCAST(activity_file, INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
 CALL MPI_BCAST(typeraw,       INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
 
@@ -703,7 +709,8 @@ If (rank_mpi == 0) THEN
     ! After solving                           , 3395     , 1672328, 1442071, 546, 244625464, 252, 252, 1671690736
     ! End of domain                           , 3395     , 1672328, 1442071, 546, 73615236, 252, 252, 1671690747
     !------------------------------------------------------------------------------
-
+    ! for better formatting :-)
+    nl = no_lc
     CALL raise_leaves(no_leaves = add_leaves, &
         desc = [ & ! DO NOT CHANGE THE LENGTH OF THE STRINGS      ! Leaf x bytes
         "Domain number                                     " , &  !  1 x  1
@@ -735,8 +742,8 @@ If (rank_mpi == 0) THEN
         domains_per_comm,         domains_per_comm, &
         domains_per_comm * 24   ,                                                    &
         domains_per_comm,         domains_per_comm, &                                  
-        domains_per_comm * 24*24, domains_per_comm * 24*24, domains_per_comm       , &
-        domains_per_comm *  6*24, domains_per_comm *  6*24, domains_per_comm *  6*6, &
+        domains_per_comm * nl*nl, domains_per_comm * nl*nl, domains_per_comm       , &
+        domains_per_comm *  6*nl, domains_per_comm *  6*nl, domains_per_comm *  6*6, &
         domains_per_comm        , domains_per_comm *  6* 6, domains_per_comm       , &
         domains_per_comm        , domains_per_comm *     3, domains_per_comm *    9, &
         domains_per_comm *  6* 6, domains_per_comm        , domains_per_comm *    3, &
@@ -931,6 +938,7 @@ Else
     PETSC_COMM_WORLD = worker_comm
 
     CALL PetscInitialize(PETSC_NULL_CHARACTER, petsc_ierr)
+    IF(petsc_ierr .NE. 0_ik) WRITE(std_out, FMT_WRN_xAI0) "Error in PetscInitialize: ", petsc_ierr
 
 End If
 
@@ -1072,6 +1080,12 @@ If (rank_mpi==0) Then
         Call MPI_WAITANY(size_mpi-1_mik, req_list, finished, status_mpi, ierr)
         CALL print_err_stop(std_out, &
         "MPI_WAITANY on req_list for IRECV of worker_is_active(mii) didn't succeed", ierr)
+
+        IF (worker_is_active(mii) == -999) THEN
+            mem_critical = .TRUE.
+            CALL stop_slaves()
+            GOTO 1000
+        END IF 
 
         IF(finished /= MPI_UNDEFINED) mii = finished
 
@@ -1324,9 +1338,9 @@ Else
             ! Compute a domain
             !==============================================================================
             CALL exec_single_domain(root, comm_nn, Domain, typeraw, job_dir, fh_cluster_log, &
-                Active, fh_mpi_worker, worker_rank_mpi, worker_size_mpi, worker_comm)
+                Active, fh_mpi_worker, worker_comm, cn, mem_critical)
             !==============================================================================
-            
+
             !------------------------------------------------------------------------------
             ! Track the duration of the computation of a domain.
             !------------------------------------------------------------------------------
@@ -1415,26 +1429,21 @@ Else
         ! "Deactivate" communicator
         !------------------------------------------------------------------------------
         active = 0_mik
+        IF (mem_critical) active = -999
 
         CALL MPI_ISEND(active, 1_mik, MPI_INTEGER4, 0_mik, rank_mpi, MPI_COMM_WORLD, request, ierr)
         CALL print_err_stop(std_out, "MPI_ISEND on Active didn't succeed", ierr)
 
         CALL MPI_WAIT(request, status_mpi, ierr)
         CALL print_err_stop(std_out, "MPI_WAIT on request for ISEND Active didn't succeed", ierr)
+                    
+        IF (mem_critical) EXIT
 
     End Do
 
-    !------------------------------------------------------------------------------
-    ! Close memlog file
-    !------------------------------------------------------------------------------
-    CLOSE(fh_cluster_log)
-
-    DO ii = 1, no_streams
-        CALL MPI_File_close(fh_mpi_worker(ii), ierr)
-    END DO 
-
     CALL PetscFinalize(petsc_ierr) 
-    
+    IF(petsc_ierr .NE. 0_ik) WRITE(std_out, FMT_WRN_xAI0) "Error in PetscFinalize: ", petsc_ierr
+
 End If
 
 IF(rank_mpi == 0) THEN
@@ -1464,8 +1473,6 @@ IF(rank_mpi == 0) THEN
 
 END IF ! (rank_mpi == 0)
 
-1000 Continue
-
 IF(rank_mpi==0) THEN
 
     !------------------------------------------------------------------------------
@@ -1475,16 +1482,21 @@ IF(rank_mpi==0) THEN
     IF ((Domain_stats(No_of_domains) == No_of_domains-1) .OR. (already_finished)) THEN ! counts from 0
 
         no_restart_required = .TRUE.
-        CALL execute_command_line ("echo 'JOB_FINISHED' > BATCH_RUN")
     END IF 
 
-    CALL meta_close(m_rry, no_restart_required)
+    CALL meta_close(m_rry)
 
     CALL meta_stop_ascii(fh_mon, mon_suf)
 
     IF(std_err/=6) CALL meta_stop_ascii(std_out, '.std_out')
     IF(std_err/=0) CALL meta_start_ascii(std_err, '.std_err')
 
+END IF 
+
+1000 Continue
+
+IF (mem_critical) THEN
+    IF(rank_mpi==0) WRITE(std_out, FMT_TXT) "WW Stopping to prevent an OOM event."
 END IF 
 
 CALL MPI_FILE_CLOSE(aun, ierr)

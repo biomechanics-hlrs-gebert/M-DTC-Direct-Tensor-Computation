@@ -24,43 +24,43 @@ subroutine calc_effective_material_parameters(root, comm_nn, ddc_nn, &
      fh_mpi_worker, size_mpi, comm_mpi, collected_logs)
 
 Type(tBranch)     , Intent(InOut) :: root
-INTEGER(kind=mik) , Intent(In) :: size_mpi, comm_mpi
-integer(Kind=ik)  , Intent(in) :: ddc_nn, comm_nn
-Integer(kind=mik), Dimension(no_streams), Intent(in) :: fh_mpi_worker
+INTEGER(mik) , Intent(In) :: size_mpi, comm_mpi
+integer(ik)  , Intent(in) :: ddc_nn, comm_nn
+Integer(mik), Dimension(no_streams), Intent(in) :: fh_mpi_worker
 
-Real(kind=rk) :: div_10_exp_jj, eff_density, n12, n13, n23, alpha, phi, eta
-Real(kind=rk) :: cos_alpha, sin_alpha, One_Minus_cos_alpha, sym
+Real(rk) :: div_10_exp_jj, eff_density, n12, n13, n23, alpha, phi, eta
+Real(rk) :: cos_alpha, sin_alpha, One_Minus_cos_alpha, sym
 
-Real(kind=rk), Dimension(:)    , allocatable :: tmp_nn, delta, x_D_phy
-Real(kind=rk), Dimension(:,:)  , allocatable :: nodes, vv, ff, stiffness
-Real(kind=rk), Dimension(:,:,:), allocatable :: calc_rforces, uu, rforces, edat, crit_1, crit_2
-Real(kind=rk), Dimension(1)    :: tmp_real_fd1
-Real(Kind=rk), Dimension(3)    :: min_c, max_c, n
-Real(kind=rk), Dimension(6)    :: ro_stress
-Real(kind=rk), Dimension(8)    :: tmp_r8 
-Real(kind=rk), Dimension(12)   :: tmp_r12
-Real(kind=rk), Dimension(3,3)  :: aa
-Real(kind=rk), Dimension(6,6)  :: ee_orig, BB, CC, cc_mean, EE, fv,meps
-Real(kind=rk), Dimension(0:16) :: crit_min
-Real(Kind=rk), Dimension(6,24) :: int_strain, int_stress
-Real(kind=rk):: E_Modul, nu, rve_strain, v_elem, v_cube
+Real(rk), Dimension(:)    , allocatable :: tmp_nn, delta, x_D_phy
+Real(rk), Dimension(:,:)  , allocatable :: nodes, vv, ff, stiffness
+Real(rk), Dimension(:,:,:), allocatable :: calc_rforces, uu, rforces, edat, crit_1, crit_2
+Real(rk), Dimension(1)    :: tmp_real_fd1
+Real(rk), Dimension(3)    :: min_c, max_c, n
+Real(rk), Dimension(6)    :: ro_stress
+Real(rk), Dimension(8)    :: tmp_r8 
+Real(rk), Dimension(12)   :: tmp_r12
+Real(rk), Dimension(3,3)  :: aa
+Real(rk), Dimension(6,6)  :: ee_orig, BB, CC, cc_mean, EE, fv,meps
+Real(rk), Dimension(0:16) :: crit_min
+Real(rk), Dimension(:,:), ALLOCATABLE :: int_strain, int_stress
+Real(rk):: E_Modul, nu, rve_strain, v_elem, v_cube
 
-Integer(kind=mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
-Integer(kind=mik) :: ierr, global_rank_mpi
+Integer(mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
+Integer(mik) :: ierr, global_rank_mpi
 
-integer(Kind=ik) :: ii, jj, kk, ll, no_elem_nodes, micro_elem_nodes, no_lc, num_leaves, alloc_stat, &
+integer(ik) :: ii, jj, kk, ll, no_elem_nodes, micro_elem_nodes, no_lc, num_leaves, alloc_stat, &
      no_elems, no_nodes, no_cnodes, macro_order, ii_phi, ii_eta, kk_phi, kk_eta, mem_global, status_global
 
-Integer(kind=ik), Dimension(:,:,:,:), Allocatable :: ang
-Integer(Kind=ik), Dimension(:)      , Allocatable :: xa_n, xe_n, no_cnodes_pp, cref_cnodes
-Integer(kind=ik), Dimension(3)                    :: s_loop,e_loop, mlc
+Integer(ik), Dimension(:,:,:,:), Allocatable :: ang
+Integer(ik), Dimension(:)      , Allocatable :: xa_n, xe_n, no_cnodes_pp, cref_cnodes
+Integer(ik), Dimension(3)                    :: s_loop,e_loop, mlc
 INTEGER(ik), DIMENSION(24) :: collected_logs ! timestamps, memory_usage, pid_returned
 
 Logical :: success
 
-Character(len=*), Parameter :: link_name="struct_calcmat_fmps"
-Character(len=9)   :: nn_char
-Character(Len=mcl) :: desc
+Character(*), Parameter :: link_name="struct_calcmat_fmps"
+Character(9)   :: nn_char
+Character(mcl) :: desc
 
 Type(tBranch), Pointer :: ddc, loc_ddc, meta_para, domain_branch, mesh_branch, result_branch
 
@@ -117,13 +117,16 @@ max_c = Real(xe_n    ,rk) * delta
 !------------------------------------------------------------------------------
 If (macro_order == 1) then
     no_elem_nodes = 8
-    no_lc         = 24
+    no_lc = 24
 ELSE IF (macro_order == 2) THEN
      no_elem_nodes = 20
-     no_lc         = 60
+     no_lc = 60
 Else
-    CALL print_err_stop(std_out, "Element order other than 1 not supported", 1)
+    CALL print_err_stop(std_out, "Element orders other than 1 or 2 are not supported", 1)
 End If
+
+IF (.NOT. ALLOCATED(int_strain)) ALLOCATE(int_strain(6,no_lc))
+IF (.NOT. ALLOCATED(int_stress)) ALLOCATE(int_stress(6,no_lc))
 
 !------------------------------------------------------------------------------
 ! Get global mesh_branch parameters
@@ -137,20 +140,11 @@ Call search_branch(trim(desc), domain_branch, mesh_branch, success)
 
 ! DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 ! Braucht man das noch?
-call log_tree(mesh_branch, un_lf, .FALSE.)
+! call log_tree(mesh_branch, un_lf, .FALSE.)
 ! DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 call pd_get(mesh_branch, 'No of nodes in mesh',  no_nodes)
 call pd_get(mesh_branch, 'No of elements in mesh',  no_elems)
-
-! DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-! Dafuq?!
-micro_elem_nodes = 20
-! DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-If (out_amount /= "PRODUCTION") then
-    write(un_lf, FMT_MSG_xAI0) "Set number of nodes per micro element to: ", micro_elem_nodes
-End If
 
 call pd_get(mesh_branch, 'No of cdofs in parts', no_cnodes_pp)
 no_cnodes=sum(no_cnodes_pp)/3
@@ -248,6 +242,20 @@ call alloc_err("stiffness", alloc_stat)
 allocate(tmp_nn(no_elem_nodes), stat=alloc_stat)
 call alloc_err("tmp_nn", alloc_stat)
 
+
+!------------------------------------------------------------------------------
+! Additional, quite special measurement of the memeory usage. Needs proper 
+! Postprocessing, because this memory value is extracted only from the 
+! main process of the domain communicator (!) All other mem values are
+! retrieved from all comm processes together. However they are not analyzed
+! per compute node, because that would require to know the exact assignment 
+! of the rank to a compute node. This is possible, but quite a lot of effort.
+! Measuring worker_main_rank is easier and a worst-case-assumption.
+!------------------------------------------------------------------------------
+collected_logs(7) = INT(time(), ik)
+collected_logs(14) = system_mem_usage()
+collected_logs(21) = 1_ik
+
 If (out_amount == "DEBUG") THEN
     WRITE(un_lf, FMT_DBG_SEP)
     write(un_lf, *)
@@ -304,8 +312,8 @@ End Do
 !------------------------------------------------------------------------------
 ! Init element and RVE volume 
 !------------------------------------------------------------------------------
-v_elem = delta(1)*delta(2)*delta(3)
-v_cube = x_D_phy(1)*x_D_phy(2)*x_D_phy(3)
+v_elem = delta(1)   * delta(2)   * delta(3)
+v_cube = x_D_phy(1) * x_D_phy(2) * x_D_phy(3)
 
 If (out_amount /= "PRODUCTION" ) then
     Write(un_lf, "(A,E15.6)") 'Volume per element: ', v_elem
@@ -316,7 +324,15 @@ End If
 !------------------------------------------------------------------------------
 ! Loadcase init
 !------------------------------------------------------------------------------
-call init_loadcase(rve_strain, vv)
+If (macro_order == 1) then
+     call init_loadcase_el_order_lin(rve_strain, vv)
+     
+ELSE IF (macro_order == 2) THEN
+     call init_loadcase_el_order_quad(rve_strain, vv)
+
+Else
+     CALL print_err_stop(std_out, "Element orders other than 1 or 2 are not supported", 1)
+ End If
 
 If (out_amount == "DEBUG") THEN
     WRITE(un_lf, FMT_DBG_SEP)
@@ -340,23 +356,27 @@ End if
 !------------------------------------------------------------------------------
 ff = 0._rk
 
-Do ii = 1, no_lc            ! Cycle through all load cases
-    Do jj = 1, no_nodes      ! Cycle through all boundary nodes
+Do ii = 1, no_lc                         ! Cycle through all load cases
+    Do jj = 1, no_nodes                  ! Cycle through all boundary nodes
 
-        ! t_geom_xi transforms coordinates from geometry to xi space 
-        ! Result(phi_nn) :  Real(kind=rk), dimension(8)
-        tmp_nn = phi_nn(t_geom_xi(nodes(:,jj),min_c,max_c))
+          ! t_geom_xi transforms coordinates from geometry to xi space 
+          ! Result(phi_nn) :  Real(rk), dimension(8)
+          IF (macro_order == 1) THEN
+               tmp_nn = phi_NN_hexe8(t_geom_xi(nodes(:,jj),min_c,max_c))
+          ELSE IF (macro_order == 2) THEN
+               tmp_nn = phi_NN_hexe20(t_geom_xi(nodes(:,jj),min_c,max_c))
+          END IF 
 
-        Do kk = 1,3
-            Do ll = 1,no_elem_nodes
-            ! Setup of load matrix
-            ! 1st index - rows : Acumulate the reaction forces of the 
-            !                    micro model via the trail functions to 
-            !                    the macro element
-            ! 2nd index - cols : Do first index step for all load cases
-            ff((kk-1)*8+ll,ii) = ff((kk-1)*8+ll,ii) + rforces(kk,jj,ii)*tmp_nn(ll)
-            End Do
-        End Do
+          Do kk = 1,3                         ! Dof per node
+                    Do ll = 1, no_elem_nodes  ! No of FE nodes per Macro element
+                    ! Setup of load matrix
+                    ! 1st index - rows : Acumulate the reaction forces of the 
+                    !                    micro model via the trail functions to 
+                    !                    the macro element
+                    ! 2nd index - cols : Do first index step for all load cases
+                    ff((kk-1)*no_elem_nodes+ll,ii) = ff((kk-1)*no_elem_nodes+ll,ii) + rforces(kk,jj,ii)*tmp_nn(ll)
+                    End Do
+          End Do
 
     End Do
 End Do
@@ -377,7 +397,7 @@ CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
 
 If (out_amount /= "PRODUCTION" ) then
      Call Write_matrix(un_lf, "Domain forces", ff, fmti='std')
-End If
+End If 
 
 !------------------------------------------------------------------------------
 ! Calc effective nummerical stiffness
@@ -419,74 +439,74 @@ CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
 !     "Inverse Stiffness o f(:,1)")
 !------------------------------------------------------------------------------
 
-!------------------------------------------------------------------------------
-! Calc consistent force matrix
-!------------------------------------------------------------------------------
-Do ii = 1, 6
-    fv(1,ii) = (ff( 2,ii) + ff( 3,ii) + ff( 6,ii) + ff( 7,ii)) / ( x_D_phy(2) * x_D_phy(3) )
-    fv(2,ii) = (ff(11,ii) + ff(12,ii) + ff(15,ii) + ff(16,ii)) / ( x_D_phy(1) * x_D_phy(3) )
-    fv(3,ii) = (ff(21,ii) + ff(22,ii) + ff(23,ii) + ff(24,ii)) / ( x_D_phy(1) * x_D_phy(2) )
+If (macro_order == 1) then
+    !------------------------------------------------------------------------------
+    ! Calc consistent force matrix
+    ! 8x 8y 8z
+    !------------------------------------------------------------------------------
+    Do ii = 1, 6
+        fv(1,ii) = (ff( 2,ii) + ff( 3,ii) + ff( 6,ii) + ff( 7,ii)) / ( x_D_phy(2) * x_D_phy(3) ) ! X to X | Node 2,3,6,7
+        fv(2,ii) = (ff(11,ii) + ff(12,ii) + ff(15,ii) + ff(16,ii)) / ( x_D_phy(1) * x_D_phy(3) ) ! Y to Y | Node 3,4,7,8
+        fv(3,ii) = (ff(21,ii) + ff(22,ii) + ff(23,ii) + ff(24,ii)) / ( x_D_phy(1) * x_D_phy(2) ) ! Z to Z | Node 5,6,7,8
+    
+        fv(4,ii) = 0.5_rk * &
+            ( (ff( 3,ii) + ff( 4,ii) + ff( 7,ii) + ff( 8,ii)) / ( x_D_phy(1) * x_D_phy(3) ) + &  ! Y to X  | Node 3,4,7,8 
+            (ff(10,ii) + ff(11,ii) + ff(14,ii) + ff(15,ii)) / ( x_D_phy(2) * x_D_phy(3) ) )      ! X to Y  | Node 2,3,6,7
+        fv(5,ii) = 0.5_rk * &
+            ( (ff( 5,ii) + ff( 6,ii) + ff( 7,ii) + ff( 8,ii)) / ( x_D_phy(1) * x_D_phy(2) ) + &  ! Z to X | Node 5,6,7,8
+            (ff(18,ii) + ff(19,ii) + ff(22,ii) + ff(23,ii)) / ( x_D_phy(2) * x_D_phy(3) ) )      ! X to Z | Node 2,3,6,7 
+        fv(6,ii) = 0.5_rk * &
+            ( (ff(13,ii) + ff(14,ii) + ff(15,ii) + ff(16,ii)) / ( x_D_phy(1) * x_D_phy(2) ) + &  ! Z to Y | Node 5,6,7,8
+            (ff(19,ii) + ff(20,ii) + ff(23,ii) + ff(24,ii)) / ( x_D_phy(1) * x_D_phy(3) ) )      ! Y to Z | Node 3,4,7,8
+    End Do
 
-    fv(4,ii) = 0.5_rk * &
-        ( (ff( 3,ii) + ff( 4,ii) + ff( 7,ii) + ff( 8,ii)) / ( x_D_phy(1) * x_D_phy(3) ) + &
-        (ff(10,ii) + ff(11,ii) + ff(14,ii) + ff(15,ii)) / ( x_D_phy(2) * x_D_phy(3) ) )
-    fv(5,ii) = 0.5_rk * &
-        ( (ff( 5,ii) + ff( 6,ii) + ff( 7,ii) + ff( 8,ii)) / ( x_D_phy(1) * x_D_phy(2) ) + &
-        (ff(18,ii) + ff(19,ii) + ff(22,ii) + ff(23,ii)) / ( x_D_phy(2) * x_D_phy(3) ) )
-    fv(6,ii) = 0.5_rk * &
-        ( (ff(13,ii) + ff(14,ii) + ff(15,ii) + ff(16,ii)) / ( x_D_phy(1) * x_D_phy(2) ) + &
-        (ff(19,ii) + ff(20,ii) + ff(23,ii) + ff(24,ii)) / ( x_D_phy(1) * x_D_phy(3) ) )
-End Do
+    !  1  2  3  4  5  6  7  8   |   1  2  3  4  5  6  7  8  |   1  2  3  4  5  6  7  8
+    !  1  2  3  4  5  6  7  8   |   9 10 11 12 13 14 15 16  |  17 18 19 20 21 22 23 24
+    !  x  x  x  x  x  x  x  x   |   y  y  y  y  y  y  y  y  |   z  z  z  z  z  z  z  z       
+ELSE IF (macro_order == 2) THEN
+     !------------------------------------------------------------------------------
+     ! Calc consistent force matrix
+     !------------------------------------------------------------------------------
+     Do ii = 1, 6
+        fv(1,ii) = (ff( 2,ii) + ff( 3,ii) + ff( 6,ii) + ff( 7,ii) + &
+                ff(10,ii) + ff(14,ii) + ff(18,ii) + ff(19,ii))  / ( x_D_phy(2) * x_D_phy(3) ) ! X to X | Node 2,3,6,7,10,14,18,19
+                
+        fv(2,ii) = (ff(23,ii) + ff(24,ii) + ff(27,ii) + ff(28,ii) + &
+                ff(31,ii) + ff(35,ii) + ff(39,ii) + ff(40,ii))  / ( x_D_phy(1) * x_D_phy(3) ) ! Y to Y | Node 3,4,7,8,11,15,19,20
+                
+        fv(3,ii) = (ff(45,ii) + ff(46,ii) + ff(47,ii) + ff(48,ii) + &
+                ff(53,ii) + ff(54,ii) + ff(55,ii) + ff(56,ii))  / ( x_D_phy(1) * x_D_phy(2) ) ! Z to Z | Node 5,6,7,8,13,14,15,16
+
+        fv(4,ii) = 0.5_rk * &
+            ( (ff( 3,ii) + ff( 4,ii) + ff( 7,ii) + ff( 8,ii) + ff(11,ii) + ff(15,ii) + ff(19,ii) + ff(20,ii)) / &
+            ( x_D_phy(1) * x_D_phy(3)) + & ! Y to X | Node 3,4,7,8,11,15,19,20
+            (ff(22,ii) + ff(23,ii) + ff(26,ii) + ff(27,ii) + ff(30,ii) + ff(34,ii) + ff(38,ii) + ff(39,ii)) / &
+            ( x_D_phy(2) * x_D_phy(3) ))     ! X to Y | Node 2,3,6,7,10,14,18,19
+
+        fv(5,ii) = 0.5_rk * &
+            ( (ff( 5,ii) + ff( 6,ii) + ff( 7,ii) + ff( 8,ii) + ff(13,ii) + ff(14,ii) + ff(15,ii) + ff(16,ii)) / &
+            ( x_D_phy(1) * x_D_phy(2)) + & ! Z to X | Node 5,6,7,8,13,14,15,16
+
+            (ff(42,ii) + ff(43,ii) + ff(46,ii) + ff(47,ii) + ff(50,ii) + ff(54,ii) + ff(58,ii) + ff(59,ii)) / &
+            ( x_D_phy(2) * x_D_phy(3) ))     ! X to Z | Node 2,3,6,7,10,14,18,19
+
+        fv(6,ii) = 0.5_rk * &
+            ( (ff(25,ii) + ff(26,ii) + ff(27,ii) + ff(28,ii) + ff(33,ii) + ff(34,ii) + ff(35,ii) + ff(36,ii)) / &
+            ( x_D_phy(1) * x_D_phy(2)) + & ! Z to Y | Node 5,6,7,8,13,14,15,16
+            (ff(43,ii) + ff(44,ii) + ff(47,ii) + ff(48,ii) + ff(51,ii) + ff(55,ii) + ff(59,ii) + ff(60,ii)) / &
+            ( x_D_phy(1) * x_D_phy(3) ))     ! Y to Z | Node 3,4,7,8,11,15,19,20
+     
+    !  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20  |  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20  |  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20
+    !  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20  | 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40  | 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60
+    !  x  x  x  x  x  x  x  x  x  x  x  x  x  x  x  x  x  x  x  x  |  y  y  y  y  y  y  y  y  y  y  y  y  y  y  y  y  y  y  y  y  |  z  z  z  z  z  z  z  z  z  z  z  z  z  z  z  z  z  z  z  z
+
+    End Do
+
+End If
+
 If (out_amount /= "PRODUCTION" ) then
     Call Write_matrix(un_lf, "Konsistent force matrix", fv, fmti='std', unit='N')
 End If
-
-!------------------------------------------------------------------------------
-! Calc integrated force matrix
-!------------------------------------------------------------------------------
-! Do jj = 1, 6
-!   Do ii = 1, 6
-!      fv(ii,jj) = sum(edat(ii,jj,:))
-!   End do
-! End Do
-
-! fv = fv * v_elem / v_cube
-! If (out_amount /= "PRODUCTION" ) then
-!   Call Write_real_matrix(un_lf, fv ,6_ik, 6_ik, "Integrated force matrix")
-! End If
-
-!------------------------------------------------------------------------------
-! Calc averaged strains and stresses 
-!------------------------------------------------------------------------------
-Do jj = 1, 24
-  Do ii = 1,6
-     int_stress(ii,jj) = sum(edat(ii,jj,:))
-  End do
-  Do ii = 7, 12
-    int_strain(ii-6,jj) = sum(edat(ii,jj,:))
-  End Do
-End Do
-
-int_strain = int_strain * v_elem / v_cube
-int_stress = int_stress * v_elem / v_cube
-
-!If (out_amount /= "PRODUCTION" ) then
-!   write(un_lf,*)
-!   write(un_lf,"(150('='))")
-!   Write(un_lf,"(A)")"--------- Averaged strains of loadcases ---------"
-!   Write(un_lf,"(7(A20))")'-- ii --','-- E11 --','-- E22 --','-- E33 --','-- E12 --','-- E13 --','-- E23 --'
-!   Do ii = 1, 24
-!      write(un_lf,"(I20,6(E20.9))")ii,int_strain(:,ii)
-!   End Do
-
-!   write(un_lf,*)
-!   write(un_lf,"(150('='))")
-!   Write(un_lf,"(A)")"--------- Averaged stresses of loadcases ---------"
-!   Write(un_lf,"(7(A20))")'-- ii --','-- S11 --','-- S22 --','-- S33 --','-- S12 --','-- S13 --','-- S23 --'
-!   Do ii = 1, 24
-!      write(un_lf,"(I20,6(E20.9))")ii,int_stress(:,ii)
-!   End Do
-!End If
 
 !------------------------------------------------------------------------------
 ! Averaged stresses
@@ -506,13 +526,8 @@ CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
     reshape(int_strain,[6*no_lc]), &
     Int(6*no_lc, pd_mik), MPI_REAL8, status_mpi, ierr)
 
-!------------------------------------------------------------------------------
-! Calc integrated strain matrix for first 6 loadcases
-!meps = int_strain(1:6,1:6)
-!If (out_amount /= "PRODUCTION" ) then
-!   Call Write_real_matrix(un_lf, meps ,6_ik, 6_ik, &
-!        "Integrated strain matrix of first 6 loadcases")
-!End If
+DEALLOCATE(int_strain)
+DEALLOCATE(int_stress)
 
 !------------------------------------------------------------------------------
 ! Calc theoretical effective stiffness
@@ -1617,7 +1632,7 @@ EE_Orig = EE
 
        If (out_amount /= "PRODUCTION" ) write(un_lf,*)"132"
 
-       ! 132 => 123 ********
+       ! 132 => 123
        n = aa(:,1)
        alpha = pi/2
        aa = matmul(rot_alg(n,alpha),aa)   
@@ -1627,12 +1642,12 @@ EE_Orig = EE
 
        If (out_amount /= "PRODUCTION" ) write(un_lf,*)"231"
 
-       ! 231 => 132 ********
+       ! 231 => 132
        n = aa(:,2)
        alpha = pi/2
        aa = matmul(rot_alg(n,alpha),aa)
 
-       ! 132 => 123 ********
+       ! 132 => 123
        n = aa(:,1)
        alpha = pi/2
        aa = matmul(rot_alg(n,alpha),aa)   
@@ -1642,7 +1657,7 @@ EE_Orig = EE
 
        If (out_amount /= "PRODUCTION" ) write(un_lf,*)"213"
 
-       ! 213 => 123 ********
+       ! 213 => 123
        n = aa(:,3)
        alpha = pi/2
        aa = matmul(rot_alg(n,alpha),aa)   
@@ -1652,12 +1667,12 @@ EE_Orig = EE
 
        If (out_amount /= "PRODUCTION" ) write(un_lf,*)"312"
 
-       ! 312 => 132 ********
+       ! 312 => 132
        n = aa(:,3)
        alpha = pi/2
        aa = matmul(rot_alg(n,alpha),aa)   
 
-       ! 132 => 123 ********
+       ! 132 => 123
        n = aa(:,1)
        alpha = pi/2
        aa = matmul(rot_alg(n,alpha),aa)  
@@ -1667,7 +1682,7 @@ EE_Orig = EE
 
        If (out_amount /= "PRODUCTION" ) write(un_lf,*)"321"
 
-       ! 321 => 123 ********
+       ! 321 => 123
        n = aa(:,2)
        alpha = pi/2
        aa = matmul(rot_alg(n,alpha),aa)  
@@ -1748,10 +1763,10 @@ EE_Orig = EE
     ! Effective density
     !------------------------------------------------------------------------------
     eff_density = 0._rk
-    eff_density = REAL(no_elems, KIND=rk) / &
+    eff_density = REAL(no_elems, rk) / &
                 REAL(ANINT(x_D_phy(1)/delta(1)) * &
                      ANINT(x_D_phy(2)/delta(2)) * &
-                     ANINT(x_D_phy(3)/delta(3)), KIND=rk)
+                     ANINT(x_D_phy(3)/delta(3)), rk)
 
     CALL add_leaf_to_branch(result_branch, "Effective density", 1_pd_ik, [eff_density])
     CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
@@ -1774,21 +1789,26 @@ EE_Orig = EE
 
      END IF
 
-    DEALLOCATE(tmp_nn, delta, x_D_phy)
-    DEALLOCATE(nodes, vv, ff, stiffness)
-    DEALLOCATE(calc_rforces, uu, rforces, edat, crit_1, crit_2)
-    DEALLOCATE(ang)
-    DEALLOCATE(no_cnodes_pp, cref_cnodes)
+    DEALLOCATE(tmp_nn, delta, x_D_phy, nodes, vv, ff, stiffness, calc_rforces, uu, &
+     rforces, edat, crit_1, crit_2, ang, no_cnodes_pp, cref_cnodes)
 
 End subroutine calc_effective_material_parameters
 
 
-subroutine init_loadcase(eps,vv)
+!------------------------------------------------------------------------------
+! SUBROUTINE: init_loadcase_el_order_lin
+!------------------------------------------------------------------------------
+!> @author Ralf Schneider - HLRS - NUM - schneider@hlrs.de
+!
+! @Brief:
+!> 24 loadcases for lin macro elements.
+!------------------------------------------------------------------------------
+subroutine init_loadcase_el_order_lin(eps,vv)
 
-    Real(Kind=rk), intent(in)     :: eps
-    Real(Kind=rk), Dimension(:,:) :: vv
+    Real(rk), intent(in)     :: eps
+    Real(rk), Dimension(:,:) :: vv
 
-    Real(Kind=rk)                 :: eps2,eps3,eps4
+    Real(rk)                 :: eps2,eps3,eps4
 
     eps2 = eps*2._rk
     eps3 = eps*3._rk
@@ -1796,79 +1816,338 @@ subroutine init_loadcase(eps,vv)
 
     vv = 0._rk
 
-    vv( 1,:) = [ 0._rk , 0._rk , 0._rk ,  eps  ,  eps  , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv( 2,:) = [  eps  , 0._rk , 0._rk ,  eps  ,  eps  , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv( 3,:) = [  eps  , 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv( 4,:) = [ 0._rk , 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv( 5,:) = [ 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv( 6,:) = [  eps  , 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk ,  eps  , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv( 7,:) = [  eps  , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 eps  , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv( 8,:) = [ 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv( 9,:) = [ 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk ,  eps  , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv(10,:) = [ 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 eps  , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv(11,:) = [ 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , 0._rk]
-    vv(12,:) = [ 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , 0._rk]
-    vv(13,:) = [ 0._rk , 0._rk , 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk ,  eps  , 0._rk]
-    vv(14,:) = [ 0._rk , 0._rk , 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk ,  eps ]
-    vv(15,:) = [ 0._rk ,  eps  , 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , -eps ]
-    vv(16,:) = [ 0._rk ,  eps  , 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv(17,:) = [ 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv(18,:) = [ 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv(19,:) = [ 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv(20,:) = [ 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv(21,:) = [ 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv(22,:) = [ 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , -eps2 , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv(23,:) = [ 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , -eps3 , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk]
-    vv(24,:) = [ 0._rk , 0._rk ,  eps  , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , 0._rk , &
-                 0._rk , 0._rk , 0._rk , -eps4 , 0._rk , 0._rk , 0._rk , 0._rk]
+    vv( 1,:) = [ 0._rk, 0._rk, 0._rk,   eps,   eps, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv( 2,:) = [   eps, 0._rk, 0._rk,   eps,   eps, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv( 3,:) = [   eps, 0._rk, 0._rk, 0._rk,   eps, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv( 4,:) = [ 0._rk, 0._rk, 0._rk, 0._rk,   eps, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk,   eps, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv( 5,:) = [ 0._rk, 0._rk, 0._rk,   eps, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk,   eps, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv( 6,:) = [   eps, 0._rk, 0._rk,   eps, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk,   eps, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv( 7,:) = [   eps, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                  eps, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv( 8,:) = [ 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk,   eps, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk,   eps, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv( 9,:) = [ 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk,   eps, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk,   eps, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv(10,:) = [ 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                  eps, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk,   eps, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv(11,:) = [ 0._rk,   eps, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk,   eps, 0._rk, 0._rk, 0._rk]
+    vv(12,:) = [ 0._rk,   eps, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk,   eps, 0._rk, 0._rk]
+    vv(13,:) = [ 0._rk, 0._rk, 0._rk, 0._rk, 0._rk,   eps, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk,   eps, 0._rk]
+    vv(14,:) = [ 0._rk, 0._rk, 0._rk, 0._rk, 0._rk,   eps, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk,  eps ]
+    vv(15,:) = [ 0._rk,   eps, 0._rk, 0._rk, 0._rk,   eps, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, -eps ]
+    vv(16,:) = [ 0._rk,   eps, 0._rk, 0._rk, 0._rk,   eps, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv(17,:) = [ 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk,   eps, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv(18,:) = [ 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk,   eps, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv(19,:) = [ 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk,   eps, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv(20,:) = [ 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk,   eps, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv(21,:) = [ 0._rk, 0._rk,   eps, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv(22,:) = [ 0._rk, 0._rk,   eps, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, -eps2 , 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv(23,:) = [ 0._rk, 0._rk,   eps, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, -eps3 , 0._rk, 0._rk, 0._rk, 0._rk, 0._rk]
+    vv(24,:) = [ 0._rk, 0._rk,   eps, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, 0._rk, &
+                 0._rk, 0._rk, 0._rk, -eps4, 0._rk, 0._rk, 0._rk, 0._rk]
 
-  end subroutine init_loadcase
+  end subroutine init_loadcase_el_order_lin
 
-End Module calcmat
+!------------------------------------------------------------------------------
+! SUBROUTINE: init_loadcase_el_order_quad
+!------------------------------------------------------------------------------
+!> @author Ralf Schneider - HLRS - NUM - schneider@hlrs.de
+!
+! @Brief:
+!> 24 loadcases for lin macro elements.
+!------------------------------------------------------------------------------
+   subroutine init_loadcase_el_order_quad(e,vv)
+
+     Real(rk), intent(in) :: e
+     Real(rk), Dimension(:,:) :: vv
+     REAL(rk), PARAMETER :: z = 0._rk, f = 0.99794_rk, oh=1.5_rk, h=0.5_rk, zz=2.0_rk
+     vv = 0._rk
+     
+vv( 1,:) = [   z ,   z ,   z ,   e ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+    3._rk*e,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+       z ,   z,    z ,   z ,   z ,   z]
+vv( 2,:) = [   e ,   z ,   z ,   e ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+      z ,   z,    z ,   z ,   z ,   z]
+vv( 3,:) = [   e ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,-3._rk*e,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+         z ,   z,    z ,   z ,   z ,   z]
+vv( 4,:) = [   z ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 0.2_rk*e  ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+      z ,-1.5 ,   z  ,  z  ,  z  ,  z ,   z]
+vv( 5,:) = [   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   e ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z , 5._rk*e,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+         z ,   z,    z ,   z ,   z ,   z]
+vv( 6,:) = [   e ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,    5._rk*e,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 0.1_rk*e,   z ,  &
+    z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+    ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv( 7,:) = [   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,-4.  ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+      z ,   z,    z ,   z ,   z ,   z]
+vv( 8,:) = [   z ,   z ,   z ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+      z ,   z,    z ,   z ,   z ,   z]
+vv( 9,:) = [ 0.5_rk*e ,   z ,   z ,   e ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,    z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   e ,   z ,   z ,   &
+      z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(10,:) = [   e ,   z ,   z , 0.5_rk*e ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,    z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-0.9_rk*e ,   z ,   z ,   z ,   z&
+       ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(11,:) = [ 0.5_rk*e ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,    z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-  e ,   &
+      z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(12,:) = [   z ,   z ,   z , 0.5_rk*e ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 0.5_rk*e   ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+      z ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(13,:) = [ 0.5_rk*e ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 0.5_rk*e   ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+      z ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(14,:) = [   e ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,    z ,&
+ 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-0.1_rk*e,   z ,   z ,   z ,   &
+ z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-0.7 ,   z ,   z ,   z ,&
+    z ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(15,:) = [ 0.5_rk*e ,   z ,   z ,   z ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,     z ,&
+   z ,   z , 0.1_rk*e,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  &
+    z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+    ,   z ,   z ,   z ,   z, -  e ,   z ,   z ,   z]
+vv(16,:) = [   z ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,    z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   &
+      z ,   z ,   z,    z ,-  e ,   z ,   z]
+vv(17,:) = [   z ,   z ,   z ,   e , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,    z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-  e ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+      z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(18,:) = [   e ,   z ,   z ,   e , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , z,0.2_rk*e ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-  e ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+      z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(19,:) = [   e ,   z ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,    z ,&
+ 0.3_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-  e ,   z ,   z ,   z ,   z ,   z ,   z&
+    ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(20,:) = [   z ,   z ,   z ,   z , 0.5_rk*e ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z , 5._rk*e,  z ,&
+   z ,   z , 0.1_rk*e,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  &
+    z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 2.  ,   z ,   z ,   z ,   z ,   z &
+    ,   z ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(21,:) = [   z ,   z ,   z ,   z ,   z ,   z ,   z ,-2.  ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+      z ,   z,    z ,   z ,   z ,   z]
+vv(22,:) = [   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-  e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,-5._rk*e,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+         z ,   z,    z ,   z ,   z ,   z]
+vv(23,:) = [   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z , 5._rk*e,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z,    z ,   z ,   z ,   z]
+vv(24,:) = [   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,-2.  ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+      z ,   z,    z ,   z ,   z ,   z]
+vv(25,:) = [   z ,   z ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+      z ,   z,    z ,   z ,   z ,   z]
+vv(26,:) = [   z ,   z ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z , 3._rk*e,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+         z ,   z,    z ,   z ,   z ,   z]
+vv(27,:) = [   z ,   e ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+      z ,   z,    z ,   z ,   z ,   z]
+vv(28,:) = [   z ,   e ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z , 4.  ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+      z ,   z,    z ,   z ,   z ,   z]
+vv(29,:) = [   z ,   z ,   z ,   z ,   z ,   z ,   z , 0.5_rk*e , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,    z ,&
+   z ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  &
+       z ,   z ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(30,:) = [   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 3._rk*e&
+      ,   z ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(31,:) = [   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  z ,&
+   z ,   z ,   z ,   z , 5._rk*e,   z ,   z ,   z ,   z ,-0.1_rk*e,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z&
+    ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+       z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(32,:) = [   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  &
+       z , 5._rk*e,   z ,   z,    z ,   z ,   z ,   z]
+vv(33,:) = [   z ,   z ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  z ,&
+   z ,   z ,   z ,   z ,   z ,   z , 5._rk*e,   z ,   z ,   z ,   z , 0.1_rk*e,   z ,   z ,   z ,   z ,   z ,   z&
+    ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+       z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(34,:) = [   z , 0.5_rk*e ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+   ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z ,-5. ,    z ,   z ,   z ,   z]
+vv(35,:) = [   z ,   e ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-0.1_rk*e,   z ,   z ,   z ,   z , &
+     z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   &
+     z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(36,:) = [   z , 0.5_rk*e ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z , 0.1_rk*e,   z ,   z , 2.  ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+     z ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(37,:) = [   z ,   z ,   z ,   z ,   z , 0.5_rk*e ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,    z ,&
+   z ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 2.  ,   z ,   z ,   z ,   z ,   z ,   z ,  &
+       z ,   z ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(38,:) = [   z ,   z ,   z ,   z ,   z , 0.5_rk*e ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,    z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-4.  &
+   ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(39,:) = [   z ,   e ,   z ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z , 0.5_rk*e ,   z ,   z ,-0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,-  e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+     z ,   z ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(40,:) = [   z ,   e ,   z ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,&
+      z , 2.  ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  &
+       z ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(41,:) = [   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-  e ,   z ,   z ,   z ,   z ,   z ,   z ,  z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+   ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z,    z ,   z ,   z ,   z]
+vv(42,:) = [   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-2.  ,   z ,   z ,   z ,   z ,   z ,  z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+   ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z,    z ,   z ,   z ,   z]
+vv(43,:) = [   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 5._rk*e,   z ,   z ,   z ,   z ,  &
+    z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z&
+     ,   z ,   z,    z ,   z ,   z ,   z]
+vv(44,:) = [   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+   ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-2.  ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z,    z ,   z ,   z ,   z]
+vv(45,:) = [   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+   ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z,    z ,   z ,   z ,   z]
+vv(46,:) = [   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  z ,&
+-0.7 ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 2.  ,   z ,   z ,   z ,   z ,   z ,   z &
+,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+  z ,   z,    z ,   z ,   z ,   z]
+vv(47,:) = [   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  z ,&
+   z ,-3._rk*e,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  &
+    z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z&
+     ,   z ,   z,    z ,   z ,   z ,   z]
+vv(48,:) = [   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  z ,&
+   z ,   z ,-3._rk*e,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  &
+    z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z&
+     ,   z ,   z,    z ,   z ,   z ,   z]
+vv(59,:) = [   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 2.  ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+   ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(50,:) = [   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 5._rk*e,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  &
+    z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z&
+     ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(51,:) = [   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 0.1_rk*e,   z ,   z ,   z ,    z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+   ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(52,:) = [   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 0.1_rk*e,   z ,   z ,   z ,   z ,   z ,    z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 4.  ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+   ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(53,:) = [   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  z ,&
+-0.1_rk*e,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-4.  ,   z ,   z ,   z ,   z ,   z ,   z , &
+  z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   &
+  z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(54,:) = [   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  z ,&
+-  e ,-1.5 ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-1.5 ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+  z ,   z , z,  z,  z ,   z ,   z]
+vv(55,:) = [   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  z ,&
+   z ,   z ,-0.1_rk*e,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-  e ,   z ,   z ,   z ,   z ,   z ,   &
+     z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(56,:) = [   z ,   z ,   e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,-0.5_rk*e ,   z ,   z ,   z ,&
+      z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,  &
+       z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(57,:) = [   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,    z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+   ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z ,   z ,   z,    z ,   z ,   e ,   z]
+vv(58,:) = [   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,    z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+   ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z ,   z ,   z,    z ,   z ,   z ,-  e]
+vv(59,:) = [   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 0.9_rk*e ,   z ,   z ,    z ,&
+   z ,   z ,   z ,-1.5 ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+   ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+vv(60,:) = [   z ,   z , 0.5_rk*e ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , 5._rk*e,   z ,      z ,&
+   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z &
+   ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z ,   z , &
+     z ,   z ,   z ,   z,    z ,   z ,   z ,   z]
+
+         end subroutine init_loadcase_el_order_quad
+     
+     End Module calcmat
+      
