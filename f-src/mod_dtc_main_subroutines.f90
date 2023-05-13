@@ -192,81 +192,6 @@ If (worker_rank_mpi == 0) then
     Write(un_lf,FMT_MSG_SEP)
 
     !------------------------------------------------------------------------------
-    ! Get and log the hosts of all parts
-    !------------------------------------------------------------------------------
-    IF (.NOT. ALLOCATED(host_list)) ALLOCATE(host_list(parts))
-    IF (.NOT. ALLOCATED(unique_host_list)) ALLOCATE(unique_host_list(parts))
-    
-    host_list = ""
-    host_list(1) = host_of_part
-
-    no_different_hosts = 1
-
-    unique_host_list = host_list
-
-    !------------------------------------------------------------------------------
-    ! Loop over all ranks of the sub comm
-    ! parts refers to ranks an therefore is counted from o, 
-    ! but 0 is the master and does not need so send to itself.
-    !------------------------------------------------------------------------------
-    Do ii = 1, parts-1 
-
-        IF (ii/=0) THEN
-            CALL MPI_RECV(host_list(ii), INT(host_name_length, mik), MPI_CHAR, &
-                INT(ii,mik), INT(ii,mik), comm_mpi, status_mpi, ierr)
-
-            WRITE(rank_char, "(I20)") ii
-            CALL print_err_stop(std_out, &
-                "MPI_RECV on host_of_part "//TRIM(ADJUSTL(rank_char))//" didn't succseed", ierr)
-        END IF
-
-        !------------------------------------------------------------------------------
-        ! Test whether the host is unique in the domain
-        !------------------------------------------------------------------------------
-        IF (host_list(ii) == "") CYCLE
-        
-        host_assumed_unique = .TRUE.
-        DO jj = 1, parts
-
-            IF((host_list(ii) == unique_host_list(jj)) .AND. (unique_host_list(jj) /= "")) THEN
-                host_assumed_unique = .FALSE.
-            END IF 
-        END DO
-        
-        IF (host_assumed_unique) THEN
-            no_different_hosts = no_different_hosts + 1_ik
-            unique_host_list(no_different_hosts) = host_list(ii)
-        END IF 
-
-    END Do
-
-    !------------------------------------------------------------------------------
-    ! Concatenate the string of the unique host names.
-    !------------------------------------------------------------------------------
-    mssg_fix_len = "Unique hosts of domain:"
-    WRITE(fh_cluster_log, '(A)', ADVANCE="NO") mssg_fix_len//", "//domain_char//", " 
-
-    DO ii = 1, no_different_hosts-1
-
-        WRITE(fh_cluster_log, '(A)', ADVANCE="NO") TRIM(unique_host_list(ii))//","
-    END DO
-    WRITE(fh_cluster_log, '(A)', ADVANCE="NO") TRIM(unique_host_list(no_different_hosts))
-
-    WRITE(fh_cluster_log, '(A)')
-    FLUSH(fh_cluster_log)
-
-ELSE ! (worker_rank_mpi == 0) THEN
-
-    CALL MPI_SEND(host_of_part, INT(host_name_length, mik), MPI_CHAR, 0_mik, worker_rank_mpi, comm_mpi, ierr)
-    CALL print_err_stop(std_out, "MPI_SEND of host_of_part didn't succeed", ierr)
-
-END IF 
-
-
-
-If (worker_rank_mpi == 0) then
-
-    !------------------------------------------------------------------------------
     ! Generate Geometry
     !------------------------------------------------------------------------------
     Select Case (timer_level)
@@ -455,6 +380,11 @@ IF (worker_rank_mpi == 0) THEN
 END IF
             
 !------------------------------------------------------------------------------
+! Calculate amount of memory to allocate.
+!------------------------------------------------------------------------------
+preallo = (part_branch%leaves(5)%dat_no * 3) / parts + 1
+
+!------------------------------------------------------------------------------
 ! Create Stiffness matrix
 ! Preallocation avoids dynamic allocations during matassembly.
 !------------------------------------------------------------------------------
@@ -468,11 +398,11 @@ CALL MatSetSizes(AA,PETSC_DECIDE,PETSC_DECIDE,m_size,m_size,petsc_ierr)
 CALL MatSetSizes(AA_org,PETSC_DECIDE,PETSC_DECIDE,m_size,m_size,petsc_ierr)
 
 ! https://lists.mcs.anl.gov/pipermail/petsc-users/2021-January/042972.html
-CALL MatSeqAIJSetPreallocation(AA, 0_ik, PETSC_NULL_INTEGER, petsc_ierr)
-CALL MatMPIAIJSetPreallocation(AA, 0_ik, PETSC_NULL_INTEGER, 0_ik, PETSC_NULL_INTEGER, petsc_ierr)
+CALL MatSeqAIJSetPreallocation(AA, preallo, PETSC_NULL_INTEGER, petsc_ierr)
+CALL MatMPIAIJSetPreallocation(AA, preallo, PETSC_NULL_INTEGER, preallo, PETSC_NULL_INTEGER, petsc_ierr)
 
-CALL MatSeqAIJSetPreallocation(AA_org, 0_ik, PETSC_NULL_INTEGER, petsc_ierr)
-CALL MatMPIAIJSetPreallocation(AA_org, 0_ik, PETSC_NULL_INTEGER, 0_ik, PETSC_NULL_INTEGER, petsc_ierr)
+CALL MatSeqAIJSetPreallocation(AA_org, preallo, PETSC_NULL_INTEGER, petsc_ierr)
+CALL MatMPIAIJSetPreallocation(AA_org, preallo, PETSC_NULL_INTEGER, preallo, PETSC_NULL_INTEGER, petsc_ierr)
 
 CALL MatSetOption(AA    ,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
 CALL MatSetOption(AA_org,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
