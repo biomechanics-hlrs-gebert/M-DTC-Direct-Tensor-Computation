@@ -409,6 +409,7 @@ $(obj_dir)mod_mat_matrices$(obj_ext):$(st_mod_dir)global_std$(mod_ext)  $(mod_di
 # Domain decomposition module
 # -----------------------------------------------------------------------------
 $(obj_dir)mod_decomp$(obj_ext):$(st_mod_dir)global_std$(mod_ext)  $(mod_dir)puredat$(mod_ext) \
+ 								$(mod_dir)puredat$(mod_ext) \
                                $(f_src_dir)mod_decomp$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_decomp$(f90_ext) "-----"
 	$(f90_compiler) $(c_flags_f90) -c $(f_src_dir)mod_decomp$(f90_ext) -o $@
@@ -498,9 +499,9 @@ $(obj_dir)dtc$(obj_ext):$(st_mod_dir)global_std$(mod_ext)     $(st_mod_dir)mecha
 								   $(mod_dir)auxiliaries$(mod_ext)       $(obj_dir)OS$(obj_ext) \
 								   $(mod_dir)operating_system$(mod_ext)  $(mod_dir)puredat$(mod_ext) \
 								   $(mod_dir)decomp$(mod_ext)            $(mod_dir)timer$(mod_ext) \
-								   $(mod_dir)chain_routines$(mod_ext) \
+								   $(mod_dir)chain_routines$(mod_ext)    $(st_mod_dir)mpi_system$(mod_ext) \
 								   $(st_mod_dir)ser_binary$(mod_ext)     $(st_mod_dir)mpi_binary$(mod_ext) \
-								   $(st_mod_dir)system$(mod_ext) \
+								   $(st_mod_dir)system$(mod_ext)         $(mod_dir)gen_geometry$(mod_ext) \
 								   $(obj_dir)metis_interface$(obj_ext)   $(mod_dir)metis$(mod_ext)\
 								   $(mod_dir)linfe$(mod_ext)             $(mod_dir)mesh_partitioning$(mod_ext) \
 								   $(mod_dir)write_deck$(mod_ext)        \

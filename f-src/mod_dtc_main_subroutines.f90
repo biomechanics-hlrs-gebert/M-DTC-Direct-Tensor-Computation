@@ -43,39 +43,40 @@ CONTAINS
 !> @param[in]    domain        ddc domain number
 !> @param[in]    job_dir       Job directory (Rank_...)
 !> @param[in]    fh_mpi_worker File handle of sub comm
-!> @param[in]    worker_rank_mpi
+!> @param[in]    rank_mpi
 !> @param[in]    parts
 !> @param[in]    comm_mpi
 !------------------------------------------------------------------------------
-Subroutine exec_single_domain(root, comm_nn, domain, type_raw, &
-    job_dir, fh_cluster_log, fh_mpi_worker, worker_rank_mpi, parts, comm_mpi)
+Subroutine exec_single_domain(root, comm_nn, domain, typeraw, &
+    job_dir, fh_cluster_log, active, fh_mpi_worker, comm_mpi, cn, mem_critical)
 
-TYPE(materialcard) :: bone, bone_adjusted
+TYPE(materialcard) :: bone
 INTEGER(mik), Intent(INOUT), Dimension(no_streams) :: fh_mpi_worker
 
 Character(*) , Intent(in)  :: job_dir
-Character(*) , Intent(in)  :: type_raw
-INTEGER(mik), Intent(In)  :: worker_rank_mpi, comm_mpi
-INTEGER(ik) , intent(in)  :: parts, comm_nn, domain, fh_cluster_log
+Character(*) , Intent(in)  :: typeraw
+INTEGER(mik), Intent(In)  :: comm_mpi
+INTEGER(ik) , intent(in)  :: comm_nn, domain, fh_cluster_log
+INTEGER(mik), intent(out) :: active
 Type(tBranch)    , Intent(inOut) :: root
+LOGICAL, INTENT(INOUT) :: mem_critical
 
 REAL(rk), DIMENSION(:), Pointer     :: displ, force
 REAL(rk), DIMENSION(:), Allocatable :: glob_displ, glob_force, zeros_R8
-REAL(rk) :: factor
 
 INTEGER(mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
-INTEGER(mik) :: ierr, petsc_ierr, result_len_mpi_procs
+INTEGER(mik) :: ierr, petsc_ierr, result_len_mpi_procs, rank_mpi, size_mpi
 
 INTEGER(pd_ik), Dimension(:), Allocatable :: serial_pb
 INTEGER(pd_ik) :: serial_pb_size
 
-INTEGER(ik) :: domain_elems, ii, jj, kk, id, stat, &
-    Istart,Iend, IVstart, IVend, m_size, mem_global, status_global, &
-    no_different_hosts, timestamp, HU, lower_limit, upper_limit, &
-    macro_order, no_elem_nodes, no_lc
+INTEGER(ik) :: preallo, domain_elems, ii, jj, kk, id, stat, cn, &
+    Istart,Iend, parts, IVstart, IVend, m_size, mem_global, status_global, &
+    ddc_nn, no_different_hosts, timestamp, macro_order, no_elem_nodes, no_lc
 
 INTEGER(ik), DIMENSION(24) :: collected_logs ! timestamps, memory_usage, pid_returned
-INTEGER(ik), Dimension(:), Allocatable :: nodes_in_mesh, gnid_cref
+INTEGER(ik), Dimension(:)  , Allocatable :: nodes_in_mesh
+INTEGER(ik), Dimension(:)  , Allocatable :: gnid_cref
 INTEGER(ik), Dimension(:,:), Allocatable :: res_sizes
 
 INTEGER(c_int) :: stat_c_int
@@ -83,9 +84,7 @@ INTEGER(c_int) :: stat_c_int
 CHARACTER(9)   :: domain_char
 CHARACTER(40)  :: mssg_fix_len
 CHARACTER(mcl) :: timer_name, rank_char, domain_desc, part_desc, &
-    desc, mesh_desc, filename, elt_micro, map_sgmnttn="", &
-    read_path, read_name, write_path, write_name
-CHARACTER(1) :: bin_sgmnttn=""
+    desc, mesh_desc, filename, elt_micro, nn_char
 
 Character, Dimension(4*mcl) :: c_char_array
 Character, Dimension(:), Allocatable :: char_arr
@@ -113,32 +112,37 @@ INTEGER(ik), Dimension(24)    :: idxm_08, idxn_08
 Real(rk),    Dimension(24,24) :: K_loc_08
 Type(tVec), Dimension(24) :: FF_08
 
+CALL MPI_COMM_RANK(comm_mpi, rank_mpi, ierr)
+CALL print_err_stop(std_out, "MPI_COMM_RANK of comm_mpi couldn't be retrieved", ierr)
+
+CALL MPI_COMM_SIZE(comm_mpi, size_mpi, ierr)
+CALL print_err_stop(std_out, "MPI_COMM_SIZE of comm_mpi couldn't be retrieved", ierr)
+
 collected_logs = 0_ik
 
-write(domain_char,'(I0)') domain
+mem_critical = .FALSE.
 
-!--------------------------------------------------------------------------
-! Get basic infos 
-!--------------------------------------------------------------------------
-host_of_part = ""
-CALL mpi_get_processor_name(host_of_part, result_len_mpi_procs, ierr) 
-CALL print_err_stop(std_out, "mpi_get_processor_name failed", ierr)
+write(domain_char,'(I0)') domain
 
 !------------------------------------------------------------------------------
 ! Get the mpi communicators total memory usage by the pids of the threads.
 !------------------------------------------------------------------------------
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
+! Abort if DTC consumes to much memory
+IF ((REAL(mem_global,rk)/1000._rk/1000._rk/REAL(cn,rk)) > global_mem_threshold) THEN
+    mem_critical = .TRUE.
+    GOTO 1000
+END IF 
+
 !------------------------------------------------------------------------------
 ! Tracking (the memory usage is) intended for use during production too.
 !------------------------------------------------------------------------------
-IF (worker_rank_mpi == 0) THEN
+IF (rank_mpi == 0) THEN
     collected_logs(1) = INT(time(), ik)
     collected_logs(8) = mem_global
     collected_logs(15) = status_global
 END IF
-
-
 
 
 CALL Search_branch("Input parameters", root, meta_para, success, out_amount)
@@ -151,7 +155,7 @@ CALL pd_get(meta_para, "Poisson_s ratio" , bone%nu)
 !------------------------------------------------------------------------------
 ! Rank = 0 -- Local master of comm_mpi
 !------------------------------------------------------------------------------
-If (worker_rank_mpi == 0) then
+If (rank_mpi == 0) then
    
     !------------------------------------------------------------------------------
     ! Create job directory in case of non-production run
@@ -184,7 +188,6 @@ If (worker_rank_mpi == 0) then
     Write(un_lf,FMT_MSG_SEP)
     timestamp = time()
 
-    
     WRITE(un_lf, '(A,I0)') 'Start time: ', timestamp
 
     Write(un_lf, FMT_MSG_xAI0) "Domain No.: ", domain
@@ -203,15 +206,13 @@ If (worker_rank_mpi == 0) then
 
     CALL start_timer(trim(timer_name), .FALSE.)
 
-    write_path = pro_path
-    write_name = pro_name
+    ! write_path = pro_path
+    ! write_name = pro_name
 
-    CALL generate_geometry(root, domain, job_dir, type_raw, parts, success)
+    CALL generate_geometry(root, domain, job_dir, typeraw, parts, success)
     
-    read_path = pro_path ! For documentary purposes 
-    read_name = pro_name ! For documentary purposes     
-    pro_path = write_path
-    pro_name = write_name
+    ! pro_path = write_path
+    ! pro_name = write_name
 
     if (.not. success) write(std_out, FMT_WRN)"generate_geometry() failed."
     
@@ -270,7 +271,7 @@ If (worker_rank_mpi == 0) then
         If (.NOT. success) Then
             WRITE(mssg,'(A,I0,A,L,A,I0,A)') "Something bad and unexpected happend &
             &in exec_single_domain! Looking for branch of part ",ii," returned ", &
-                success, "MPI proc ",worker_rank_mpi," halted."
+                success, "MPI proc ",rank_mpi," halted."
             CALL print_err_stop(std_out, mssg, 0)
         End If
 
@@ -308,14 +309,14 @@ Else
     IF(.NOT. success) GOTO 1000
 
     CALL mpi_recv(serial_pb_size, 1_mik, MPI_INTEGER8, 0_mik, &
-        worker_rank_mpi, COMM_MPI, status_mpi, ierr)
+        rank_mpi, COMM_MPI, status_mpi, ierr)
 
     if (allocated(serial_pb)) deallocate(serial_pb)
     
     Allocate(serial_pb(serial_pb_size))
 
     CALL mpi_recv(serial_pb, INT(serial_pb_size,mik), MPI_INTEGER8, &
-        0_mik, worker_rank_mpi, COMM_MPI, status_mpi, ierr)
+        0_mik, rank_mpi, COMM_MPI, status_mpi, ierr)
 
     !------------------------------------------------------------------------------
     ! Deserialize part branch
@@ -330,7 +331,7 @@ Else
 
     CALL mpi_bcast(m_size, 1_mik, MPI_INTEGER8, 0_mik, COMM_MPI, ierr)
             
-End If ! (worker_rank_mpi == 0) then
+End If ! (rank_mpi == 0) then
 
 !------------------------------------------------------------------------------
 ! Abort this domain in case of a fatal error in reading the mesh branch.
@@ -345,7 +346,7 @@ IF(.NOT. success) GOTO 1000
 ! system multiple times. Save the solutions to calculate effective
 ! stiffness matirces.
 !------------------------------------------------------------------------------
-IF (worker_rank_mpi == 0) THEN   ! Sub Comm Master
+IF (rank_mpi == 0) THEN   ! Sub Comm Master
 
     If (out_amount == "DEBUG") THEN 
         Write(un_lf, fmt_dbg_sep)
@@ -370,10 +371,16 @@ END IF
 !------------------------------------------------------------------------------
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
+! Abort if DTC consumes to much memory
+IF ((REAL(mem_global,rk)/1000._rk/1000._rk/REAL(cn,rk)) > global_mem_threshold) THEN
+    mem_critical = .TRUE.
+    GOTO 1000
+END IF 
+
 !------------------------------------------------------------------------------
 ! Tracking (the memory usage is) intended for use during production too.
 !------------------------------------------------------------------------------
-IF (worker_rank_mpi == 0) THEN
+IF (rank_mpi == 0) THEN
     collected_logs(2) = INT(time(), ik)
     collected_logs(9) = mem_global
     collected_logs(16) = status_global
@@ -407,14 +414,18 @@ CALL MatMPIAIJSetPreallocation(AA_org, preallo, PETSC_NULL_INTEGER, preallo, PET
 CALL MatSetOption(AA    ,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
 CALL MatSetOption(AA_org,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
 
- 
-
 !------------------------------------------------------------------------------
 ! Get and write another memory log.
 !------------------------------------------------------------------------------
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
-IF (worker_rank_mpi == 0) THEN
+! Abort if DTC consumes to much memory
+IF ((REAL(mem_global,rk)/1000._rk/1000._rk/REAL(cn,rk)) > global_mem_threshold) THEN
+    mem_critical = .TRUE.
+    GOTO 1000
+END IF 
+
+IF (rank_mpi == 0) THEN
     collected_logs(3) = INT(time(), ik)
     collected_logs(10) = mem_global
     collected_logs(17) = status_global
@@ -424,17 +435,17 @@ END IF
 !------------------------------------------------------------------------------
 ! End timer
 !------------------------------------------------------------------------------
-IF (worker_rank_mpi == 0) CALL end_timer(TRIM(timer_name))
+IF (rank_mpi == 0) CALL end_timer(TRIM(timer_name))
 
 If (out_amount == "DEBUG-ALL") THEN 
     CALL MatGetOwnershipRange(AA, Istart, Iend, petsc_ierr)
     Write(un_lf,"('MM ', A,I4,A,A6,2(A,I9))")&
-        "MPI rank : ",worker_rank_mpi,"| matrix ownership for ","A    ", ":",Istart," -- " , Iend
+        "MPI rank : ",rank_mpi,"| matrix ownership for ","A    ", ":",Istart," -- " , Iend
 
     CALL MatGetOwnershipRange(AA_org, Istart, Iend, petsc_ierr)
 
     Write(un_lf, "('MM ', A,I4,A,A6,2(A,I9))") &
-    "MPI rank : ", worker_rank_mpi, "| matrix ownership for ", "A_org", ":",Istart, " -- " , Iend
+    "MPI rank : ", rank_mpi, "| matrix ownership for ", "A_org", ":",Istart, " -- " , Iend
 End If
 
 !------------------------------------------------------------------------------
@@ -449,14 +460,8 @@ End If
 !------------------------------------------------------------------------------
 
 !------------------------------------------------------------------------------
-! Segmentation specific information
+! Get micro and macro element types
 !------------------------------------------------------------------------------
-CALL pd_get(root%branches(1), 'Binary segmentation', char_arr)
-bin_sgmnttn = char_to_str(char_arr)
-
-CALL pd_get(root%branches(1), 'Segmentation map', char_arr)
-map_sgmnttn = char_to_str(char_arr)
-
 CALL pd_get(root%branches(1), 'Element type  on micro scale', char_arr)
 elt_micro = char_to_str(char_arr)
 
@@ -475,12 +480,25 @@ ELSE
     CALL print_err_stop(std_out, "Element orders other than 1 or 2 are not supported", 1)
 END IF
 
-bone_adjusted%nu = bone%nu
- 
+!------------------------------------------------------------------------------
+! Set macro element specific stuff
+!------------------------------------------------------------------------------
+IF (macro_order == 1) THEN
+    no_elem_nodes = 8
+    no_lc = 24
+ELSE IF (macro_order == 2) THEN
+    no_elem_nodes = 20
+    no_lc = 60
+ELSE
+    CALL print_err_stop(std_out, "Element orders other than 1 or 2 are not supported", 1)
+END IF
+
 !------------------------------------------------------------------------------
 ! Assemble matrix
 !------------------------------------------------------------------------------
 if (TRIM(elt_micro) == "HEX08") then
+
+    K_loc_08 = Hexe08(bone)
 
     domain_elems = part_branch%leaves(5)%dat_no / 8
 
@@ -493,92 +511,15 @@ if (TRIM(elt_micro) == "HEX08") then
             
             id = part_branch%leaves(5)%p_int8(jj)
             id = (id - 1) * 3
-
+            
             idxm_08(kk)   = (id    ) !*cr
             idxm_08(kk+1) = (id + 1) !*cr
             idxm_08(kk+2) = (id + 2) !*cr
             
             kk = kk + 3
+            
         End Do
-                        
-        IF (bin_sgmnttn == "Y") THEN
-
-            HU = part_branch%leaves(6)%p_int8(ii)
-
-            !------------------------------------------------------------------------------
-            ! Need to distinguish between > and < 1000 HU. Otherwise, the young modulus
-            ! may be negative, which leads to faulty results.
-            !------------------------------------------------------------------------------
-    
-            !------------------------------------------------------------------------------
-            ! FH01-4_cl
-            !------------------------------------------------------------------------------
-            lower_limit = 250_ik
-            upper_limit = 14250_ik
-    
-            !------------------------------------------------------------------------------
-            ! FH01-1_mu_121212
-            !------------------------------------------------------------------------------
-            ! lower_limit = 22000_ik
-            ! upper_limit = 35000_ik
-    
-            !------------------------------------------------------------------------------
-            ! FH01-1_mu_121240
-            !------------------------------------------------------------------------------
-            ! lower_limit = 22000_ik
-            ! upper_limit = 35000_ik
-    
-    
-            IF (HU > lower_limit) THEN
-                
-                IF (HU < 400_ik) THEN
-                    factor = 0.2_rk - REAL(400_ik-HU, rk)*0.001_rk
-                    ! factor = 0.2_rk - REAL(600_ik-HU, rk)*0.00025_rk
-                ELSE
-                    factor = 0.2_rk + 0.000057762_rk * REAL(HU-400_ik, rk)
-                    ! factor = 0.0_rk 
-                END IF 
-                
-                !------------------------------------------------------------------------------
-                ! FH01-4_cl
-                !------------------------------------------------------------------------------
-                ! factor = 1._rk / REAL((upper_limit-lower_limit),rk) * REAL((HU - lower_limit), rk)
-                K_loc_08 = Hexe08_FH01_4_cl(bone) * factor
-                !
-                !------------------------------------------------------------------------------
-                ! FH01-1_mu_121212
-                !------------------------------------------------------------------------------
-                ! factor = 1._rk / REAL((upper_limit-lower_limit),rk) * REAL((HU - lower_limit), rk) * 0.5
-                ! K_loc_08 = Hexe08_5600_03_121212(bone) * factor
-                !
-                !------------------------------------------------------------------------------
-                ! FH01-1_mu_121240
-                !------------------------------------------------------------------------------
-                ! factor = 1._rk / REAL((upper_limit-lower_limit),rk) * REAL((HU - lower_limit), rk) * 0.5
-                ! K_loc_08 = Hexe08_5600_03_121240(bone) * factor
-                ! 
-                ! K_loc_08 = Hexe08(bone)
-                ! K_loc_08 = Hexe08_5600_03_121212(bone)
-                ! K_loc_08 = Hexe08_5600_03_121240(bone)
-    
-                ! K_loc_08 = K_loc_08 * factor
-    
-            ELSE
-                bone_adjusted%E = 0._rk
-                ! K_loc_08 = Hexe08(bone_adjusted)
-                
-                ! K_loc_08 = Hexe08(bone)
-                ! K_loc_08 = Hexe08_5600_03_121212(bone)
-                ! K_loc_08 = Hexe08_5600_03_121240(bone)
-                K_loc_08 = Hexe08_FH01_4_cl(bone_adjusted)
-                
-            END IF 
-        ELSE ! (bin_sgmnttn == "N") THEN
-            K_loc_08 = Hexe08(bone_adjusted)
-        END IF 
-
-        K_loc_08 = Hexe08(bone)
-
+        
         idxn_08 = idxm_08
 
         CALL MatSetValues(AA, 24_8, idxm_08, 24_8 ,idxn_08, K_loc_08, ADD_VALUES, petsc_ierr)
@@ -608,28 +549,9 @@ else if (elt_micro == "HEX20") then
             idxm_20(kk+2) = (id + 2) !*cr
             
             kk = kk + 3
-
+            
         End Do
-
-        IF (bin_sgmnttn == "Y") THEN
-
-            HU = part_branch%leaves(6)%p_int8(ii)
-
-            IF (HU > 1000_ik) THEN
-                factor = 1._rk / REAL((14250_ik-1000_ik),rk) * REAL((HU - 1000_ik), rk)
-                    
-                K_loc_20 = Hexe20(bone)
-    
-                K_loc_20 = K_loc_20 * factor
-            ELSE
-                bone_adjusted%E = 0._rk
-                K_loc_20 = Hexe20(bone_adjusted)
-            END IF 
-    
-        ELSE
-            K_loc_20 = Hexe20(bone_adjusted)
-        END IF 
-                
+        
         idxn_20 = idxm_20
 
         CALL MatSetValues(AA, 60_8, idxm_20, 60_8 ,idxn_20, K_loc_20, ADD_VALUES, petsc_ierr)
@@ -639,9 +561,7 @@ else if (elt_micro == "HEX20") then
 
 end if
 
- 
-
-IF (worker_rank_mpi == 0) THEN   ! Sub Comm Master
+IF (rank_mpi == 0) THEN   ! Sub Comm Master
     SELECT CASE (timer_level)
     CASE (1)
         timer_name = "+-- MatAssemblyBegin "//TRIM(domain_char)
@@ -657,7 +577,13 @@ END IF
 !------------------------------------------------------------------------------
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
-IF (worker_rank_mpi == 0) THEN
+! Abort if DTC consumes to much memory
+IF ((REAL(mem_global,rk)/1000._rk/1000._rk/REAL(cn,rk)) > global_mem_threshold) THEN
+    mem_critical = .TRUE.
+    GOTO 1000
+END IF 
+
+IF (rank_mpi == 0) THEN
     collected_logs(4) = INT(time(), ik)
     collected_logs(11) = mem_global
     collected_logs(18) = status_global
@@ -672,7 +598,7 @@ CALL MatAssemblyEnd(AA_org, MAT_FINAL_ASSEMBLY ,petsc_ierr)
 !------------------------------------------------------------------------------
 ! End timer
 !------------------------------------------------------------------------------
-IF (worker_rank_mpi == 0) CALL end_timer(TRIM(timer_name))
+IF (rank_mpi == 0) CALL end_timer(TRIM(timer_name))
 
 !------------------------------------------------------------------------------
 ! Crashes on hawk. Out of memory?
@@ -692,7 +618,7 @@ IF (worker_rank_mpi == 0) CALL end_timer(TRIM(timer_name))
 ! have to be eliminated. To do that with MatZeroRowsColumns we need
 ! right hand side vectors and a solution vector.
 !------------------------------------------------------------------------------
-IF (worker_rank_mpi == 0) THEN   ! Sub Comm Master
+IF (rank_mpi == 0) THEN   ! Sub Comm Master
     SELECT CASE (timer_level)
     CASE (1)
         timer_name = "+-- create_rh_solution_vetors "//TRIM(domain_char)
@@ -709,7 +635,13 @@ END IF
 !------------------------------------------------------------------------------
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
-IF (worker_rank_mpi == 0) THEN
+! Abort if DTC consumes to much memory
+IF ((REAL(mem_global,rk)/1000._rk/1000._rk/REAL(cn,rk)) > global_mem_threshold) THEN
+    mem_critical = .TRUE.
+    GOTO 1000
+END IF 
+
+IF (rank_mpi == 0) THEN
     collected_logs(5) = INT(time(), ik)
     collected_logs(12) = mem_global
     collected_logs(19) = status_global
@@ -738,7 +670,7 @@ Do ii = 1, no_lc
 
     If (out_amount == "DEBUG-ALL") THEN 
         Write(un_lf,"('MM ', A,I4,A,A6,2(A,I9))")&
-            "MPI rank : ",worker_rank_mpi,"| vector ownership for ","F", ":",IVstart," -- " , IVend
+            "MPI rank : ",rank_mpi,"| vector ownership for ","F", ":",IVstart," -- " , IVend
     End If
     
     !------------------------------------------------------------------------------
@@ -814,11 +746,11 @@ CALL VecGetOwnershipRange(XX, IVstart, IVend, petsc_ierr)
 !------------------------------------------------------------------------------
 ! End timer
 !------------------------------------------------------------------------------
-IF (worker_rank_mpi == 0) CALL end_timer(TRIM(timer_name))
+IF (rank_mpi == 0) CALL end_timer(TRIM(timer_name))
 
 If (out_amount == "DEBUG-ALL") THEN ! May end up in a fort.* file in the root directory
     Write(un_lf,"('MM ', A,I4,A,A6,2(A,I9))") &
-        "MPI rank : ",worker_rank_mpi,"| vector ownership for ","X", ":",IVstart," -- " , IVend
+        "MPI rank : ",rank_mpi,"| vector ownership for ","X", ":",IVstart," -- " , IVend
     CALL PetscViewerCreate(COMM_MPI, PetscViewer, petsc_ierr)
     CALL PetscViewerASCIIOpen(COMM_MPI,"FX.output.1",PetscViewer, petsc_ierr);
     CALL PetscViewerSetFormat(PetscViewer, PETSC_VIEWER_ASCII_DENSE, petsc_ierr)
@@ -835,7 +767,7 @@ End If
 ! X filled with the negative displacement values.
 ! (See above VecSetValues(XX, ... , -boundary_branch%leaves(2)%p_real8, ... )
 !------------------------------------------------------------------------------
-IF (worker_rank_mpi == 0) THEN   ! Sub Comm Master
+IF (rank_mpi == 0) THEN   ! Sub Comm Master
     SELECT CASE (timer_level)
     CASE (1)
         timer_name = "+-- compute_bndry_conditions "//TRIM(domain_char)
@@ -968,6 +900,7 @@ ELSE IF (macro_order == 2) THEN
 
 END IF
 
+
 !------------------------------------------------------------------------------
 ! Since we are filling XX with the prescribed displacements
 ! times -1. , we have to rescale XX before using it in
@@ -989,7 +922,7 @@ END IF
 !------------------------------------------------------------------------------
 ! End timer
 !------------------------------------------------------------------------------
-IF (worker_rank_mpi == 0) CALL end_timer(TRIM(timer_name))
+IF (rank_mpi == 0) CALL end_timer(TRIM(timer_name))
 
 If (out_amount == "DEBUG") THEN 
 
@@ -1013,7 +946,7 @@ End If
 ! Now a linear solver context can be set up and the linear systems with
 ! constant operator A and variable right hand side can be solved       
 !------------------------------------------------------------------------------
-IF (worker_rank_mpi == 0) THEN   ! Sub Comm Master
+IF (rank_mpi == 0) THEN   ! Sub Comm Master
     SELECT CASE (timer_level)
     CASE (1)
         timer_name = "+-- solve_system "//TRIM(domain_char)
@@ -1024,17 +957,6 @@ IF (worker_rank_mpi == 0) THEN   ! Sub Comm Master
     CALL start_timer(TRIM(timer_name), .FALSE.)
 END IF 
 
-
-!------------------------------------------------------------------------------
-! Get and write another memory log.
-!------------------------------------------------------------------------------
-CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
-
-IF (worker_rank_mpi == 0) THEN
-    collected_logs(6) = INT(time(), ik)
-    collected_logs(13) = mem_global
-    collected_logs(20) = status_global
-END IF
 
 !------------------------------------------------------------------------------
 ! Create linear solver context
@@ -1069,7 +991,7 @@ CALL KSPSetTolerances(ksp,1.e-2/((m_size+1)*(m_size+1)),1.e-50_rk, &
 !------------------------------------------------------------------------------
 CALL KSPSetFromOptions(ksp, petsc_ierr)
 
-If ((out_amount == "DEBUG") .AND. (worker_rank_mpi == 0)) THEN 
+If ((out_amount == "DEBUG") .AND. (rank_mpi == 0)) THEN 
     filename=''
     write(filename,'(A,I0,A)')trim(job_dir)//trim(project_name)//"_",domain,"_usg.vtk"
     CALL write_data_head(filename, m_size/3)
@@ -1082,7 +1004,7 @@ End If
 ! !! Initial try ... Communicate all results to master and !!
 ! !! do serial calc_effective_material_parameters          !!
 !------------------------------------------------------------------------------
-IF (worker_rank_mpi == 0) THEN
+IF (rank_mpi == 0) THEN
 
     CALL add_branch_to_branch(mesh_branch, esd_result_branch)
     ! Raise branch with 4 child branches
@@ -1111,9 +1033,9 @@ IF (worker_rank_mpi == 0) THEN
     ! Allocate global forces result
     Allocate(glob_force(0:m_size-1))
     ! Allocate local bounds for global result
-    Allocate(res_sizes(2,parts-1))
+    Allocate(res_sizes(2,size_mpi-1))
     
-End If ! (worker_rank_mpi == 0) THEN
+End If ! (rank_mpi == 0) THEN
 
 Do jj = 1, no_lc
     
@@ -1168,18 +1090,19 @@ Do jj = 1, no_lc
         CALL VecGetArrayReadF90(FF_20(jj),force,petsc_ierr)
     END IF 
 
+    
     !------------------------------------------------------------------------------
     ! Master/Worker
     !------------------------------------------------------------------------------
-    if (worker_rank_mpi > 0) then
+    if (rank_mpi > 0) then
         CALL mpi_send([IVstart,IVend], 2_mik, &
-            MPI_Integer8,  0_mik, worker_rank_mpi, COMM_MPI, ierr)
+            MPI_Integer8,  0_mik, rank_mpi, COMM_MPI, ierr)
         
         CALL mpi_send(displ, Int(IVend-IVstart,mik), &
-            MPI_Real8,  0_mik, Int(worker_rank_mpi+parts,mik), COMM_MPI, ierr)
+            MPI_Real8,  0_mik, Int(rank_mpi+size_mpi,mik), COMM_MPI, ierr)
 
         CALL mpi_send(force, Int(IVend-IVstart,mik), &
-            MPI_Real8,  0_mik, Int(worker_rank_mpi+2*parts,mik), COMM_MPI, ierr)
+            MPI_Real8,  0_mik, Int(rank_mpi+2*size_mpi,mik), COMM_MPI, ierr)
 
     Else ! Master
 
@@ -1192,7 +1115,7 @@ Do jj = 1, no_lc
         !------------------------------------------------------------------------------
         ! Recv bounds of local results
         !------------------------------------------------------------------------------
-        Do ii = 1, parts-1
+        Do ii = 1, size_mpi-1
             CALL mpi_recv(res_sizes(:,ii), 2_mik, MPI_Integer8,  Int(ii, mik), &
                 Int(ii, mik), COMM_MPI, status_mpi, ierr)
         End Do
@@ -1200,15 +1123,15 @@ Do jj = 1, no_lc
         !------------------------------------------------------------------------------
         ! Recv local parts of global result
         !------------------------------------------------------------------------------
-        Do ii = 1, parts-1
+        Do ii = 1, size_mpi-1
             CALL mpi_recv(glob_displ(res_sizes(1,ii):res_sizes(2,ii)-1), &
                 Int(res_sizes(2,ii)-res_sizes(1,ii),mik), &
-                MPI_Integer8,  Int(ii, mik), Int(ii+parts, mik), &
+                MPI_Integer8,  Int(ii, mik), Int(ii+size_mpi, mik), &
                 COMM_MPI, status_mpi, ierr)
 
             CALL mpi_recv(glob_force(res_sizes(1,ii):res_sizes(2,ii)-1), &
                 Int(res_sizes(2,ii)-res_sizes(1,ii),mik), &
-                MPI_Integer8,  Int(ii, mik), Int(ii+2*parts, mik) , &
+                MPI_Integer8,  Int(ii, mik), Int(ii+2*size_mpi, mik) , &
                 COMM_MPI, status_mpi, ierr)
         End Do
 
@@ -1244,17 +1167,23 @@ End Do
 !------------------------------------------------------------------------------
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
-IF (worker_rank_mpi == 0) THEN
-    collected_logs(7) = INT(time(), ik)
-    collected_logs(14) = mem_global
-    collected_logs(21) = status_global
+! Abort if DTC consumes to much memory
+IF ((REAL(mem_global,rk)/1000._rk/1000._rk/REAL(cn,rk)) > global_mem_threshold) THEN
+    mem_critical = .TRUE.
+    GOTO 1000
+END IF 
+
+IF (rank_mpi == 0) THEN
+    collected_logs(6) = INT(time(), ik)
+    collected_logs(13) = mem_global
+    collected_logs(20) = status_global
 END IF
 
 !------------------------------------------------------------------------------
 ! All 24 linear system solutions are produced. 
 ! Effective stiffnesses can be calculated.
 !------------------------------------------------------------------------------
-if (worker_rank_mpi == 0) then
+if (rank_mpi == 0) then
 
     CALL end_timer(TRIM(timer_name))
 

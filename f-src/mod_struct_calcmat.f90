@@ -23,7 +23,7 @@ contains
 subroutine calc_effective_material_parameters(root, comm_nn, ddc_nn, &
      fh_mpi_worker, size_mpi, collected_logs)
 
-Type(tBranch)     , Intent(InOut) :: root
+Type(tBranch), Intent(InOut) :: root
 INTEGER(mik) , Intent(In) :: size_mpi
 integer(ik)  , Intent(in) :: ddc_nn, comm_nn
 Integer(mik), Dimension(no_streams), Intent(in) :: fh_mpi_worker
@@ -48,8 +48,8 @@ Real(rk):: E_Modul, nu, rve_strain, v_elem, v_cube
 Integer(mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
 Integer(mik) :: ierr, global_rank_mpi
 
-integer(ik) :: ii, jj, kk, ll, no_elem_nodes, no_lc, num_leaves, alloc_stat, &
-     no_elems, no_nodes, no_cnodes, macro_order, ii_phi, ii_eta, kk_phi, kk_eta
+integer(ik) :: ii, jj, kk, ll, no_elem_nodes, micro_elem_nodes, no_lc, num_leaves, alloc_stat, &
+     no_elems, no_nodes, no_cnodes, macro_order, ii_phi, ii_eta, kk_phi, kk_eta, mem_global, status_global
 
 Integer(ik), Dimension(:,:,:,:), Allocatable :: ang
 Integer(ik), Dimension(:)      , Allocatable :: xa_n, xe_n, no_cnodes_pp, cref_cnodes
@@ -241,6 +241,20 @@ call alloc_err("stiffness", alloc_stat)
 
 allocate(tmp_nn(no_elem_nodes), stat=alloc_stat)
 call alloc_err("tmp_nn", alloc_stat)
+
+
+!------------------------------------------------------------------------------
+! Additional, quite special measurement of the memeory usage. Needs proper 
+! Postprocessing, because this memory value is extracted only from the 
+! main process of the domain communicator (!) All other mem values are
+! retrieved from all comm processes together. However they are not analyzed
+! per compute node, because that would require to know the exact assignment 
+! of the rank to a compute node. This is possible, but quite a lot of effort.
+! Measuring worker_main_rank is easier and a worst-case-assumption.
+!------------------------------------------------------------------------------
+collected_logs(7) = INT(time(), ik)
+collected_logs(14) = system_mem_usage()
+collected_logs(21) = 1_ik
 
 If (out_amount == "DEBUG") THEN
     WRITE(un_lf, FMT_DBG_SEP)
@@ -511,6 +525,9 @@ CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
     Int(root%branches(3)%leaves(11)%lbound-1+(comm_nn-1)*6*no_lc, MPI_OFFSET_KIND), &
     reshape(int_strain,[6*no_lc]), &
     Int(6*no_lc, pd_mik), MPI_REAL8, status_mpi, ierr)
+
+DEALLOCATE(int_strain)
+DEALLOCATE(int_stress)
 
 !------------------------------------------------------------------------------
 ! Calc theoretical effective stiffness
@@ -1615,7 +1632,7 @@ EE_Orig = EE
 
        If (out_amount /= "PRODUCTION" ) write(un_lf,*)"132"
 
-       ! 132 => 123 ********
+       ! 132 => 123
        n = aa(:,1)
        alpha = pi/2
        aa = matmul(rot_alg(n,alpha),aa)   
@@ -1625,12 +1642,12 @@ EE_Orig = EE
 
        If (out_amount /= "PRODUCTION" ) write(un_lf,*)"231"
 
-       ! 231 => 132 ********
+       ! 231 => 132
        n = aa(:,2)
        alpha = pi/2
        aa = matmul(rot_alg(n,alpha),aa)
 
-       ! 132 => 123 ********
+       ! 132 => 123
        n = aa(:,1)
        alpha = pi/2
        aa = matmul(rot_alg(n,alpha),aa)   
@@ -1640,7 +1657,7 @@ EE_Orig = EE
 
        If (out_amount /= "PRODUCTION" ) write(un_lf,*)"213"
 
-       ! 213 => 123 ********
+       ! 213 => 123
        n = aa(:,3)
        alpha = pi/2
        aa = matmul(rot_alg(n,alpha),aa)   
@@ -1650,12 +1667,12 @@ EE_Orig = EE
 
        If (out_amount /= "PRODUCTION" ) write(un_lf,*)"312"
 
-       ! 312 => 132 ********
+       ! 312 => 132
        n = aa(:,3)
        alpha = pi/2
        aa = matmul(rot_alg(n,alpha),aa)   
 
-       ! 132 => 123 ********
+       ! 132 => 123
        n = aa(:,1)
        alpha = pi/2
        aa = matmul(rot_alg(n,alpha),aa)  
@@ -1665,7 +1682,7 @@ EE_Orig = EE
 
        If (out_amount /= "PRODUCTION" ) write(un_lf,*)"321"
 
-       ! 321 => 123 ********
+       ! 321 => 123
        n = aa(:,2)
        alpha = pi/2
        aa = matmul(rot_alg(n,alpha),aa)  
@@ -1771,11 +1788,8 @@ EE_Orig = EE
                collected_logs, 24_pd_mik, MPI_INTEGER8, status_mpi, ierr)
      END IF
 
-    DEALLOCATE(tmp_nn, delta, x_D_phy)
-    DEALLOCATE(nodes, vv, ff, stiffness)
-    DEALLOCATE(calc_rforces, uu, rforces, edat, crit_1, crit_2)
-    DEALLOCATE(ang)
-    DEALLOCATE(no_cnodes_pp, cref_cnodes)
+    DEALLOCATE(tmp_nn, delta, x_D_phy, nodes, vv, ff, stiffness, calc_rforces, uu, &
+     rforces, edat, crit_1, crit_2, ang, no_cnodes_pp, cref_cnodes)
 
 End subroutine calc_effective_material_parameters
 

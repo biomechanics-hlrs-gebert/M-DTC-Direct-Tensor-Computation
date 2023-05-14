@@ -183,8 +183,10 @@ Type(tBranch), Pointer :: meta_para, domain_branch
             EXIT
         END IF 
     END DO 
-
-   !----------------------------------------------------------------------------
+    
+    write(*,FMT_TXT_AxI0) "ddc_nn: ", ddc_nn, first_bytes, phi_desc%no_leaves
+   
+    !----------------------------------------------------------------------------
    ! Retrieve basic geometric information
    !----------------------------------------------------------------------------
     call pd_get(meta_para, "Grid spacings", delta)  
@@ -450,10 +452,10 @@ Type(tBranch), Pointer :: meta_para, domain_branch
                   bounds_b%leaves(2)%p_real8((jj-1)*3+1:(jj-1)*3+3)
           End Do
           
-          filename = ""
-          Write(filename,'(A,A,I0,A,I0,A)')trim(job_dir),"Part-",ii,"_",ddc_nn,".vtk"
+        !   filename = ""
+        !   Write(filename,'(A,A,I0,A,I0,A)')trim(job_dir),"Part-",ii,"_",ddc_nn,".vtk"
 
-          INQUIRE(FILE=TRIM(filename), EXIST=fex)
+        !   INQUIRE(FILE=TRIM(filename), EXIST=fex)
 
           Call write_vtk_data_real8_vector_1D ( &
                displ, Trim(filename), "BoundDispl", .FALSE., "POINT_DATA")

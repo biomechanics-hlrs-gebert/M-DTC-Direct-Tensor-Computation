@@ -3,7 +3,7 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 ![Architecture](https://img.shields.io/badge/Architecture-x86_64-blue)
 ![OS](https://img.shields.io/badge/OS-Linux-blue)
-![version](https://img.shields.io/badge/version-1.0.0-blue)
+![version](https://img.shields.io/badge/version-1.2.0-blue)
 
 
 
@@ -25,7 +25,7 @@ mpirun ./bin/dtc_v1.0.0_x86_64 -np 32768 <basename>.meta
 ```
 Testing on a local machine with short turnaround times is recommended with up to 6 cores, depending on your system. 
 
-In general, the tool is capable of running on more than 100.000 x86_64 cores with virtually no limit in wall time. Please be aware that computations on large datasets will need computational power of this magnitude.
+In general, the tool is capable of running on more than 100.000 x86_64 cores. Please be aware that computations on large datasets will need computational power of this magnitude.
 
 ### Tracking of the status of the computation
 To show the current status of the computation, dump the integer 8 data of the status file with the input basename of the computation.  

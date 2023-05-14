@@ -96,7 +96,8 @@ TYPE(materialcard) :: bone
 
 INTEGER(mik) :: ierr, rank_mpi, size_mpi, petsc_ierr, &
     worker_rank_mpi, worker_size_mpi, status_un, comms_un, parts_un, &
-    worker_comm, comms_dmn_un, runtime_un
+    worker_comm, comms_dmn_un, runtime_un, &
+    Active, request, finished = -1
 
 INTEGER(mik), Dimension(no_streams) :: fh_mpi_worker
 INTEGER(mik), Dimension(MPI_STATUS_SIZE)  :: status_mpi
@@ -134,14 +135,14 @@ INTEGER(ik) :: nn, ii, jj, kk, ll, dc, computed_domains = 0, comm_nn = 1, max_do
     alloc_stat, fh_cluster_log, free_file_handle, stat, No_of_cores_requested, my_global_rank, &
     no_lc=0, nl=0, Domain, llimit, parts, elo_macro, vdim(3), groups_size, parts_size, &
     global_color, rank, no_of_comms, comm_floor, comm_ceiling, comm_color, round_robin_skip, mesh_p_per_dmn, &
-    max_skip, comm_counter, dmn_status, add_leaf_pntr, probably_failed
+    max_skip, comm_counter, dmn_status, add_leaf_pntr, probably_failed, cn
 INTEGER(pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
 INTEGER(pd_ik), DIMENSION(no_streams) :: dsize
 
 INTEGER(pd_ik) :: serial_root_size, add_leaves
 
 LOGICAL :: success, status_exists, groups_exists, parts_exists, comms_dmn_exists,&
-    heaxist, abrt = .FALSE., already_finished=.FALSE., skip_active = .TRUE., &
+    heaxist, abrt = .FALSE., already_finished=.FALSE., skip_active = .TRUE., mem_critical = .FALSE., &
     create_new_header = .FALSE., fex=.TRUE., no_restart_required = .FALSE., runtime_exists=.FALSE.
 
 !----------------------------------------------------------------------------
@@ -1216,7 +1217,7 @@ IF (rank_mpi /= 0) THEN
         ! Compute a domain
         !==============================================================================
         CALL exec_single_domain(root, comm_nn, Domain, type_raw, job_dir, fh_cluster_log, &
-            fh_mpi_worker, worker_rank_mpi, parts, worker_comm)
+        Active, fh_mpi_worker, worker_comm, cn, mem_critical)
         !==============================================================================
 
         !------------------------------------------------------------------------------
