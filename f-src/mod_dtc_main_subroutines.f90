@@ -1193,7 +1193,12 @@ if (rank_mpi == 0) then
     CALL calc_effective_material_parameters(root, comm_nn, domain, &
         fh_mpi_worker, size_mpi, comm_mpi, collected_logs)
     CALL end_timer(TRIM(timer_name))
-    
+            
+    IF(((MAXVAL(collected_logs(8:13))/1000._rk/1000._rk/REAL(cn,rk)) > global_mem_threshold ) .OR. &
+       ((       collected_logs(  14) /1000._rk/1000._rk            ) > global_mem_threshold )) THEN
+        mem_critical = .TRUE.
+    END IF 
+
 ELSE
     DEALLOCATE(part_branch)
 End if
