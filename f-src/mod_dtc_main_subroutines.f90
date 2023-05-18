@@ -44,7 +44,7 @@ CONTAINS
 !> @param[in]    job_dir       Job directory (Rank_...)
 !> @param[in]    fh_mpi_worker File handle of sub comm
 !> @param[in]    rank_mpi
-!> @param[in]    parts
+!> @param[in]    size_mpi
 !> @param[in]    comm_mpi
 !------------------------------------------------------------------------------
 Subroutine exec_single_domain(root, comm_nn, domain, typeraw, &
@@ -97,7 +97,7 @@ LOGICAL, PARAMETER :: DEBUG = .TRUE.
 logical :: success=.TRUE., host_assumed_unique
 
 Type(tBranch), pointer :: boundary_branch, domain_branch, part_branch
-Type(tBranch), pointer :: mesh_branch, meta_para, esd_result_branch
+Type(tBranch), pointer :: mesh_branch, meta_para, esd_result_branch, result_branch
 
 Type(tMat)         :: AA, AA_org
 Type(tVec)         :: XX
@@ -147,6 +147,7 @@ END IF
 
 CALL Search_branch("Input parameters", root, meta_para, success, out_amount)
 
+CALL pd_get(meta_para, "No of mesh parts per subdomain", parts)
 CALL pd_get(meta_para, "Physical domain size" , bone%phdsize, 3)
 CALL pd_get(meta_para, "Grid spacings" , bone%delta, 3)
 CALL pd_get(meta_para, "Young_s modulus" , bone%E)
@@ -156,7 +157,7 @@ CALL pd_get(meta_para, "Poisson_s ratio" , bone%nu)
 ! Rank = 0 -- Local master of comm_mpi
 !------------------------------------------------------------------------------
 If (rank_mpi == 0) then
-   
+
     !------------------------------------------------------------------------------
     ! Create job directory in case of non-production run
     !------------------------------------------------------------------------------
@@ -280,8 +281,10 @@ If (rank_mpi == 0) then
         !------------------------------------------------------------------------------
         CALL serialize_branch(part_branch, serial_pb, serial_pb_size, .TRUE.)
 
-        CALL mpi_send(serial_pb_size, 1_mik, MPI_INTEGER8, Int(ii,mik), Int(ii,mik), COMM_MPI, ierr)
-        CALL mpi_send(serial_pb, INT(serial_pb_size,mik), MPI_INTEGER8, Int(ii,mik), Int(ii,mik), COMM_MPI, ierr)
+        CALL mpi_send(serial_pb_size, 1_mik, MPI_INTEGER8, Int(ii,mik), Int(ii,mik), &
+            COMM_MPI, ierr)
+        CALL mpi_send(serial_pb, INT(serial_pb_size,mik), MPI_INTEGER8, &
+            Int(ii,mik), Int(ii,mik), COMM_MPI, ierr)
 
         Deallocate(serial_pb)
         
@@ -301,7 +304,6 @@ If (rank_mpi == 0) then
 ! Ranks > 0 - Workers
 !------------------------------------------------------------------------------
 Else
-
     !------------------------------------------------------------------------------
     ! Check if the mesh branch was read successfully, if not - abort the domain.
     !------------------------------------------------------------------------------
@@ -336,8 +338,6 @@ End If ! (rank_mpi == 0) then
 !------------------------------------------------------------------------------
 ! Abort this domain in case of a fatal error in reading the mesh branch.
 !------------------------------------------------------------------------------
-
-
 IF(.NOT. success) GOTO 1000
 
 !------------------------------------------------------------------------------
@@ -481,19 +481,6 @@ ELSE
 END IF
 
 !------------------------------------------------------------------------------
-! Set macro element specific stuff
-!------------------------------------------------------------------------------
-IF (macro_order == 1) THEN
-    no_elem_nodes = 8
-    no_lc = 24
-ELSE IF (macro_order == 2) THEN
-    no_elem_nodes = 20
-    no_lc = 60
-ELSE
-    CALL print_err_stop(std_out, "Element orders other than 1 or 2 are not supported", 1)
-END IF
-
-!------------------------------------------------------------------------------
 ! Assemble matrix
 !------------------------------------------------------------------------------
 if (TRIM(elt_micro) == "HEX08") then
@@ -566,7 +553,7 @@ IF (rank_mpi == 0) THEN   ! Sub Comm Master
     CASE (1)
         timer_name = "+-- MatAssemblyBegin "//TRIM(domain_char)
     CASE default
-        timer_name = "MatAssemblayBegin"
+        timer_name = "MatAssemblyBegin"
     End SELECT
     
     CALL start_timer(TRIM(timer_name), .FALSE.)
@@ -809,6 +796,7 @@ ELSE IF (macro_order == 2) THEN
     CALL VecAssemblyBegin(FF_20(1), petsc_ierr)
     CALL VecAssemblyEnd(FF_20(1), petsc_ierr)         
 END IF
+
 
 !------------------------------------------------------------------------------
 ! Compute dirichlet boundary corrections of 2nd to 23rd
@@ -1196,12 +1184,16 @@ if (rank_mpi == 0) then
     CASE default
         timer_name = "calc_eff_stiffness"
     End SELECT
-    
+
     CALL start_timer(TRIM(timer_name), .FALSE.)
     CALL calc_effective_material_parameters(root, comm_nn, domain, &
-        fh_mpi_worker, INT(parts,mik), collected_logs)
+        fh_mpi_worker, size_mpi, collected_logs)
     CALL end_timer(TRIM(timer_name))
-
+        
+    IF(((MAXVAL(collected_logs(8:13))/1000._rk/1000._rk/REAL(cn,rk)) > global_mem_threshold ) .OR. &
+       ((       collected_logs(  14) /1000._rk/1000._rk            ) > global_mem_threshold )) THEN
+        mem_critical = .TRUE.
+    END IF 
 ELSE
     DEALLOCATE(part_branch)
 End if

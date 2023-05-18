@@ -29,6 +29,7 @@ PROGRAM morphometric_evaluation
     INTEGER(INT16), DIMENSION(:,:,:), ALLOCATABLE :: rry_ik2
     INTEGER(INT32), DIMENSION(:,:,:), ALLOCATABLE :: rry_ik4
     INTEGER(ik), DIMENSION(:), ALLOCATABLE :: vox_stats, Domains
+    INTEGER(ik), DIMENSION(3), PARAMETER :: bpoints=[1_ik,1_ik,1_ik]
     !
     ! You can write floats. But you will loose precision by doing that.
     ! INTEGER(ik), DIMENSION(:), ALLOCATABLE :: Domains
@@ -36,7 +37,7 @@ PROGRAM morphometric_evaluation
     INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0, dims=0, x_D_pos=0, &
         x_D_end, nn_D, x_D, vox_min, vox_max
     
-    INTEGER(ik) :: counter_BV, counter_TV, bin_hi, bin_lo, bytes, vox_dmn, &
+    INTEGER(ik) :: counter_BV, counter_TV, bin_hi, bin_lo, bytes=0, vox_dmn, &
         ii, jj, kk, ll, mm, nn, oo, vun, sun, No_of_domains, size_raw
     
     REAL(rk) :: start, end

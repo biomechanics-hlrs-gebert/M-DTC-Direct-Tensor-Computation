@@ -26,6 +26,7 @@ subroutine calc_effective_material_parameters(root, comm_nn, ddc_nn, &
 Type(tBranch), Intent(InOut) :: root
 INTEGER(mik) , Intent(In) :: size_mpi
 integer(ik)  , Intent(in) :: ddc_nn, comm_nn
+INTEGER(ik) , DIMENSION(24), INTENT(INOUT) :: collected_logs ! timestamps, memory_usage, pid_returned
 Integer(mik), Dimension(no_streams), Intent(in) :: fh_mpi_worker
 
 Real(rk) :: div_10_exp_jj, eff_density, n12, n13, n23, alpha, phi, eta
@@ -54,7 +55,6 @@ integer(ik) :: ii, jj, kk, ll, no_elem_nodes, micro_elem_nodes, no_lc, num_leave
 Integer(ik), Dimension(:,:,:,:), Allocatable :: ang
 Integer(ik), Dimension(:)      , Allocatable :: xa_n, xe_n, no_cnodes_pp, cref_cnodes
 Integer(ik), Dimension(3)                    :: s_loop,e_loop, mlc
-INTEGER(ik), DIMENSION(24) :: collected_logs ! timestamps, memory_usage, pid_returned
 
 Logical :: success
 
