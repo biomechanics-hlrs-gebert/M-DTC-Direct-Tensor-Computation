@@ -221,11 +221,11 @@ PROGRAM morphometric_evaluation
     SELECT CASE(type)
         CASE('ik2') 
             ALLOCATE(rry_ik2(dims(1), dims(2), dims(3))); rry_ik2 = 0_2
-            CALL ser_read_binary(51, TRIM(in%p_n_bsnm)//raw_suf, rry_ik2)
+            READ(UNIT=51) rry_ik2
 
         CASE('ik4') 
             ALLOCATE(rry_ik4(dims(1), dims(2), dims(3))); rry_ik4 = 0_4
-            CALL ser_read_binary(51, TRIM(in%p_n_bsnm)//raw_suf, rry_ik4)
+            READ(UNIT=51) rry_ik4
 
     END SELECT
     CLOSE(51)
