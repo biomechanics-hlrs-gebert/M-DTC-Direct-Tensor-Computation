@@ -60,7 +60,11 @@ INTEGER(mik), Intent(In)  :: comm_mpi
 INTEGER(ik) , intent(in)  :: comm_nn, domain, fh_cluster_log
 INTEGER(mik), intent(out) :: active
 Type(tBranch)    , Intent(inOut) :: root
-LOGICAL, INTENT(INOUT) :: mem_critical
+REAL(rk), INTENT(INOUT) :: mem_critical
+
+REAL(rk), intent(in) :: cn
+
+REAL(rk) :: mem
 
 REAL(rk), DIMENSION(:), Pointer     :: displ, force
 REAL(rk), DIMENSION(:), Allocatable :: glob_displ, glob_force, zeros_R8
@@ -71,7 +75,7 @@ INTEGER(mik) :: ierr, petsc_ierr, result_len_mpi_procs, rank_mpi, size_mpi
 INTEGER(pd_ik), Dimension(:), Allocatable :: serial_pb
 INTEGER(pd_ik) :: serial_pb_size
 
-INTEGER(ik) :: preallo, domain_elems, ii, jj, kk, id, stat, cn, &
+INTEGER(ik) :: preallo, domain_elems, ii, jj, kk, id, stat, &
     Istart,Iend, parts, IVstart, IVend, m_size, mem_global, status_global, &
     ddc_nn, no_different_hosts, timestamp, macro_order, no_elem_nodes, no_lc
 
@@ -123,7 +127,8 @@ CALL print_err_stop(std_out, "MPI_COMM_SIZE of comm_mpi couldn't be retrieved", 
 Active = 0_mik
 collected_logs = 0_ik
 
-mem_critical = .FALSE.
+mem = 1._rk
+mem_critical = 1._rk
 
 write(domain_char,'(I0)') domain
 
@@ -133,9 +138,12 @@ write(domain_char,'(I0)') domain
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 ! Abort if DTC consumes to much memory
-IF ((REAL(mem_global,rk)/1000._rk/1000._rk/REAL(cn,rk)) > global_mem_threshold) THEN
-    mem_critical = .TRUE.
+mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
+IF (mem > global_mem_threshold) THEN
+    mem_critical = -mem
     GOTO 1000
+ELSE
+    mem_critical = mem
 END IF 
 
 !------------------------------------------------------------------------------
@@ -374,9 +382,12 @@ END IF
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 ! Abort if DTC consumes to much memory
-IF ((REAL(mem_global,rk)/1000._rk/1000._rk/REAL(cn,rk)) > global_mem_threshold) THEN
-    mem_critical = .TRUE.
+mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
+IF (mem > global_mem_threshold) THEN
+    mem_critical = -mem
     GOTO 1000
+ELSE
+    mem_critical = mem
 END IF 
 
 !------------------------------------------------------------------------------
@@ -423,9 +434,12 @@ CALL MatSetOption(AA_org,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 ! Abort if DTC consumes to much memory
-IF ((REAL(mem_global,rk)/1000._rk/1000._rk/REAL(cn,rk)) > global_mem_threshold) THEN
-    mem_critical = .TRUE.
+mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
+IF (mem > global_mem_threshold) THEN
+    mem_critical = -mem
     GOTO 1000
+ELSE
+    mem_critical = mem
 END IF 
 
 IF (rank_mpi == 0) THEN
@@ -568,9 +582,12 @@ END IF
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 ! Abort if DTC consumes to much memory
-IF ((REAL(mem_global,rk)/1000._rk/1000._rk/REAL(cn,rk)) > global_mem_threshold) THEN
-    mem_critical = .TRUE.
+mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
+IF (mem > global_mem_threshold) THEN
+    mem_critical = -mem
     GOTO 1000
+ELSE
+    mem_critical = mem
 END IF 
 
 IF (rank_mpi == 0) THEN
@@ -626,9 +643,12 @@ END IF
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 ! Abort if DTC consumes to much memory
-IF ((REAL(mem_global,rk)/1000._rk/1000._rk/REAL(cn,rk)) > global_mem_threshold) THEN
-    mem_critical = .TRUE.
+mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
+IF (mem > global_mem_threshold) THEN
+    mem_critical = -mem
     GOTO 1000
+ELSE
+    mem_critical = mem
 END IF 
 
 IF (rank_mpi == 0) THEN
@@ -1160,9 +1180,12 @@ End Do
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 ! Abort if DTC consumes to much memory
-IF ((REAL(mem_global,rk)/1000._rk/1000._rk/REAL(cn,rk)) > global_mem_threshold) THEN
-    mem_critical = .TRUE.
+mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
+IF (mem > global_mem_threshold) THEN
+    mem_critical = -mem
     GOTO 1000
+ELSE
+    mem_critical = mem
 END IF 
 
 IF (rank_mpi == 0) THEN
@@ -1194,15 +1217,37 @@ if (rank_mpi == 0) then
         fh_mpi_worker, size_mpi, comm_mpi, collected_logs)
     CALL end_timer(TRIM(timer_name))
             
-    IF(((MAXVAL(collected_logs(8:13))/1000._rk/1000._rk/REAL(cn,rk)) > global_mem_threshold ) .OR. &
-       ((       collected_logs(  14) /1000._rk/1000._rk            ) > global_mem_threshold )) THEN
-        mem_critical = .TRUE.
+    mem= (MAXVAL(collected_logs(8:13))/1000._rk/1000._rk/cn)
+    IF (mem > global_mem_threshold) THEN
+        mem_critical = -mem
+        GOTO 1000
+    ELSE
+        mem_critical = mem
     END IF 
+
+    mem= collected_logs(  14) /1000._rk/1000._rk
+    IF (mem > global_mem_threshold) THEN
+        mem_critical = -mem
+        GOTO 1000
+    ELSE
+        mem_critical = mem
+    END IF 
+
+
+! Abort if DTC consumes to much memory
+    mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
+    IF (mem > global_mem_threshold) THEN
+        mem_critical = -mem
+        GOTO 1000
+    ELSE
+        mem_critical = mem
+    END IF 
+
 
 ELSE
     DEALLOCATE(part_branch)
 End if
-   
+
 1000 CONTINUE
 
 !------------------------------------------------------------------------------

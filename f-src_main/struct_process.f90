@@ -130,7 +130,7 @@ CHARACTER(8)   :: elt_micro, output
 CHARACTER(3)   :: file_status
 
 REAL(rk), DIMENSION(3) :: delta
-REAL(rk) :: strain, t_start, t_end, t_duration
+REAL(rk) :: strain, t_start, t_end, t_duration, cn, mem_critical=1._rk
 
 INTEGER(ik), DIMENSION(:), ALLOCATABLE :: Domains, nn_D, Domain_stats
 INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0
@@ -138,7 +138,7 @@ INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0
 INTEGER(ik) :: nn, ii, jj, kk, dc, computed_domains = 0, comm_nn = 1, &
     No_of_domains, path_count, activity_size=0, alloc_stat, fh_cluster_log, &
     free_file_handle, domains_per_comm, stat, no_lc=0, nl=0, &
-    Domain, llimit, parts, elo_macro, vdim(3), cn
+    Domain, llimit, parts, elo_macro, vdim(3)
 
 INTEGER(pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
 INTEGER(pd_ik), DIMENSION(no_streams) :: dsize
@@ -146,7 +146,7 @@ INTEGER(pd_ik), DIMENSION(no_streams) :: dsize
 INTEGER(pd_ik) :: serial_root_size, add_leaves
 
 LOGICAL :: success, stat_exists, heaxist, abrt = .FALSE., already_finished=.FALSE., &
-    create_new_header = .FALSE., fex=.TRUE., no_restart_required = .FALSE., mem_critical = .FALSE.
+    create_new_header = .FALSE., fex=.TRUE., no_restart_required = .FALSE.
 
 !----------------------------------------------------------------------------
 CALL mpi_init(ierr)
@@ -455,7 +455,7 @@ END IF
 !------------------------------------------------------------------------------
 CALL MPI_BCAST(stat_exists  , 1_mik, MPI_LOGICAL    , 0_mik, MPI_COMM_WORLD, ierr)
 CALL MPI_BCAST(No_of_domains, 1_mik, MPI_INTEGER8   , 0_mik, MPI_COMM_WORLD, ierr)
-CALL MPI_BCAST(cn           , 1_mik, MPI_INTEGER8   , 0_mik, MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(cn           , 1_mik, MPI_DOUBLE_PRECISION, 0_mik, MPI_COMM_WORLD, ierr)
 CALL MPI_BCAST(activity_file, INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
 CALL MPI_BCAST(typeraw,       INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
 
@@ -1081,10 +1081,12 @@ If (rank_mpi==0) Then
         CALL print_err_stop(std_out, &
         "MPI_WAITANY on req_list for IRECV of worker_is_active(mii) didn't succeed", ierr)
 
-        IF (worker_is_active(mii) == -999) THEN
-            mem_critical = .TRUE.
-            CALL stop_slaves()
-            GOTO 1000
+        IF (worker_is_active(mii) < -10) THEN
+            mem_critical = -1._rk
+            WRITE(std_out, FMT_WRN_xAI0) "Received an OOM event from rank", mii
+            EXIT
+        ELSE
+            mem_critical = 1._rk
         END IF 
 
         IF(finished /= MPI_UNDEFINED) mii = finished
@@ -1167,50 +1169,8 @@ Else
             END IF
         END IF
 
-        !------------------------------------------------------------------------------
-        ! Start the memory logging
-        !------------------------------------------------------------------------------
-                ! INQUIRE(file="./datasets/memlog.sh", exist=fex)
-
-                ! IF(fex) THEN
-                !     CALL EXECUTE_COMMAND_LINE (&
-                !         './datasets/memlog.sh '&
-                !         //TRIM(outpath)//TRIM(project_name)//'.memlog', CMDSTAT=stat)   
-
-                !     IF(stat /= 0) WRITE(std_err, FMT_WRN_xAI0) &
-                !         "Could not start memory logging! Rank: ", rank_mpi
-                ! ELSE
-                !     WRITE(std_err, FMT_WRN_xAI0) &
-                !         "File for memory logging not found! Rank: ", rank_mpi
-                ! END IF
-
-
-        memlog_file=TRIM(outpath)//TRIM(project_name)//'.memlog'
-        INQUIRE (FILE = memlog_file, EXIST = fex)
-
-        file_status="NEW"
-        IF(fex) file_status="OLD"
-
-        fh_cluster_log = give_new_unit()
-
-        OPEN(UNIT=fh_cluster_log, FILE=TRIM(memlog_file), ACTION='WRITE', &
-            ACCESS="SEQUENTIAL", STATUS=file_status)
-
-        WRITE(fh_cluster_log, '(A)') &
-            "Operation, Domain, Nodes, Elems, Preallo, "//&
-            "Mem_comm, Pids_returned, Size_mpi, time"
-    
-        ! IF(stat /= 0) WRITE(std_err, FMT_WRN_xAI0) &
-        !     "Could not start memory logging! Rank: ", rank_mpi
-
-
         CALL link_start(link_name, .True., .True.)
 
-    ELSE ! Worker threads of the sub communicator
-        !------------------------------------------------------------------------------
-        ! Set fh_cluster_log = -1 for clarifying the state of the worker threads
-        !------------------------------------------------------------------------------
-        fh_cluster_log = -1_ik
     END IF 
 
         
@@ -1294,7 +1254,7 @@ Else
         ! Start workers
         !------------------------------------------------------------------------------
         CALL MPI_RECV(active, 1_mik, MPI_INTEGER4, 0_mik, rank_mpi, MPI_COMM_WORLD, status_mpi, ierr)
-        CALL print_err_stop(std_out, "MPI_RECV on Active didn't succseed", ierr)
+        CALL print_err_stop(std_out, "MPI_RECV on Active didn't succeed", ierr)
 
         !------------------------------------------------------------------------------
         ! Stop workers
@@ -1429,15 +1389,15 @@ Else
         ! "Deactivate" communicator
         !------------------------------------------------------------------------------
         active = 0_mik
-        IF (mem_critical) active = -999
+        IF (mem_critical < 0._rk) active = -999
+ 
+        IF ((worker_rank_mpi==0) .AND. (mem_critical < 0._rk))  THEN
+            WRITE(std_out, FMT_WRN_xAI0) "OOM on ranks", rank_mpi, "to", rank_mpi+parts
+            WRITE(std_out, FMT_WRN_xAF0) "Memory usage normalized to a compute node of hawk:", -mem_critical, "GB"
+        END IF 
 
-        CALL MPI_ISEND(active, 1_mik, MPI_INTEGER4, 0_mik, rank_mpi, MPI_COMM_WORLD, request, ierr)
-        CALL print_err_stop(std_out, "MPI_ISEND on Active didn't succeed", ierr)
-
-        CALL MPI_WAIT(request, status_mpi, ierr)
-        CALL print_err_stop(std_out, "MPI_WAIT on request for ISEND Active didn't succeed", ierr)
-                    
-        IF (mem_critical) EXIT
+        CALL MPI_SEND(active, 1_mik, MPI_INTEGER4, 0_mik, rank_mpi, MPI_COMM_WORLD, ierr)
+        CALL print_err_stop(std_out, "MPI_SEND on Active didn't succeed", ierr)
 
     End Do
 
@@ -1467,13 +1427,16 @@ IF(rank_mpi == 0) THEN
 
     CALL link_end(link_name,.True.)
 
-    WRITE(std_out, FMT_TXT_SEP)
-    WRITE(std_out, FMT_TXT) "HLRS Direct Tensor Computation finished successfully."
-    WRITE(std_out, FMT_TXT_SEP)
+    IF (mem_critical > 0._rk)THEN
+        WRITE(std_out, FMT_TXT_SEP)
+        WRITE(std_out, FMT_TXT) "HLRS Direct Tensor Computation finished successfully."
+        WRITE(std_out, FMT_TXT_SEP)
 
-END IF ! (rank_mpi == 0)
+        CALL meta_close(m_rry)
 
-IF(rank_mpi==0) THEN
+    ELSE
+        WRITE(std_out, FMT_WRN) "Stopping due to an OOM event."
+    END IF 
 
     !------------------------------------------------------------------------------
     ! Write the "JOB_FINISHED" keyword only if the job was finished during 
@@ -1484,7 +1447,6 @@ IF(rank_mpi==0) THEN
         no_restart_required = .TRUE.
     END IF 
 
-    CALL meta_close(m_rry)
 
     CALL meta_stop_ascii(fh_mon, mon_suf)
 
@@ -1495,9 +1457,6 @@ END IF
 
 1000 Continue
 
-IF (mem_critical) THEN
-    IF(rank_mpi==0) WRITE(std_out, FMT_TXT) "WW Stopping to prevent an OOM event."
-END IF 
 
 CALL MPI_FILE_CLOSE(aun, ierr)
 CALL MPI_FINALIZE(ierr)
