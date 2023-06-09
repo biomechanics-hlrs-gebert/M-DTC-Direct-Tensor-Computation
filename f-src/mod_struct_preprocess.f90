@@ -183,11 +183,9 @@ Type(tBranch), Pointer :: meta_para, domain_branch
         END IF 
     END DO 
     
-    write(*,FMT_TXT_AxI0) "ddc_nn: ", ddc_nn, first_bytes, phi_desc%no_leaves
-   
     !----------------------------------------------------------------------------
-   ! Retrieve basic geometric information
-   !----------------------------------------------------------------------------
+    ! Retrieve basic geometric information
+    !----------------------------------------------------------------------------
     call pd_get(meta_para, "Grid spacings", delta)  
     Call pd_get(meta_para, "Number of voxels per direction",vdim)
 

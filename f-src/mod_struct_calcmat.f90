@@ -31,7 +31,7 @@ Integer(mik), Dimension(no_streams), Intent(in) :: fh_mpi_worker
 Real(rk) :: div_10_exp_jj, eff_density, n12, n13, n23, alpha, phi, eta
 Real(rk) :: cos_alpha, sin_alpha, One_Minus_cos_alpha, sym
 
-Real(rk), Dimension(:)    , allocatable :: tmp_nn, delta, x_D_phy
+Real(rk), Dimension(:)    , allocatable :: tmp_nn, delta, x_D_phy, testvar
 Real(rk), Dimension(:,:)  , allocatable :: nodes, vv, ff, stiffness
 Real(rk), Dimension(:,:,:), allocatable :: calc_rforces, uu, rforces, edat, crit_1, crit_2
 Real(rk), Dimension(1)    :: tmp_real_fd1
@@ -115,12 +115,12 @@ max_c = Real(xe_n    ,rk) * delta
 !------------------------------------------------------------------------------
 ! Set node number of macro element
 !------------------------------------------------------------------------------
-If (macro_order == 1) then
-    no_elem_nodes = 8
-    no_lc = 24
+If (macro_order == 1_ik) then
+    no_elem_nodes = 8_ik
+    no_lc = 24_ik
 ELSE IF (macro_order == 2) THEN
-     no_elem_nodes = 20
-     no_lc = 60
+     no_elem_nodes = 20_ik
+     no_lc = 60_ik
 Else
     CALL print_err_stop(std_out, "Element orders other than 1 or 2 are not supported", 1)
 End If
@@ -525,9 +525,6 @@ CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
     Int(root%branches(3)%leaves(11)%lbound-1+(comm_nn-1)*6*no_lc, MPI_OFFSET_KIND), &
     reshape(int_strain,[6*no_lc]), &
     Int(6*no_lc, pd_mik), MPI_REAL8, status_mpi, ierr)
-
-DEALLOCATE(int_strain)
-DEALLOCATE(int_stress)
 
 !------------------------------------------------------------------------------
 ! Calc theoretical effective stiffness
@@ -1789,9 +1786,12 @@ EE_Orig = EE
 
      END IF
 
-    DEALLOCATE(tmp_nn, delta, x_D_phy, nodes, vv, ff, stiffness, calc_rforces, uu, &
-     rforces, edat, crit_1, crit_2, ang, no_cnodes_pp, cref_cnodes)
+     DEALLOCATE(ang, crit_1, crit_2, nodes, cref_cnodes, uu, &
+          edat, rforces, calc_rforces, vv, ff, stiffness, tmp_nn)
 
+     IF(ALLOCATED(int_strain)) DEALLOCATE(int_strain)
+     IF(ALLOCATED(int_stress)) DEALLOCATE(int_stress)
+     
 End subroutine calc_effective_material_parameters
 
 

@@ -105,7 +105,7 @@ TYPE(materialcard) :: bone
 
 INTEGER(mik) :: ierr, rank_mpi, size_mpi, petsc_ierr, mii, mjj, &
     worker_rank_mpi, worker_size_mpi, aun, par_domains, &
-    Active, request, finished = -1, worker_comm, mpi_proc_resultlen ! , WRITE_ROOT_COMM
+    Active, finished = -1, worker_comm
 
 INTEGER(mik), Dimension(no_streams)       :: fh_mpi_worker
 INTEGER(mik), Dimension(MPI_STATUS_SIZE)  :: status_mpi
@@ -124,21 +124,20 @@ CHARACTER(mcl)  , DIMENSION(:), ALLOCATABLE :: m_rry
 
 CHARACTER(4*mcl) :: job_dir
 CHARACTER(mcl)   :: cmd_arg_history='', link_name = 'struct process', &
-    muCT_pd_path, muCT_pd_name, binary, activity_file, desc="", memlog_file="", &
+    muCT_pd_path, muCT_pd_name, binary, activity_file, desc="", &
     typeraw="", restart='N', restart_cmd_arg='U',ios="" ! U = 'undefined'
 CHARACTER(8)   :: elt_micro, output
-CHARACTER(3)   :: file_status
 
 REAL(rk), DIMENSION(3) :: delta
-REAL(rk) :: strain, t_start, t_end, t_duration, cn, mem_critical=1._rk
+REAL(rk) :: strain, t_start, t_end, t_duration, cn, mem_critical=1._rk, mem=0._rk
 
 INTEGER(ik), DIMENSION(:), ALLOCATABLE :: Domains, nn_D, Domain_stats
 INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0
 
 INTEGER(ik) :: nn, ii, jj, kk, dc, computed_domains = 0, comm_nn = 1, &
-    No_of_domains, path_count, activity_size=0, alloc_stat, fh_cluster_log, &
+    No_of_domains, path_count, activity_size=0, alloc_stat, &
     free_file_handle, domains_per_comm, stat, no_lc=0, nl=0, &
-    Domain, llimit, parts, elo_macro, vdim(3)
+    Domain, llimit, parts, elo_macro, vdim(3), mem_usage
 
 INTEGER(pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
 INTEGER(pd_ik), DIMENSION(no_streams) :: dsize
@@ -146,7 +145,7 @@ INTEGER(pd_ik), DIMENSION(no_streams) :: dsize
 INTEGER(pd_ik) :: serial_root_size, add_leaves
 
 LOGICAL :: success, stat_exists, heaxist, abrt = .FALSE., already_finished=.FALSE., &
-    create_new_header = .FALSE., fex=.TRUE., no_restart_required = .FALSE.
+    create_new_header = .FALSE., no_restart_required = .FALSE.
 
 !----------------------------------------------------------------------------
 CALL mpi_init(ierr)
@@ -163,16 +162,19 @@ CALL print_err_stop(std_out, "MPI_COMM_SIZE couldn't be retrieved", ierr)
 !------------------------------------------------------------------------------
 If (rank_mpi == 0) THEN
 
+    !------------------------------------------------------------------------------
+    ! Checking the memory
+    !------------------------------------------------------------------------------
+    mem_usage =  system_mem_usage()
+    mem = (REAL(mem_usage,rk)/1000._rk/1000._rk)
+    IF (mem > global_mem_threshold) mem_critical = -mem
+
     If (size_mpi < 2) THEN
         mssg = "We need at least 2 MPI processes to execute this program."
         CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF 
 
     CALL Start_Timer("Init Process")
-
-    !------------------------------------------------------------------------------
-    ! Batch feedback
-    !------------------------------------------------------------------------------
 
     !------------------------------------------------------------------------------
     ! Parse the command arguments
@@ -448,6 +450,13 @@ If (rank_mpi == 0) THEN
         CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF
 
+    !------------------------------------------------------------------------------
+    ! Checking the memory
+    !------------------------------------------------------------------------------
+    mem_usage =  system_mem_usage()
+    mem = (REAL(mem_usage,rk)/1000._rk/1000._rk)
+    IF (mem > global_mem_threshold) mem_critical = -mem
+
 END IF
 
 !------------------------------------------------------------------------------
@@ -684,11 +693,6 @@ If (rank_mpi == 0) THEN
     add_leaves = 24_pd_ik
 
     !------------------------------------------------------------------------------
-    ! Number of loadcases
-    !------------------------------------------------------------------------------
-    ! no_lc = 24 
-    
-    !------------------------------------------------------------------------------
     ! The name of the branche is a bit outdated. In the meantime, it contains 
     ! more data to accomodate the need for the doctoral project.
     ! It was done this way because it is the quickest and easiest way for 
@@ -719,11 +723,11 @@ If (rank_mpi == 0) THEN
         "Collected logs                                    " , &  !  4 x  24
         "Start Time                                        " , &  !  5 x  1
         "Duration                                          " , &  !  6 x  1
-        "Domain forces                                     " , &  !  7 x 24*24
-        "Effective numerical stiffness                     " , &  !  8 x 24*24
+        "Domain forces                                     " , &  !  7 x lc*lc
+        "Effective numerical stiffness                     " , &  !  8 x lc*lc
         "Symmetry deviation - effective numerical stiffness" , &  !  9 x  1
-        "Averaged stresses                                 " , &  ! 10 x  6*24
-        "Averaged strains                                  " , &  ! 11 x  6*24
+        "Averaged stresses                                 " , &  ! 10 x  6*lc
+        "Averaged strains                                  " , &  ! 11 x  6*lc
         "Effective stiffness                               " , &  ! 12 x  6* 6  
         "Symmetry deviation - effective stiffness          " , &  ! 13 x  1
         "Averaged Effective stiffness                      " , &  ! 14 x  6* 6
@@ -736,7 +740,7 @@ If (rank_mpi == 0) THEN
         "Rotation Vector CR_2                              " , &  ! 21 x  3
         "Final coordinate system CR_2                      " , &  ! 22 x  9
         "Optimized Effective stiffness CR_2                " , &  ! 23 x  6* 6
-        "Effective density                                 "], &  ! 24 x  1
+        "Effective density                                 "], &  ! lc x  1
         dat_ty = [(4_1, ii=1, 4), (5_1, ii=5, add_leaves)], &
         dat_no = [ domains_per_comm, &
         domains_per_comm,         domains_per_comm, &
@@ -831,6 +835,12 @@ If (rank_mpi == 0) THEN
         CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF 
 
+    !------------------------------------------------------------------------------
+    ! Checking the memory
+    !------------------------------------------------------------------------------
+    mem_usage =  system_mem_usage()
+    mem = (REAL(mem_usage,rk)/1000._rk/1000._rk)
+    IF (mem > global_mem_threshold) mem_critical = -mem
 
 !------------------------------------------------------------------------------
 ! Ranks > 0 -- Worker slaves
@@ -981,6 +991,11 @@ If (rank_mpi==0) Then
 
         if (nn > No_of_domains) exit
 
+        !------------------------------------------------------------------------------
+        ! Delay starting the worker to avoid accumulating memory
+        !------------------------------------------------------------------------------
+        CALL SLEEP(1)
+
         Do mjj = mii, mii + parts-1
             !------------------------------------------------------------------------------
             ! Start worker
@@ -1080,6 +1095,22 @@ If (rank_mpi==0) Then
         Call MPI_WAITANY(size_mpi-1_mik, req_list, finished, status_mpi, ierr)
         CALL print_err_stop(std_out, &
         "MPI_WAITANY on req_list for IRECV of worker_is_active(mii) didn't succeed", ierr)
+
+        !------------------------------------------------------------------------------
+        ! Checking the memory of the global main rank
+        !------------------------------------------------------------------------------
+        mem_usage =  system_mem_usage()
+        mem = (REAL(mem_usage,rk)/1000._rk/1000._rk)
+        IF (mem > global_mem_threshold) mem_critical = -mem
+
+        IF (mem_critical < 0._rk) THEN
+            mem_critical = -1._rk
+            WRITE(std_out, FMT_WRN_xAI0) "Received an OOM event from global main", mii
+            EXIT
+        ELSE
+            mem_critical = 1._rk
+        END IF 
+
 
         IF (worker_is_active(mii) < -10) THEN
             mem_critical = -1._rk
@@ -1297,7 +1328,7 @@ Else
             !==============================================================================
             ! Compute a domain
             !==============================================================================
-            CALL exec_single_domain(root, comm_nn, Domain, typeraw, job_dir, fh_cluster_log, &
+            CALL exec_single_domain(root, comm_nn, Domain, typeraw, job_dir, &
                 Active, fh_mpi_worker, worker_comm, cn, mem_critical)
             !==============================================================================
 

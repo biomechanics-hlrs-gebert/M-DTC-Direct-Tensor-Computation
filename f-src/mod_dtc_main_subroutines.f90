@@ -49,7 +49,7 @@ CONTAINS
 !> @param[in]    comm_mpi
 !------------------------------------------------------------------------------
 Subroutine exec_single_domain(root, comm_nn, domain, typeraw, &
-    job_dir, fh_cluster_log, active, fh_mpi_worker, comm_mpi, cn, mem_critical)
+    job_dir, active, fh_mpi_worker, comm_mpi, cn, mem_critical)
 
 TYPE(materialcard) :: bone
 INTEGER(mik), Intent(INOUT), Dimension(no_streams) :: fh_mpi_worker
@@ -57,7 +57,7 @@ INTEGER(mik), Intent(INOUT), Dimension(no_streams) :: fh_mpi_worker
 Character(*) , Intent(in)  :: job_dir
 Character(*) , Intent(in)  :: typeraw
 INTEGER(mik), Intent(In)  :: comm_mpi
-INTEGER(ik) , intent(in)  :: comm_nn, domain, fh_cluster_log
+INTEGER(ik) , intent(in)  :: comm_nn, domain
 INTEGER(mik), intent(out) :: active
 Type(tBranch)    , Intent(inOut) :: root
 REAL(rk), INTENT(INOUT) :: mem_critical
@@ -70,14 +70,14 @@ REAL(rk), DIMENSION(:), Pointer     :: displ, force
 REAL(rk), DIMENSION(:), Allocatable :: glob_displ, glob_force, zeros_R8
 
 INTEGER(mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
-INTEGER(mik) :: ierr, petsc_ierr, result_len_mpi_procs, rank_mpi, size_mpi
+INTEGER(mik) :: ierr, petsc_ierr, rank_mpi, size_mpi
 
 INTEGER(pd_ik), Dimension(:), Allocatable :: serial_pb
 INTEGER(pd_ik) :: serial_pb_size
 
 INTEGER(ik) :: preallo, domain_elems, ii, jj, kk, id, stat, &
     Istart,Iend, parts, IVstart, IVend, m_size, mem_global, status_global, &
-    ddc_nn, no_different_hosts, timestamp, macro_order, no_elem_nodes, no_lc
+    timestamp, macro_order, no_elem_nodes, no_lc
 
 INTEGER(ik), DIMENSION(24) :: collected_logs ! timestamps, memory_usage, pid_returned
 INTEGER(ik), Dimension(:)  , Allocatable :: nodes_in_mesh
@@ -87,22 +87,17 @@ INTEGER(ik), Dimension(:,:), Allocatable :: res_sizes
 INTEGER(c_int) :: stat_c_int
 
 CHARACTER(9)   :: domain_char
-CHARACTER(40)  :: mssg_fix_len
-CHARACTER(mcl) :: timer_name, rank_char, domain_desc, part_desc, &
-    desc, mesh_desc, filename, elt_micro, nn_char
+CHARACTER(mcl) :: timer_name, domain_desc, part_desc, &
+    desc, mesh_desc, filename, elt_micro
 
 Character, Dimension(4*mcl) :: c_char_array
 Character, Dimension(:), Allocatable :: char_arr
 
-INTEGER(ik), PARAMETER :: host_name_length = 512
-CHARACTER(host_name_length), DIMENSION(:), ALLOCATABLE :: host_list, unique_host_list
-CHARACTER(host_name_length) :: host_of_part
-
 LOGICAL, PARAMETER :: DEBUG = .TRUE.
-logical :: success=.TRUE., host_assumed_unique
+logical :: success=.TRUE.
 
 Type(tBranch), pointer :: boundary_branch, domain_branch, part_branch
-Type(tBranch), pointer :: mesh_branch, meta_para, esd_result_branch, result_branch
+Type(tBranch), pointer :: mesh_branch, meta_para, esd_result_branch
 
 Type(tMat)         :: AA, AA_org
 Type(tVec)         :: XX
@@ -400,10 +395,7 @@ IF (rank_mpi == 0) THEN
 END IF
             
 !------------------------------------------------------------------------------
-! Calculate amount of memory to allocate.
-!------------------------------------------------------------------------------
-preallo = (part_branch%leaves(5)%dat_no * 3) / parts + 1
-
+! preallo = ANINT(m_size/50000._rk)
 !------------------------------------------------------------------------------
 ! Create Stiffness matrix
 ! Preallocation avoids dynamic allocations during matassembly.
@@ -411,18 +403,18 @@ preallo = (part_branch%leaves(5)%dat_no * 3) / parts + 1
 CALL MatCreate(COMM_MPI, AA    , petsc_ierr)
 CALL MatCreate(COMM_MPI, AA_org, petsc_ierr)
 
+CALL MatSetSizes(AA,     PETSC_DECIDE, PETSC_DECIDE, m_size, m_size, petsc_ierr)
+CALL MatSetSizes(AA_org, PETSC_DECIDE, PETSC_DECIDE, m_size, m_size, petsc_ierr)
+
 CALL MatSetFromOptions(AA,     petsc_ierr)
 CALL MatSetFromOptions(AA_org, petsc_ierr)
 
-CALL MatSetSizes(AA,PETSC_DECIDE,PETSC_DECIDE,m_size,m_size,petsc_ierr)
-CALL MatSetSizes(AA_org,PETSC_DECIDE,PETSC_DECIDE,m_size,m_size,petsc_ierr)
-
 ! https://lists.mcs.anl.gov/pipermail/petsc-users/2021-January/042972.html
-CALL MatSeqAIJSetPreallocation(AA, preallo, PETSC_NULL_INTEGER, petsc_ierr)
-CALL MatMPIAIJSetPreallocation(AA, preallo, PETSC_NULL_INTEGER, preallo, PETSC_NULL_INTEGER, petsc_ierr)
+CALL MatSeqAIJSetPreallocation(AA, 85, PETSC_NULL_INTEGER, petsc_ierr)
+CALL MatMPIAIJSetPreallocation(AA, 85, PETSC_NULL_INTEGER, 85, PETSC_NULL_INTEGER, petsc_ierr)
 
-CALL MatSeqAIJSetPreallocation(AA_org, preallo, PETSC_NULL_INTEGER, petsc_ierr)
-CALL MatMPIAIJSetPreallocation(AA_org, preallo, PETSC_NULL_INTEGER, preallo, PETSC_NULL_INTEGER, petsc_ierr)
+CALL MatSeqAIJSetPreallocation(AA_org, 85, PETSC_NULL_INTEGER, petsc_ierr)
+CALL MatMPIAIJSetPreallocation(AA_org, 85, PETSC_NULL_INTEGER, 85, PETSC_NULL_INTEGER, petsc_ierr)
 
 CALL MatSetOption(AA    ,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
 CALL MatSetOption(AA_org,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
@@ -599,8 +591,6 @@ END IF
 CALL MatAssemblyBegin(AA, MAT_FINAL_ASSEMBLY ,petsc_ierr)
 CALL MatAssemblyBegin(AA_org, MAT_FINAL_ASSEMBLY ,petsc_ierr)
 ! Computations can be done while messages are in transition
-CALL MatAssemblyEnd(AA, MAT_FINAL_ASSEMBLY ,petsc_ierr)
-CALL MatAssemblyEnd(AA_org, MAT_FINAL_ASSEMBLY ,petsc_ierr)
 
 !------------------------------------------------------------------------------
 ! End timer
@@ -788,6 +778,12 @@ IF (rank_mpi == 0) THEN   ! Sub Comm Master
     
     CALL start_timer(TRIM(timer_name), .FALSE.)
 END IF 
+
+!------------------------------------------------------------------------------ 
+! Complete matrix assembly
+!------------------------------------------------------------------------------ 
+CALL MatAssemblyEnd(AA, MAT_FINAL_ASSEMBLY ,petsc_ierr)
+CALL MatAssemblyEnd(AA_org, MAT_FINAL_ASSEMBLY ,petsc_ierr)
 
 !------------------------------------------------------------------------------ 
 ! Compute dirichlet boundary corrections of first right hand side vector
@@ -1202,9 +1198,6 @@ if (rank_mpi == 0) then
 
     CALL end_timer(TRIM(timer_name))
 
-    Deallocate(glob_displ, res_sizes, glob_force)
-    DEALLOCATE(nodes_in_mesh, zeros_R8)
-
     SELECT CASE (timer_level)
     CASE (1)
         timer_name = "+-- calc_eff_stiffness "//TRIM(domain_char)
@@ -1250,9 +1243,21 @@ End if
 
 1000 CONTINUE
 
+
+IF(ALLOCATED(serial_pb)) DEALLOCATE(serial_pb)
+IF(ALLOCATED(gnid_cref)) DEALLOCATE(gnid_cref)
+IF(ALLOCATED(zeros_R8))  DEALLOCATE(zeros_R8)
+
+IF(rank_mpi==0) THEN
+    IF(ALLOCATED(glob_displ))    DEALLOCATE(glob_displ)
+    IF(ALLOCATED(res_sizes))     DEALLOCATE(res_sizes)
+    IF(ALLOCATED(glob_force))    DEALLOCATE(glob_force)
+    IF(ALLOCATED(nodes_in_mesh)) DEALLOCATE(nodes_in_mesh)
+END IF 
+
 !------------------------------------------------------------------------------
 ! Remove matrices
-!------------------------------------------------------------------------------
+!------------------------------------------------------------------+------------
 CALL KSPDestroy(ksp,    petsc_ierr)
 CALL MatDestroy(AA,     petsc_ierr)
 CALL MatDestroy(AA_org, petsc_ierr)

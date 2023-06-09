@@ -9,6 +9,7 @@
 # ------------------------------------------------------------------------------
 trgt_vrsn="v1.0.0"
 bin_name="dtc"
+mrd_bin_name="mrd_crawl_tensors"
 long_name="Direct Tensor Computation"
 # -----------------------------------------------------------------------------
 ifeq ($(PROVIDES_GIT),YES)
@@ -93,31 +94,31 @@ clean_cmd = rm -rf
 #
 # ------------------------------------------------------------------------------
 # C include paths for external libraries
-c_inc_path = -I$(METIS_INCPATH)  # -I$(PARMETIS_INCPATH) 
+c_inc_path = -I$(PARMETIS_INCPATH) -I$(METIS_INCPATH)
 #
 # -----------------------------------------------------------------------------
 # Fortran include paths for external libraries
 # -----------------------------------------------------------------------------
-f90_inc_path = -I$(PETSC_INCPATH) # -I$(PARMETIS_INCPATH)
+f90_inc_path = -I$(PETSC_INCPATH)  -I$(METIS_INCPATH) # -I$(CGNS_INCPATH) -I$(PARMETIS_INCPATH)
 #
 # ------------------------------------------------------------------------------
 # Library paths for external libraries 
 # -----------------------------------------------------------------------------
-lib_path_flag = -L$(LAPACK_LIBPATH) -L$(METIS_LIBPATH) -L$(PETSC_LIBPATH) -L$(PARMETIS_LIBPATH)
+lib_path_flag =  -L$(LAPACK_LIBPATH) -L$(METIS_LIBPATH) -L$(PETSC_LIBPATH) #-L$(PARMETIS_LIBPATH)
 #
 # -----------------------------------------------------------------------------
 # Choose Lapack
 # -----------------------------------------------------------------------------
 ifeq ($(SYS_ENV),julius)
-	lapacklib=-llapack -lblas -lm -ldl
+	lapacklib=-llapack -lblas
 else
-	lapacklib=-L${MKLROOT}/lib/intel64 -Wl,--no-as-needed -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl
+	lapacklib=-L${MKLROOT}/lib/intel64 -Wl,--no-as-needed -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -lpthread
 endif
 #
 # ------------------------------------------------------------------------------
 # Link level extra libraries 
 # -----------------------------------------------------------------------------
-lll_extra = -lmetis -lpetsc  -ldl $(lapacklib)
+lll_extra = $(lapacklib) -lpetsc  -lmetis -lm -ldl #-lparmetis -lcgns 
 #
 # Inlcude build options
 include $(st_path)/make.flags
@@ -134,7 +135,7 @@ export link_flags
 # Generate objects
 # -----------------------------------------------------------------------------
 c-objects =  $(obj_dir)OS$(obj_ext) \
-             $(obj_dir)metis_interface$(obj_ext) 
+             $(obj_dir)metis_interface$(obj_ext)
 #
 # -----------------------------------------------------------------------------
 # Fortran objects
@@ -206,13 +207,18 @@ geb-lib-ld-objects = $(st_obj_dir)mod_global_std$(obj_ext) \
 out_amount=$(shell grep out_amount geb-lib/f-src/mod_global_std.f90  | cut -d '"' -f 2)
 #
 ifeq ($(out_amount),PRODUCTION)
-	oa=p
+	oa=prod
 else ifeq ($(out_amount),DEBUG)
-	oa=d
+	oa=debug
 endif
 #
-main_bin = $(bin_dir)$(bin_name)_$(trgt_vrsn)-$(oa)$(bin_suf)
-#
+ifeq ($(trgt_vrsn),)
+	main_bin = $(bin_dir)$(bin_name)_$(oa)$(bin_suf)
+	mrd_bin = $(bin_dir)$(mrd_bin_name)_$(oa)$(bin_suf)
+else
+	main_bin = $(bin_dir)$(bin_name)_$(trgt_vrsn)_$(oa)$(bin_suf)
+	mrd_bin = $(bin_dir)$(mrd_bin_name)_$(trgt_vrsn)_$(oa)$(bin_suf)
+endif#
 # ------------------------------------------------------------------------------
 # Build the st directory first
 # -----------------------------------------------------------------------------
@@ -323,7 +329,7 @@ $(obj_dir)mod_tensors$(obj_ext):$(f_src_dir)mod_tensors$(f90_ext)
 # -----------------------------------------------------------------------------
 $(obj_dir)mod_metis$(obj_ext):$(obj_dir)metis_interface$(obj_ext) $(f_src_dir)mod_metis$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_metis$(f90_ext) "-----"
-	$(f90_compiler) $(c_flags_f90) -c $(f_src_dir)mod_metis$(f90_ext) -o $@
+	$(c_compiler) $(c_flags_f90) -c $(f_src_dir)mod_metis$(f90_ext) -o $@
 	@echo 
 #
 # -----------------------------------------------------------------------------
@@ -348,7 +354,7 @@ $(obj_dir)mod_parameters$(obj_ext):$(st_mod_dir)global_std$(mod_ext) $(f_src_dir
 $(obj_dir)mod_OS$(obj_ext): $(st_mod_dir)global_std$(mod_ext) \
                             $(obj_dir)OS$(obj_ext) $(f_src_dir)mod_OS$(f90_ext)
 	@echo "----- Compiling " $(f_src_dir)mod_OS$(f90_ext) "-----"
-	$(f90_compiler) $(c_flags_f90) -c $(f_src_dir)mod_OS$(f90_ext) -o $@
+	$(c_compiler) $(c_flags_f90) -c $(f_src_dir)mod_OS$(f90_ext) -o $@
 	@echo 
 #
 # -----------------------------------------------------------------------------
@@ -444,6 +450,7 @@ $(obj_dir)mod_gen_quadmesh$(obj_ext):$(st_mod_dir)global_std$(mod_ext)  $(mod_di
 # Geometry and loadcase setup 
 # -----------------------------------------------------------------------------
 $(obj_dir)mod_struct_preprocess$(obj_ext):$(st_mod_dir)global_std$(mod_ext)     $(st_mod_dir)strings$(mod_ext) \
+										  $(st_mod_dir)mpi_binary$(mod_ext)\
                                           $(mod_dir)decomp$(mod_ext)            $(mod_dir)timer$(mod_ext) \
                                           $(mod_dir)chain_routines$(mod_ext)    $(mod_dir)vtkio$(mod_ext) \
                                           $(obj_dir)metis_interface$(obj_ext)   $(mod_dir)metis$(mod_ext) \
@@ -555,7 +562,7 @@ $(main_bin): export_revision $(c-objects) $(f-objects)
 	@echo "----------------------------------------------------------------------------------"
 	@echo '-- Final link step of $(long_name) executable'
 	@echo "----------------------------------------------------------------------------------"
-	$(f90_compiler) $(link_flags) $(c-objects) $(f-objects) $(lll_extra) -o $(main_bin)
+	$(f90_compiler) $(link_flags) $(c-objects) $(f-objects)  $(lll_extra) -o $(main_bin)
 	@echo
 #	
 # -----------------------------------------------------------------------------
@@ -604,7 +611,7 @@ $(meradat_crawl_tensors): $(geb-lib-ld-objects) $(obj_dir)mrd_crawl_tensors$(obj
 	@echo "----------------------------------------------------------------------------------"
 	@echo '-- Linking MeRaDat executable'
 	@echo "----------------------------------------------------------------------------------"
-	$(f90_compiler) $(link_flags) $(geb-lib-ld-objects) $(obj_dir)mrd_crawl_tensors$(obj_ext) -o $@
+	$(f90_compiler) $(link_flags) $(geb-lib-ld-objects) $(obj_dir)mrd_crawl_tensors$(obj_ext) -o $(mrd_bin)
 	@echo 
 #
 # --------------------------------------------------------------------------------------------------
