@@ -564,16 +564,16 @@ CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
     tmp_real_fd1, &
     1_pd_mik, MPI_REAL8, status_mpi, ierr)
 
-Select Case (timer_level)
-    Case (3)
-        call end_timer  ("  +-- Calc material data "//trim(nn_char))
-        call start_timer("  +-- Back rotation of material matrix "//trim(nn_char))
-    Case (2)
-        call end_timer  ("  +-- Calc material data "//trim(nn_char))
-        call start_timer("  +-- Back rotation of material matrix "//trim(nn_char))
-    Case default
-        continue
-End Select
+! Select Case (timer_level)
+!     Case (3)
+!         call end_timer  ("  +-- Calc material data "//trim(nn_char))
+!         call start_timer("  +-- Back rotation of material matrix "//trim(nn_char))
+!     Case (2)
+!         call end_timer  ("  +-- Calc material data "//trim(nn_char))
+!         call start_timer("  +-- Back rotation of material matrix "//trim(nn_char))
+!     Case default
+!         continue
+! End Select
 
 !------------------------------------------------------------------------------
 ! Back rotation of material matrix according to different criterias

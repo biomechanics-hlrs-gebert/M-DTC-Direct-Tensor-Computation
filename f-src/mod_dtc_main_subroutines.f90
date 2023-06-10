@@ -190,20 +190,20 @@ If (rank_mpi == 0) then
 
         End If
 
-    End If
 
-    !------------------------------------------------------------------------------
-    ! Write log and monitor file
-    !------------------------------------------------------------------------------
-    Write(un_lf,FMT_MSG_SEP)
-    timestamp = time()
+        !------------------------------------------------------------------------------
+        ! Write log and monitor file
+        !------------------------------------------------------------------------------
+        Write(un_lf,FMT_MSG_SEP)
+        timestamp = time()
 
-    WRITE(un_lf, '(A,I0)') 'Start time: ', timestamp
+        WRITE(un_lf, '(A,I0)') 'Start time: ', timestamp
 
-    Write(un_lf, FMT_MSG_xAI0) "Domain No.: ", domain
-    Write(un_lf, FMT_MSG)      "Job_dir:    "//Trim(job_dir)
-    Write(un_lf,FMT_MSG_SEP)
-
+        Write(un_lf, FMT_MSG_xAI0) "Domain No.: ", domain
+        Write(un_lf, FMT_MSG)      "Job_dir:    "//Trim(job_dir)
+        Write(un_lf,FMT_MSG_SEP)
+    END IF 
+    
     !------------------------------------------------------------------------------
     ! Generate Geometry
     !------------------------------------------------------------------------------
@@ -225,14 +225,15 @@ If (rank_mpi == 0) then
     CALL end_timer(trim(timer_name))
         timestamp = time()
 
+    IF (out_amount == "DEBUG") THEN
+        WRITE(un_lf, '(A,I0)') 'End time: ', timestamp
 
-    WRITE(un_lf, '(A,I0)') 'End time: ', timestamp
-
-    !------------------------------------------------------------------------------
-    ! Look for the Domain branch
-    !------------------------------------------------------------------------------
-    domain_desc=''
-    Write(domain_desc,'(A,I0)')'Domain ', domain
+        !------------------------------------------------------------------------------
+        ! Look for the Domain branch
+        !------------------------------------------------------------------------------
+        domain_desc=''
+        Write(domain_desc,'(A,I0)')'Domain ', domain
+    END IF 
     
     IF(success) CALL search_branch(trim(domain_desc), root, domain_branch, success, out_amount)
 
@@ -1026,7 +1027,7 @@ IF (rank_mpi == 0) THEN
     CALL raise_branch("Strains"                         , 0,  0, esd_result_branch%branches(3))
     CALL raise_branch("Stresses"                        , 0,  0, esd_result_branch%branches(4))
 
-    CALL log_tree(mesh_branch, un_lf, .FALSE.)
+    IF (out_amount == "DEBUG") CALL log_tree(mesh_branch, un_lf, .FALSE.)
     
     !------------------------------------------------------------------------------
     ! Look again for the Part branch since the part_branch pointer 
