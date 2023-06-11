@@ -389,19 +389,22 @@ for bin in bins:
                             #         if parts_per_domain == Parts[pp]:
                             #             USER_DEF_RATIO = tf[pp]
 
-        if parts_per_domain == 0:
-            delta_percentage = 0.0
-            delta_ratio = 0.0
-        else:
-            eff_nodes_part = int(FE_nodes_dmn / parts_per_domain)
-            delta_ratio = (suggested - eff_nodes_part) / suggested * USER_DEF_RATIO 
+        try:
+            if parts_per_domain == 0:
+                delta_percentage = 0.0
+                delta_ratio = 0.0
+            else:
+                eff_nodes_part = int(FE_nodes_dmn / parts_per_domain)
+                delta_ratio = (suggested - eff_nodes_part) / suggested * USER_DEF_RATIO 
 
 
-        # expected runtime may be calibrated in a latter step
-        expected_runtime = 1.0 * total_factors / (1+(delta_ratio))
-        # expected_runtime = 1.0 * total_factors * (1+(delta_ratio/1000))
-        # expected_runtime = 1.0 * total_factors * delta_ratio
-
+            # expected runtime may be calibrated in a latter step
+            expected_runtime = 1.0 * total_factors / (1+(delta_ratio))
+            # expected_runtime = 1.0 * total_factors * (1+(delta_ratio/1000))
+            # expected_runtime = 1.0 * total_factors * delta_ratio
+        except:
+            continue
+            
         new_entry = pd.DataFrame({'domain': dmn, 'ppd': parts_per_domain, 'expected runtime': expected_runtime}, index=[0])
         catalogued_data = pd.concat([catalogued_data, new_entry])
 
