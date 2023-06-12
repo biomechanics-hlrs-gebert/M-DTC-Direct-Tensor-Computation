@@ -128,7 +128,6 @@ CHARACTER(mcl)   :: cmd_arg_history='', link_name = 'struct process', &
     typeraw="", restart='N', restart_cmd_arg='U',ios="" ! U = 'undefined'
 CHARACTER(8)   :: elt_micro, output
 
-REAL(rk), DIMENSION(3) :: delta
 REAL(rk) :: strain, t_start, t_end, t_duration, cn, mem_critical=1._rk, mem=0._rk
 
 INTEGER(ik), DIMENSION(:), ALLOCATABLE :: Domains, nn_D, Domain_stats
@@ -301,7 +300,7 @@ If (rank_mpi == 0) THEN
         CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF
     
-    IF ( (delta(1) /= delta(2)) .OR. (delta(1) /= delta(3)) ) THEN
+    IF ( (bone%delta(1) /= bone%delta(2)) .OR. (bone%delta(1) /= bone%delta(3)) ) THEN
         mssg = 'Currently, the spacings of all 3 dimensions must be equal!'
         CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF
