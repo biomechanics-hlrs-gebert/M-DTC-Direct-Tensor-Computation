@@ -114,15 +114,16 @@ CHARACTER(mcl)  , DIMENSION(:), ALLOCATABLE :: m_rry
 
 CHARACTER(4*mcl) :: job_dir
 CHARACTER(mcl)   :: cmd_arg_history='', link_name = 'struct process', comms_dmn_file, &
-    muCT_pd_path, muCT_pd_name, binary, status_file, groups_file, parts_file, &
+    muCT_pd_path, muCT_pd_name, binary, status_file, groups_file, cores_file, &
     desc="", memlog_file="", type_raw="", restart='N', restart_cmd_arg='U', &
-    ios="", map_sgmnttn="", runtime_file
+    ios="", map_sgmnttn=""
 CHARACTER(10) :: probably_failed_char
 CHARACTER(8) :: elt_micro, output
 CHARACTER(3) :: file_status
 CHARACTER(1) :: bin_sgmnttn=""
 
-REAL(rk) :: strain, t_start, t_end, t_duration, time_wasted, now, comm_fin_time, final_time
+REAL(rk) :: strain, t_start, t_end, t_duration, time_wasted, now, comm_fin_time, &
+    final_time, mem_critical=1._rk
 
 INTEGER(ik), DIMENSION(:), ALLOCATABLE :: Domains, nn_D, Domain_status, &
     parts_list, comm_groups, comm_ranges, dmns_per_comm
@@ -135,14 +136,14 @@ INTEGER(ik) :: nn, ii, jj, kk, ll, dc, computed_domains = 0, comm_nn = 1, max_do
     alloc_stat, fh_cluster_log, free_file_handle, stat, No_of_cores_requested, my_global_rank, &
     no_lc=0, nl=0, Domain, llimit, parts, elo_macro, vdim(3), groups_size, parts_size, &
     global_color, rank, no_of_comms, comm_floor, comm_ceiling, comm_color, round_robin_skip, mesh_p_per_dmn, &
-    max_skip, comm_counter, dmn_status, add_leaf_pntr, probably_failed, cn
+    max_skip, comm_counter, dmn_status, add_leaf_pntr, probably_failed, prts, comms_array_ptr, corecount
 INTEGER(pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
 INTEGER(pd_ik), DIMENSION(no_streams) :: dsize
 
 INTEGER(pd_ik) :: serial_root_size, add_leaves
 
-LOGICAL :: success, status_exists, groups_exists, parts_exists, comms_dmn_exists,&
-    heaxist, abrt = .FALSE., already_finished=.FALSE., skip_active = .TRUE., mem_critical = .FALSE., &
+LOGICAL :: success, status_exists, groups_exists, parts_exists, comms_dmn_exists, found_proper_prt_count, &
+    heaxist, abrt = .FALSE., already_finished=.FALSE., skip_active = .TRUE.,  &
     create_new_header = .FALSE., fex=.TRUE., no_restart_required = .FALSE., runtime_exists=.FALSE.
 
 !----------------------------------------------------------------------------
@@ -167,18 +168,12 @@ If (rank_mpi == 0) THEN
 
     CALL Start_Timer("Init Process")
 
-    !------------------------------------------------------------------------------
-    ! Batch feedback
-    !------------------------------------------------------------------------------
-    CALL execute_command_line ("echo 'JOB_STARTED' > BATCH_RUN")
-
-    CALL meta_start_ascii(fh_log, log_suf)
 
     !------------------------------------------------------------------------------
     ! Parse the command arguments
     !------------------------------------------------------------------------------
-    CALL get_cmd_args(binary, in%full, restart_cmd_arg, cmd_arg_history)
-    
+    CALL get_cmd_args(binary, in%full, restart_cmd_arg, cmd_arg_history, prts)
+
     IF (in%full=='') THEN
         CALL usage(binary)    
 
@@ -346,10 +341,10 @@ If (rank_mpi == 0) THEN
     ! (1 for comm size, 1 for number of such comms and 1 for no of domains assigned to those comms)
     No_of_comm_groups = ANINT(REAL(groups_size, rk) / 8._rk / 3._rk)
 
-    parts_file = TRIM(out%p_n_bsnm)//".parts"
-    INQUIRE(FILE = TRIM(parts_file), EXIST=parts_exists, SIZE=parts_size)
+    cores_file = TRIM(out%p_n_bsnm)//".cores"
+    INQUIRE(FILE = TRIM(cores_file), EXIST=parts_exists, SIZE=parts_size)
     IF(.NOT. parts_exists) THEN
-        CALL print_err_stop_slaves("No *.parts file found.")
+        CALL print_err_stop_slaves("No *.cores file found.")
         GOTO 1000
     END IF 
 
@@ -358,14 +353,6 @@ If (rank_mpi == 0) THEN
     INQUIRE(FILE = TRIM(comms_dmn_file), EXIST=comms_dmn_exists)
     IF((comms_dmn_exists) .AND. (restart == "N")) THEN
         CALL print_err_stop_slaves("*.comms file already exists, no restart requested.")
-        GOTO 1000
-    END IF 
-
-    ! comm_of_domain -> which communicator computed which domain
-    runtime_file = TRIM(out%p_n_bsnm)//".rtac"
-    INQUIRE(FILE = TRIM(runtime_file), EXIST=runtime_exists)
-    IF((runtime_exists) .AND. (restart == "N")) THEN
-        CALL print_err_stop_slaves("*.rtac file already exists, no restart requested.")
         GOTO 1000
     END IF 
 
@@ -391,13 +378,12 @@ END IF
 
 CALL MPI_BCAST(status_file, INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
 CALL MPI_BCAST(groups_file,  INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
-CALL MPI_BCAST(parts_file,  INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(cores_file,  INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
 CALL MPI_BCAST(comms_dmn_file,  INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
-CALL MPI_BCAST(runtime_file,  INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
-
 
 CALL MPI_BCAST(No_of_domains,     1_mik, MPI_INTEGER8, 0_mik, MPI_COMM_WORLD, ierr)
 CALL MPI_BCAST(No_of_comm_groups, 1_mik, MPI_INTEGER8, 0_mik, MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(prts,              1_mik, MPI_INTEGER8, 0_mik, MPI_COMM_WORLD, ierr)
 
 CALL MPI_BCAST(type_raw, INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
 
@@ -450,7 +436,6 @@ CALL MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(groups_file), MPI_MODE_RDONLY, MPI_INFO_
 CALL MPI_FILE_READ(comms_un, comms_array, INT(SIZE(comms_array), mik), MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
 CALL MPI_FILE_CLOSE(comms_un, ierr)
 
-no_of_comms = SUM(comms_array(2,:))
 
 !------------------------------------------------------------------------------
 ! Read the number of parts assigned to each domain (ppd). The ppd must fit
@@ -460,7 +445,7 @@ ALLOCATE(parts_list(No_of_domains), stat=alloc_stat)
 CALL alloc_err("parts_list", alloc_stat)
 parts_list = 0_ik
 
-CALL MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(parts_file), MPI_MODE_RDONLY, MPI_INFO_NULL, parts_un, ierr)
+CALL MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(cores_file), MPI_MODE_RDONLY, MPI_INFO_NULL, parts_un, ierr)
 CALL MPI_FILE_READ(parts_un, parts_list, INT(SIZE(parts_list), mik), MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
 CALL MPI_FILE_CLOSE(parts_un, ierr)
 
@@ -468,25 +453,58 @@ ALLOCATE(domain_path(0:No_of_domains))
 domain_path = ''
 
 CALL MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(comms_dmn_file), MPI_MODE_RDWR, MPI_INFO_NULL,  comms_dmn_un, ierr)
-CALL MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(runtime_file), MPI_MODE_RDWR, MPI_INFO_NULL,  runtime_un, ierr)
 
 !------------------------------------------------------------------------------
 ! Check if the computation is already done or not.
 !------------------------------------------------------------------------------
 If (rank_mpi == 0) THEN
 
-    ! +1 to account for the master process of the monolihtic topology aware approach
-    No_of_cores_requested = SUM(comms_array(1,:)*comms_array(2,:)) + 1_ik
+    comms_array_ptr = 0_ik
 
-    WRITE(std_out, FMT_TXT_AxI0) "Groups of parts per domain (ppd):  ", comms_array(1,:)
-    WRITE(std_out, FMT_TXT_AxI0) "Number of such communicators:      ", comms_array(2,:)
-    WRITE(std_out, FMT_TXT_AxI0) "Number of domains of these ppds:   ", comms_array(3,:)
-    WRITE(std_out, FMT_TXT_AxI0) "Number of cores requested:         ", No_of_cores_requested
+    IF (prts == 0_ik) THEN
+
+        ! +1 to account for the master process of the monolihtic topology aware approach
+        No_of_cores_requested = SUM(comms_array(1,:)*comms_array(2,:)) + 1_ik
+
+        ! Worst case assumption -> Max number of domains that may occur.
+        max_domains_per_comm = MAXVAL(comms_array(3,:))
+
+
+    ELSE
+        No_of_cores_requested = size_mpi - 1_ik
+
+        DO ii=1, SIZE(comms_array(1,:))
+            IF (comms_array(1,ii ) == prts) comms_array_ptr = ii
+            
+        END DO
+
+        ! Worst case assumption -> Max number of domains that may occur.
+        max_domains_per_comm = comms_array(3,comms_array_ptr)
+    END IF 
+        
+    WRITE(std_out, FMT_TXT_AxI0) "Groups of cores per domain (cpd):", comms_array(1,:)
+    WRITE(std_out, FMT_TXT_AxI0) "Number of such communicators:    ", comms_array(2,:)
+    WRITE(std_out, FMT_TXT_AxI0) "Number of domains of these cpds: ", comms_array(3,:)
+    WRITE(std_out, FMT_TXT_AxI0) "Number of cores requested:       ", No_of_cores_requested
+    WRITE(std_out, FMT_TXT_AxI0) "prts:                            ", prts
     
-    IF (No_of_cores_requested .NE. size_mpi) THEN
-        mssg = "The number of cores requested /= size_mpi."
+    IF ((No_of_cores_requested .NE. size_mpi) .AND. (prts == 0_ik)) THEN
+        mssg = "The number of cores requested /= size_mpi and parts == 0_ik."
         CALL print_err_stop_slaves(mssg)
         GOTO 1000
+    ELSE
+        found_proper_prt_count = .FALSE.
+        DO ii=1,17
+            corecount = 2**ii
+            IF (corecount == prts) found_proper_prt_count = .TRUE.
+        END DO
+
+        IF (.NOT. found_proper_prt_count) THEN
+            mssg = "The number of cores given is not of a power of 2."
+            CALL print_err_stop_slaves(mssg)
+            GOTO 1000
+        END IF 
+
     END IF 
 
     DO ii=1, SIZE(Domain_status)
@@ -500,7 +518,6 @@ If (rank_mpi == 0) THEN
         CALL print_err_stop_slaves(mssg, "message")
         GOTO 1000
     END IF 
-
 
     !------------------------------------------------------------------------------
     ! Check if INPUT header exists. If not --> create one.
@@ -516,18 +533,6 @@ If (rank_mpi == 0) THEN
     !------------------------------------------------------------------------------
     INQUIRE(FILE = TRIM(pro_path)//TRIM(pro_name)//".head", EXIST=heaxist)
 
-    !------------------------------------------------------------------------------
-    ! Prepare allocating the output data structure for struct_calcmat and for the process steering
-    !------------------------------------------------------------------------------
-    ! max_domains_per_comm = 0_ik 
-    ! DO ii = 1, No_of_comm_groups
-
-    !     dmns_per_comm(ii) = CEILING(REAL()/REAL(comms_array(2,ii)))
-
-    ! END DO
-
-    ! Worst case assumption -> Max number of domains that may occur.
-    max_domains_per_comm = MAXVAL(comms_array(3,:))
 
     !------------------------------------------------------------------------------
     ! Raise and build meta_para tree
@@ -937,42 +942,63 @@ IF(rank_mpi /= 0) THEN
     ll = 1_ik
     rank = 0_ik
 
-    comm_ceiling = comms_array(1,kk)
+    IF (parts == 0_ik) THEN
+        comm_ceiling = comms_array(1,kk)
 
-    DO ii = 1, no_of_comms ! ii -> color 1 to no_of_comms
+        no_of_comms = SUM(comms_array(2,:))
 
-        ! comms_array(1,kk) --> Size of the communicator (parts per domain)
-        rank = rank + comms_array(1,kk)
+        DO ii = 1, no_of_comms ! ii -> color 1 to no_of_comms
 
-        comm_floor = comm_ceiling
-        comm_ceiling = rank
+            ! comms_array(1,kk) --> Size of the communicator (parts per domain)
+            rank = rank + comms_array(1,kk)
 
-        ! comms_array(2,kk) --> Numbers of corresponding communicaotrs
-        IF(jj==comms_array(2,kk)) THEN
-            jj = 0_ik
-            kk = kk + 1_ik
-            ll = 1_ik
-        END IF 
+            comm_floor = comm_ceiling
+            comm_ceiling = rank
 
-        jj = jj + 1_ik
+            ! comms_array(2,kk) --> Numbers of corresponding communicaotrs
+            IF(jj==comms_array(2,kk)) THEN
+                jj = 0_ik
+                kk = kk + 1_ik
+                ll = 1_ik
+            END IF 
 
-        IF ((rank_mpi > comm_floor) .AND. (rank_mpi <= comm_ceiling)) THEN
+            jj = jj + 1_ik
 
-            ! Color for MPI_Comm_Split
-            global_color = ii
+            IF ((rank_mpi > comm_floor) .AND. (rank_mpi <= comm_ceiling)) THEN
 
-            ! Color within the groups of communicators with the same size to avoid race conditions.
-            comm_color = ll
+                ! Color for MPI_Comm_Split
+                global_color = ii
 
-            EXIT
-        END IF
+                ! Color within the groups of communicators with the same size to avoid race conditions.
+                comm_color = ll
 
-        ll = ll + 1_ik
-        
-    END DO
+                EXIT
+            END IF
 
-    ! Makeshift workaround to prevent race conditions
-    CALL SLEEP(comm_color)
+            ll = ll + 1_ik
+            
+        END DO
+
+        ! Makeshift workaround to prevent race conditions
+        CALL SLEEP(comm_color)
+    ELSE
+        no_of_comms = INT((size_mpi-1_ik) / prts)
+
+        DO ii = 1, no_of_comms ! ii -> color 1 to no_of_comms
+            comm_floor = ii * prts
+            comm_ceiling = ((ii+1_ik) * prts) - 1_ik
+
+            IF ((rank_mpi >= comm_floor) .AND. (rank_mpi <= comm_ceiling)) THEN
+
+                ! Color for MPI_Comm_Split
+                global_color = ii
+
+                ! Color within the groups of communicators with the same size to avoid race conditions.
+                comm_color = rank_mpi
+            END IF 
+        END DO
+
+    END IF 
 
     !------------------------------------------------------------------------------
     ! All Worker Ranks -- Init worker Communicators
@@ -1038,22 +1064,6 @@ IF (rank_mpi /= 0) THEN
                 CALL print_err_stop(std_out, mssg, 1)
             END IF
         END IF
-
-        memlog_file=TRIM(outpath)//TRIM(project_name)//'.memlog'
-        INQUIRE (FILE = memlog_file, EXIST = fex)
-
-        file_status="NEW"
-        IF(fex) file_status="OLD"
-
-        fh_cluster_log = give_new_unit()
-
-        OPEN(UNIT=fh_cluster_log, FILE=TRIM(memlog_file), ACTION='WRITE', &
-            ACCESS="SEQUENTIAL", STATUS=file_status)
-
-        WRITE(fh_cluster_log, '(A)') &
-            "Operation, Domain, Nodes, Elems, Preallo, "//&
-            "Mem_comm, Pids_returned, Size_mpi, time"
-    
 
         CALL link_start(link_name, .FALSE., .FALSE.)
 
@@ -1216,8 +1226,8 @@ IF (rank_mpi /= 0) THEN
         !==============================================================================
         ! Compute a domain
         !==============================================================================
-        CALL exec_single_domain(root, comm_nn, Domain, type_raw, job_dir, fh_cluster_log, &
-        Active, fh_mpi_worker, worker_comm, cn, mem_critical)
+        CALL exec_single_domain(root, comm_nn, Domain, type_raw, job_dir, &
+        Active, fh_mpi_worker, worker_comm, mem_critical)
         !==============================================================================
 
         !------------------------------------------------------------------------------
@@ -1297,17 +1307,16 @@ IF (rank_mpi /= 0) THEN
             CALL MPI_FILE_WRITE_AT(status_un, Int((nn-1)*ik, MPI_OFFSET_KIND), dmn_status, &
                 1_mik, MPI_INTEGER8, status_mpi, ierr)
 
-            !------------------------------------------------------------------------------
-            ! Track the runtime used per domain for analysis whether this process steering
-            ! is more energy efficient than the previous one.
-            ! This t_duration is identical to the one in the *.covo files. It's tracked
-            ! again for different kinds of analysis. By comparing domains with *.covo 
-            ! files, the analysis of sp/dtc runtimes is easier. The tuning of the 
-            ! topology aware scheduler is expected to be simpler by analysis of the *.rt*
-            ! files. Both may be removed to save overhead once everything is analyzed. 
-            !------------------------------------------------------------------------------
-            CALL MPI_FILE_WRITE_AT(runtime_un, Int((nn-1)*rk, MPI_OFFSET_KIND), & 
-                t_duration, 1_mik, MPI_DOUBLE_PRECISION, status_mpi, ierr)
+        END IF 
+
+        !------------------------------------------------------------------------------
+        ! Stop (not very gracefully) if memory is exhausted.
+        !------------------------------------------------------------------------------
+        IF ((worker_rank_mpi==0) .AND. (mem_critical < 0._rk))  THEN
+            WRITE(std_out, FMT_WRN_xAI0) "OOM on ranks", rank_mpi, "to", rank_mpi+parts
+            WRITE(std_out, FMT_WRN_xAF0) "Memory usage normalized to a compute node of hawk:", -mem_critical, "GB"
+
+            CALL MPI_ABORT(MPI_COMM_WORLD, 0_mik, ierr)
 
         END IF 
 
@@ -1414,7 +1423,6 @@ IF(rank_mpi==0) THEN
     IF ((Domain_status(No_of_domains) == No_of_domains-1) .OR. (already_finished)) THEN ! counts from 0
 
         no_restart_required = .TRUE.
-        CALL execute_command_line ("echo 'JOB_FINISHED' > BATCH_RUN")
     END IF 
 
     CALL CPU_TIME(final_time)
@@ -1434,9 +1442,16 @@ IF(rank_mpi==0) THEN
 
     CALL link_end(link_name,.True.)
    
-    WRITE(std_out, FMT_TXT_SEP)
-    WRITE(std_out, FMT_TXT_xAF0) "Program finished successfully."
-    WRITE(std_out, FMT_TXT_SEP)
+    IF (mem_critical > 0._rk)THEN
+        WRITE(std_out, FMT_TXT_SEP)
+        WRITE(std_out, FMT_TXT) "HLRS Direct Tensor Computation finished successfully."
+        WRITE(std_out, FMT_TXT_SEP)
+
+        CALL meta_close(m_rry)
+
+    ELSE
+        WRITE(std_out, FMT_WRN) "Stopping due to an OOM event."
+    END IF 
 
     IF(std_err/=6) CALL meta_stop_ascii(std_out, '.std_out')
     IF(std_err/=0) CALL meta_start_ascii(std_err, '.std_err')

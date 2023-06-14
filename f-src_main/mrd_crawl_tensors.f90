@@ -175,8 +175,6 @@ ELSE
     CALL print_err_stop(std_out, "Macro element order not recognized. Chosse '1' or '2'.", 1)
 END IF 
 
-ALLOCATE(local_num_tensor(no_lc, no_lc))
-
 INQUIRE(UNIT=fhmei, OPENED=opened)
 IF(opened) CLOSE (fhmei)
 

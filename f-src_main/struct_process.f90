@@ -272,9 +272,6 @@ If (rank_mpi == 0) THEN
         CALL print_err_stop(std_out, "Keyword BINARY_SEGMENTATION not recognized.", 1)
     END IF 
 
-    IF ((restart == "Y") .OR. (restart == "y")) restart = "Y"
-    IF ((restart == "N") .OR. (restart == "n")) restart = "N"
-
     IF (bin_sgmnttn == "y") bin_sgmnttn = "Y"
 
     IF (map_sgmnttn /= "Hounsfield") THEN

@@ -151,10 +151,13 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     Call pd_get(meta_para,"Number of voxels per direction",vdim)
 
     if ( out_amount /= "PRODUCTION" ) then
-       write(un_lf,FMT_MSG_AxF0) "Grid spacings", delta
-       write(un_lf,FMT_MSG_AxI0) "Number of voxels per direction", vdim
+       write(un_lf, FMT_MSG_AxF0) "Grid spacings", delta
+       write(un_lf, FMT_MSG_AxI0) "Number of voxels per direction", vdim
     End if
     
+    write(*,*) "pro_path", TRIM(pro_path)
+    write(*,*) "pro_name", TRIM(pro_name)
+
     !----------------------------------------------------------------------------
     ! Open raw data streams
     !----------------------------------------------------------------------------

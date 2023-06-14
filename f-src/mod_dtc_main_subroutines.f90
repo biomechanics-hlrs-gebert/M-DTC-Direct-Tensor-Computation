@@ -48,7 +48,7 @@ CONTAINS
 !> @param[in]    comm_mpi
 !------------------------------------------------------------------------------
 Subroutine exec_single_domain(root, comm_nn, domain, typeraw, &
-    job_dir, fh_cluster_log, active, fh_mpi_worker, comm_mpi, cn, mem_critical)
+    job_dir, active, fh_mpi_worker, comm_mpi, mem_critical)
 
 TYPE(materialcard) :: bone
 INTEGER(mik), Intent(INOUT), Dimension(no_streams) :: fh_mpi_worker
@@ -56,21 +56,26 @@ INTEGER(mik), Intent(INOUT), Dimension(no_streams) :: fh_mpi_worker
 Character(*) , Intent(in)  :: job_dir
 Character(*) , Intent(in)  :: typeraw
 INTEGER(mik), Intent(In)  :: comm_mpi
-INTEGER(ik) , intent(in)  :: comm_nn, domain, fh_cluster_log
+INTEGER(ik) , intent(in)  :: comm_nn, domain
 INTEGER(mik), intent(out) :: active
 Type(tBranch)    , Intent(inOut) :: root
-LOGICAL, INTENT(INOUT) :: mem_critical
+REAL(rk), INTENT(INOUT) :: mem_critical
+
+REAL(rk) :: cn
+REAL(rk), PARAMETER :: target_ccn = 32.0
+
+REAL(rk) :: mem
 
 REAL(rk), DIMENSION(:), Pointer     :: displ, force
 REAL(rk), DIMENSION(:), Allocatable :: glob_displ, glob_force, zeros_R8
 
 INTEGER(mik), Dimension(MPI_STATUS_SIZE) :: status_mpi
-INTEGER(mik) :: ierr, petsc_ierr, result_len_mpi_procs, rank_mpi, size_mpi
+INTEGER(mik) :: ierr, petsc_ierr, rank_mpi, size_mpi
 
 INTEGER(pd_ik), Dimension(:), Allocatable :: serial_pb
 INTEGER(pd_ik) :: serial_pb_size
 
-INTEGER(ik) :: preallo, domain_elems, ii, jj, kk, id, stat, cn, &
+INTEGER(ik) :: preallo, domain_elems, ii, jj, kk, id, stat, &
     Istart,Iend, parts, IVstart, IVend, m_size, mem_global, status_global, &
     ddc_nn, no_different_hosts, timestamp, macro_order, no_elem_nodes, no_lc
 
@@ -118,9 +123,13 @@ CALL print_err_stop(std_out, "MPI_COMM_RANK of comm_mpi couldn't be retrieved", 
 CALL MPI_COMM_SIZE(comm_mpi, size_mpi, ierr)
 CALL print_err_stop(std_out, "MPI_COMM_SIZE of comm_mpi couldn't be retrieved", ierr)
 
-collected_logs = 0_ik
+cn = REAL(size_mpi, rk) / target_ccn
 
-mem_critical = .FALSE.
+collected_logs = 0_ik
+IF (rank_mpi == 0) collected_logs(1) = INT(time(), ik)
+
+mem = 1._rk
+mem_critical = 1._rk
 
 write(domain_char,'(I0)') domain
 
@@ -130,16 +139,18 @@ write(domain_char,'(I0)') domain
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 ! Abort if DTC consumes to much memory
-IF ((REAL(mem_global,rk)/1000._rk/1000._rk/REAL(cn,rk)) > global_mem_threshold) THEN
-    mem_critical = .TRUE.
+mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
+IF (mem > global_mem_threshold) THEN
+    mem_critical = -mem
     GOTO 1000
+ELSE
+    mem_critical = mem
 END IF 
 
 !------------------------------------------------------------------------------
 ! Tracking (the memory usage is) intended for use during production too.
 !------------------------------------------------------------------------------
 IF (rank_mpi == 0) THEN
-    collected_logs(1) = INT(time(), ik)
     collected_logs(8) = mem_global
     collected_logs(15) = status_global
 END IF
@@ -147,7 +158,9 @@ END IF
 
 CALL Search_branch("Input parameters", root, meta_para, success, out_amount)
 
-CALL pd_get(meta_para, "No of mesh parts per subdomain", parts)
+parts = INT(size_mpi, ik)
+
+! CALL pd_get(meta_para, "No of mesh parts per subdomain", parts)
 CALL pd_get(meta_para, "Physical domain size" , bone%phdsize, 3)
 CALL pd_get(meta_para, "Grid spacings" , bone%delta, 3)
 CALL pd_get(meta_para, "Young_s modulus" , bone%E)
@@ -372,9 +385,12 @@ END IF
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 ! Abort if DTC consumes to much memory
-IF ((REAL(mem_global,rk)/1000._rk/1000._rk/REAL(cn,rk)) > global_mem_threshold) THEN
-    mem_critical = .TRUE.
+mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
+IF (mem > global_mem_threshold) THEN
+    mem_critical = -mem
     GOTO 1000
+ELSE
+    mem_critical = mem
 END IF 
 
 !------------------------------------------------------------------------------
@@ -389,7 +405,7 @@ END IF
 !------------------------------------------------------------------------------
 ! Calculate amount of memory to allocate.
 !------------------------------------------------------------------------------
-preallo = (part_branch%leaves(5)%dat_no * 3) / parts + 1
+!!! NOT IN USE !!! preallo = ANINT(m_size/50000._rk)
 
 !------------------------------------------------------------------------------
 ! Create Stiffness matrix
@@ -398,21 +414,21 @@ preallo = (part_branch%leaves(5)%dat_no * 3) / parts + 1
 CALL MatCreate(COMM_MPI, AA    , petsc_ierr)
 CALL MatCreate(COMM_MPI, AA_org, petsc_ierr)
 
+CALL MatSetSizes(AA,     PETSC_DECIDE, PETSC_DECIDE, m_size, m_size, petsc_ierr)
+CALL MatSetSizes(AA_org, PETSC_DECIDE, PETSC_DECIDE, m_size, m_size, petsc_ierr)
+
 CALL MatSetFromOptions(AA,     petsc_ierr)
 CALL MatSetFromOptions(AA_org, petsc_ierr)
 
-CALL MatSetSizes(AA,PETSC_DECIDE,PETSC_DECIDE,m_size,m_size,petsc_ierr)
-CALL MatSetSizes(AA_org,PETSC_DECIDE,PETSC_DECIDE,m_size,m_size,petsc_ierr)
-
 ! https://lists.mcs.anl.gov/pipermail/petsc-users/2021-January/042972.html
-CALL MatSeqAIJSetPreallocation(AA, preallo, PETSC_NULL_INTEGER, petsc_ierr)
-CALL MatMPIAIJSetPreallocation(AA, preallo, PETSC_NULL_INTEGER, preallo, PETSC_NULL_INTEGER, petsc_ierr)
+CALL MatSeqAIJSetPreallocation(AA, 85, PETSC_NULL_INTEGER, petsc_ierr)
+CALL MatMPIAIJSetPreallocation(AA, 85, PETSC_NULL_INTEGER, 85, PETSC_NULL_INTEGER, petsc_ierr)
 
-CALL MatSeqAIJSetPreallocation(AA_org, preallo, PETSC_NULL_INTEGER, petsc_ierr)
-CALL MatMPIAIJSetPreallocation(AA_org, preallo, PETSC_NULL_INTEGER, preallo, PETSC_NULL_INTEGER, petsc_ierr)
+CALL MatSeqAIJSetPreallocation(AA_org, 85, PETSC_NULL_INTEGER, petsc_ierr)
+CALL MatMPIAIJSetPreallocation(AA_org, 85, PETSC_NULL_INTEGER, 85, PETSC_NULL_INTEGER, petsc_ierr)
 
-CALL MatSetOption(AA    ,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
-CALL MatSetOption(AA_org,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
+CALL MatSetOption(AA    , MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE, petsc_ierr)
+CALL MatSetOption(AA_org, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE, petsc_ierr)
 
 !------------------------------------------------------------------------------
 ! Get and write another memory log.
@@ -420,9 +436,12 @@ CALL MatSetOption(AA_org,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 ! Abort if DTC consumes to much memory
-IF ((REAL(mem_global,rk)/1000._rk/1000._rk/REAL(cn,rk)) > global_mem_threshold) THEN
-    mem_critical = .TRUE.
+mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
+IF (mem > global_mem_threshold) THEN
+    mem_critical = -mem
     GOTO 1000
+ELSE
+    mem_critical = mem
 END IF 
 
 IF (rank_mpi == 0) THEN
@@ -437,7 +456,7 @@ END IF
 !------------------------------------------------------------------------------
 IF (rank_mpi == 0) CALL end_timer(TRIM(timer_name))
 
-If (out_amount == "DEBUG-ALL") THEN 
+If (out_amount == "DEBUG") THEN 
     CALL MatGetOwnershipRange(AA, Istart, Iend, petsc_ierr)
     Write(un_lf,"('MM ', A,I4,A,A6,2(A,I9))")&
         "MPI rank : ",rank_mpi,"| matrix ownership for ","A    ", ":",Istart," -- " , Iend
@@ -454,7 +473,6 @@ End If
 ! part_branch%leaves(3) : Global node ids   in part branch
 ! part_branch%leaves(4) : NOT USED ! (For Element Numbers)
 ! part_branch%leaves(5) : Topology
-! part_branch%leaves(6) : Hounsfield units of the voxels (HU Magnitude)
 ! No Cross reference global nid to local nid is currently needed since 
 ! renumbering is deactivated in mod_mesh_partitioning.f90 : part_mesh
 !------------------------------------------------------------------------------
@@ -565,9 +583,12 @@ END IF
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 ! Abort if DTC consumes to much memory
-IF ((REAL(mem_global,rk)/1000._rk/1000._rk/REAL(cn,rk)) > global_mem_threshold) THEN
-    mem_critical = .TRUE.
+mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
+IF (mem > global_mem_threshold) THEN
+    mem_critical = -mem
     GOTO 1000
+ELSE
+    mem_critical = mem
 END IF 
 
 IF (rank_mpi == 0) THEN
@@ -576,11 +597,11 @@ IF (rank_mpi == 0) THEN
     collected_logs(18) = status_global
 END IF
 
+!------------------------------------------------------------------------------
 CALL MatAssemblyBegin(AA, MAT_FINAL_ASSEMBLY ,petsc_ierr)
 CALL MatAssemblyBegin(AA_org, MAT_FINAL_ASSEMBLY ,petsc_ierr)
 ! Computations can be done while messages are in transition
-CALL MatAssemblyEnd(AA, MAT_FINAL_ASSEMBLY ,petsc_ierr)
-CALL MatAssemblyEnd(AA_org, MAT_FINAL_ASSEMBLY ,petsc_ierr)
+!------------------------------------------------------------------------------
 
 !------------------------------------------------------------------------------
 ! End timer
@@ -623,9 +644,12 @@ END IF
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 ! Abort if DTC consumes to much memory
-IF ((REAL(mem_global,rk)/1000._rk/1000._rk/REAL(cn,rk)) > global_mem_threshold) THEN
-    mem_critical = .TRUE.
+mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
+IF (mem > global_mem_threshold) THEN
+    mem_critical = -mem
     GOTO 1000
+ELSE
+    mem_critical = mem
 END IF 
 
 IF (rank_mpi == 0) THEN
@@ -655,7 +679,7 @@ Do ii = 1, no_lc
         CALL VecGetOwnershipRange(FF_20(ii), IVstart, IVend, petsc_ierr)
     END IF
 
-    If (out_amount == "DEBUG-ALL") THEN 
+    If (out_amount == "DEBUG") THEN 
         Write(un_lf,"('MM ', A,I4,A,A6,2(A,I9))")&
             "MPI rank : ",rank_mpi,"| vector ownership for ","F", ":",IVstart," -- " , IVend
     End If
@@ -735,7 +759,7 @@ CALL VecGetOwnershipRange(XX, IVstart, IVend, petsc_ierr)
 !------------------------------------------------------------------------------
 IF (rank_mpi == 0) CALL end_timer(TRIM(timer_name))
 
-If (out_amount == "DEBUG-ALL") THEN ! May end up in a fort.* file in the root directory
+If (out_amount == "DEBUG") THEN 
     Write(un_lf,"('MM ', A,I4,A,A6,2(A,I9))") &
         "MPI rank : ",rank_mpi,"| vector ownership for ","X", ":",IVstart," -- " , IVend
     CALL PetscViewerCreate(COMM_MPI, PetscViewer, petsc_ierr)
@@ -764,6 +788,14 @@ IF (rank_mpi == 0) THEN   ! Sub Comm Master
     
     CALL start_timer(TRIM(timer_name), .FALSE.)
 END IF 
+
+
+!------------------------------------------------------------------------------ 
+! Complete matrix assembly
+!------------------------------------------------------------------------------ 
+CALL MatAssemblyEnd(AA, MAT_FINAL_ASSEMBLY ,petsc_ierr)
+CALL MatAssemblyEnd(AA_org, MAT_FINAL_ASSEMBLY ,petsc_ierr)
+
 
 !------------------------------------------------------------------------------ 
 ! Compute dirichlet boundary corrections of first right hand side vector
@@ -1156,9 +1188,12 @@ End Do
 CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
 
 ! Abort if DTC consumes to much memory
-IF ((REAL(mem_global,rk)/1000._rk/1000._rk/REAL(cn,rk)) > global_mem_threshold) THEN
-    mem_critical = .TRUE.
+mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
+IF (mem > global_mem_threshold) THEN
+    mem_critical = -mem
     GOTO 1000
+ELSE
+    mem_critical = mem
 END IF 
 
 IF (rank_mpi == 0) THEN
@@ -1175,9 +1210,6 @@ if (rank_mpi == 0) then
 
     CALL end_timer(TRIM(timer_name))
 
-    Deallocate(glob_displ, res_sizes, glob_force)
-    DEALLOCATE(nodes_in_mesh, zeros_R8)
-
     SELECT CASE (timer_level)
     CASE (1)
         timer_name = "+-- calc_eff_stiffness "//TRIM(domain_char)
@@ -1187,18 +1219,53 @@ if (rank_mpi == 0) then
 
     CALL start_timer(TRIM(timer_name), .FALSE.)
     CALL calc_effective_material_parameters(root, comm_nn, domain, &
-        fh_mpi_worker, size_mpi, collected_logs)
+        fh_mpi_worker, size_mpi, comm_mpi, collected_logs)
     CALL end_timer(TRIM(timer_name))
-        
-    IF(((MAXVAL(collected_logs(8:13))/1000._rk/1000._rk/REAL(cn,rk)) > global_mem_threshold ) .OR. &
-       ((       collected_logs(  14) /1000._rk/1000._rk            ) > global_mem_threshold )) THEN
-        mem_critical = .TRUE.
+            
+    mem= (MAXVAL(collected_logs(8:13))/1000._rk/1000._rk/cn)
+    IF (mem > global_mem_threshold) THEN
+        mem_critical = -mem
+        GOTO 1000
+    ELSE
+        mem_critical = mem
     END IF 
+
+    mem= collected_logs(  14) /1000._rk/1000._rk
+    IF (mem > global_mem_threshold) THEN
+        mem_critical = -mem
+        GOTO 1000
+    ELSE
+        mem_critical = mem
+    END IF 
+
+
+! Abort if DTC consumes to much memory
+    mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
+    IF (mem > global_mem_threshold) THEN
+        mem_critical = -mem
+        GOTO 1000
+    ELSE
+        mem_critical = mem
+    END IF 
+
+
 ELSE
     DEALLOCATE(part_branch)
 End if
-   
+
 1000 CONTINUE
+
+
+IF(ALLOCATED(serial_pb)) DEALLOCATE(serial_pb)
+IF(ALLOCATED(gnid_cref)) DEALLOCATE(gnid_cref)
+IF(ALLOCATED(zeros_R8))  DEALLOCATE(zeros_R8)
+
+IF(rank_mpi==0) THEN
+    IF(ALLOCATED(glob_displ))    DEALLOCATE(glob_displ)
+    IF(ALLOCATED(res_sizes))     DEALLOCATE(res_sizes)
+    IF(ALLOCATED(glob_force))    DEALLOCATE(glob_force)
+    IF(ALLOCATED(nodes_in_mesh)) DEALLOCATE(nodes_in_mesh)
+END IF 
 
 !------------------------------------------------------------------------------
 ! Remove matrices

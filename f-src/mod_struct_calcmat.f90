@@ -21,10 +21,10 @@ implicit none
 contains
 
 subroutine calc_effective_material_parameters(root, comm_nn, ddc_nn, &
-     fh_mpi_worker, size_mpi, collected_logs)
+     fh_mpi_worker, size_mpi, comm_mpi, collected_logs)
 
 Type(tBranch), Intent(InOut) :: root
-INTEGER(mik) , Intent(In) :: size_mpi
+INTEGER(mik) , Intent(In) :: size_mpi, comm_mpi
 integer(ik)  , Intent(in) :: ddc_nn, comm_nn
 INTEGER(ik) , DIMENSION(24), INTENT(INOUT) :: collected_logs ! timestamps, memory_usage, pid_returned
 Integer(mik), Dimension(no_streams), Intent(in) :: fh_mpi_worker
@@ -252,7 +252,6 @@ call alloc_err("tmp_nn", alloc_stat)
 ! of the rank to a compute node. This is possible, but quite a lot of effort.
 ! Measuring worker_main_rank is easier and a worst-case-assumption.
 !------------------------------------------------------------------------------
-collected_logs(7) = INT(time(), ik)
 collected_logs(14) = system_mem_usage()
 collected_logs(21) = 1_ik
 
@@ -1778,6 +1777,8 @@ EE_Orig = EE
      ! Write another memory log.
      !------------------------------------------------------------------------------
      IF (no_nodes /= 0) THEN
+          collected_logs(7) = INT(time(), ik)
+          
           collected_logs(22) = size_mpi
           collected_logs(23) = global_rank_mpi
           collected_logs(24) = SUM(collected_logs(15:21))

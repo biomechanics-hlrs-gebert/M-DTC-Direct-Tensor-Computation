@@ -45,7 +45,7 @@ PROGRAM morphometric_evaluation
     
     CHARACTER(mcl), DIMENSION(:), ALLOCATABLE :: m_rry      
     CHARACTER(mcl) :: cmd_arg_history='', binary, vox_file, sun_file, raw_file, stat=""
-    CHARACTER(scl) :: type, type_raw, datarep
+    CHARACTER(scl) :: type_raw, data_byte_order, datarep
     CHARACTER(1) :: bin_sgmnttn=""
     
     CHARACTER(1)  :: restart_cmd_arg='U' ! U = 'undefined'
@@ -107,9 +107,10 @@ PROGRAM morphometric_evaluation
     CALL meta_read('DIMENSIONS' , m_rry, dims, stat)
     IF(stat/="") WRITE(std_out, FMT_ERR) "Reading "//TRIM(stat)//" failed"
     
-    CALL meta_read('DATA_BYTE_ORDER', m_rry, type_raw, stat)
+    CALL meta_read('DATA_BYTE_ORDER', m_rry, data_byte_order, stat)
     IF(stat/="") WRITE(std_out, FMT_ERR) "Reading "//TRIM(stat)//" failed"
-    CALL meta_read('TYPE_RAW'   , m_rry, type, stat)
+
+    CALL meta_read('TYPE_RAW'   , m_rry, type_raw, stat)
     IF(stat/="") WRITE(std_out, FMT_ERR) "Reading "//TRIM(stat)//" failed"
 
     CALL meta_read('BINARY_SEGMENTATION', m_rry, bin_sgmnttn, stat)
@@ -183,7 +184,7 @@ PROGRAM morphometric_evaluation
     !------------------------------------------------------------------------------
     ! Open raw file
     !------------------------------------------------------------------------------
-    IF(TRIM(type_raw) == "BigEndian") THEN
+    IF(TRIM(data_byte_order) == "BigEndian") THEN
         datarep = "big_endian"
     ELSE
         datarep = "native"
@@ -199,7 +200,7 @@ PROGRAM morphometric_evaluation
         STOP
     END IF 
 
-    SELECT CASE(type)
+    SELECT CASE(type_raw)
         CASE('ik2'); bytes = 2_ik 
         CASE('ik4'); bytes = 4_ik 
     END SELECT
@@ -218,7 +219,7 @@ PROGRAM morphometric_evaluation
 
     OPEN (UNIT=51, FILE=TRIM(in%p_n_bsnm)//raw_suf, CONVERT=datarep, ACCESS="STREAM", STATUS='OLD')
 
-    SELECT CASE(type)
+    SELECT CASE(type_raw)
         CASE('ik2') 
             ALLOCATE(rry_ik2(dims(1), dims(2), dims(3))); rry_ik2 = 0_2
             READ(UNIT=51) rry_ik2
@@ -253,7 +254,7 @@ PROGRAM morphometric_evaluation
 
         Domains(oo) = ii + jj * (nn_D(1)+1) + kk * (nn_D(1)+1) * (nn_D(2)+1)
 
-        IF(bin_sgmnttn == "Y") CYCLE
+        IF(bin_sgmnttn == "N") CYCLE
 
         x_D_pos = INT([ii,jj,kk] * dmn_size / spcng, ik) + 1_ik
         x_D_end = (x_D_pos + x_D)            
@@ -271,7 +272,7 @@ PROGRAM morphometric_evaluation
         Do nn = x_D_pos(1), x_D_end(1)
 
             ! There are more elegant solutions, but it is a rather transparent approach.
-            SELECT CASE(type)
+            SELECT CASE(type_raw)
             CASE('ik2') 
                 IF ((rry_ik2(nn,mm,ll) >= bin_lo) .AND. (rry_ik2(nn,mm,ll) <= bin_hi)) THEN
                     counter_BV = counter_BV + 1_ik
