@@ -21,6 +21,7 @@ USE linfe
 USE mpi
 USE gen_geometry
 USE PETSC
+USE petsc_opt
 USE calcmat
 USE system
 USE mpi_system
@@ -59,7 +60,7 @@ Character(*) , Intent(in)  :: typeraw
 INTEGER(mik), Intent(In)  :: comm_mpi
 INTEGER(ik) , intent(in)  :: comm_nn, domain
 INTEGER(mik), intent(out) :: active
-Type(tBranch)    , Intent(inOut) :: root
+Type(tBranch), Intent(inout) :: root
 REAL(rk), INTENT(INOUT) :: mem_critical
 
 REAL(rk), intent(in) :: cn
@@ -75,7 +76,7 @@ INTEGER(mik) :: ierr, petsc_ierr, rank_mpi, size_mpi
 INTEGER(pd_ik), Dimension(:), Allocatable :: serial_pb
 INTEGER(pd_ik) :: serial_pb_size
 
-INTEGER(ik) :: preallo, domain_elems, ii, jj, kk, id, stat, &
+INTEGER(ik) :: domain_elems, ii, jj, kk, id, stat, &
     Istart,Iend, parts, IVstart, IVend, m_size, mem_global, status_global, &
     timestamp, macro_order, no_elem_nodes, no_lc
 
@@ -88,7 +89,7 @@ INTEGER(c_int) :: stat_c_int
 
 CHARACTER(9)   :: domain_char
 CHARACTER(mcl) :: timer_name, domain_desc, part_desc, &
-    desc, mesh_desc, filename, elt_micro
+    desc, mesh_desc, filename, elt_micro, pro_path_tmp, pro_name_tmp
 
 Character, Dimension(4*mcl) :: c_char_array
 Character, Dimension(:), Allocatable :: char_arr
@@ -98,6 +99,9 @@ logical :: success=.TRUE.
 
 Type(tBranch), pointer :: boundary_branch, domain_branch, part_branch
 Type(tBranch), pointer :: mesh_branch, meta_para, esd_result_branch
+Type(tBranch) :: domain_tree
+INTEGER(pd_ik), DIMENSION(no_streams) :: dsize
+Integer(pd_ik), Dimension(no_streams) :: no_data
 
 Type(tMat)         :: AA, AA_org
 Type(tVec)         :: XX
@@ -118,19 +122,10 @@ CALL print_err_stop(std_out, "MPI_COMM_RANK of comm_mpi couldn't be retrieved", 
 CALL MPI_COMM_SIZE(comm_mpi, size_mpi, ierr)
 CALL print_err_stop(std_out, "MPI_COMM_SIZE of comm_mpi couldn't be retrieved", ierr)
 
-! Init worker_is_active status
-Active = 0_mik
-collected_logs = 0_ik
-
-mem = 1._rk
-mem_critical = 1._rk
-
-write(domain_char,'(I0)') domain
-
 !------------------------------------------------------------------------------
 ! Get the mpi communicators total memory usage by the pids of the threads.
 !------------------------------------------------------------------------------
-CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
+CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global, rank_mpi) 
 
 ! Abort if DTC consumes to much memory
 mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
@@ -140,6 +135,27 @@ IF (mem > global_mem_threshold) THEN
 ELSE
     mem_critical = mem
 END IF 
+
+!------------------------------------------------------------------------------
+! This sets the options for PETSc in-core. To alter the options
+! add them in Set_PETSc_Options in Module pets_opt in file
+! f-src/mod_parameters.f90
+!------------------------------------------------------------------------------
+CALL Set_PETSc_Options()
+
+PETSC_COMM_WORLD = comm_mpi
+
+CALL PetscInitialize(PETSC_NULL_CHARACTER, petsc_ierr)
+IF(petsc_ierr .NE. 0_ik) WRITE(std_out, FMT_WRN_xAI0) "Error in PetscInitialize: ", petsc_ierr
+
+! Init worker_is_active status
+Active = 0_mik
+collected_logs = 0_ik
+
+mem = 1._rk
+mem_critical = 1._rk
+
+write(domain_char,'(I0)') domain
 
 !------------------------------------------------------------------------------
 ! Tracking (the memory usage is) intended for use during production too.
@@ -202,8 +218,57 @@ If (rank_mpi == 0) then
         Write(un_lf, FMT_MSG_xAI0) "Domain No.: ", domain
         Write(un_lf, FMT_MSG)      "Job_dir:    "//Trim(job_dir)
         Write(un_lf,FMT_MSG_SEP)
-    END IF 
+
+    End If
     
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+    pro_path_tmp = pro_path 
+    pro_name_tmp = pro_name     
+    
+    pro_path = "tmp"
+    pro_name = "domain_tree_"//TRIM(domain_char)
+    CALL raise_tree("domain_tree", domain_tree)
+
+    ! CALL get_stream_size(domain_tree, dsize)
+    ! domain_tree%streams%dim_st = dsize
+    ! domain_tree%streams%ii_st  = dsize + 1
+
+    ! CALL read_streams(domain_tree)
+
+    ! CALL connect_pointers(domain_tree%streams, domain_tree)
+
+    ! CALL include_branch_into_branch(s_b=domain_branch, t_b=domain_tree, blind=.TRUE.)
+
+    pro_path = pro_path_tmp
+    pro_name = pro_name_tmp
+
+
+    ! CALL assign_pd_root(domain_tree)
+    ! CALL set_bounds_in_branch(domain_tree, domain_tree%streams)
+
+
+
+
+
+
+
+
+
+
+
     !------------------------------------------------------------------------------
     ! Generate Geometry
     !------------------------------------------------------------------------------
@@ -216,26 +281,22 @@ If (rank_mpi == 0) then
 
     CALL start_timer(trim(timer_name), .FALSE.)
 
-    CALL generate_geometry(root, domain, job_dir, typeraw, success)
+    CALL generate_geometry(root, domain_tree, domain, job_dir, typeraw, success)
 
-    if (.not. success) then
-        write(std_out, FMT_WRN)"generate_geometry() failed."
-    End if
+    if (.not. success) write(std_out, FMT_WRN)"generate_geometry() failed."
 
     CALL end_timer(trim(timer_name))
-        timestamp = time()
+    timestamp = time()
 
-    IF (out_amount == "DEBUG") THEN
-        WRITE(un_lf, '(A,I0)') 'End time: ', timestamp
+    WRITE(un_lf, '(A,I0)') 'End time: ', timestamp
 
-        !------------------------------------------------------------------------------
-        ! Look for the Domain branch
-        !------------------------------------------------------------------------------
-        domain_desc=''
-        Write(domain_desc,'(A,I0)')'Domain ', domain
-    END IF 
+    !------------------------------------------------------------------------------
+    ! Look for the Domain branch
+    !------------------------------------------------------------------------------
+    domain_desc=''
+    Write(domain_desc,'(A,I0)')'Domain ', domain
     
-    IF(success) CALL search_branch(trim(domain_desc), root, domain_branch, success, out_amount)
+    IF(success) CALL search_branch(trim(domain_desc), domain_tree, domain_branch, success, out_amount)
 
     !------------------------------------------------------------------------------
     ! Get the no of nodes per part
@@ -271,7 +332,6 @@ If (rank_mpi == 0) then
         !------------------------------------------------------------------------------
         ! Look for the Part branch
         !------------------------------------------------------------------------------
-        domain_desc=''
         Write(part_desc,'(A,I0)')'Part_',ii
         if(success) CALL search_branch(trim(part_desc), domain_branch, part_branch, success)
 
@@ -375,7 +435,7 @@ END IF
 !------------------------------------------------------------------------------
 ! Get the mpi communicators total memory usage by the pids of the threads.
 !------------------------------------------------------------------------------
-CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
+CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global, rank_mpi) 
 
 ! Abort if DTC consumes to much memory
 mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
@@ -424,7 +484,7 @@ CALL MatSetOption(AA_org,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
 !------------------------------------------------------------------------------
 ! Get and write another memory log.
 !------------------------------------------------------------------------------
-CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
+CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global, rank_mpi) 
 
 ! Abort if DTC consumes to much memory
 mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
@@ -572,7 +632,7 @@ END IF
 !------------------------------------------------------------------------------
 ! Get and write another memory log.
 !------------------------------------------------------------------------------
-CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
+CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global, rank_mpi) 
 
 ! Abort if DTC consumes to much memory
 mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
@@ -631,7 +691,7 @@ END IF
 !------------------------------------------------------------------------------
 ! Get and write another memory log.
 !------------------------------------------------------------------------------
-CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
+CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global, rank_mpi) 
 
 ! Abort if DTC consumes to much memory
 mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
@@ -1027,7 +1087,7 @@ IF (rank_mpi == 0) THEN
     CALL raise_branch("Strains"                         , 0,  0, esd_result_branch%branches(3))
     CALL raise_branch("Stresses"                        , 0,  0, esd_result_branch%branches(4))
 
-    IF (out_amount == "DEBUG") CALL log_tree(mesh_branch, un_lf, .FALSE.)
+    CALL log_tree(mesh_branch, un_lf, .FALSE.)
     
     !------------------------------------------------------------------------------
     ! Look again for the Part branch since the part_branch pointer 
@@ -1156,7 +1216,6 @@ Do jj = 1, no_lc
         write(desc,'(A)') "Reaction Forces"
         CALL Add_Leaf_to_Branch(esd_result_branch%branches(2), trim(desc), m_size, glob_force) 
 
-
         If (out_amount == "DEBUG") THEN 
             write(desc,'(A,I2.2)') "DispRes", jj
             CALL write_vtk_data_Real8_vector_1D(matrix = reshape(glob_displ, &
@@ -1174,7 +1233,7 @@ End Do
 !------------------------------------------------------------------------------
 ! Get and write another memory log.
 !------------------------------------------------------------------------------
-CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
+CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global, rank_mpi) 
 
 ! Abort if DTC consumes to much memory
 mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
@@ -1191,70 +1250,6 @@ IF (rank_mpi == 0) THEN
     collected_logs(20) = status_global
 END IF
 
-!------------------------------------------------------------------------------
-! All 24 linear system solutions are produced. 
-! Effective stiffnesses can be calculated.
-!------------------------------------------------------------------------------
-if (rank_mpi == 0) then
-
-    CALL end_timer(TRIM(timer_name))
-
-    SELECT CASE (timer_level)
-    CASE (1)
-        timer_name = "+-- calc_eff_stiffness "//TRIM(domain_char)
-    CASE default
-        timer_name = "calc_eff_stiffness"
-    End SELECT
-
-    CALL start_timer(TRIM(timer_name), .FALSE.)
-    CALL calc_effective_material_parameters(root, comm_nn, domain, &
-        fh_mpi_worker, size_mpi, comm_mpi, collected_logs)
-    CALL end_timer(TRIM(timer_name))
-            
-    mem= (MAXVAL(collected_logs(8:13))/1000._rk/1000._rk/cn)
-    IF (mem > global_mem_threshold) THEN
-        mem_critical = -mem
-        GOTO 1000
-    ELSE
-        mem_critical = mem
-    END IF 
-
-    mem= collected_logs(  14) /1000._rk/1000._rk
-    IF (mem > global_mem_threshold) THEN
-        mem_critical = -mem
-        GOTO 1000
-    ELSE
-        mem_critical = mem
-    END IF 
-
-
-! Abort if DTC consumes to much memory
-    mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
-    IF (mem > global_mem_threshold) THEN
-        mem_critical = -mem
-        GOTO 1000
-    ELSE
-        mem_critical = mem
-    END IF 
-
-
-ELSE
-    DEALLOCATE(part_branch)
-End if
-
-1000 CONTINUE
-
-
-IF(ALLOCATED(serial_pb)) DEALLOCATE(serial_pb)
-IF(ALLOCATED(gnid_cref)) DEALLOCATE(gnid_cref)
-IF(ALLOCATED(zeros_R8))  DEALLOCATE(zeros_R8)
-
-IF(rank_mpi==0) THEN
-    IF(ALLOCATED(glob_displ))    DEALLOCATE(glob_displ)
-    IF(ALLOCATED(res_sizes))     DEALLOCATE(res_sizes)
-    IF(ALLOCATED(glob_force))    DEALLOCATE(glob_force)
-    IF(ALLOCATED(nodes_in_mesh)) DEALLOCATE(nodes_in_mesh)
-END IF 
 
 !------------------------------------------------------------------------------
 ! Remove matrices
@@ -1276,6 +1271,130 @@ Do ii = 1, no_lc
     END IF 
 
 End Do
+
+CALL PetscFinalize(petsc_ierr) 
+IF(petsc_ierr .NE. 0_ik) WRITE(std_out, FMT_WRN_xAI0) "Error in PetscFinalize: ", petsc_ierr
+
+!------------------------------------------------------------------------------
+! All 24 linear system solutions are produced. 
+! Effective stiffnesses can be calculated.
+!------------------------------------------------------------------------------
+if (rank_mpi == 0) then
+
+    CALL end_timer(TRIM(timer_name))
+
+    SELECT CASE (timer_level)
+    CASE (1)
+        timer_name = "+-- calc_eff_stiffness "//TRIM(domain_char)
+    CASE default
+        timer_name = "calc_eff_stiffness"
+    End SELECT
+
+    CALL start_timer(TRIM(timer_name), .FALSE.)
+    CALL calc_effective_material_parameters(root, domain_tree, esd_result_branch, &
+        comm_nn, domain, fh_mpi_worker, size_mpi, collected_logs)
+    CALL end_timer(TRIM(timer_name))
+            
+    mem= (MAXVAL(collected_logs(8:13))/1000._rk/1000._rk/cn)
+    IF (mem > global_mem_threshold) THEN
+        mem_critical = -mem
+        GOTO 1000
+    ELSE
+        mem_critical = mem
+    END IF 
+
+    mem= collected_logs(  14) /1000._rk/1000._rk
+    IF (mem > global_mem_threshold) THEN
+        mem_critical = -mem
+        GOTO 1000
+    ELSE
+        mem_critical = mem
+    END IF 
+
+
+    ! Abort if DTC consumes to much memory
+    mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
+    IF (mem > global_mem_threshold) THEN
+        mem_critical = -mem
+        GOTO 1000
+    ELSE
+        mem_critical = mem
+    END IF 
+
+
+                        ! ! ------------------------------------------------------------------------------
+                        ! ! Deallocate results of this domain.
+                        ! ! ------------------------------------------------------------------------------
+                        ! WRITE(desc,'(A,I0)')"Domain ", Domain
+                        ! CALL delete_branch_from_branch(TRIM(desc), root, dsize)
+ELSE
+    DEALLOCATE(part_branch)
+End if
+
+1000 CONTINUE
+
+IF(ALLOCATED(serial_pb)) DEALLOCATE(serial_pb)
+IF(ALLOCATED(gnid_cref)) DEALLOCATE(gnid_cref)
+IF(ALLOCATED(zeros_R8))  DEALLOCATE(zeros_R8)
+
+IF(rank_mpi==0) THEN
+    IF(ALLOCATED(glob_displ))    DEALLOCATE(glob_displ)
+    IF(ALLOCATED(res_sizes))     DEALLOCATE(res_sizes)
+    IF(ALLOCATED(glob_force))    DEALLOCATE(glob_force)
+    IF(ALLOCATED(nodes_in_mesh)) DEALLOCATE(nodes_in_mesh)
+END IF 
+
+! Do ii = 1, Parts
+!     ! IF (ALLOCATED(PMesh%branches(ii)%leaves(1)%p_int8)) THEN
+!         DEALLOCATE(PMesh%branches(ii)%leaves(1)%p_int8)
+!     ! END IF 
+!     ! IF (ALLOCATED(PMesh%branches(ii)%leaves(2)%p_real8)) THEN
+!         DEALLOCATE(PMesh%branches(ii)%leaves(2)%p_real8)
+!     ! END IF 
+!     ! IF (ALLOCATED(PMesh%branches(ii)%leaves(3)%p_int8)) THEN
+!         DEALLOCATE(PMesh%branches(ii)%leaves(3)%p_int8)
+!     ! END IF 
+!     ! IF (ALLOCATED(PMesh%branches(ii)%leaves(4)%p_int8)) THEN
+!         DEALLOCATE(PMesh%branches(ii)%leaves(4)%p_int8)
+!     ! END IF 
+!     ! IF (ALLOCATED(PMesh%branches(ii)%leaves(5)%p_int8)) THEN
+!         DEALLOCATE(PMesh%branches(ii)%leaves(5)%p_int8)
+!     ! END IF 
+! END DO
+
+! CALL delete_branch_from_branch(TRIM(mesh_desc), domain_branch, dsize)
+
+CALL destroy_tree(domain_tree, no_data)
+
+!------------------------------------------------------------------------------
+! There is no calcmat/exec_single_domain if there is an oom.
+! Then, PETSc has to finish gracefully
+!------------------------------------------------------------------+------------
+IF (mem_critical < 0._rk) THEN
+    Do ii = 1, no_lc
+
+        IF (macro_order == 1) THEN
+        
+            CALL VecDestroy(FF_08(ii), petsc_ierr)
+
+        ELSE IF (macro_order == 2) THEN
+        
+            CALL VecDestroy(FF_20(ii), petsc_ierr)
+        END IF 
+
+    End Do
+
+    !------------------------------------------------------------------------------
+    ! Remove matrices
+    !------------------------------------------------------------------+------------
+    CALL KSPDestroy(ksp,    petsc_ierr)
+    CALL MatDestroy(AA,     petsc_ierr)
+    CALL MatDestroy(AA_org, petsc_ierr)
+    CALL VecDestroy(XX,     petsc_ierr)
+
+    CALL PetscFinalize(petsc_ierr) 
+    IF(petsc_ierr .NE. 0_ik) WRITE(std_out, FMT_WRN_xAI0) "Error in PetscFinalize: ", petsc_ierr
+END IF 
 
 End Subroutine exec_single_domain
 

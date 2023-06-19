@@ -184,7 +184,7 @@ contains
 
         Do ii = 1, Parts
 
-            ! PMesh%branches(ii)%leaves(5) = "Topology" **************
+            ! PMesh%branches(ii)%leaves(5) = "Topology"
             PMesh%branches(ii)%leaves(5)%dat_no = nn_el*nelems_pp(ii)
             PMesh%branches(ii)%leaves(5)%pstat  = 1
             Allocate(PMesh%branches(ii)%leaves(5)%p_int8(nn_el*nelems_pp(ii)))

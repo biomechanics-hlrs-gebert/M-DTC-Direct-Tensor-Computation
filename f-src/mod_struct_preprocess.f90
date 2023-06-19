@@ -20,24 +20,25 @@ Implicit None
 
 Contains
 
-Subroutine generate_geometry(root, ddc_nn, job_dir, typeraw, glob_success)
+Subroutine generate_geometry(root, domain_tree, ddc_nn, job_dir, typeraw, glob_success)
 
-Type(tBranch), Intent(InOut) :: root
-Character(LEN=*), Intent(in) :: job_dir
-integer(ik), Intent(in) :: ddc_nn
-Logical, Intent(Out) :: glob_success
-    
-! Chain Variables
-Character(Len=*), Parameter :: link_name = 'gen_quadmesh'
+    Type(tBranch), Intent(InOut) :: root
+    Type(tBranch), Intent(Out) :: domain_tree
+    Character(LEN=*), Intent(in) :: job_dir
+    integer(ik), Intent(in) :: ddc_nn
+    Logical, Intent(Out) :: glob_success
+        
+    ! Chain Variables
+    Character(Len=*), Parameter :: link_name = 'gen_quadmesh'
 
-! Puredat Variables
-Type(tBranch) :: phi_desc
+    ! Puredat Variables
+    Type(tBranch) :: phi_desc
 
-! Decomp Variables 
-Type(tBranch), Pointer :: loc_ddc, ddc, bounds_b
+    ! Decomp Variables 
+    Type(tBranch), Pointer :: loc_ddc, ddc, bounds_b
 
-! Branch pointers
-Type(tBranch), Pointer :: meta_para, domain_branch
+    ! Branch pointers
+    Type(tBranch), Pointer :: meta_para, domain_branch
 
     ! Mesh Variables 
     Real(rk)    , Dimension(:,:) , Allocatable :: nodes, displ
@@ -62,6 +63,8 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     Integer(ik), Dimension(:), Allocatable :: bpoints,x_D,nn_D, vdim
     Integer(ik), Dimension(3) :: xa_n, xe_n, xa_n_ext, xe_n_ext
     Integer(ik) :: nn_1,nn_2,nn_3, ii,jj, pos_f, first_bytes, llimit, no_nodes=0, no_elems=0
+
+    INTEGER(pd_ik), DIMENSION(no_streams) :: dsize
 
     Logical :: success, fex
     
@@ -98,11 +101,14 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     xe_n_ext = xe_n + bpoints
 
     !----------------------------------------------------------------------------
-    ! Add domain branch to root
+    ! Add domain branch to domain_tree
     !----------------------------------------------------------------------------
+
+
+
     desc=''
     Write(desc,'(A,I0)')"Domain ", ddc_nn
-    call add_branch_to_branch(root, domain_branch)
+    call add_branch_to_branch(domain_tree, domain_branch)
     
     call raise_branch(trim(desc), 0_pd_ik, 0_pd_ik, domain_branch)
 
@@ -165,13 +171,28 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     SELECT CASE(TRIM(ADJUSTL(typeraw)))
     CASE('ik1')
         multiplier = 1_ik
-        allocate(Phi_ik1(xa_n(1):xe_n(1), xa_n(2):xe_n(2), xa_n(3):xe_n(3)), stat=alloc_stat)
+        IF(.NOT. ALLOCATED(Phi_ik1)) THEN
+            ALLOCATE(Phi_ik1(xa_n(1):xe_n(1), xa_n(2):xe_n(2), xa_n(3):xe_n(3)), stat=alloc_stat)
+        ELSE
+            Phi_ik1 = 0_1
+        END IF 
+
     CASE('ik2')
         multiplier = 2_ik
-        allocate(Phi_ik2(xa_n(1):xe_n(1), xa_n(2):xe_n(2), xa_n(3):xe_n(3)), stat=alloc_stat)
+        IF(.NOT. ALLOCATED(Phi_ik2)) THEN
+            ALLOCATE(Phi_ik2(xa_n(1):xe_n(1), xa_n(2):xe_n(2), xa_n(3):xe_n(3)), stat=alloc_stat)
+        ELSE
+            Phi_ik2 = 0_2
+        END IF 
+
     CASE('ik4')
         multiplier = 4_ik
-        allocate(Phi_ik4(xa_n(1):xe_n(1), xa_n(2):xe_n(2), xa_n(3):xe_n(3)), stat=alloc_stat)
+        IF(.NOT. ALLOCATED(Phi_ik4)) THEN
+            ALLOCATE(Phi_ik4(xa_n(1):xe_n(1), xa_n(2):xe_n(2), xa_n(3):xe_n(3)), stat=alloc_stat)
+        ELSE
+            Phi_ik4 = 0_4
+        END IF 
+
     END SELECT
 
     call alloc_err("phi", alloc_stat)
@@ -234,7 +255,6 @@ Type(tBranch), Pointer :: meta_para, domain_branch
         CASE(2); close(phi_desc%streams%units(2))
         CASE(3); close(phi_desc%streams%units(3))
     END SELECT
-
 
     Select Case (timer_level)
     Case (3)
@@ -332,13 +352,6 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     !         desc = "PHI", head = .TRUE.)
     End if
 
-    SELECT CASE(nts)
-        CASE(1); Deallocate(Phi_ik1)
-        CASE(2); Deallocate(Phi_ik2)
-        CASE(3); Deallocate(Phi_ik4)
-    END SELECT
-
-
     !------------------------------------------------------------------------------
     ! Break if no structure is generated
     !------------------------------------------------------------------------------
@@ -397,7 +410,7 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     call raise_branch(trim(desc), parts, 0_pd_ik, PMesh)
 
     Call part_mesh(nodes, elems, no_nodes, no_elems, parts, PMesh, job_dir, ddc_nn)
-   
+
     call add_leaf_to_branch(PMesh, "No of nodes in mesh",  1_pd_ik, [no_nodes])
     call add_leaf_to_branch(PMesh, "No of elements in mesh",  1_pd_ik, [no_elems])
     
@@ -407,8 +420,7 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     Call Search_branch("Global domain decomposition", root, ddc, success)
     desc=''
     Write(desc,'(A,I0)')"Local domain Decomposition of domain no ",ddc_nn
-    Call Search_branch(trim(desc), root, loc_ddc, success)
-    
+    Call Search_branch(trim(desc), domain_tree, loc_ddc, success)
     Call generate_boundaries(PMesh, ddc, loc_ddc, elo_macro)
 
     !------------------------------------------------------------------------------
@@ -495,6 +507,7 @@ Type(tBranch), Pointer :: meta_para, domain_branch
     !------------------------------------------------------------------------------
     ! Get Parameters of domain decomposition
     !------------------------------------------------------------------------------
+
     call pd_get(loc_ddc, "nn",      ddc_nn)
     call pd_get(ddc,     "x_D_phy", dim_c )
     call pd_get(loc_ddc, "xa_n",    xa_n  )
@@ -711,6 +724,10 @@ Type(tBranch), Pointer :: meta_para, domain_branch
         call add_leaf_to_branch(PMesh, "No of elems in parts", parts, no_elems_all)
         call add_leaf_to_branch(PMesh, "No of cdofs in parts", parts, no_cdofs_all)
         
+        DEALLOCATE(no_nodes_all)
+        DEALLOCATE(no_elems_all)
+        DEALLOCATE(no_cdofs_all)
+
         ! DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         if (out_amount == "DEBUG") then
         Write(un_lf,fmt_dbg_sep)

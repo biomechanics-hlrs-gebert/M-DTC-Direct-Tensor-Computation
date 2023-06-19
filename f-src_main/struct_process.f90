@@ -93,8 +93,6 @@ USE chain_routines
 USE MPI
 USE decomp 
 USE dtc_main_subroutines
-USE PETSC
-USE petsc_opt
 USE system
 
 Implicit None
@@ -103,7 +101,7 @@ INTEGER(ik), PARAMETER :: debug = 2   ! Choose an even integer!!
 
 TYPE(materialcard) :: bone
 
-INTEGER(mik) :: ierr, rank_mpi, size_mpi, petsc_ierr, mii, mjj, &
+INTEGER(mik) :: ierr, rank_mpi, size_mpi, mii, mjj, &
     worker_rank_mpi, worker_size_mpi, aun, par_domains, &
     Active, finished = -1, worker_comm
 
@@ -128,6 +126,7 @@ CHARACTER(mcl)   :: cmd_arg_history='', link_name = 'struct process', &
     typeraw="", restart='N', restart_cmd_arg='U',ios="" ! U = 'undefined'
 CHARACTER(8)   :: elt_micro, output
 
+REAL(rk), DIMENSION(3) :: delta
 REAL(rk) :: strain, t_start, t_end, t_duration, cn, mem_critical=1._rk, mem=0._rk
 
 INTEGER(ik), DIMENSION(:), ALLOCATABLE :: Domains, nn_D, Domain_stats
@@ -300,7 +299,7 @@ If (rank_mpi == 0) THEN
         CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF
     
-    IF ( (bone%delta(1) /= bone%delta(2)) .OR. (bone%delta(1) /= bone%delta(3)) ) THEN
+    IF ( (delta(1) /= delta(2)) .OR. (delta(1) /= delta(3)) ) THEN
         mssg = 'Currently, the spacings of all 3 dimensions must be equal!'
         CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF
@@ -700,19 +699,6 @@ If (rank_mpi == 0) THEN
     CALL add_branch_to_branch(root, result_branch)
     CALL raise_branch("Averaged Material Properties", 0_pd_ik, add_leaves, result_branch)
 
-    !------------------------------------------------------------------------------
-    ! Former *.memlog file
-    !------------------------------------------------------------------------------
-    ! Operation, Domain, Nodes, Elems, Preallo, Mem_comm, Pids_returned, Size_mpi, time
-    ! Before PETSc preallocation              , 3395     , 1672328, 1442071, 546, 37198100, 252, 252, 1671690714
-    ! After PETSc preallocation               , 3395     , 1672328, 1442071, 546, 209263436, 252, 252, 1671690714
-    ! Before matrix assembly                  , 3395     , 1672328, 1442071, 546, 269684188, 252, 252, 1671690714
-    ! After matrix assembly                   , 3395     , 1672328, 1442071, 546, 242114948, 252, 252, 1671690715
-    ! Before solving                          , 3395     , 1672328, 1442071, 546, 242514604, 252, 252, 1671690716
-    ! After solving                           , 3395     , 1672328, 1442071, 546, 244625464, 252, 252, 1671690736
-    ! End of domain                           , 3395     , 1672328, 1442071, 546, 73615236, 252, 252, 1671690747
-    !------------------------------------------------------------------------------
-    ! for better formatting :-)
     nl = no_lc
     CALL raise_leaves(no_leaves = add_leaves, &
         desc = [ & ! DO NOT CHANGE THE LENGTH OF THE STRINGS      ! Leaf x bytes
@@ -936,18 +922,6 @@ Else
 
     CALL MPI_COMM_SIZE(WORKER_COMM, worker_size_mpi, ierr)
     CALL print_err_stop(std_out, "MPI_COMM_SIZE couldn't retrieve worker_size_mpi", ierr)
-
-    !------------------------------------------------------------------------------
-    ! This sets the options for PETSc in-core. To alter the options
-    ! add them in Set_PETSc_Options in Module pets_opt in file
-    ! f-src/mod_parameters.f90
-    !------------------------------------------------------------------------------
-    CALL Set_PETSc_Options()
-
-    PETSC_COMM_WORLD = worker_comm
-
-    CALL PetscInitialize(PETSC_NULL_CHARACTER, petsc_ierr)
-    IF(petsc_ierr .NE. 0_ik) WRITE(std_out, FMT_WRN_xAI0) "Error in PetscInitialize: ", petsc_ierr
 
 End If
 
@@ -1199,7 +1173,7 @@ Else
             END IF
         END IF
 
-        CALL link_start(link_name, .True., .True.)
+        ! CALL link_start(link_name, .True., .True.)
 
     END IF 
 
@@ -1234,13 +1208,6 @@ Else
             comm_nn, 1_mik, & 
             MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
         
-        !!!!!------------------------------------------------------------------------------
-        !!!!! Experimental
-        !!!!! May help computing domains which may be skipped
-        !!!!! Some domains are skipped while restarting. Considered a minor issue
-        !!!!!------------------------------------------------------------------------------
-        !!!!!!!!!!!!! IF(comm_nn > 1) comm_nn = comm_nn - 1_ik
-
     END IF 
 
     CALL MPI_BCAST(comm_nn, 1_mik , MPI_INTEGER8, 0_mik, WORKER_COMM, ierr)
@@ -1358,7 +1325,6 @@ Else
                     Int(root%branches(3)%leaves(3)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
                     t_duration, 1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
 
-
                 CALL Start_Timer("Write Worker Root Branch")
 
                 !------------------------------------------------------------------------------
@@ -1372,15 +1338,6 @@ Else
                 !------------------------------------------------------------------------------
                 CALL Write_Tree(root%branches(3)) ! Branch with 'Averaged Material Properties'
                 ! ../../../bin/pd_dump_leaf_x86_64 $PWD/ results_0000001 7
-            
-            !    IF (out_amount == "ALEXANDRIA") THEN
-            !        DO ii = 1, SIZE(root%branches)FH01-2_mu_Dev_dtc_Tensors
-            !            write(*, '(A, I0, 2A, T80, I0, T84, A)') &
-            !                "Branch(", ii, ") of the tree: ", &
-            !                TRIM(root%branches(ii)%desc), &
-            !                SIZE(root%branches(ii)%leaves), " leaves."
-            !        END DO
-            !    END IF
 
                 CALL End_Timer("Write Worker Root Branch")
 
@@ -1390,13 +1347,9 @@ Else
                 Call MPI_FILE_WRITE_AT(aun, INT(((nn-1) * ik), MPI_OFFSET_KIND), &
                     Domain, 1_mik, MPI_INTEGER8, status_mpi, ierr)
 
-                !------------------------------------------------------------------------------
-                ! Deallocate results of this domain. Potential memory leak.
-                !------------------------------------------------------------------------------
-                WRITE(desc,'(A,I0)')"Domain ", Domain
-                CALL delete_branch_from_branch(TRIM(desc), root, dsize)
 
             END IF
+
 
             !------------------------------------------------------------------------------
             ! Mark the current position within the stream.
@@ -1430,9 +1383,6 @@ Else
         CALL print_err_stop(std_out, "MPI_SEND on Active didn't succeed", ierr)
 
     End Do
-
-    CALL PetscFinalize(petsc_ierr) 
-    IF(petsc_ierr .NE. 0_ik) WRITE(std_out, FMT_WRN_xAI0) "Error in PetscFinalize: ", petsc_ierr
 
 End If
 
