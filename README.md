@@ -50,19 +50,7 @@ The program currently only accepts \*.raw files, given with a proper meta-file a
 * Linux x86 64Bit Installation with Bash or Zsh
 * GNU Compiler Collection (GCC), especially with gfortran
 * An installation of Open-MPI
-* Geberts libraries. Managed by: ```./manage_geb-lib.sh```
-
-The program must be compiled with:
-* Global integer kind=64Bit, signed
-* Meta-format integer kind=64Bit, signed
-* MPI integer kind=32Bit
-* PETSc index length=32Bit
-* METIS index length=64Bit
-
-The installation of Open MPI, METIS and PETSc is simplified with the install scripts in ```./lib```.
-
-### Optional: Gnu debugging
-I highly recommend the MPI-parallel debugging with [Arm DDT Forge](https://www.arm.com/products/development-tools/server-and-hpc/forge/ddt). Nevertheless, local debugging with gdb works out as well.
+* [Gebert's libraries](https://github.com/biomechanics-hlrs-gebert/A-GLI-Geberts-Library)
 
 [gdb](https://www.gnu.org/software/gdb/), [tmpi](https://github.com/Azrael3000/tmpi), [tmux](https://github.com/tmux/tmux/wiki)
 
@@ -70,7 +58,7 @@ I highly recommend the MPI-parallel debugging with [Arm DDT Forge](https://www.a
 
 To execute the program, the paths of the libraries must be given as environment variables.
 Modify your program according to the requirements of your HPC cluster:
-```vim ./auxiliaries/system_environments/<system>.sh```
+```vim ./geb-lib/auxiliaries/system_environments/<system>.sh```
 
 Then source the script.
 ```source ./environment.source <system>``` 
@@ -84,7 +72,6 @@ Both, compilation and execution of the program need this setup.
 
 ### Run make:
 Build the program:    ```make```
-Create documentation: ```make docs```
 
 ### Uninstall:
 ```make clean && rm -r <your program directory>```
