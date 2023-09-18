@@ -1,0 +1,56 @@
+# HLRS|NUM Dataset Meta Information
+
+* GENERAL_INFORMATION
+w CT_SCAN               TC01-1                                         
+w OWNER                 Johannes_Gebert                                
+w OWNER_CONTACT         gebert@hlrs.de                                 
+w DATE_CREATED          2023/09/17                                     
+w INTERNAL_ID           Test_case_dtc_isotropic_1                          
+w HISTORY               1                                      (-)     
+w TYPE_RAW              ik4                                            
+w DATA_BYTE_ORDER       LittleEndian                                   
+w DIMENSIONALITY        3                                      (-)     
+w DIMENSIONS            100          100          100          (-)     
+w NO_SCALAR_CMPNNTS     1                                      (-)     
+w SPACING               0.01         0.01         0.01         (mm)    
+w ORIGIN_SHIFT_GLBL     0.0000000    0.0000000    0.0000000    (mm)    
+w ORIGIN                0            0            0            (-)     
+w FIELD_OF_VIEW         1.           1.           1.           (mm)    
+w ENTRIES               1000000                                (-)     
+
+----------------------------------------------------------------------------------------------------
+
+p CT_BINARIZATION
+r BINARIZE_LO           -1000                                          ! Scalar value of bone in the binarized image
+r BINARIZE_HI           20000                                          ! Scalar value of bone in the binarized image
+
+----------------------------------------------------------------------------------------------------
+
+p TENSOR_COMPUTATION
+r PROVENANCE_P_N_BSNM   regression/TC01-1_test_dev_dtc_isotropic-std   ! From which dataset to fork from. can be empty
+r BINARY_SEGMENTATION   Y                                              ! Yes/No
+i SEGMENTATION_MAP      Hounsfield                                     ! 
+
+r SIZE_DOMAIN           0.5  0.5  0.5                                  ! (mm)
+r YOUNG_MODULUS         5600.0                                         ! Monolithical parameter
+r POISSON_RATIO         0.3                                            ! Monolithical parameter
+r RVE_STRAIN            0.000001                                       ! Strain on macro element
+r MACRO_ELMNT_ORDER     1                                              ! 1=linear (HEX08), 2=quadratic (HEX20)
+r MICRO_ELMNT_TYPE      HEX08                                          ! Element type  on micro scale
+r MESH_PER_SUB_DMN      4                                              ! Processors/Mesh parts per subdomain. Size_mpi-1! 
+r COMPUTE_NODES         1.0                                            ! Number of compute nodes of hawk assigned
+r OUT_FMT               FMPS                                           ! Output Format
+r LO_BNDS_DMN_RANGE     0    0    0                                    ! xa_n - Lower bounds of selected domain range
+r UP_BNDS_DMN_RANGE     0    0    0                                    ! xe_n - Upper bounds of selected domain range
+r RESTART               Y                                              ! Restart a (partly) computed project
+
+r NEW_BSNM_FEATURE      isotropic-std-HEX08-ME1                        ! Last segment of basename - NO '_'
+r NEW_BSNM_PURPOSE      dev                                            ! 3rd segment of basename - NO '_'
+
+w PROCESSORS            5                                      (-)     18.09.2023 23:21:16.892 +0200
+w JOB_STARTED           bin/dtc_V1.6.1_debug_x86_64            (-)     18.09.2023 23:21:16.892 +0200
+w SHA256SUM_OF_BINARY   e6f3e693586d6e82b31cc365d41182fc67f948a0aecd50e70dd9b8f03c3fa00c
+
+w JOB_FINISHED          29.868342                              (-)     18.09.2023 23:21:47.853 +0200
+
+----------------------------------------------------------------------------------------------------
