@@ -1,0 +1,18 @@
+'regression/solid_cube_reg'                                                 ! Base path
+'solid_cube_Hex20'                                                          ! Project name
+'regression/solid_cube/'                                                    ! muCT puredat pro_path
+'solid_cube'                                                                ! muCT puredat pro_name
+2.0 2.0 2.0                                                                 ! Physical domain size
+0 0 0                                                                       ! Lower bounds of selected domain range
+0 0 0                                                                       ! Upper bounds of selected domain range
+0                                                                           ! Lower limit of iso value
+HEX20                                                                       ! Element type  on micro scale
+2                                                                           ! No of mesh parts per subdomain
+FMPS                                                                        ! Output Format
+1.E-06                                                                      ! Average strain on RVE
+5600.                                                                       ! Young_s modulus
+0.3                                                                         ! Poisson_s ratio
+1                                                                           ! Element order on macro scale
+DEBUG                                                                       ! Output amount
+N                                                                           ! Restart
+

@@ -229,6 +229,7 @@ END IF
 par_dmn_number=0
 
 DO rank_mpi = 1, size_mpi-1, parts
+
     par_dmn_number = par_dmn_number + 1
 
     nn_comm = 1_ik
@@ -393,7 +394,7 @@ DO rank_mpi = 1, size_mpi-1, parts
         ! Begin searching for the domain to extract
         !------------------------------------------------------------------------------
         last_domain = .FALSE.
-        DO ii = 1, domains_Per_comm 
+        DO ii = 1, domains_Per_comm
 
             !------------------------------------------------------------------------------
             ! Quite a naive implementation
@@ -431,11 +432,10 @@ DO rank_mpi = 1, size_mpi-1, parts
             !------------------------------------------------------------------------------
             ! Search for the current domain
             !------------------------------------------------------------------------------
-            current_domain = dat_domains(ii)
-
             pntr = -1
             DO jj = 1, No_of_domains
-                IF (Domain_status(jj,1) == current_domain) pntr = jj
+                IF (Domain_status(jj,1) == dat_domains(ii)) pntr = jj
+                ! write(*,*) "DATA", Domain_status(jj,1), dat_domains(ii), " VECTOR:", dat_domains
             END DO
 
             !------------------------------------------------------------------------------
@@ -561,7 +561,6 @@ DO rank_mpi = 1, size_mpi-1, parts
             DO xx=1, 24
                 tensor(tt)%collected_logs(xx) = dat_collected_logs(24_ik*(ii-1)+xx)
             END DO
-            
             CALL write_tensor_2nd_rank_R66_row(tensor(tt), string)
             WRITE(fh_tens,'(A)') TRIM(string)
 

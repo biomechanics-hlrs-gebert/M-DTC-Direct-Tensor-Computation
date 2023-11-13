@@ -3,7 +3,7 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 ![Architecture](https://img.shields.io/badge/Architecture-x86_64-blue)
 ![OS](https://img.shields.io/badge/OS-Linux-blue)
-![version](https://img.shields.io/badge/version-1.0.0-blue)
+![version](https://img.shields.io/badge/version-1.2.0-blue)
 
 
 
@@ -25,7 +25,7 @@ mpirun ./bin/dtc_v1.0.0_x86_64 -np 32768 <basename>.meta
 ```
 Testing on a local machine with short turnaround times is recommended with up to 6 cores, depending on your system. 
 
-In general, the tool is capable of running on more than 100.000 x86_64 cores with virtually no limit in wall time. Please be aware that computations on large datasets will need computational power of this magnitude.
+In general, the tool is capable of running on more than 100.000 x86_64 cores. Please be aware that computations on large datasets will need computational power of this magnitude.
 
 ### Tracking of the status of the computation
 To show the current status of the computation, dump the integer 8 data of the status file with the input basename of the computation.  
@@ -50,19 +50,7 @@ The program currently only accepts \*.raw files, given with a proper meta-file a
 * Linux x86 64Bit Installation with Bash or Zsh
 * GNU Compiler Collection (GCC), especially with gfortran
 * An installation of Open-MPI
-* Geberts libraries. Managed by: ```./manage_geb-lib.sh```
-
-The program must be compiled with:
-* Global integer kind=64Bit, signed
-* Meta-format integer kind=64Bit, signed
-* MPI integer kind=32Bit
-* PETSc index length=32Bit
-* METIS index length=64Bit
-
-The installation of Open MPI, METIS and PETSc is simplified with the install scripts in ```./lib```.
-
-### Optional: Gnu debugging
-I highly recommend the MPI-parallel debugging with [Arm DDT Forge](https://www.arm.com/products/development-tools/server-and-hpc/forge/ddt). Nevertheless, local debugging with gdb works out as well.
+* [Gebert's libraries](https://github.com/biomechanics-hlrs-gebert/A-GLI-Geberts-Library)
 
 [gdb](https://www.gnu.org/software/gdb/), [tmpi](https://github.com/Azrael3000/tmpi), [tmux](https://github.com/tmux/tmux/wiki)
 
@@ -70,7 +58,7 @@ I highly recommend the MPI-parallel debugging with [Arm DDT Forge](https://www.a
 
 To execute the program, the paths of the libraries must be given as environment variables.
 Modify your program according to the requirements of your HPC cluster:
-```vim ./auxiliaries/system_environments/<system>.sh```
+```vim ./geb-lib/auxiliaries/system_environments/<system>.sh```
 
 Then source the script.
 ```source ./environment.source <system>``` 
@@ -84,7 +72,6 @@ Both, compilation and execution of the program need this setup.
 
 ### Run make:
 Build the program:    ```make```
-Create documentation: ```make docs```
 
 ### Uninstall:
 ```make clean && rm -r <your program directory>```
