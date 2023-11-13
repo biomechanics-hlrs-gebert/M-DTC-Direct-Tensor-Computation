@@ -26,8 +26,11 @@ PROGRAM morphometric_evaluation
     
     CHARACTER(*), PARAMETER :: doev_dbg_lvl =  "PRODUCTION" ! "DEBUG"
     
-    INTEGER(INT16), DIMENSION(:,:,:), ALLOCATABLE :: rry_ik2
-    INTEGER(INT32), DIMENSION(:,:,:), ALLOCATABLE :: rry_ik4
+    INTEGER(INT16), DIMENSION(:,:,:), ALLOCATABLE :: Aik2, Aik2ext
+    INTEGER(INT32), DIMENSION(:,:,:), ALLOCATABLE :: Aik4, Aik4ext
+    INTEGER(INT16), DIMENSION(:,:), ALLOCATABLE :: ConPlane1_ik2,ConPlane2_ik2,ConPlane3_ik2
+    INTEGER(INT32), DIMENSION(:,:), ALLOCATABLE :: ConPlane1_ik4,ConPlane2_ik4,ConPlane3_ik4
+
     INTEGER(ik), DIMENSION(:), ALLOCATABLE :: vox_stats, Domains
     INTEGER(ik), DIMENSION(3), PARAMETER :: bpoints=[1_ik,1_ik,1_ik]
     !
@@ -37,20 +40,24 @@ PROGRAM morphometric_evaluation
     INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0, dims=0, x_D_pos=0, &
         x_D_end, nn_D, x_D, vox_min, vox_max
     
-    INTEGER(ik) :: counter_BV, counter_TV, bin_hi, bin_lo, bytes=0, vox_dmn, &
-        ii, jj, kk, ll, mm, nn, oo, vun, sun, No_of_domains, size_raw
-    
-    REAL(rk) :: start, end
+    INTEGER(ik) :: counter_BV, counter_TV, hi, lo, bytes=0, vox_dmn, &
+        ii, jj, kk, ll, mm, nn, oo, vun, sun, sixfun, twsixfun, coplun, &
+        No_of_domains, size_raw, cntr, tt = 0_ik, cx, cy, cz
+
+    REAL(rk) :: start, end, sixf_tmp, twsixf_tmp, sixf_tmp_vox, twsixf_tmp_vox, &
+        CoPl1Avg, CoPl2Avg, CoPl3Avg, max_copl, min_copl
+    REAL(rk), DIMENSION(:), ALLOCATABLE :: sixf, twsixf, CoPl
     REAL(rk), DIMENSION(3) :: spcng(3), dmn_size, x_D_phy
     
     CHARACTER(mcl), DIMENSION(:), ALLOCATABLE :: m_rry      
-    CHARACTER(mcl) :: cmd_arg_history='', binary, vox_file, sun_file, raw_file, stat=""
+    CHARACTER(mcl) :: cmd_arg_history='', binary, vox_file, sun_file, raw_file, &
+        stat="", twsixf_file, sixf_file, copl_file
     CHARACTER(scl) :: type_raw, data_byte_order, datarep
     CHARACTER(1) :: bin_sgmnttn=""
     
     CHARACTER(1)  :: restart_cmd_arg='U' ! U = 'undefined'
     
-    LOGICAL :: vox_exists=.FALSE., sun_exists=.FALSE., raw_exists=.FALSE., &
+    LOGICAL :: fex=.FALSE., vox_found = .FALSE., &
         opened=.FALSE., finished_successfully = .FALSE.
     
     CALL CPU_TIME(start)
@@ -84,6 +91,7 @@ PROGRAM morphometric_evaluation
     !------------------------------------------------------------------------------
     ! Parse input
     !------------------------------------------------------------------------------
+    stat = ""
     CALL meta_read('LO_BNDS_DMN_RANGE' , m_rry, xa_d, stat)
     IF(stat/="") WRITE(std_out, FMT_ERR) "Reading "//TRIM(stat)//" failed"
 
@@ -91,10 +99,10 @@ PROGRAM morphometric_evaluation
     IF(stat/="") WRITE(std_out, FMT_ERR) "Reading "//TRIM(stat)//" failed"
 
 
-    CALL meta_read('BINARIZE_HI', m_rry, bin_hi, stat)
+    CALL meta_read('BINARIZE_HI', m_rry, hi, stat)
     IF(stat/="") WRITE(std_out, FMT_ERR) "Reading "//TRIM(stat)//" failed"
 
-    CALL meta_read('BINARIZE_LO', m_rry, bin_lo, stat)
+    CALL meta_read('BINARIZE_LO', m_rry, lo, stat)
     IF(stat/="") WRITE(std_out, FMT_ERR) "Reading "//TRIM(stat)//" failed"
 
     
@@ -153,16 +161,35 @@ PROGRAM morphometric_evaluation
     
     vun = 61_ik
     vox_file = TRIM(out%p_n_bsnm)//".vox"
-    INQUIRE(FILE = TRIM(vox_file), EXIST=vox_exists)
-    IF(vox_exists) CALL print_err_stop(std_out, "A vox file already exists.", 1_ik) 
+    INQUIRE(FILE = TRIM(vox_file), EXIST=fex)
+    IF(fex) CALL print_err_stop(std_out, "A vox file already exists.", 1_ik) 
     
     sun = 62_ik
     sun_file = TRIM(out%p_n_bsnm)//".status" ! compare to DTC
-    INQUIRE(FILE = TRIM(sun_file), EXIST=sun_exists)
-    IF(sun_exists) CALL print_err_stop(std_out, "A status file already exists.", 1_ik) 
+    INQUIRE(FILE = TRIM(sun_file), EXIST=fex)
+    IF(fex) CALL print_err_stop(std_out, "A status file already exists.", 1_ik)    
+
+    sixfun = 63_ik
+    sixf_file = TRIM(out%p_n_bsnm)//".6fold" ! compare to DTC
+    INQUIRE(FILE = TRIM(sixf_file), EXIST=fex)
+    IF(fex) CALL print_err_stop(std_out, "A status file already exists.", 1_ik)    
+
+    twsixfun = 64_ik
+    twsixf_file = TRIM(out%p_n_bsnm)//".27fold" ! compare to DTC
+    INQUIRE(FILE = TRIM(twsixf_file), EXIST=fex)
+    IF(fex) CALL print_err_stop(std_out, "A status file already exists.", 1_ik) 
+
+    CoPlun = 64_ik
+    CoPl_file = TRIM(out%p_n_bsnm)//".CoPl" ! compare to DTC
+    INQUIRE(FILE = TRIM(Copl_file), EXIST=fex)
+    IF(fex) CALL print_err_stop(std_out, "A control plane file already exists.", 1_ik) 
+
 
     WRITE(std_out, FMT_TXT) "vox-file:      ", TRIM(vox_file)
     WRITE(std_out, FMT_TXT) "sun-file:      ", TRIM(sun_file)
+    WRITE(std_out, FMT_TXT) "6-fold-file:   ", TRIM(sixf_file)
+    WRITE(std_out, FMT_TXT) "27-fold-file:  ", TRIM(twsixf_file)
+    WRITE(std_out, FMT_TXT) "CoPl-file:     ", TRIM(CoPl_file)
 
     !------------------------------------------------------------------------------
     ! IMPORTANT: This calculations must be the exact same like in the 
@@ -180,6 +207,9 @@ PROGRAM morphometric_evaluation
 
     ALLOCATE(vox_stats(No_of_domains)); vox_stats = 0_ik
     ALLOCATE(Domains(No_of_domains)); Domains = 0_ik
+    ALLOCATE(sixf(No_of_domains)); sixf = 0._rk
+    ALLOCATE(twsixf(No_of_domains)); twsixf = 0._rk
+    ALLOCATE(copl(No_of_domains)); copl = 0._rk
 
     !------------------------------------------------------------------------------
     ! Open raw file
@@ -193,9 +223,9 @@ PROGRAM morphometric_evaluation
     raw_file = TRIM(in%p_n_bsnm)//raw_suf
     WRITE(std_out, FMT_TXT) "raw-file:      ", TRIM(raw_file)
 
-    INQUIRE(FILE = TRIM(raw_file), EXIST=raw_exists, SIZE=size_raw)
+    INQUIRE(FILE = TRIM(raw_file), EXIST=fex, SIZE=size_raw)
 
-    IF (.NOT. raw_exists) THEN
+    IF (.NOT. fex) THEN
         WRITE(std_out, FMT_ERR) "The input *.raw "//TRIM(raw_file)//" file was not found."
         STOP
     END IF 
@@ -221,14 +251,29 @@ PROGRAM morphometric_evaluation
 
     SELECT CASE(type_raw)
         CASE('ik2') 
-            ALLOCATE(rry_ik2(dims(1), dims(2), dims(3))); rry_ik2 = 0_2
-            READ(UNIT=51) rry_ik2
+            ALLOCATE(Aik2(dims(1), dims(2), dims(3))); Aik2 = 0_2
+            READ(UNIT=51) Aik2
+
+            ! ALLOCATE(ConPlane1_ik2(x_D(1), x_D(2))); ConPlane1_ik2 = 0_2
+            ! ALLOCATE(ConPlane2_ik2(x_D(1), x_D(3))); ConPlane2_ik2 = 0_2
+            ! ALLOCATE(ConPlane3_ik2(x_D(2), x_D(3))); ConPlane3_ik2 = 0_2
+            ALLOCATE(ConPlane1_ik2(x_D(1)+1_ik, x_D(2)+1_ik)); ConPlane1_ik2 = 0_2
+            ALLOCATE(ConPlane2_ik2(x_D(1)+1_ik, x_D(3)+1_ik)); ConPlane2_ik2 = 0_2
+            ALLOCATE(ConPlane3_ik2(x_D(2)+1_ik, x_D(3)+1_ik)); ConPlane3_ik2 = 0_2
 
         CASE('ik4') 
-            ALLOCATE(rry_ik4(dims(1), dims(2), dims(3))); rry_ik4 = 0_4
-            READ(UNIT=51) rry_ik4
+            ALLOCATE(Aik4(dims(1), dims(2), dims(3))); Aik4 = 0_4
+            READ(UNIT=51) Aik4
 
-    END SELECT
+            ! ALLOCATE(ConPlane1_ik4(x_D(1), x_D(2))); ConPlane1_ik4 = 0_2
+            ! ALLOCATE(ConPlane2_ik4(x_D(1), x_D(3))); ConPlane2_ik4 = 0_2
+            ! ALLOCATE(ConPlane3_ik4(x_D(2), x_D(3))); ConPlane3_ik4 = 0_2
+            ALLOCATE(ConPlane1_ik4(x_D(1)+1_ik, x_D(2)+1_ik)); ConPlane1_ik4 = 0_2
+            ALLOCATE(ConPlane2_ik4(x_D(1)+1_ik, x_D(3)+1_ik)); ConPlane2_ik4 = 0_2
+            ALLOCATE(ConPlane3_ik4(x_D(2)+1_ik, x_D(3)+1_ik)); ConPlane3_ik4 = 0_2
+
+        END SELECT
+
     CLOSE(51)
     !------------------------------------------------------------------------------
     ! No need to compute voxs if they are the same for all domains.
@@ -243,10 +288,17 @@ PROGRAM morphometric_evaluation
     WRITE(std_out,FMT_TXT_AxI0) "vox_min: ", vox_min
     WRITE(std_out,FMT_TXT_AxI0) "vox_max: ", vox_max
 
+
+
     !------------------------------------------------------------------------------
     ! Decomposition
     ! Meta contains domain ranges 0-(n-1)
     !------------------------------------------------------------------------------
+
+    WRITE(std_out,FMT_SEP)
+    WRITE(std_out,"(A)") "-- Done with domain"
+    WRITE(std_out,"(A)", ADVANCE='NO') "-- "
+
     oo = 1
     DO kk = xa_d(3), xe_d(3) 
     DO jj = xa_d(2), xe_d(2) 
@@ -274,14 +326,20 @@ PROGRAM morphometric_evaluation
             ! There are more elegant solutions, but it is a rather transparent approach.
             SELECT CASE(type_raw)
             CASE('ik2') 
-                IF ((rry_ik2(nn,mm,ll) >= bin_lo) .AND. (rry_ik2(nn,mm,ll) <= bin_hi)) THEN
+                IF ((Aik2(nn,mm,ll) >= lo) .AND. (Aik2(nn,mm,ll) <= hi)) THEN
                     counter_BV = counter_BV + 1_ik
+                    Aik2(nn,mm,ll) = 1_2
+                ELSE
+                    Aik2(nn,mm,ll) = 0_2
                 END IF 
 
 
             CASE('ik4') 
-                IF ((rry_ik4(nn,mm,ll) >= bin_lo) .AND. (rry_ik4(nn,mm,ll) <= bin_hi)) THEN
+                IF ((Aik4(nn,mm,ll) >= lo) .AND. (Aik4(nn,mm,ll) <= hi)) THEN
                     counter_BV = counter_BV + 1_ik
+                    Aik4(nn,mm,ll) = 1_4
+                ELSE
+                    Aik4(nn,mm,ll) = 0_4
                 END IF 
     
             END SELECT
@@ -291,6 +349,160 @@ PROGRAM morphometric_evaluation
         END DO
         END DO
         END DO
+
+
+
+        !------------------------------------------------------------------------------
+        ! NHS
+        !------------------------------------------------------------------------------
+
+        ! There are more elegant solutions, but it is a rather transparent approach.
+        SELECT CASE(type_raw)
+        CASE('ik2') 
+            cy=1_ik
+            Do mm = x_D_pos(2), x_D_end(2)
+                cx=1_ik
+                Do nn = x_D_pos(1), x_D_end(1)
+                    ConPlane1_ik2(cx, cy) = SUM(Aik2(nn,mm,:))
+                    cx = cx + 1_ik
+                END DO
+                cy = cy + 1_ik
+            END DO
+            CoPl1Avg = REAL(SUM(ConPlane1_ik2)/(x_D(1)*x_D(2)),rk)
+
+            cz=1_ik
+            DO ll = x_D_pos(3), x_D_end(3)
+                cx=1_ik
+                Do nn = x_D_pos(1), x_D_end(1)
+                    ConPlane2_ik2(cx, cz) = SUM(Aik2(nn,:,ll))
+                    cx = cx + 1_ik
+                END DO
+                cz = cz + 1_ik
+            END DO
+            CoPl2Avg = REAL(SUM(ConPlane1_ik2)/(x_D(1)*x_D(3)),rk)
+            
+            cz=1_ik
+            DO ll = x_D_pos(3), x_D_end(3)
+                cy=1_ik
+                Do mm = x_D_pos(2), x_D_end(2)
+                    ConPlane3_ik2(cy, cz) = SUM(Aik2(:,mm,ll))
+                    cy = cy + 1_ik
+                END DO
+                cz = cz + 1_ik
+            END DO
+            CoPl3Avg = REAL(SUM(ConPlane1_ik2)/(x_D(2)*x_D(3)),rk)
+
+        CASE('ik4')
+            cy=1_ik
+            Do mm = x_D_pos(2), x_D_end(2)
+                cx=1_ik
+                Do nn = x_D_pos(1), x_D_end(1)
+                    ConPlane1_ik4(cx, cy) = SUM(Aik4(nn,mm,:))
+                    cx = cx + 1_ik
+                END DO
+                cy = cy + 1_ik
+            END DO
+            CoPl1Avg = REAL(SUM(ConPlane1_ik4)/(x_D(1)*x_D(2)),rk)
+
+            cz=1_ik
+            DO ll = x_D_pos(3), x_D_end(3)
+                cx=1_ik
+                Do nn = x_D_pos(1), x_D_end(1)
+                    ConPlane2_ik4(cx, cz) = SUM(Aik4(nn,:,ll))
+                    cx = cx + 1_ik
+                END DO
+                cz = cz + 1_ik
+            END DO
+            CoPl2Avg = REAL(SUM(ConPlane1_ik4)/(x_D(1)*x_D(3)),rk)
+            
+            cz=1_ik
+            DO ll = x_D_pos(3), x_D_end(3)
+                cy=1_ik
+                Do mm = x_D_pos(2), x_D_end(2)
+                    ConPlane3_ik4(cy, cz) = SUM(Aik4(:,mm,ll))
+                    cy = cy + 1_ik
+                END DO
+                cx = cx + 1_ik
+            END DO
+            CoPl3Avg = REAL(SUM(ConPlane1_ik4)/(x_D(2)*x_D(3)),rk)
+
+        END SELECT
+
+        IF ((CoPl1Avg > CoPl2Avg) .AND. (CoPl1Avg > CoPl3Avg)) max_CoPl = CoPl1Avg
+        IF ((CoPl2Avg > CoPl1Avg) .AND. (CoPl2Avg > CoPl3Avg)) max_CoPl = CoPl2Avg
+        IF ((CoPl3Avg > CoPl1Avg) .AND. (CoPl3Avg > CoPl2Avg)) max_CoPl = CoPl3Avg
+
+        IF ((CoPl1Avg < CoPl2Avg) .AND. (CoPl1Avg < CoPl3Avg)) min_CoPl = CoPl1Avg
+        IF ((CoPl2Avg < CoPl1Avg) .AND. (CoPl2Avg < CoPl3Avg)) min_CoPl = CoPl2Avg
+        IF ((CoPl3Avg < CoPl1Avg) .AND. (CoPl3Avg < CoPl2Avg)) min_CoPl = CoPl3Avg
+
+        Copl(oo) = max_CoPl/min_CoPl
+
+
+        sixf_tmp = 0._rk
+        twsixf_tmp = 0._rk
+
+        DO ll = x_D_pos(3)+1_ik, x_D_end(3)-1_ik
+        DO mm = x_D_pos(2)+1_ik, x_D_end(2)-1_ik
+        DO nn = x_D_pos(1)+1_ik, x_D_end(1)-1_ik
+
+            ! There are more elegant solutions, but it is a rather transparent approach.
+            SELECT CASE(type_raw)
+            CASE('ik2') 
+                IF (Aik2(nn,mm,ll) == 1_2) THEN
+                    vox_found = .TRUE.
+
+                    sixf_tmp = REAL((Aik2(nn-1_ik, mm     , ll     )) + &
+                                    (Aik2(nn     , mm-1_ik, ll     )) + &
+                                    (Aik2(nn     , mm     , ll-1_ik)) + &
+                                    (Aik2(nn+1_ik, mm     , ll     )) + &
+                                    (Aik2(nn     , mm+1_ik, ll     )) + &
+                                    (Aik2(nn     , mm     , ll+1_ik)), rk)
+                    
+                    twsixf_tmp = (REAL(SUM(Aik2(nn-1_ik:nn+1_ik,mm-1_ik:mm+1_ik,ll-1_ik:ll+1_ik)), rk))
+                    
+                END IF 
+
+            CASE('ik4') 
+                IF (Aik4(nn,mm,ll)  == 1_4) THEN
+                    vox_found = .TRUE.
+
+                    sixf_tmp = REAL((Aik4(nn-1_ik, mm     , ll     )) + &
+                                    (Aik4(nn     , mm-1_ik, ll     )) + &
+                                    (Aik4(nn     , mm     , ll-1_ik)) + &
+                                    (Aik4(nn+1_ik, mm     , ll     )) + &
+                                    (Aik4(nn     , mm+1_ik, ll     )) + &
+                                    (Aik4(nn     , mm     , ll+1_ik)),rk)
+                        
+                    twsixf_tmp = (REAL(SUM(Aik4(nn-1_ik:nn+1_ik,mm-1_ik:mm+1_ik,ll-1_ik:ll+1_ik)), rk))
+
+                END IF 
+    
+            END SELECT
+
+        END DO
+        END DO
+        END DO
+        
+        !------------------------------------------------------------------------------
+        ! User Feedback
+        !------------------------------------------------------------------------------
+        WRITE(std_out,"(I0, A)", ADVANCE='NO') Domains(oo), " "
+        tt = tt+1_ik
+        if (tt == 20_ik) THEN
+            tt = 0_ik
+            WRITE(std_out,"(A)") ""
+            WRITE(std_out,"(A)", ADVANCE='NO') "-- "
+        END IF 
+
+        !------------------------------------------------------------------------------
+        ! Write morphometric quantities
+        !------------------------------------------------------------------------------
+        ! sixf(oo) = sixf_tmp
+        ! twsixf(oo) = twsixf_tmp
+
+        sixf(oo) = sixf_tmp
+        twsixf(oo) = twsixf_tmp
 
         ! You can write floats. But you will loose precision by doing that.
         ! vox_stats(oo) = REAL(counter_BV, rk) / REAL(counter_TV, rk)
@@ -307,20 +519,31 @@ PROGRAM morphometric_evaluation
         
     OPEN (UNIT=vun, FILE=TRIM(vox_file), ACCESS="STREAM")
     OPEN (UNIT=sun, FILE=TRIM(sun_file), ACCESS="STREAM")
+    OPEN (UNIT=sixfun, FILE=TRIM(sixf_file), ACCESS="STREAM")
+    OPEN (UNIT=twsixfun, FILE=TRIM(twsixf_file), ACCESS="STREAM")
+    OPEN (UNIT=coplun, FILE=TRIM(copl_file), ACCESS="STREAM")
 
     WRITE(vun) vox_stats
     ! Assuming, that no image will contain more than 10 Mio. domains (which is possible in the future!)
     WRITE(sun) (-Domains-100000000)
+
+    WRITE(sixfun) (sixf)
+    WRITE(twsixfun) (twsixf)
+    WRITE(coplun) (copl)
     
     CLOSE(vun)
     CLOSE(sun)
+    CLOSE(sixfun)
+    CLOSE(twsixfun)
+    CLOSE(coplun)
     
     finished_successfully = .TRUE.    
     1000 CONTINUE
     CALL CPU_TIME(end)
     
+    WRITE(std_out,"(A)") ""
     WRITE(std_out, FMT_TXT_SEP)
-    
+
     IF(finished_successfully) THEN 
         WRITE(std_out, FMT_TXT_xAF0) "Program finished successfully in ", end-start, " seconds."
     ELSE

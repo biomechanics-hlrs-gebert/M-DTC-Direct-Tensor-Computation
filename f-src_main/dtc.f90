@@ -85,7 +85,6 @@ USE MPI
 USE decomp 
 USE dtc_main_subroutines
 USE PETSC
-USE petsc_opt
 USE system
 
 Implicit None
@@ -118,7 +117,7 @@ CHARACTER(mcl)   :: cmd_arg_history='', link_name = 'struct process', comms_dmn_
     desc="", memlog_file="", type_raw="", restart='N', restart_cmd_arg='U', &
     ios="", map_sgmnttn=""
 CHARACTER(10) :: probably_failed_char
-CHARACTER(8) :: elt_micro, output
+CHARACTER(8) :: elt_micro, output, domain_nn
 CHARACTER(3) :: file_status
 CHARACTER(1) :: bin_sgmnttn=""
 
@@ -143,7 +142,7 @@ INTEGER(pd_ik), DIMENSION(no_streams) :: dsize
 INTEGER(pd_ik) :: serial_root_size, add_leaves
 
 LOGICAL :: success, status_exists, groups_exists, parts_exists, comms_dmn_exists, found_proper_prt_count, &
-    heaxist, abrt = .FALSE., already_finished=.FALSE., skip_active = .TRUE.,  &
+    heaxist, abrt = .FALSE., already_finished=.FALSE., skip_active = .TRUE., pl_exist = .FALSE., &
     create_new_header = .FALSE., fex=.TRUE., no_restart_required = .FALSE., runtime_exists=.FALSE.
 
 !----------------------------------------------------------------------------
@@ -360,7 +359,7 @@ If (rank_mpi == 0) THEN
     ! Check the condition of the required files.
     !------------------------------------------------------------------------------
     IF(activity_size .NE. parts_size) THEN
-        mssg = 'The size of the *.parts and the *.status files do not match.'
+        mssg = 'The size of the *.cores and the *.status files do not match.'
         CALL print_err_stop_slaves(mssg)
         GOTO 1000
     END IF 
@@ -482,17 +481,19 @@ If (rank_mpi == 0) THEN
         max_domains_per_comm = comms_array(3,comms_array_ptr)
     END IF 
         
-    WRITE(std_out, FMT_TXT_AxI0) "Groups of cores per domain (cpd):", comms_array(1,:)
-    WRITE(std_out, FMT_TXT_AxI0) "Number of such communicators:    ", comms_array(2,:)
-    WRITE(std_out, FMT_TXT_AxI0) "Number of domains of these cpds: ", comms_array(3,:)
-    WRITE(std_out, FMT_TXT_AxI0) "Number of cores requested:       ", No_of_cores_requested
-    WRITE(std_out, FMT_TXT_AxI0) "prts:                            ", prts
+    WRITE(std_out, FMT_TXT_AxI0) "Groups of cores per domain (cpd):            ", comms_array(1,:)
+    WRITE(std_out, FMT_TXT_AxI0) "Number of such communicators:                ", comms_array(2,:)
+    WRITE(std_out, FMT_TXT_AxI0) "Number of domains of these cpds:             ", comms_array(3,:)
+    WRITE(std_out, FMT_TXT_AxI0) "Number of cores requested:                   ", No_of_cores_requested
+    WRITE(std_out, FMT_TXT_AxI0) "Parts requested manually (w/o python script):", prts
     
     IF ((No_of_cores_requested .NE. size_mpi) .AND. (prts == 0_ik)) THEN
         mssg = "The number of cores requested /= size_mpi and parts == 0_ik."
         CALL print_err_stop_slaves(mssg)
         GOTO 1000
-    ELSE
+    END IF 
+
+    IF (prts /= 0_ik) THEN
         found_proper_prt_count = .FALSE.
         DO ii=1,17
             corecount = 2**ii
@@ -979,8 +980,7 @@ IF(rank_mpi /= 0) THEN
             
         END DO
 
-        ! Makeshift workaround to prevent race conditions
-        CALL SLEEP(comm_color)
+
     ELSE
         no_of_comms = INT((size_mpi-1_ik) / prts)
 
@@ -998,7 +998,10 @@ IF(rank_mpi /= 0) THEN
             END IF 
         END DO
 
-    END IF 
+    END IF  
+    
+    ! Makeshift workaround to prevent race conditions
+    CALL SLEEP(comm_color)
 
     !------------------------------------------------------------------------------
     ! All Worker Ranks -- Init worker Communicators
@@ -1012,16 +1015,6 @@ IF(rank_mpi /= 0) THEN
     CALL MPI_COMM_SIZE(WORKER_COMM, worker_size_mpi, ierr)
     CALL print_err_stop(std_out, "MPI_COMM_SIZE couldn't retrieve worker_size_mpi", ierr)
 
-    !------------------------------------------------------------------------------
-    ! This sets the options for PETSc in-core. To alter the options
-    ! add them in Set_PETSc_Options in Module pets_opt in file
-    ! f-src/mod_parameters.f90
-    !------------------------------------------------------------------------------
-    CALL Set_PETSc_Options()
-
-    PETSC_COMM_WORLD = worker_comm
-
-    CALL PetscInitialize(PETSC_NULL_CHARACTER, petsc_ierr)
 End If
 
 !------------------------------------------------------------------------------
@@ -1107,7 +1100,7 @@ IF (rank_mpi /= 0) THEN
     ! the domains in a round-robin manner all the time, then many communicators may wait for 
     ! the last to complete which can scrap the whole gain of performance.
     !------------------------------------------------------------------------------
-    max_skip = FLOOR(REAL(max_domains_per_comm)/2._rk)
+    ! max_skip = FLOOR(REAL(max_domains_per_comm)/2._rk)
 
     nn = 0_ik
     comm_counter = -1_ik
@@ -1130,6 +1123,7 @@ IF (rank_mpi /= 0) THEN
             ! corresponding communicator in the order as they are mentioned in the *.parts files.
             ! This helps avoiding race conditions
              IF ((comm_color < comm_counter) .AND. (skip_active)) CYCLE
+            ! IF (comm_color /= comm_counter) CYCLE
             
             ! Reset the comm_counter as long the round_robin skip is active. 
             ! This ensures distributing the domains in a controlled way without race conditions.
@@ -1242,6 +1236,19 @@ IF (rank_mpi /= 0) THEN
         IF (worker_rank_mpi==0) THEN
 
             !------------------------------------------------------------------------------
+            ! Move the .petsc.log to its domain related name
+            !------------------------------------------------------------------------------
+            WRITE(domain_nn, '(I0)') Domain
+
+
+            INQUIRE(FILE=TRIM(out%p_n_bsnm)//".petsc.log", EXIST = pl_exist)
+            
+            IF (pl_exist) THEN
+                CALL exec_cmd_line("mv "//TRIM(out%p_n_bsnm)//".petsc.log"//" "//&
+                                    TRIM(out%p_n_bsnm)//"."//TRIM(domain_nn)//".petsc.log", stat)
+            END IF 
+
+            !------------------------------------------------------------------------------
             ! Write the start time to file
             !------------------------------------------------------------------------------
             ! CALL add_leaf_to_branch(result_branch, "Start Time", 1_pd_ik, [t_start])
@@ -1260,6 +1267,12 @@ IF (rank_mpi /= 0) THEN
             CALL Start_Timer("Write Worker Root Branch")
 
             !------------------------------------------------------------------------------
+            ! Set these variables again...
+            !------------------------------------------------------------------------------
+            pro_path = outpath
+            pro_name = project_name     
+
+            !------------------------------------------------------------------------------
             ! Read this data by:
             ! ../../../bin/pd_dump_leaf_x86_64 $PWD/ results_0000001 7
             !------------------------------------------------------------------------------
@@ -1273,12 +1286,6 @@ IF (rank_mpi /= 0) THEN
             !------------------------------------------------------------------------------
             Call MPI_FILE_WRITE_AT(status_un, INT(((nn-1) * ik), MPI_OFFSET_KIND), &
                 Domain, 1_mik, MPI_INTEGER8, status_mpi, ierr)
-
-            !------------------------------------------------------------------------------
-            ! Deallocate results of this domain. Potential memory leak.
-            !------------------------------------------------------------------------------
-            WRITE(desc,'(A,I0)')"Domain ", Domain
-            CALL delete_branch_from_branch(TRIM(desc), root, dsize)
 
         END IF
 
@@ -1321,8 +1328,6 @@ IF (rank_mpi /= 0) THEN
         END IF 
 
     End Do
-
-    CALL PetscFinalize(petsc_ierr) 
 
     CALL CPU_TIME(final_time)
 
@@ -1399,7 +1404,7 @@ ELSE ! --> rank_mpi == 0
     IF (probably_failed > 0_ik) THEN
         WRITE(probably_failed_char, '(I10)') probably_failed
 
-        mssg = TRIM(ADJUSTL(probably_failed_char))//" domains probably were not computed."
+        mssg = TRIM(ADJUSTL(probably_failed_char))//" domains probably are not computed."
         CALL print_trimmed(std_out, TRIM(mssg), FMT_WRN)
     END IF 
 

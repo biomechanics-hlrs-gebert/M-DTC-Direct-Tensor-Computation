@@ -20,7 +20,7 @@ End type tconreg
 contains
 
     Subroutine gen_quadmesh_from_phi(delta, ddc, loc_ddc, llimit, elt_micro, &
-        nodes, elems, HU_magnitudes, node_col , elem_col , no_nodes, &
+        nodes, elems, node_col , elem_col , no_nodes, &
         no_elems, typeraw, phi_ik1, phi_ik2, phi_ik4)
 
     !------------------------------------------------------------------------------
@@ -53,7 +53,6 @@ contains
     !------------------------------------------------------------------------------
     Real(Kind=rk)   , Dimension(:,:), Allocatable, Intent(Out) :: nodes
     Integer(Kind=ik), Dimension(:,:), Allocatable, Intent(Out) :: elems
-    Integer(Kind=ik), DIMENSION(:)  , ALLOCATABLE, INTENT(OUT) :: HU_magnitudes
     Integer(Kind=ik), Dimension(:)  , Allocatable, Intent(Out) :: elem_col
     Integer(Kind=ik), Dimension(:)  , Allocatable, Intent(Out) :: node_col
 
@@ -139,26 +138,41 @@ contains
     !------------------------------------------------------------------------------
     ! Check the domain for iso value inclusion
     !------------------------------------------------------------------------------
+    !If ( (min_val_phi > llimit) .Or. (max_val_phi < llimit) ) Then
     If ( (max_val_phi < llimit) ) Then
 
-        If (out_amount /= "PRODUCTION" ) Write(un_lf,FMT_MSG_SEP)
-            Write(un_lf, FMT_WRN_xAI0)'Isovalue = ',llimit,' not enclosed in field'
-            Write(un_lf, FMT_WRN_xAI0)'Minimum HU value in image = ',min_val_phi
-            Write(un_lf, FMT_WRN_xAI0)'Maximum HU value in image = ',max_val_phi
-        If (out_amount /= "PRODUCTION" ) Write(un_lf,FMT_MSG_SEP)
+        If (out_amount /= "PRODUCTION" ) THEN
+            Write(un_lf,FMT_MSG_SEP)
+            Write(un_lf,"('EE ',A,I0,A,T77,' EE')")'Isovalue = ',llimit,' not enclosed in field'
+            Write(un_lf,"('EE ',A,I0,T77,  ' EE')")'Minimum value in PHI = ',min_val_phi
+            Write(un_lf,"('EE ',A,I0,T77,  ' EE')")'Maximum value in PHI = ',max_val_phi
+            Write(un_lf,FMT_MSG_SEP)
+        END IF 
 
         no_nodes = 0
         no_elems = 0
 
+        Select Case (timer_level)
+        Case (3)
+            call end_timer("  +-- Generating quadmesh "//trim(nn_char))
+        Case (2)
+            call end_timer("  +-- Generating quadmesh "//trim(nn_char))
+        Case default
+            continue
+        End Select
+      
+        GOTO 1000
+
     Else
 
-        Write(un_lf,FMT_MSG_xAI0)'Minimal value in phi = ',min_val_phi
-        Write(un_lf,FMT_MSG_xAI0)'Maximal value in phi = ',max_val_phi
-
+        IF (out_amount == "DEBUG") THEN
+            Write(un_lf,FMT_MSG_xAI0)'Minimal value in phi = ',min_val_phi
+            Write(un_lf,FMT_MSG_xAI0)'Maximal value in phi = ',max_val_phi
+        END IF
     End If
 
     !------------------------------------------------------------------------------
-    ! Allocate required fields
+    ! Allocate needed fields
     !------------------------------------------------------------------------------
 
     ! For hexaedral elements with linear trial functions
@@ -168,7 +182,7 @@ contains
 
         x_D_nodes = x_D + 1
 
-        Allocate(elems( 8,     x_D(1)*x_D(2)*x_D(3)), stat=alloc_stat)
+        Allocate(elems( 8, x_D(1)*x_D(2)*x_D(3)), stat=alloc_stat)
         call alloc_err("elems", alloc_stat)
 
     ! For hexaedral elements with quadratic trial functions
@@ -184,17 +198,10 @@ contains
     Else
 
         write(std_out,FMT_ERR)"El_Type not supported in gen_quadmesh"
-        write(std_out,FMT_ERR)"Program stopped "
+        write(std_out,FMT_ERR)"Program stopped                      "
         stop
 
     End if
-
-    !------------------------------------------------------------------------------
-    ! Allocate list of element gradients
-    !------------------------------------------------------------------------------
-    Allocate(HU_magnitudes(x_D(1)*x_D(2)*x_D(3)), stat=alloc_stat)
-    call alloc_err("HU_magnitudes", alloc_stat)
-    HU_magnitudes = 0_ik
 
     lb_nodes_no = 0
     ub_nodes_no = x_D_nodes(1) * x_D_nodes(2) * x_D_nodes(3)
@@ -203,7 +210,9 @@ contains
     Allocate(nodes_no(lb_nodes_no:ub_nodes_no),stat=alloc_stat)
     call alloc_err("nodes_no",alloc_stat)
 
-    Write(un_lf, FMT_MSG_xAI0)'Allocated nodes numbers with index range : ',lb_nodes_no,'-',ub_nodes_no
+    IF (out_amount == "DEBUG") THEN
+        Write(un_lf, FMT_MSG_xAI0)'Allocated nodes numbers with index range : ',lb_nodes_no,'-',ub_nodes_no
+    END IF 
 
     nodes_no  = 0
     elems     = 0
@@ -212,6 +221,7 @@ contains
     !------------------------------------------------------------------------------
     ! Generate Elements 
     !------------------------------------------------------------------------------
+
     ! 20 Node hexaeral elements
     If (elt_micro == "HEX20") then
 
@@ -230,7 +240,7 @@ contains
                     END SELECT
 
                     If (val_phi >= llimit) Then
-                    
+
                     el_nn( 1) = (2*ii-2) + (2*jj-2) * (x_D_nodes(1)) + (2*kk-2) * (x_D_nodes(1)) * (x_D_nodes(2))
                     el_nn( 2) = (2*ii-1) + (2*jj-2) * (x_D_nodes(1)) + (2*kk-2) * (x_D_nodes(1)) * (x_D_nodes(2))
                     el_nn( 3) = (2*ii  ) + (2*jj-2) * (x_D_nodes(1)) + (2*kk-2) * (x_D_nodes(1)) * (x_D_nodes(2))
@@ -254,12 +264,10 @@ contains
                     el_nn(19) = (2*ii-2) + (2*jj  ) * (x_D_nodes(1)) + (2*kk  ) * (x_D_nodes(1)) * (x_D_nodes(2))
                     el_nn(20) = (2*ii-2) + (2*jj-1) * (x_D_nodes(1)) + (2*kk  ) * (x_D_nodes(1)) * (x_D_nodes(2))
 
-                    nodes_no(el_nn( 1:20))  = -1
-                    elems(:,no_elems)       = el_nn(1:20)
+                    nodes_no(el_nn( 1:20)) = -1
+                    elems(:,no_elems)      = el_nn(1:20)
+                    no_elems               = no_elems + 1
 
-                    HU_magnitudes(no_elems) = val_phi
-                    no_elems = no_elems + 1
- 
                     End If
                     
                 End Do
@@ -299,9 +307,7 @@ contains
                     
                     nodes_no(el_nn(1:8)) = -1
                     elems(:,no_elems)    = el_nn(1:8)
-                    
-                    HU_magnitudes(no_elems) = val_phi
-                    no_elems = no_elems + 1
+                    no_elems             = no_elems + 1
 
                     End If
                     
@@ -326,7 +332,9 @@ contains
         End Do
     End Do
 
-    write(un_lf,FMT_MSG_xAI0)'No nodes found in domain : ',no_nodes
+    IF (out_amount == "DEBUG") THEN
+        write(un_lf,FMT_MSG_xAI0)'No nodes found in domain : ',no_nodes
+    END IF
 
     Do ii = 1, no_elems
         elems(1:no_elem_nodes,ii) = nodes_no(elems( 1:no_elem_nodes,ii))       
@@ -388,14 +396,11 @@ contains
         continue
     End Select
 
-    Write(un_lf,FMT_MSG_SEP)
-    Write(un_lf,FMT_MSG)    'Coloring connected domains'
 
-
-    !------------------------------------------------------------------------------
-    ! Only colorize if more than 0 elements.
-    !------------------------------------------------------------------------------
-    IF (no_nodes .LE. 8_ik) GOTO 1000
+    IF (out_amount == "DEBUG") THEN
+        Write(un_lf,FMT_MSG_SEP)
+        Write(un_lf,FMT_MSG)    'Coloring connected domains'
+    END IF 
 
     !------------------------------------------------------------------------------
     ! Color nodes
@@ -426,7 +431,6 @@ contains
         End Do
 
     End DO
-
 
     !------------------------------------------------------------------------------
     ! Color elements
@@ -553,10 +557,12 @@ contains
     !------------------------------------------------------------------------------
     tmp_creg => start_cregs
     Do While ( Associated(tmp_creg%next) )
-       Write(un_lf,"('MM ',I0,L1)")tmp_creg%color, tmp_creg%tb
+        IF (out_amount == "DEBUG") Write(un_lf,"('MM ',I0,L1)")tmp_creg%color, tmp_creg%tb
        tmp_creg => tmp_creg%next
     End Do
-    Write(un_lf,"('MM ',I0,L1)")tmp_creg%color, tmp_creg%tb
+    IF (out_amount == "DEBUG") THEN
+        Write(un_lf,"('MM ',I0,L1)")tmp_creg%color, tmp_creg%tb
+    END IF 
     !------------------------------------------------------------------------------
     ! Debug
     !------------------------------------------------------------------------------
@@ -602,8 +608,6 @@ contains
 
         elem_col(kk) = elem_col(jj)
         elems(:,kk)  = elems(:,jj)
-
-        HU_magnitudes(kk)  = HU_magnitudes(jj)
 
     End Do
 

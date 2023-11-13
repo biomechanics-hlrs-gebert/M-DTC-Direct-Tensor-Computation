@@ -93,8 +93,6 @@ USE chain_routines
 USE MPI
 USE decomp 
 USE dtc_main_subroutines
-USE PETSC
-USE petsc_opt
 USE system
 
 Implicit None
@@ -103,9 +101,9 @@ INTEGER(ik), PARAMETER :: debug = 2   ! Choose an even integer!!
 
 TYPE(materialcard) :: bone
 
-INTEGER(mik) :: ierr, rank_mpi, size_mpi, petsc_ierr, mii, mjj, &
+INTEGER(mik) :: ierr, rank_mpi, size_mpi, mii, mjj, &
     worker_rank_mpi, worker_size_mpi, aun, par_domains, &
-    Active, request, finished = -1, worker_comm
+    Active, finished = -1, worker_comm, parts_un
 
 INTEGER(mik), Dimension(no_streams)       :: fh_mpi_worker
 INTEGER(mik), Dimension(MPI_STATUS_SIZE)  :: status_mpi
@@ -124,29 +122,28 @@ CHARACTER(mcl)  , DIMENSION(:), ALLOCATABLE :: m_rry
 
 CHARACTER(4*mcl) :: job_dir
 CHARACTER(mcl)   :: cmd_arg_history='', link_name = 'struct process', &
-    muCT_pd_path, muCT_pd_name, binary, activity_file, desc="", memlog_file="", &
-    typeraw="", restart='N', restart_cmd_arg='U',ios="", map_sgmnttn=""
-CHARACTER(8)   :: elt_micro, output
-CHARACTER(3)   :: file_status
-CHARACTER(1) :: bin_sgmnttn=""
+    muCT_pd_path, muCT_pd_name, binary, status_file, desc="", cores_file="", &
+    typeraw="", restart='N', restart_cmd_arg='U',ios="" ! U = 'undefined'
+CHARACTER(8)   :: elt_micro, output, domain_nn
 
-REAL(rk) :: strain, t_start, t_end, t_duration
+REAL(rk), DIMENSION(3) :: delta
+REAL(rk) :: strain, t_start, t_end, t_duration, cn, mem_critical=1._rk, mem=0._rk
 
-INTEGER(ik), DIMENSION(:), ALLOCATABLE :: Domains, nn_D, Domain_stats
+INTEGER(ik), DIMENSION(:), ALLOCATABLE :: Domains, parts_list, nn_D, Domain_stats
 INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0
 
 INTEGER(ik) :: nn, ii, jj, kk, dc, computed_domains = 0, comm_nn = 1, &
-    No_of_domains, path_count, activity_size=0, alloc_stat, fh_cluster_log, &
+    No_of_domains, path_count, activity_size=0, alloc_stat, &
     free_file_handle, domains_per_comm, stat, no_lc=0, nl=0, &
-    Domain, llimit, parts, elo_macro, vdim(3), cn
+    Domain, llimit, parts, elo_macro, vdim(3), mem_usage, parts_size
 
 INTEGER(pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
 INTEGER(pd_ik), DIMENSION(no_streams) :: dsize
 
 INTEGER(pd_ik) :: serial_root_size, add_leaves
 
-LOGICAL :: success, stat_exists, heaxist, abrt = .FALSE., already_finished=.FALSE., &
-    create_new_header = .FALSE., fex=.TRUE., no_restart_required = .FALSE., mem_critical = .FALSE.
+LOGICAL :: success, status_exists, parts_exists, heaxist, abrt = .FALSE., already_finished=.FALSE., &
+    create_new_header = .FALSE., no_restart_required = .FALSE., pl_exist = .FALSE.
 
 !----------------------------------------------------------------------------
 CALL mpi_init(ierr)
@@ -163,16 +160,19 @@ CALL print_err_stop(std_out, "MPI_COMM_SIZE couldn't be retrieved", ierr)
 !------------------------------------------------------------------------------
 If (rank_mpi == 0) THEN
 
+    !------------------------------------------------------------------------------
+    ! Checking the memory
+    !------------------------------------------------------------------------------
+    mem_usage =  system_mem_usage()
+    mem = (REAL(mem_usage,rk)/1000._rk/1000._rk)
+    IF (mem > global_mem_threshold) mem_critical = -mem
+
     If (size_mpi < 2) THEN
         mssg = "We need at least 2 MPI processes to execute this program."
         CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF 
 
     CALL Start_Timer("Init Process")
-
-    !------------------------------------------------------------------------------
-    ! Batch feedback
-    !------------------------------------------------------------------------------
 
     !------------------------------------------------------------------------------
     ! Parse the command arguments
@@ -258,25 +258,11 @@ If (rank_mpi == 0) THEN
     CALL meta_read('POISSON_RATIO'    , m_rry, bone%nu, ios); CALL mest(ios, abrt)
     CALL meta_read('MACRO_ELMNT_ORDER', m_rry, elo_macro, ios); CALL mest(ios, abrt)
     CALL meta_read('TYPE_RAW'         , m_rry, typeraw, ios); CALL mest(ios, abrt)
-    CALL meta_read('BINARY_SEGMENTATION', m_rry, bin_sgmnttn, ios); CALL mest(ios, abrt)
-    CALL meta_read('SEGMENTATION_MAP'   , m_rry, map_sgmnttn, ios); CALL mest(ios, abrt)
 
     IF (elo_macro == 1) THEN
         no_lc = 24_ik
     ELSE IF (elo_macro == 2) THEN
         no_lc = 60_ik
-    END IF 
-
-    IF ((bin_sgmnttn /= "Y") .AND. (bin_sgmnttn /= "y") .AND. &
-        (bin_sgmnttn /= "N") .AND. (bin_sgmnttn /= "n")) THEN
-        CALL print_err_stop(std_out, "Keyword BINARY_SEGMENTATION not recognized.", 1)
-    END IF 
-
-    IF (bin_sgmnttn == "y") bin_sgmnttn = "Y"
-
-    IF (map_sgmnttn /= "Hounsfield") THEN
-        CALL print_err_stop(std_out, "Keyword SEGMENTATION_MAP not recognized. &
-            &Currently only 'Hounsfield' is implemented.", 1)
     END IF 
 
     IF(abrt) CALL print_err_stop(std_out, "A keyword error occured.", 1)
@@ -313,10 +299,10 @@ If (rank_mpi == 0) THEN
         CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF
     
-    ! IF ( (bone%delta(1) /= bone%delta(2)) .OR. (bone%delta(1) /= bone%delta(3)) ) THEN
-    !     mssg = 'Currently, the spacings of all 3 dimensions must be equal!'
-    !     CALL print_err_stop_slaves(mssg); GOTO 1000
-    ! END IF
+    IF ( (bone%delta(1) /= bone%delta(2)) .OR. (bone%delta(1) /= bone%delta(3)) ) THEN
+        mssg = 'Currently, the spacings of all 3 dimensions must be equal!'
+        CALL print_err_stop_slaves(mssg); GOTO 1000
+    END IF
 
     IF ( (xa_d(1) > xe_d(1)) .OR. (xa_d(2) > xe_d(2)) .or. (xa_d(3) > xe_d(3)) ) THEN
         mssg = 'Input parameter error: Start value of domain range larger than end value.'
@@ -369,10 +355,10 @@ If (rank_mpi == 0) THEN
     ! Check whether there already is a project header and an worker_is_active tracker
     ! Header-files are PureDat, not MeRaDat. Therefore via pro_path/pro_name
     !------------------------------------------------------------------------------
-    activity_file = TRIM(out%p_n_bsnm)//".status"
-    INQUIRE(FILE = TRIM(activity_file), EXIST=stat_exists, SIZE=activity_size)
+    status_file = TRIM(out%p_n_bsnm)//".status"
+    INQUIRE(FILE = TRIM(status_file), EXIST=status_exists, SIZE=activity_size)
 
-    IF ((No_of_domains*ik /= activity_size ) .AND. (stat_exists)) THEN
+    IF ((No_of_domains*ik /= activity_size ) .AND. (status_exists)) THEN
         mssg = 'Size of the status file and the number of requested domains do &
         &not match. It is very likely that the domain ranges were modified and a &
         &restart requested. This approach is not supported, as the stream sizes and &
@@ -380,9 +366,18 @@ If (rank_mpi == 0) THEN
         CALL print_err_stop_slaves(mssg, "warning"); GOTO 1000
     END IF
 
+    cores_file = TRIM(out%p_n_bsnm)//".cores"
+    WRITE(std_out, FMT_TXT) "Cores file: "//TRIM(ADJUSTL(cores_file))
+    
+    INQUIRE(FILE = TRIM(cores_file), EXIST=parts_exists, SIZE=parts_size)
+    IF(.NOT. parts_exists) THEN
+        CALL print_err_stop_slaves("No *.cores file found.")
+        GOTO 1000
+    END IF 
+
     !------------------------------------------------------------------------------
-    ! Each subdomain gets computed by a user defined number of processors. This 
-    ! number of processors equals to a specific number of mesh parts.
+    ! Each subdomain gets computed by a user defined amount of processors. This 
+    ! amount of processors equals to a specific amount of mesh parts.
     ! Ideally, all processors are used. Therefore, MOD(size_mpi-1, parts) shall 
     ! resolve without a remainder. "-1" to take the master process into account.
     !------------------------------------------------------------------------------
@@ -428,9 +423,6 @@ If (rank_mpi == 0) THEN
     CALL add_leaf_to_branch(meta_para, "Number of voxels per direction", 3_ik , vdim) 
     CALL add_leaf_to_branch(meta_para, "Domains per communicator", 1_ik, [domains_per_comm]) 
 
-    CALL add_leaf_to_branch(meta_para, "Binary segmentation" , LEN(bin_sgmnttn) , str_to_char(bin_sgmnttn))      
-    CALL add_leaf_to_branch(meta_para, "Segmentation map"    , LEN(map_sgmnttn) , str_to_char(map_sgmnttn))      
-
     !------------------------------------------------------------------------------
     ! Prepare output directory via CALLing the c function.
     ! Required, because INQUIRE only acts on files, not on directories.
@@ -465,16 +457,25 @@ If (rank_mpi == 0) THEN
         CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF
 
+    !------------------------------------------------------------------------------
+    ! Checking the memory
+    !------------------------------------------------------------------------------
+    mem_usage =  system_mem_usage()
+    mem = (REAL(mem_usage,rk)/1000._rk/1000._rk)
+    IF (mem > global_mem_threshold) mem_critical = -mem
+
 END IF
 
 !------------------------------------------------------------------------------
 ! Send information about file
 !------------------------------------------------------------------------------
-CALL MPI_BCAST(stat_exists  , 1_mik, MPI_LOGICAL    , 0_mik, MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(status_exists  , 1_mik, MPI_LOGICAL    , 0_mik, MPI_COMM_WORLD, ierr)
 CALL MPI_BCAST(No_of_domains, 1_mik, MPI_INTEGER8   , 0_mik, MPI_COMM_WORLD, ierr)
-CALL MPI_BCAST(cn           , 1_mik, MPI_INTEGER8   , 0_mik, MPI_COMM_WORLD, ierr)
-CALL MPI_BCAST(activity_file, INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(cn           , 1_mik, MPI_DOUBLE_PRECISION, 0_mik, MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(status_file, INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
 CALL MPI_BCAST(typeraw,       INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(out%p_n_bsnm,  INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(cores_file,  INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
 
 !------------------------------------------------------------------------------
 ! Allocate and init field for selected domain range
@@ -502,8 +503,8 @@ domain_path = ''
 ! domain number, changes to the domain range before restart will crash the 
 ! computations (!)
 !------------------------------------------------------------------------------
-IF (stat_exists) THEN
-    Call MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(activity_file), &
+IF (status_exists) THEN
+    Call MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(status_file), &
         MPI_MODE_RDWR, MPI_INFO_NULL, aun, ierr)
 
     !------------------------------------------------------------------------------
@@ -512,14 +513,26 @@ IF (stat_exists) THEN
     CALL MPI_FILE_READ(aun, Domain_stats, INT(SIZE(Domain_stats), mik), &
         MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
 ELSE
-    Call MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(activity_file), &
+    Call MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(status_file), &
         MPI_MODE_CREATE+MPI_MODE_RDWR, MPI_INFO_NULL, aun, ierr)
-END IF ! (stat_exists)
+END IF ! (status_exists)
 
+
+!------------------------------------------------------------------------------
+! Read the number of parts assigned to each domain (ppd). The ppd must fit
+! to the communicators read from the *.comms file.
+!------------------------------------------------------------------------------
+ALLOCATE(parts_list(No_of_domains), stat=alloc_stat)
+CALL alloc_err("parts_list", alloc_stat)
+parts_list = 0_ik
+
+CALL MPI_FILE_OPEN(MPI_COMM_WORLD, TRIM(cores_file), MPI_MODE_RDONLY, MPI_INFO_NULL, parts_un, ierr)
+CALL MPI_FILE_READ(parts_un, parts_list, INT(SIZE(parts_list), mik), MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
+CALL MPI_FILE_CLOSE(parts_un, ierr)
 
 If (rank_mpi == 0) THEN
 
-    IF (stat_exists) THEN
+    IF (status_exists) THEN
         !------------------------------------------------------------------------------
         ! Read the Domain stats list
         !------------------------------------------------------------------------------
@@ -572,7 +585,7 @@ If (rank_mpi == 0) THEN
         !------------------------------------------------------------------------------
         ! project_name --> out%p_n_bsnm/bsnm --> subdirectory with file name = bsnm.suf
         !------------------------------------------------------------------------------
-        IF ((stat_exists) .AND. (.NOT. create_new_header)) THEN
+        IF ((status_exists) .AND. (.NOT. create_new_header)) THEN
             mssg = "No restart requested, but the file '"&
                 //TRIM(out%p_n_bsnm)//".status' already exists."
             CALL print_err_stop_slaves(mssg, "warning"); GOTO 1000
@@ -701,11 +714,6 @@ If (rank_mpi == 0) THEN
     add_leaves = 24_pd_ik
 
     !------------------------------------------------------------------------------
-    ! Number of loadcases
-    !------------------------------------------------------------------------------
-    ! no_lc = 24 
-    
-    !------------------------------------------------------------------------------
     ! The name of the branche is a bit outdated. In the meantime, it contains 
     ! more data to accomodate the need for the doctoral project.
     ! It was done this way because it is the quickest and easiest way for 
@@ -714,23 +722,6 @@ If (rank_mpi == 0) THEN
     CALL add_branch_to_branch(root, result_branch)
     CALL raise_branch("Averaged Material Properties", 0_pd_ik, add_leaves, result_branch)
 
-    !------------------------------------------------------------------------------
-    ! Former *.memlog file
-    !------------------------------------------------------------------------------
-    ! Operation, Domain, Nodes, Elems, Preallo, Mem_comm, Pids_returned, Size_mpi, time
-    ! Before PETSc preallocation              , 3395     , 1672328, 1442071, 546, 37198100, 252, 252, 1671690714
-    ! After PETSc preallocation               , 3395     , 1672328, 1442071, 546, 209263436, 252, 252, 1671690714
-    ! Before matrix assembly                  , 3395     , 1672328, 1442071, 546, 269684188, 252, 252, 1671690714
-    ! After matrix assembly                   , 3395     , 1672328, 1442071, 546, 242114948, 252, 252, 1671690715
-    ! Before solving                          , 3395     , 1672328, 1442071, 546, 242514604, 252, 252, 1671690716
-    ! After solving                           , 3395     , 1672328, 1442071, 546, 244625464, 252, 252, 1671690736
-    ! End of domain                           , 3395     , 1672328, 1442071, 546, 73615236, 252, 252, 1671690747
-    !------------------------------------------------------------------------------
-<<<<<<< HEAD
-
-=======
->>>>>>> main
-    ! for better formatting :-)
     nl = no_lc
     CALL raise_leaves(no_leaves = add_leaves, &
         desc = [ & ! DO NOT CHANGE THE LENGTH OF THE STRINGS      ! Leaf x bytes
@@ -740,11 +731,11 @@ If (rank_mpi == 0) THEN
         "Collected logs                                    " , &  !  4 x  24
         "Start Time                                        " , &  !  5 x  1
         "Duration                                          " , &  !  6 x  1
-        "Domain forces                                     " , &  !  7 x 24*24
-        "Effective numerical stiffness                     " , &  !  8 x 24*24
+        "Domain forces                                     " , &  !  7 x lc*lc
+        "Effective numerical stiffness                     " , &  !  8 x lc*lc
         "Symmetry deviation - effective numerical stiffness" , &  !  9 x  1
-        "Averaged stresses                                 " , &  ! 10 x  6*24
-        "Averaged strains                                  " , &  ! 11 x  6*24
+        "Averaged stresses                                 " , &  ! 10 x  6*lc
+        "Averaged strains                                  " , &  ! 11 x  6*lc
         "Effective stiffness                               " , &  ! 12 x  6* 6  
         "Symmetry deviation - effective stiffness          " , &  ! 13 x  1
         "Averaged Effective stiffness                      " , &  ! 14 x  6* 6
@@ -757,7 +748,7 @@ If (rank_mpi == 0) THEN
         "Rotation Vector CR_2                              " , &  ! 21 x  3
         "Final coordinate system CR_2                      " , &  ! 22 x  9
         "Optimized Effective stiffness CR_2                " , &  ! 23 x  6* 6
-        "Effective density                                 "], &  ! 24 x  1
+        "Effective density                                 "], &  ! lc x  1
         dat_ty = [(4_1, ii=1, 4), (5_1, ii=5, add_leaves)], &
         dat_no = [ domains_per_comm, &
         domains_per_comm,         domains_per_comm, &
@@ -852,6 +843,12 @@ If (rank_mpi == 0) THEN
         CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF 
 
+    !------------------------------------------------------------------------------
+    ! Checking the memory
+    !------------------------------------------------------------------------------
+    mem_usage =  system_mem_usage()
+    mem = (REAL(mem_usage,rk)/1000._rk/1000._rk)
+    IF (mem > global_mem_threshold) mem_critical = -mem
 
 !------------------------------------------------------------------------------
 ! Ranks > 0 -- Worker slaves
@@ -949,18 +946,6 @@ Else
     CALL MPI_COMM_SIZE(WORKER_COMM, worker_size_mpi, ierr)
     CALL print_err_stop(std_out, "MPI_COMM_SIZE couldn't retrieve worker_size_mpi", ierr)
 
-    !------------------------------------------------------------------------------
-    ! This sets the options for PETSc in-core. To alter the options
-    ! add them in Set_PETSc_Options in Module pets_opt in file
-    ! f-src/mod_parameters.f90
-    !------------------------------------------------------------------------------
-    CALL Set_PETSc_Options()
-
-    PETSC_COMM_WORLD = worker_comm
-
-    CALL PetscInitialize(PETSC_NULL_CHARACTER, petsc_ierr)
-    IF(petsc_ierr .NE. 0_ik) WRITE(std_out, FMT_WRN_xAI0) "Error in PetscInitialize: ", petsc_ierr
-
 End If
 
 ! WRITE_ROOT_COMM = MPI_COMM_WORLD
@@ -1002,6 +987,27 @@ If (rank_mpi==0) Then
 
         if (nn > No_of_domains) exit
 
+        ! Only »accept« domains if they need as many parts as the communicator has processors
+        IF (parts_list(nn) == parts) THEN
+            CONTINUE
+        ELSE
+            
+            !------------------------------------------------------------------------------
+            ! Store activity information anyway to tell steering program that this domain
+            ! "is finished computing" (it is not, the size of the communicator does not match)
+            !------------------------------------------------------------------------------
+            Call MPI_FILE_WRITE_AT(aun, INT(((nn-1) * ik), MPI_OFFSET_KIND), &
+            Domains(nn), 1_mik, MPI_INTEGER8, status_mpi, ierr)
+            
+            nn = nn + 1_mik
+            CYCLE
+        END IF 
+
+        !!!!!!------------------------------------------------------------------------------
+        !!!!!! Delay starting the worker to avoid accumulating memory
+        !!!!!!------------------------------------------------------------------------------
+        !!!!!! CALL SLEEP(1)
+
         Do mjj = mii, mii + parts-1
             !------------------------------------------------------------------------------
             ! Start worker
@@ -1029,7 +1035,6 @@ If (rank_mpi==0) Then
 
         nn = nn + 1_ik
         
-        ! Main worker calls back as active
         Call MPI_IRECV(worker_is_active(mii), 1_mik, MPI_INTEGER4, mii, mii, MPI_COMM_WORLD, req_list(mii), ierr)
         CALL print_err_stop(std_out, "MPI_IRECV of worker_is_active(mii) didn't succeed", INT(ierr, ik))
 
@@ -1047,8 +1052,23 @@ If (rank_mpi==0) Then
     ! mii is incremented by mii = mii + parts
     ! mii --> Worker master
     !------------------------------------------------------------------------------
-    nn = 1_ik
     DO  WHILE (nn <= No_of_domains) 
+
+        ! Only »accept« domains if they need as many parts as the communicator has processors
+        IF (parts_list(nn) == parts) THEN
+            CONTINUE
+        ELSE
+            
+            !------------------------------------------------------------------------------
+            ! Store activity information anyway to tell steering program that this domain
+            ! "is finished computing" (it is not, the size of the communicator does not match)
+            !------------------------------------------------------------------------------
+            Call MPI_FILE_WRITE_AT(aun, INT(((nn-1) * ik), MPI_OFFSET_KIND), &
+            Domains(nn), 1_mik, MPI_INTEGER8, status_mpi, ierr)
+            
+            nn = nn + 1_mik
+            CYCLE
+        END IF 
 
         !------------------------------------------------------------------------------
         ! Send information for all parts to the corresponding ranks.
@@ -1103,10 +1123,28 @@ If (rank_mpi==0) Then
         CALL print_err_stop(std_out, &
         "MPI_WAITANY on req_list for IRECV of worker_is_active(mii) didn't succeed", ierr)
 
-        IF (worker_is_active(mii) == -999) THEN
-            mem_critical = .TRUE.
-            CALL stop_slaves()
-            GOTO 1000
+        !------------------------------------------------------------------------------
+        ! Checking the memory of the global main rank
+        !------------------------------------------------------------------------------
+        mem_usage =  system_mem_usage()
+        mem = (REAL(mem_usage,rk)/1000._rk/1000._rk)
+        IF (mem > global_mem_threshold) mem_critical = -mem
+
+        IF (mem_critical < 0._rk) THEN
+            mem_critical = -1._rk
+            WRITE(std_out, FMT_WRN_xAI0) "Received an OOM event from global main", mii
+            EXIT
+        ELSE
+            mem_critical = 1._rk
+        END IF 
+
+
+        IF (worker_is_active(mii) < -10) THEN
+            mem_critical = -1._rk
+            WRITE(std_out, FMT_WRN_xAI0) "Received an OOM event from rank", mii
+            EXIT
+        ELSE
+            mem_critical = 1._rk
         END IF 
 
         IF(finished /= MPI_UNDEFINED) mii = finished
@@ -1189,50 +1227,8 @@ Else
             END IF
         END IF
 
-        !------------------------------------------------------------------------------
-        ! Start the memory logging
-        !------------------------------------------------------------------------------
-                ! INQUIRE(file="./datasets/memlog.sh", exist=fex)
+        ! CALL link_start(link_name, .True., .True.)
 
-                ! IF(fex) THEN
-                !     CALL EXECUTE_COMMAND_LINE (&
-                !         './datasets/memlog.sh '&
-                !         //TRIM(outpath)//TRIM(project_name)//'.memlog', CMDSTAT=stat)   
-
-                !     IF(stat /= 0) WRITE(std_err, FMT_WRN_xAI0) &
-                !         "Could not start memory logging! Rank: ", rank_mpi
-                ! ELSE
-                !     WRITE(std_err, FMT_WRN_xAI0) &
-                !         "File for memory logging not found! Rank: ", rank_mpi
-                ! END IF
-
-
-        memlog_file=TRIM(outpath)//TRIM(project_name)//'.memlog'
-        INQUIRE (FILE = memlog_file, EXIST = fex)
-
-        file_status="NEW"
-        IF(fex) file_status="OLD"
-
-        fh_cluster_log = give_new_unit()
-
-        OPEN(UNIT=fh_cluster_log, FILE=TRIM(memlog_file), ACTION='WRITE', &
-            ACCESS="SEQUENTIAL", STATUS=file_status)
-
-        WRITE(fh_cluster_log, '(A)') &
-            "Operation, Domain, Nodes, Elems, Preallo, "//&
-            "Mem_comm, Pids_returned, Size_mpi, time"
-    
-        ! IF(stat /= 0) WRITE(std_err, FMT_WRN_xAI0) &
-        !     "Could not start memory logging! Rank: ", rank_mpi
-
-
-        CALL link_start(link_name, .True., .True.)
-
-    ELSE ! Worker threads of the sub communicator
-        !------------------------------------------------------------------------------
-        ! Set fh_cluster_log = -1 for clarifying the state of the worker threads
-        !------------------------------------------------------------------------------
-        fh_cluster_log = -1_ik
     END IF 
 
         
@@ -1266,13 +1262,6 @@ Else
             comm_nn, 1_mik, & 
             MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
         
-        !!!!!------------------------------------------------------------------------------
-        !!!!! Experimental
-        !!!!! May help computing domains which may be skipped
-        !!!!! Some domains are skipped while restarting. Considered a minor issue
-        !!!!!------------------------------------------------------------------------------
-        !!!!!!!!!!!!! IF(comm_nn > 1) comm_nn = comm_nn - 1_ik
-
     END IF 
 
     CALL MPI_BCAST(comm_nn, 1_mik , MPI_INTEGER8, 0_mik, WORKER_COMM, ierr)
@@ -1316,7 +1305,7 @@ Else
         ! Start workers
         !------------------------------------------------------------------------------
         CALL MPI_RECV(active, 1_mik, MPI_INTEGER4, 0_mik, rank_mpi, MPI_COMM_WORLD, status_mpi, ierr)
-        CALL print_err_stop(std_out, "MPI_RECV on Active didn't succseed", ierr)
+        CALL print_err_stop(std_out, "MPI_RECV on Active didn't succeed", ierr)
 
         !------------------------------------------------------------------------------
         ! Stop workers
@@ -1359,7 +1348,7 @@ Else
             !==============================================================================
             ! Compute a domain
             !==============================================================================
-            CALL exec_single_domain(root, comm_nn, Domain, typeraw, job_dir, fh_cluster_log, &
+            CALL exec_single_domain(root, comm_nn, Domain, typeraw, job_dir, &
                 Active, fh_mpi_worker, worker_comm, cn, mem_critical)
             !==============================================================================
 
@@ -1373,7 +1362,21 @@ Else
             ! Organize Results
             !------------------------------------------------------------------------------
             IF (worker_rank_mpi==0) THEN
-            
+
+
+                !------------------------------------------------------------------------------
+                ! Move the .petsc.log to its domain related name
+                !------------------------------------------------------------------------------
+                WRITE(domain_nn, '(I0)') Domain
+
+
+                INQUIRE(FILE=TRIM(out%p_n_bsnm)//".petsc.log", EXIST = pl_exist)
+                
+                IF (pl_exist) THEN
+                    CALL exec_cmd_line("mv "//TRIM(out%p_n_bsnm)//".petsc.log"//" "//&
+                                        TRIM(out%p_n_bsnm)//"."//TRIM(domain_nn)//".petsc.log", stat)
+                END IF 
+
                 !------------------------------------------------------------------------------
                 ! Write the start time to file
                 !------------------------------------------------------------------------------
@@ -1390,7 +1393,6 @@ Else
                     Int(root%branches(3)%leaves(3)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
                     t_duration, 1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
 
-
                 CALL Start_Timer("Write Worker Root Branch")
 
                 !------------------------------------------------------------------------------
@@ -1404,15 +1406,6 @@ Else
                 !------------------------------------------------------------------------------
                 CALL Write_Tree(root%branches(3)) ! Branch with 'Averaged Material Properties'
                 ! ../../../bin/pd_dump_leaf_x86_64 $PWD/ results_0000001 7
-            
-            !    IF (out_amount == "ALEXANDRIA") THEN
-            !        DO ii = 1, SIZE(root%branches)FH01-2_mu_Dev_dtc_Tensors
-            !            write(*, '(A, I0, 2A, T80, I0, T84, A)') &
-            !                "Branch(", ii, ") of the tree: ", &
-            !                TRIM(root%branches(ii)%desc), &
-            !                SIZE(root%branches(ii)%leaves), " leaves."
-            !        END DO
-            !    END IF
 
                 CALL End_Timer("Write Worker Root Branch")
 
@@ -1422,20 +1415,16 @@ Else
                 Call MPI_FILE_WRITE_AT(aun, INT(((nn-1) * ik), MPI_OFFSET_KIND), &
                     Domain, 1_mik, MPI_INTEGER8, status_mpi, ierr)
 
-                !------------------------------------------------------------------------------
-                ! Deallocate results of this domain. Potential memory leak.
-                !------------------------------------------------------------------------------
-                WRITE(desc,'(A,I0)')"Domain ", Domain
-                CALL delete_branch_from_branch(TRIM(desc), root, dsize)
 
             END IF
 
+
             !------------------------------------------------------------------------------
-            ! Mark the current position within the stream.
+            ! Probably obsolete
             !------------------------------------------------------------------------------
-            CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
-                INT(root%branches(3)%leaves(1)%lbound-1+(domains_per_comm-1-1), MPI_OFFSET_KIND), &
-                INT(comm_nn, KIND=ik), 1_mik, MPI_INTEGER8, status_mpi, ierr)
+            !!!!!!!!! CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
+            !!!!!!!!!     INT(root%branches(3)%leaves(1)%lbound-1+(domains_per_comm-1-1), MPI_OFFSET_KIND), &
+            !!!!!!!!!     INT(comm_nn, KIND=ik), 1_mik, MPI_INTEGER8, status_mpi, ierr)
 
             !------------------------------------------------------------------------------
             ! Increment linear domain counter of the PETSc sub_comm instances
@@ -1451,20 +1440,17 @@ Else
         ! "Deactivate" communicator
         !------------------------------------------------------------------------------
         active = 0_mik
-        IF (mem_critical) active = -999
+        IF (mem_critical < 0._rk) active = -999
+ 
+        IF ((worker_rank_mpi==0) .AND. (mem_critical < 0._rk))  THEN
+            WRITE(std_out, FMT_WRN_xAI0) "OOM on ranks", rank_mpi, "to", rank_mpi+parts
+            WRITE(std_out, FMT_WRN_xAF0) "Memory usage normalized to a compute node of hawk:", -mem_critical, "GB"
+        END IF 
 
-        CALL MPI_ISEND(active, 1_mik, MPI_INTEGER4, 0_mik, rank_mpi, MPI_COMM_WORLD, request, ierr)
-        CALL print_err_stop(std_out, "MPI_ISEND on Active didn't succeed", ierr)
-
-        CALL MPI_WAIT(request, status_mpi, ierr)
-        CALL print_err_stop(std_out, "MPI_WAIT on request for ISEND Active didn't succeed", ierr)
-                    
-        IF (mem_critical) EXIT
+        CALL MPI_SEND(active, 1_mik, MPI_INTEGER4, 0_mik, rank_mpi, MPI_COMM_WORLD, ierr)
+        CALL print_err_stop(std_out, "MPI_SEND on Active didn't succeed", ierr)
 
     End Do
-
-    CALL PetscFinalize(petsc_ierr) 
-    IF(petsc_ierr .NE. 0_ik) WRITE(std_out, FMT_WRN_xAI0) "Error in PetscFinalize: ", petsc_ierr
 
 End If
 
@@ -1489,13 +1475,16 @@ IF(rank_mpi == 0) THEN
 
     CALL link_end(link_name,.True.)
 
-    WRITE(std_out, FMT_TXT_SEP)
-    WRITE(std_out, FMT_TXT) "HLRS Direct Tensor Computation finished successfully."
-    WRITE(std_out, FMT_TXT_SEP)
+    IF (mem_critical > 0._rk)THEN
+        WRITE(std_out, FMT_TXT_SEP)
+        WRITE(std_out, FMT_TXT) "HLRS Direct Tensor Computation finished successfully."
+        WRITE(std_out, FMT_TXT_SEP)
 
-END IF ! (rank_mpi == 0)
+        CALL meta_close(m_rry)
 
-IF(rank_mpi==0) THEN
+    ELSE
+        WRITE(std_out, FMT_WRN) "Stopping due to an OOM event."
+    END IF 
 
     !------------------------------------------------------------------------------
     ! Write the "JOB_FINISHED" keyword only if the job was finished during 
@@ -1506,7 +1495,6 @@ IF(rank_mpi==0) THEN
         no_restart_required = .TRUE.
     END IF 
 
-    CALL meta_close(m_rry)
 
     CALL meta_stop_ascii(fh_mon, mon_suf)
 
@@ -1517,9 +1505,6 @@ END IF
 
 1000 Continue
 
-IF (mem_critical) THEN
-    IF(rank_mpi==0) WRITE(std_out, FMT_TXT) "WW Stopping to prevent an OOM event."
-END IF 
 
 CALL MPI_FILE_CLOSE(aun, ierr)
 CALL MPI_FINALIZE(ierr)

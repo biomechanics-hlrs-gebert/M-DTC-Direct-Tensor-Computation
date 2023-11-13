@@ -12,44 +12,43 @@ module mesh_partitioning
   
   Type T_PMesh
 
-     Integer(ik) :: nnodes, nelems, nouter_nds
+     Integer(kind=ik) :: nnodes, nelems, nouter_nds
 
-     INTEGER(IK), DIMENSION(:) , Allocatable :: NN, ncolor, cneigh, bnodes
-     REAL(RK)   , DIMENSION(:,:), Allocatable :: COOR
-     INTEGER(IK), DIMENSION(:,:), Allocatable :: EIND,neigh
+     INTEGER(KIND=IK), DIMENSION(:) , Allocatable :: NN, ncolor, cneigh, bnodes
+     REAL(KIND=RK)   , DIMENSION(:,:), Allocatable :: COOR
+     INTEGER(KIND=IK), DIMENSION(:,:), Allocatable :: EIND,neigh
 
   End type T_PMesh
 
 contains
 
-  Subroutine part_mesh(nodes, eind, HU_magnitudes, nnodes, ne, parts, PMesh, job_dir, ddc_nn)
+  Subroutine part_mesh(nodes, eind, nnodes, ne, parts, PMesh, job_dir, ddc_nn)
 
     !**************************************************************************
     ! Declarations ************************************************************
    
     ! Parted Mesh *************************************************************
     Type(tBranch)   , intent(Inout) :: PMesh
-    Character(*), Intent(in) :: job_dir
-    Integer(ik), intent(in) :: ddc_nn
+    Character(LEN=*), Intent(in) :: job_dir
+    Integer(kind=ik), intent(in) :: ddc_nn
 
     ! Metis variables *********************************************************
     Integer(kind=C_INT64_T), Intent(In) :: ne
     Integer(kind=C_INT64_T), intent(In) :: nnodes
 
-    Integer(C_INT64_T)                              :: nn
-    Integer(C_INT64_T), Dimension(:),   Allocatable :: eptr
-    Integer(C_INT64_T), Dimension(:,:), Allocatable :: eind
-    Integer(C_INT64_T), Dimension(:)  , Allocatable :: HU_magnitudes
-    Integer(C_INT64_T), Dimension(:),   Allocatable :: vwgt, vsize
-    Integer(C_INT64_T)                              :: ncommon
-    Integer(C_INT64_T), Intent(in)                  :: parts
-    Real   (c_double) , Dimension(:)  , Allocatable :: tpwgts
-    Integer(C_INT64_T), Dimension(40)               :: options
-    Integer(C_INT64_T)                              :: objval
-    Integer(C_INT64_T), Dimension(:)  , Allocatable :: depart
-    Integer(C_INT64_T), Dimension(:)  , Allocatable :: dnpart
+    Integer(kind=C_INT64_T)                             :: nn
+    Integer(kind=C_INT64_T), Dimension(:), Allocatable :: eptr
+    Integer(kind=C_INT64_T), Dimension(:,:), Allocatable :: eind
+    Integer(kind=C_INT64_T), Dimension(:), Allocatable :: vwgt, vsize
+    Integer(kind=C_INT64_T)                             :: ncommon
+    Integer(kind=C_INT64_T), Intent(in)                 :: parts
+    Real   (kind=c_double), Dimension(:), Allocatable :: tpwgts
+    Integer(kind=C_INT64_T), Dimension(40)              :: options
+    Integer(kind=C_INT64_T)                             :: objval
+    Integer(kind=C_INT64_T), Dimension(:), Allocatable :: depart
+    Integer(kind=C_INT64_T), Dimension(:), Allocatable :: dnpart
 
-    Real(C_double), Dimension(:,:), intent(in) :: nodes
+    Real(kind=C_double), Dimension(:,:), intent(in) :: nodes
 
     !**************************************************************************
     Integer(kind=ik), Dimension(:), Allocatable :: nnodes_pp, nelems_pp, nouter_nds_pp
@@ -77,15 +76,15 @@ contains
     Do ii = 1, Parts
           
        Write(desc,'(A,I0)')"Part_",ii
-       call raise_branch(trim(desc), 1_pd_ik, 6_pd_ik, PMesh%branches(ii))
-       Call raise_leaves(6,&
+       call raise_branch(trim(desc), 1_pd_ik, 5_pd_ik, PMesh%branches(ii))
+       Call raise_leaves(5,&
             ["Node Numbers       ", "Coordinates        ", &
              "Global Node Numbers", "Element Numbers    ", &
-             "Topology           ", "HU Magnitudes      "],&
-            [4_1,     5_1,     4_1,     4_1,     4_1,     4_1    ],&
-            [0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik],&
-            [0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik],&
-            [0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik],&
+             "Topology           "                       ],&
+            [4_1,     5_1,     4_1,     4_1,     4_1     ],&
+            [0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik ],&
+            [0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik ],&
+            [0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik, 0_pd_ik ],&
             PMesh%branches(ii))
        
        call raise_branch("Connections", 0_pd_ik, 2_pd_ik, PMesh%branches(ii)%branches(1))
@@ -185,7 +184,7 @@ contains
 
         Do ii = 1, Parts
 
-            ! PMesh%branches(ii)%leaves(5) = "Topology" **************
+            ! PMesh%branches(ii)%leaves(5) = "Topology"
             PMesh%branches(ii)%leaves(5)%dat_no = nn_el*nelems_pp(ii)
             PMesh%branches(ii)%leaves(5)%pstat  = 1
             Allocate(PMesh%branches(ii)%leaves(5)%p_int8(nn_el*nelems_pp(ii)))
@@ -251,9 +250,11 @@ contains
             PMesh%branches(ii)%leaves(3)%pstat  = 1
             Allocate(PMesh%branches(ii)%leaves(3)%p_int8(0:idum))
             
-            write(un_lf,fmt_msg_xai0)"NODES in part",ii,"--",&
-                PMesh%branches(ii)%leaves(1)%dat_no
-
+            IF (out_amount == "DEBUG") THEN
+                write(un_lf,fmt_msg_xai0)"NODES in part",ii,"--",&
+                    PMesh%branches(ii)%leaves(1)%dat_no
+            END IF 
+            
             nnodes_pp(ii) = idum
             
             bounds(:,1) = lbound(cref)
@@ -356,12 +357,6 @@ contains
 
        ! Fill in topology 
        PMesh%branches(1)%leaves(5)%p_int8 = reshape(eind, [ne*nn_el])
-
-       !------------------------------------------------------------------------------
-       ! Fill in Hounsfield units of the voxels (HU Magnitude)
-       !------------------------------------------------------------------------------
-       PMesh%branches(1)%leaves(6)%p_int8 = reshape(HU_magnitudes, [ne])
-
       
        nnodes_pp     = nnodes
        nelems_pp     = ne

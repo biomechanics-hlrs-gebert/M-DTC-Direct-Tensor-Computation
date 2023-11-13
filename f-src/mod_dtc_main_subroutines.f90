@@ -21,6 +21,7 @@ USE linfe
 USE mpi
 USE gen_geometry
 USE PETSC
+USE petsc_opt
 USE calcmat
 USE system
 USE mpi_system
@@ -42,13 +43,14 @@ CONTAINS
 !> @param[in]    lin_domain    Linear, internal, domain number
 !> @param[in]    domain        ddc domain number
 !> @param[in]    job_dir       Job directory (Rank_...)
+!> @param[out]   active        Whether thread is active
 !> @param[in]    fh_mpi_worker File handle of sub comm
 !> @param[in]    rank_mpi
 !> @param[in]    size_mpi
 !> @param[in]    comm_mpi
 !------------------------------------------------------------------------------
 Subroutine exec_single_domain(root, comm_nn, domain, typeraw, &
-    job_dir, active, fh_mpi_worker, comm_mpi, mem_critical)
+    job_dir, active, fh_mpi_worker, comm_mpi, cn, mem_critical)
 
 TYPE(materialcard) :: bone
 INTEGER(mik), Intent(INOUT), Dimension(no_streams) :: fh_mpi_worker
@@ -58,11 +60,10 @@ Character(*) , Intent(in)  :: typeraw
 INTEGER(mik), Intent(In)  :: comm_mpi
 INTEGER(ik) , intent(in)  :: comm_nn, domain
 INTEGER(mik), intent(out) :: active
-Type(tBranch)    , Intent(inOut) :: root
+Type(tBranch), Intent(inout) :: root
 REAL(rk), INTENT(INOUT) :: mem_critical
 
-REAL(rk) :: cn
-REAL(rk), PARAMETER :: target_ccn = 32.0
+REAL(rk), intent(in) :: cn
 
 REAL(rk) :: mem
 
@@ -75,9 +76,9 @@ INTEGER(mik) :: ierr, petsc_ierr, rank_mpi, size_mpi
 INTEGER(pd_ik), Dimension(:), Allocatable :: serial_pb
 INTEGER(pd_ik) :: serial_pb_size
 
-INTEGER(ik) :: preallo, domain_elems, ii, jj, kk, id, stat, &
+INTEGER(ik) :: domain_elems, ii, jj, kk, id, stat, &
     Istart,Iend, parts, IVstart, IVend, m_size, mem_global, status_global, &
-    ddc_nn, no_different_hosts, timestamp, macro_order, no_elem_nodes, no_lc
+    timestamp, macro_order, no_elem_nodes, no_lc
 
 INTEGER(ik), DIMENSION(24) :: collected_logs ! timestamps, memory_usage, pid_returned
 INTEGER(ik), Dimension(:)  , Allocatable :: nodes_in_mesh
@@ -87,22 +88,20 @@ INTEGER(ik), Dimension(:,:), Allocatable :: res_sizes
 INTEGER(c_int) :: stat_c_int
 
 CHARACTER(9)   :: domain_char
-CHARACTER(40)  :: mssg_fix_len
-CHARACTER(mcl) :: timer_name, rank_char, domain_desc, part_desc, &
-    desc, mesh_desc, filename, elt_micro, nn_char
+CHARACTER(mcl) :: timer_name, domain_desc, part_desc, &
+    desc, mesh_desc, filename, elt_micro, pro_path_tmp, pro_name_tmp
 
 Character, Dimension(4*mcl) :: c_char_array
 Character, Dimension(:), Allocatable :: char_arr
 
-INTEGER(ik), PARAMETER :: host_name_length = 512
-CHARACTER(host_name_length), DIMENSION(:), ALLOCATABLE :: host_list, unique_host_list
-CHARACTER(host_name_length) :: host_of_part
-
 LOGICAL, PARAMETER :: DEBUG = .TRUE.
-logical :: success=.TRUE., host_assumed_unique
+logical :: success=.TRUE.
 
 Type(tBranch), pointer :: boundary_branch, domain_branch, part_branch
-Type(tBranch), pointer :: mesh_branch, meta_para, esd_result_branch, result_branch
+Type(tBranch), pointer :: mesh_branch, meta_para, esd_result_branch
+Type(tBranch) :: domain_tree
+INTEGER(pd_ik), DIMENSION(no_streams) :: dsize
+Integer(pd_ik), Dimension(no_streams) :: no_data
 
 Type(tMat)         :: AA, AA_org
 Type(tVec)         :: XX
@@ -123,20 +122,10 @@ CALL print_err_stop(std_out, "MPI_COMM_RANK of comm_mpi couldn't be retrieved", 
 CALL MPI_COMM_SIZE(comm_mpi, size_mpi, ierr)
 CALL print_err_stop(std_out, "MPI_COMM_SIZE of comm_mpi couldn't be retrieved", ierr)
 
-cn = REAL(size_mpi, rk) / target_ccn
-
-collected_logs = 0_ik
-IF (rank_mpi == 0) collected_logs(1) = INT(time(), ik)
-
-mem = 1._rk
-mem_critical = 1._rk
-
-write(domain_char,'(I0)') domain
-
 !------------------------------------------------------------------------------
 ! Get the mpi communicators total memory usage by the pids of the threads.
 !------------------------------------------------------------------------------
-CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
+CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global, rank_mpi) 
 
 ! Abort if DTC consumes to much memory
 mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
@@ -148,19 +137,42 @@ ELSE
 END IF 
 
 !------------------------------------------------------------------------------
+! This sets the options for PETSc in-core. To alter the options
+! add them in Set_PETSc_Options in Module pets_opt in file
+! f-src/mod_parameters.f90
+!------------------------------------------------------------------------------
+CALL Set_PETSc_Options()
+
+PETSC_COMM_WORLD = comm_mpi
+
+CALL PetscInitialize(PETSC_NULL_CHARACTER, petsc_ierr)
+IF(petsc_ierr .NE. 0_ik) WRITE(std_out, FMT_WRN_xAI0) "Error in PetscInitialize: ", petsc_ierr
+
+! Init worker_is_active status
+Active = 0_mik
+collected_logs = 0_ik
+
+mem = 1._rk
+mem_critical = 1._rk
+
+write(domain_char,'(I0)') domain
+
+!------------------------------------------------------------------------------
 ! Tracking (the memory usage is) intended for use during production too.
 !------------------------------------------------------------------------------
 IF (rank_mpi == 0) THEN
+    collected_logs(1) = INT(time(), ik)
     collected_logs(8) = mem_global
     collected_logs(15) = status_global
 END IF
 
 
+! This function does not work out well.
+! CALL get_environment_Variable("HOST", host_of_part)
+
 CALL Search_branch("Input parameters", root, meta_para, success, out_amount)
 
-parts = INT(size_mpi, ik)
-
-! CALL pd_get(meta_para, "No of mesh parts per subdomain", parts)
+CALL pd_get(meta_para, "No of mesh parts per subdomain", parts)
 CALL pd_get(meta_para, "Physical domain size" , bone%phdsize, 3)
 CALL pd_get(meta_para, "Grid spacings" , bone%delta, 3)
 CALL pd_get(meta_para, "Young_s modulus" , bone%E)
@@ -194,19 +206,31 @@ If (rank_mpi == 0) then
 
         End If
 
+
+        !------------------------------------------------------------------------------
+        ! Write log and monitor file
+        !------------------------------------------------------------------------------
+        Write(un_lf,FMT_MSG_SEP)
+        timestamp = time()
+
+        WRITE(un_lf, '(A,I0)') 'Start time: ', timestamp
+
+        Write(un_lf, FMT_MSG_xAI0) "Domain No.: ", domain
+        Write(un_lf, FMT_MSG)      "Job_dir:    "//Trim(job_dir)
+        Write(un_lf,FMT_MSG_SEP)
+
     End If
+    
+    pro_path_tmp = pro_path 
+    pro_name_tmp = pro_name     
+    
+    pro_path = "tmp"
+    pro_name = "domain_tree_"//TRIM(domain_char)
+    CALL raise_tree("domain_tree", domain_tree)
 
-    !------------------------------------------------------------------------------
-    ! Write log and monitor file
-    !------------------------------------------------------------------------------
-    Write(un_lf,FMT_MSG_SEP)
-    timestamp = time()
+    pro_path = pro_path_tmp
+    pro_name = pro_name_tmp
 
-    WRITE(un_lf, '(A,I0)') 'Start time: ', timestamp
-
-    Write(un_lf, FMT_MSG_xAI0) "Domain No.: ", domain
-    Write(un_lf, FMT_MSG)      "Job_dir:    "//Trim(job_dir)
-    Write(un_lf,FMT_MSG_SEP)
 
     !------------------------------------------------------------------------------
     ! Generate Geometry
@@ -220,28 +244,23 @@ If (rank_mpi == 0) then
 
     CALL start_timer(trim(timer_name), .FALSE.)
 
-    ! write_path = pro_path
-    ! write_name = pro_name
-
-    CALL generate_geometry(root, domain, job_dir, typeraw, parts, success)
-    
-    ! pro_path = write_path
-    ! pro_name = write_name
+    CALL generate_geometry(root, domain_tree, domain, job_dir, typeraw, success)
 
     if (.not. success) write(std_out, FMT_WRN)"generate_geometry() failed."
-    
+
     CALL end_timer(trim(timer_name))
     timestamp = time()
 
-    WRITE(un_lf, '(A,I0)') 'End time: ', timestamp
-
+    IF (out_amount == "DEBUG") THEN
+        WRITE(un_lf, '(A,I0)') 'End time: ', timestamp
+    END IF 
     !------------------------------------------------------------------------------
     ! Look for the Domain branch
     !------------------------------------------------------------------------------
     domain_desc=''
     Write(domain_desc,'(A,I0)')'Domain ', domain
     
-    IF(success) CALL search_branch(trim(domain_desc), root, domain_branch, success, out_amount)
+    IF(success) CALL search_branch(trim(domain_desc), domain_tree, domain_branch, success, out_amount)
 
     !------------------------------------------------------------------------------
     ! Get the no of nodes per part
@@ -255,7 +274,6 @@ If (rank_mpi == 0) then
     ! Send success variable for gracefully aborting the domain.
     !------------------------------------------------------------------------------
     CALL mpi_bcast(success, 1_mik, MPI_LOGICAL, 0_mik, COMM_MPI, ierr)
-
     IF (.NOT. success) GOTO 1000
 
     !------------------------------------------------------------------------------
@@ -278,7 +296,6 @@ If (rank_mpi == 0) then
         !------------------------------------------------------------------------------
         ! Look for the Part branch
         !------------------------------------------------------------------------------
-        domain_desc=''
         Write(part_desc,'(A,I0)')'Part_',ii
         if(success) CALL search_branch(trim(part_desc), domain_branch, part_branch, success)
 
@@ -382,7 +399,7 @@ END IF
 !------------------------------------------------------------------------------
 ! Get the mpi communicators total memory usage by the pids of the threads.
 !------------------------------------------------------------------------------
-CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
+CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global, rank_mpi) 
 
 ! Abort if DTC consumes to much memory
 mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
@@ -402,11 +419,6 @@ IF (rank_mpi == 0) THEN
     collected_logs(16) = status_global
 END IF
             
-!------------------------------------------------------------------------------
-! Calculate amount of memory to allocate.
-!------------------------------------------------------------------------------
-!!! NOT IN USE !!! preallo = ANINT(m_size/50000._rk)
-
 !------------------------------------------------------------------------------
 ! Create Stiffness matrix
 ! Preallocation avoids dynamic allocations during matassembly.
@@ -433,7 +445,7 @@ CALL MatSetOption(AA_org, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE, petsc_ier
 !------------------------------------------------------------------------------
 ! Get and write another memory log.
 !------------------------------------------------------------------------------
-CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
+CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global, rank_mpi) 
 
 ! Abort if DTC consumes to much memory
 mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
@@ -566,6 +578,7 @@ else if (elt_micro == "HEX20") then
 
 end if
 
+
 IF (rank_mpi == 0) THEN   ! Sub Comm Master
     SELECT CASE (timer_level)
     CASE (1)
@@ -580,7 +593,7 @@ END IF
 !------------------------------------------------------------------------------
 ! Get and write another memory log.
 !------------------------------------------------------------------------------
-CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
+CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global, rank_mpi) 
 
 ! Abort if DTC consumes to much memory
 mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
@@ -641,7 +654,7 @@ END IF
 !------------------------------------------------------------------------------
 ! Get and write another memory log.
 !------------------------------------------------------------------------------
-CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
+CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global, rank_mpi) 
 
 ! Abort if DTC consumes to much memory
 mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
@@ -789,13 +802,11 @@ IF (rank_mpi == 0) THEN   ! Sub Comm Master
     CALL start_timer(TRIM(timer_name), .FALSE.)
 END IF 
 
-
 !------------------------------------------------------------------------------ 
 ! Complete matrix assembly
 !------------------------------------------------------------------------------ 
 CALL MatAssemblyEnd(AA, MAT_FINAL_ASSEMBLY ,petsc_ierr)
 CALL MatAssemblyEnd(AA_org, MAT_FINAL_ASSEMBLY ,petsc_ierr)
-
 
 !------------------------------------------------------------------------------ 
 ! Compute dirichlet boundary corrections of first right hand side vector
@@ -1038,8 +1049,9 @@ IF (rank_mpi == 0) THEN
     CALL raise_branch("Strains"                         , 0,  0, esd_result_branch%branches(3))
     CALL raise_branch("Stresses"                        , 0,  0, esd_result_branch%branches(4))
 
-    CALL log_tree(mesh_branch, un_lf, .FALSE.)
-    
+    IF (out_amount == "DEBUG") THEN
+        CALL log_tree(mesh_branch, un_lf, .FALSE.)
+    END IF
     !------------------------------------------------------------------------------
     ! Look again for the Part branch since the part_branch pointer 
     ! gets invalidated by dealloc of the branches array in add_branch_to_branch
@@ -1167,7 +1179,6 @@ Do jj = 1, no_lc
         write(desc,'(A)') "Reaction Forces"
         CALL Add_Leaf_to_Branch(esd_result_branch%branches(2), trim(desc), m_size, glob_force) 
 
-
         If (out_amount == "DEBUG") THEN 
             write(desc,'(A,I2.2)') "DispRes", jj
             CALL write_vtk_data_Real8_vector_1D(matrix = reshape(glob_displ, &
@@ -1185,7 +1196,7 @@ End Do
 !------------------------------------------------------------------------------
 ! Get and write another memory log.
 !------------------------------------------------------------------------------
-CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global) 
+CALL mpi_system_mem_usage(COMM_MPI, mem_global, status_global, rank_mpi) 
 
 ! Abort if DTC consumes to much memory
 mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
@@ -1201,6 +1212,31 @@ IF (rank_mpi == 0) THEN
     collected_logs(13) = mem_global
     collected_logs(20) = status_global
 END IF
+
+
+!------------------------------------------------------------------------------
+! Remove matrices
+!------------------------------------------------------------------+------------
+CALL KSPDestroy(ksp,    petsc_ierr)
+CALL MatDestroy(AA,     petsc_ierr)
+CALL MatDestroy(AA_org, petsc_ierr)
+CALL VecDestroy(XX,     petsc_ierr)
+
+Do ii = 1, no_lc
+
+    IF (macro_order == 1) THEN
+    
+        CALL VecDestroy(FF_08(ii), petsc_ierr)
+
+    ELSE IF (macro_order == 2) THEN
+    
+        CALL VecDestroy(FF_20(ii), petsc_ierr)
+    END IF 
+
+End Do
+
+CALL PetscFinalize(petsc_ierr) 
+IF(petsc_ierr .NE. 0_ik) WRITE(std_out, FMT_WRN_xAI0) "Error in PetscFinalize: ", petsc_ierr
 
 !------------------------------------------------------------------------------
 ! All 24 linear system solutions are produced. 
@@ -1218,8 +1254,8 @@ if (rank_mpi == 0) then
     End SELECT
 
     CALL start_timer(TRIM(timer_name), .FALSE.)
-    CALL calc_effective_material_parameters(root, comm_nn, domain, &
-        fh_mpi_worker, size_mpi, comm_mpi, collected_logs)
+    CALL calc_effective_material_parameters(root, domain_tree, esd_result_branch, &
+        comm_nn, domain, fh_mpi_worker, size_mpi, collected_logs)
     CALL end_timer(TRIM(timer_name))
             
     mem= (MAXVAL(collected_logs(8:13))/1000._rk/1000._rk/cn)
@@ -1239,7 +1275,7 @@ if (rank_mpi == 0) then
     END IF 
 
 
-! Abort if DTC consumes to much memory
+    ! Abort if DTC consumes to much memory
     mem= (REAL(mem_global,rk)/1000._rk/1000._rk/cn)
     IF (mem > global_mem_threshold) THEN
         mem_critical = -mem
@@ -1255,7 +1291,6 @@ End if
 
 1000 CONTINUE
 
-
 IF(ALLOCATED(serial_pb)) DEALLOCATE(serial_pb)
 IF(ALLOCATED(gnid_cref)) DEALLOCATE(gnid_cref)
 IF(ALLOCATED(zeros_R8))  DEALLOCATE(zeros_R8)
@@ -1267,26 +1302,37 @@ IF(rank_mpi==0) THEN
     IF(ALLOCATED(nodes_in_mesh)) DEALLOCATE(nodes_in_mesh)
 END IF 
 
+CALL destroy_tree(domain_tree, no_data)
+
 !------------------------------------------------------------------------------
-! Remove matrices
-!------------------------------------------------------------------------------
-CALL KSPDestroy(ksp,    petsc_ierr)
-CALL MatDestroy(AA,     petsc_ierr)
-CALL MatDestroy(AA_org, petsc_ierr)
-CALL VecDestroy(XX,     petsc_ierr)
+! There is no calcmat/exec_single_domain if there is an oom.
+! Then, PETSc has to finish gracefully
+!------------------------------------------------------------------+------------
+IF (mem_critical < 0._rk) THEN
+    Do ii = 1, no_lc
 
-Do ii = 1, no_lc
+        IF (macro_order == 1) THEN
+        
+            CALL VecDestroy(FF_08(ii), petsc_ierr)
 
-    IF (macro_order == 1) THEN
-    
-        CALL VecDestroy(FF_08(ii), petsc_ierr)
+        ELSE IF (macro_order == 2) THEN
+        
+            CALL VecDestroy(FF_20(ii), petsc_ierr)
+        END IF 
 
-    ELSE IF (macro_order == 2) THEN
-    
-        CALL VecDestroy(FF_20(ii), petsc_ierr)
-    END IF 
+    End Do
 
-End Do
+    !------------------------------------------------------------------------------
+    ! Remove matrices
+    !------------------------------------------------------------------+------------
+    CALL KSPDestroy(ksp,    petsc_ierr)
+    CALL MatDestroy(AA,     petsc_ierr)
+    CALL MatDestroy(AA_org, petsc_ierr)
+    CALL VecDestroy(XX,     petsc_ierr)
+
+    CALL PetscFinalize(petsc_ierr) 
+    IF(petsc_ierr .NE. 0_ik) WRITE(std_out, FMT_WRN_xAI0) "Error in PetscFinalize: ", petsc_ierr
+END IF 
 
 End Subroutine exec_single_domain
 

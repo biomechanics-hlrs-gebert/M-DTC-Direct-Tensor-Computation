@@ -7,8 +7,10 @@
 #
 # For use of make visit: https://www.gnu.org/software/make/
 # ------------------------------------------------------------------------------
-trgt_vrsn="v1.0.0"
+trgt_vrsn="v2.0.0"
 bin_name="dtc"
+mrd_bin_name="mrd_crawl_tensors"
+morph_bin_name="morphometric_evaluation"
 long_name="Direct Tensor Computation"
 # -----------------------------------------------------------------------------
 ifeq ($(PROVIDES_GIT),YES)
@@ -93,31 +95,31 @@ clean_cmd = rm -rf
 #
 # ------------------------------------------------------------------------------
 # C include paths for external libraries
-c_inc_path = -I$(METIS_INCPATH)  # -I$(PARMETIS_INCPATH) 
+c_inc_path = -I$(PARMETIS_INCPATH) -I$(METIS_INCPATH)
 #
 # -----------------------------------------------------------------------------
 # Fortran include paths for external libraries
 # -----------------------------------------------------------------------------
-f90_inc_path = -I$(PETSC_INCPATH) # -I$(PARMETIS_INCPATH)
+f90_inc_path = -I$(PETSC_INCPATH)  -I$(METIS_INCPATH) # -I$(CGNS_INCPATH) -I$(PARMETIS_INCPATH)
 #
 # ------------------------------------------------------------------------------
 # Library paths for external libraries 
 # -----------------------------------------------------------------------------
-lib_path_flag = -L$(LAPACK_LIBPATH) -L$(METIS_LIBPATH) -L$(PETSC_LIBPATH) # -L$(PARMETIS_LIBPATH)
+lib_path_flag =  -L$(PETSC_LIBPATH) -L$(LAPACK_LIBPATH) -L$(METIS_LIBPATH)  #-L$(PARMETIS_LIBPATH)
 #
 # -----------------------------------------------------------------------------
 # Choose Lapack
 # -----------------------------------------------------------------------------
 ifeq ($(SYS_ENV),julius)
-	lapacklib=-llapack -lblas -lm -ldl
+	lapacklib=-llapack -lblas
 else
-	lapacklib=-L${MKLROOT}/lib/intel64 -Wl,--no-as-needed -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl
+	lapacklib=-L${MKLROOT}/lib/intel64 -Wl,--no-as-needed -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -lpthread
 endif
 #
 # ------------------------------------------------------------------------------
 # Link level extra libraries 
 # -----------------------------------------------------------------------------
-lll_extra = -lmetis -lpetsc  -ldl $(lapacklib)
+lll_extra = $(lapacklib)  -lpetsc  -lmetis -lm -ldl #-lparmetis -lcgns 
 #
 # Inlcude build options
 include $(st_path)/make.flags
@@ -125,7 +127,7 @@ include $(st_path)/make.flags
 # -----------------------------------------------------------------------------
 # Linker flags for chain links
 # -----------------------------------------------------------------------------
-link_flags = $(lib_path_flag)   # -fopenmp -g # -pg 
+link_flags = $(lib_path_flag)  -g -lstdc++ # -fopenmp -g # -pg 
 export link_flags
 # endif
 #
@@ -214,8 +216,12 @@ endif
 #
 ifeq ($(trgt_vrsn),)
 	dtc_bin = $(bin_dir)$(bin_name)_$(oa)$(bin_suf)
+	mrd_bin = $(bin_dir)$(mrd_bin_name)_$(oa)$(bin_suf)
+	morph_bin = $(bin_dir)$(morph_bin_name)_$(oa)$(bin_suf)
 else
 	dtc_bin = $(bin_dir)$(bin_name)_$(trgt_vrsn)_$(oa)$(bin_suf)
+	mrd_bin = $(bin_dir)$(mrd_bin_name)_$(trgt_vrsn)_$(oa)$(bin_suf)
+	morph_bin = $(bin_dir)$(morph_bin_name)_$(trgt_vrsn)_$(oa)$(bin_suf)
 endif#
 # ------------------------------------------------------------------------------
 # Build the st directory first
@@ -240,16 +246,16 @@ pd_merge_branch_to_tree_bin = $(bin_dir)pd_merge_branch_to_tree$(bin_suf)
 #
 pd_aux_execs = $(pd_dump_leaf_bin) $(pd_dump_tree_bin) $(pd_leaf_diff_bin) \
                $(pd_leaf_to_file_bin) $(pd_merge_branch_to_tree_bin)
-#
+
 # ------------------------------------------------------------------------------
 # MeRaDat executable
 # -----------------------------------------------------------------------------
-meradat_crawl_tensors = $(bin_dir)meRaDat_Crawl_Tensors$(bin_suf)
+meradat_crawl_tensors = $(mrd_bin)
 #
 # ------------------------------------------------------------------------------
 # dof evaluation executable
 # -----------------------------------------------------------------------------
-morphometric_evaluation = $(bin_dir)morphometric_evaluation$(bin_suf)
+morphometric_evaluation = $(morph_bin)
 #
 # -----------------------------------------------------------------------------
 # Object and module dependency tree
@@ -258,7 +264,7 @@ morphometric_evaluation = $(bin_dir)morphometric_evaluation$(bin_suf)
 # -----------------------------------------------------------------------------
 .PHONY: all
 #
-all: $(dtc_bin) $(pd_aux_execs) $(meradat_crawl_tensors) $(morphometric_evaluation) end_all
+all: $(dtc_bin) $(pd_aux_execs) $(mrd_bin) $(morph_bin) end_all
 #
 # -----------------------------------------------------------------------------
 # C targets
@@ -626,7 +632,7 @@ $(meradat_crawl_tensors): $(geb-lib-ld-objects) $(obj_dir)mrd_crawl_tensors$(obj
 	@echo "----------------------------------------------------------------------------------"
 	@echo '-- Linking MeRaDat executable'
 	@echo "----------------------------------------------------------------------------------"
-	$(f90_compiler) $(link_flags) $(geb-lib-ld-objects) $(obj_dir)mrd_crawl_tensors$(obj_ext) -o $@
+	$(f90_compiler) $(link_flags) $(geb-lib-ld-objects) $(obj_dir)mrd_crawl_tensors$(obj_ext) -o $(mrd_bin)
 	@echo 
 #	
 # -----------------------------------------------------------------------------
@@ -636,7 +642,7 @@ $(morphometric_evaluation): $(geb-lib-ld-objects) $(obj_dir)morphometric_evaluat
 	@echo "----------------------------------------------------------------------------------"
 	@echo '-- Linking dof evaluation executable'
 	@echo "----------------------------------------------------------------------------------"
-	$(f90_compiler) $(link_flags) $(geb-lib-ld-objects) $(obj_dir)morphometric_evaluation$(obj_ext) -o $@
+	$(f90_compiler) $(link_flags) $(geb-lib-ld-objects) $(obj_dir)morphometric_evaluation$(obj_ext) -o $(morph_bin)
 	@echo 
 #
 # --------------------------------------------------------------------------------------------------

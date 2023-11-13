@@ -54,6 +54,18 @@ job_sizes = [1, 2, 4, 8, 16, 32, 64, 128, 256]
 #
 # Has to be open to lower counts as the topology (job_sizes) better has to be respected 
 IDEAL_CCN = 32
+# IDEAL_CCN = 16
+
+# -----------------------------------------------------------------------------
+# How many compute nodes are assigned to the domain. 1/64cn = 2c is already 
+# accounted for.
+# -----------------------------------------------------------------------------
+core_categories = [ 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072 ]
+core_categories = [ 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096 ] # High ELEM COUNT
+# core_categories = [ 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192]
+# core_categories = [  1024, 2048, 4096] # OOM prevention for size >= 72
+# core_categories = [   2048, 4096] # OOM prevention for size >= 72
+
 #
 # -----------------------------------------------------------------------------
 # Functions
@@ -118,14 +130,6 @@ else:
     exit(3)
 
 # -----------------------------------------------------------------------------
-# How many compute nodes are assigned to the domain. 1/64cn = 2c is already 
-# accounted for.
-# -----------------------------------------------------------------------------
-core_categories = [ 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072 ]
-core_categories = [ 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096 ] # High ELEM COUNT
-core_categories = [ 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192]
-
-# -----------------------------------------------------------------------------
 # Parse the meta file
 # -----------------------------------------------------------------------------
 keywords = parse_meta(cmd_args.meta_file, "TENSOR_COMPUTATION")
@@ -186,9 +190,6 @@ if suggested < 2:
     print("EE Error while defining best no of elements per core.")
     print(FMT_SEP)
     exit(4)
-# suggested = 8500
-# suggested_lo = 5000
-# suggested_up = 10000
 
 print("-- Suggested voxel/FEs per core:", suggested) # Elements per part
 print(FMT_SEP)
@@ -207,6 +208,10 @@ for vox in vox_list:
 
     # lo_no_ideal_core = vox/suggested_lo
     # up_no_ideal_core = vox/suggested_up
+
+    if ideal_core_no < min(core_categories):
+        ideal_core_no = min(core_categories)
+        
 
     if ideal_core_no < 2.0:
         ideal_core_no = 2
@@ -227,23 +232,6 @@ for vox in vox_list:
             found_assignment = True
 
             break
-
-        # if core_categories[ii] <= up_no_ideal_core and core_categories[ii+1] > up_no_ideal_core:
-
-        #     cores_list.append(core_categories[ii])
-
-        #     list_of_NoDmns[ii] += int(1)
-
-        #     break
-
-        # elif core_categories[ii] <= lo_no_ideal_core and core_categories[ii+1] > lo_no_ideal_core:
-
-        #     cores_list.append(core_categories[ii])
-
-        #     list_of_NoDmns[ii] += int(1)
-
-        #     break
-
         if ii == (len(core_categories)-2):
             cores_list.append(core_categories[ii])
             elems = vox/core_categories[ii]

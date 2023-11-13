@@ -1236,7 +1236,7 @@ CONTAINS
 
     Logical :: success, skip
     Type(tBranch), Dimension(:), Pointer :: branches
-    Integer(kind=pd_ik), Dimension(no_streams) :: rem_data
+    Integer(kind=pd_ik), intent(out), Dimension(no_streams) :: rem_data
  
     Integer(kind=pd_ik) :: ii, jj, kk
     
@@ -1752,7 +1752,7 @@ End Subroutine connect_pointers
   !> t_b       : Has to be a root branch without t_streams present. With 
   !>             t_streams present it has to be a child of the root branch 
   !>             holding t_streams
-  !> t_streams : If present t_steams has to be the stream component of t_b's
+  !> t_streams : If present t_streams has to be the stream component of t_b's
   !>             parent. Otherwise the storage place gets seperated from its
   !>             tree. Integrity checks of structure and storage place are 
   !>             not performed !
@@ -6523,7 +6523,7 @@ End Subroutine store_parallel_branch
   !> get_leaf_with_num_rec
   Subroutine get_leaf_with_num(tree, num, out_leaf, success)
 
-    Type(tBranch)          , Intent(In), Target :: tree
+   Type(tBranch)          , Intent(In), Target :: tree
     Type(tLeaf),   Pointer , Intent(out)   :: out_leaf
     Integer(kind=pd_ik)    , Intent(in)    :: num
     Logical                , Intent(inout) :: success

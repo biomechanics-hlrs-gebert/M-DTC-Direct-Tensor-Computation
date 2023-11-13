@@ -20,9 +20,10 @@ Implicit None
 
 Contains
 
-Subroutine generate_geometry(root, domain, job_dir, type_raw, parts, glob_success)
+Subroutine generate_geometry(root, domain_tree, domain, job_dir, typeraw, parts, glob_success)
 
     Type(tBranch), Intent(InOut) :: root
+    Type(tBranch), Intent(Out) :: domain_tree
     Character(LEN=*), Intent(in) :: job_dir
     integer(ik), Intent(in) :: domain, parts
     Logical, Intent(Out) :: glob_success
@@ -44,7 +45,7 @@ Subroutine generate_geometry(root, domain, job_dir, type_raw, parts, glob_succes
     Integer(ik), Dimension(:,:) , Allocatable :: elems
     Integer(ik), Dimension(:), Allocatable :: elem_col,node_col, cref, HU_magnitudes
 
-    Character(mcl) :: elt_micro, desc, filename, type_raw
+    Character(mcl) :: elt_micro, desc, filename, typeraw
     Character(scl) :: restart
     Integer(ik)   :: elo_macro,alloc_stat
     
@@ -99,11 +100,11 @@ Subroutine generate_geometry(root, domain, job_dir, type_raw, parts, glob_succes
     xe_n_ext = xe_n + bpoints
 
     !----------------------------------------------------------------------------
-    ! Add domain branch to root
+    ! Add domain branch to domain_tree
     !----------------------------------------------------------------------------
     desc=''
     Write(desc,'(A,I0)')"Domain ", domain
-    call add_branch_to_branch(root, domain_branch)
+    call add_branch_to_branch(domain_tree, domain_branch)
     
     call raise_branch(trim(desc), 0_pd_ik, 0_pd_ik, domain_branch)
 
@@ -154,7 +155,7 @@ Subroutine generate_geometry(root, domain, job_dir, type_raw, parts, glob_succes
        write(un_lf,FMT_MSG_AxF0) "Grid spacings", delta
        write(un_lf,FMT_MSG_AxI0) "Number of voxels per direction", vdim
     End if
-    
+
     !----------------------------------------------------------------------------
     ! Open raw data streams
     !----------------------------------------------------------------------------
@@ -163,16 +164,30 @@ Subroutine generate_geometry(root, domain, job_dir, type_raw, parts, glob_succes
     !----------------------------------------------------------------------------
     ! Read PHI (scalar binary values) from file
     !----------------------------------------------------------------------------
-    SELECT CASE(TRIM(ADJUSTL(type_raw)))
+    SELECT CASE(TRIM(ADJUSTL(typeraw)))
     CASE('ik1')
         multiplier = 1_ik
-        allocate(Phi_ik1(xa_n(1):xe_n(1), xa_n(2):xe_n(2), xa_n(3):xe_n(3)), stat=alloc_stat)
+        IF(.NOT. ALLOCATED(Phi_ik1)) THEN
+            ALLOCATE(Phi_ik1(xa_n(1):xe_n(1), xa_n(2):xe_n(2), xa_n(3):xe_n(3)), stat=alloc_stat)
+        ELSE
+            Phi_ik1 = 0_1
+        END IF 
+
     CASE('ik2')
         multiplier = 2_ik
-        allocate(Phi_ik2(xa_n(1):xe_n(1), xa_n(2):xe_n(2), xa_n(3):xe_n(3)), stat=alloc_stat)
+        IF(.NOT. ALLOCATED(Phi_ik2)) THEN
+            ALLOCATE(Phi_ik2(xa_n(1):xe_n(1), xa_n(2):xe_n(2), xa_n(3):xe_n(3)), stat=alloc_stat)
+        ELSE
+            Phi_ik2 = 0_2
+        END IF 
+
     CASE('ik4')
         multiplier = 4_ik
-        allocate(Phi_ik4(xa_n(1):xe_n(1), xa_n(2):xe_n(2), xa_n(3):xe_n(3)), stat=alloc_stat)
+        IF(.NOT. ALLOCATED(Phi_ik4)) THEN
+            ALLOCATE(Phi_ik4(xa_n(1):xe_n(1), xa_n(2):xe_n(2), xa_n(3):xe_n(3)), stat=alloc_stat)
+        ELSE
+            Phi_ik4 = 0_4
+        END IF 
     END SELECT
 
     call alloc_err("phi", alloc_stat)
@@ -200,7 +215,7 @@ Subroutine generate_geometry(root, domain, job_dir, type_raw, parts, glob_succes
     ! Set datatype
     ! intent(inout) from open_stream_files did not copy the units(!)
     !----------------------------------------------------------------------------
-    SELECT CASE(TRIM(ADJUSTL(type_raw)))
+    SELECT CASE(TRIM(ADJUSTL(typeraw)))
         CASE('ik1'); nts=1
         CASE('ik2'); nts=2
         CASE('ik4'); nts=3
@@ -215,7 +230,8 @@ Subroutine generate_geometry(root, domain, job_dir, type_raw, parts, glob_succes
     Open(unit=phi_desc%streams%units(nts), &
         file=phi_desc%streams%stream_files(nts), status="old", &
         action="read", access='stream', form='unformatted', &
-        position="REWIND", convert='big_endian') 
+        position="REWIND") 
+        ! ! ! ! position="REWIND", convert='big_endian') 
 
     phi_desc%streams%ifopen(nts) = .TRUE.
 
@@ -235,6 +251,7 @@ Subroutine generate_geometry(root, domain, job_dir, type_raw, parts, glob_succes
         End Do
     End Do
 
+    ! call close_stream_files(phi_desc)
     SELECT CASE(nts)
         CASE(1); close(phi_desc%streams%units(1))
         CASE(2); close(phi_desc%streams%units(2))
@@ -263,21 +280,21 @@ Subroutine generate_geometry(root, domain, job_dir, type_raw, parts, glob_succes
     !------------------------------------------------------------------------------
     Call Search_branch("Global domain decomposition", root, ddc, success)
 
-    SELECT CASE(TRIM(ADJUSTL(type_raw)))
+    SELECT CASE(TRIM(ADJUSTL(typeraw)))
         CASE('ik1')
             call gen_quadmesh_from_phi(delta, ddc, loc_ddc, llimit, elt_micro, &
                 nodes, elems, HU_magnitudes, node_col, elem_col, no_nodes, no_elems, &
-                type_raw, phi_ik1=Phi_ik1)
+                typeraw, phi_ik1=Phi_ik1)
 
         CASE('ik2')
             call gen_quadmesh_from_phi(delta, ddc, loc_ddc, llimit, elt_micro, &
                 nodes, elems, HU_magnitudes, node_col, elem_col, no_nodes, no_elems, &
-                type_raw, phi_ik2=Phi_ik2)
+                typeraw, phi_ik2=Phi_ik2)
 
         CASE('ik4')
             call gen_quadmesh_from_phi(delta, ddc, loc_ddc, llimit, elt_micro, &
                 nodes, elems, HU_magnitudes, node_col, elem_col, no_nodes, no_elems, &
-                type_raw, phi_ik4=Phi_ik4)
+                typeraw, phi_ik4=Phi_ik4)
 
     END SELECT
 
@@ -315,15 +332,15 @@ Subroutine generate_geometry(root, domain, job_dir, type_raw, parts, glob_succes
        !------------------------------------------------------------------------------
        ! Write structured points 
        !------------------------------------------------------------------------------
-        SELECT CASE(TRIM(ADJUSTL(type_raw)))
+        SELECT CASE(TRIM(ADJUSTL(typeraw)))
             CASE('ik1')
-                CALL write_ser_vtk(filename, type_raw, delta, x_D, &
+                CALL write_ser_vtk(filename, typeraw, delta, x_D, &
                     (Real(xa_n,rk)-[0.5_rk,0.5_rk,0.5_rk])*delta, Phi_ik1)
             CASE('ik2')
-                CALL write_ser_vtk(filename, type_raw, delta, x_D, &
+                CALL write_ser_vtk(filename, typeraw, delta, x_D, &
                     (Real(xa_n,rk)-[0.5_rk,0.5_rk,0.5_rk])*delta, Phi_ik2)
             CASE('ik4')
-                CALL write_ser_vtk(filename, type_raw, delta, x_D, &
+                CALL write_ser_vtk(filename, typeraw, delta, x_D, &
                     (Real(xa_n,rk)-[0.5_rk,0.5_rk,0.5_rk])*delta, Phi_ik4)
         END SELECT
 
@@ -345,7 +362,6 @@ Subroutine generate_geometry(root, domain, job_dir, type_raw, parts, glob_succes
         CASE(2); Deallocate(Phi_ik2)
         CASE(3); Deallocate(Phi_ik4)
     END SELECT
-
 
     !------------------------------------------------------------------------------
     ! Break if no structure is generated
@@ -410,8 +426,7 @@ Subroutine generate_geometry(root, domain, job_dir, type_raw, parts, glob_succes
     Call Search_branch("Global domain decomposition", root, ddc, success)
     desc=''
     Write(desc,'(A,I0)')"Local domain Decomposition of domain no ",domain
-    Call Search_branch(trim(desc), root, loc_ddc, success)
-    
+    Call Search_branch(trim(desc), domain_tree, loc_ddc, success)
     Call generate_boundaries(PMesh, ddc, loc_ddc, elo_macro)
 
     !------------------------------------------------------------------------------
@@ -711,6 +726,10 @@ Subroutine generate_geometry(root, domain, job_dir, type_raw, parts, glob_succes
         call add_leaf_to_branch(PMesh, "No of elems in parts", parts, no_elems_all)
         call add_leaf_to_branch(PMesh, "No of cdofs in parts", parts, no_cdofs_all)
         
+        DEALLOCATE(no_nodes_all)
+        DEALLOCATE(no_elems_all)
+        DEALLOCATE(no_cdofs_all)
+
         ! DEBUG <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         if (out_amount == "DEBUG") then
         Write(un_lf,fmt_dbg_sep)
