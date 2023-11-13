@@ -250,8 +250,10 @@ contains
             PMesh%branches(ii)%leaves(3)%pstat  = 1
             Allocate(PMesh%branches(ii)%leaves(3)%p_int8(0:idum))
             
-            write(un_lf,fmt_msg_xai0)"NODES in part",ii,"--",&
-                PMesh%branches(ii)%leaves(1)%dat_no
+            IF (out_amount == "DEBUG") THEN
+                write(un_lf,fmt_msg_xai0)"NODES in part",ii,"--",&
+                    PMesh%branches(ii)%leaves(1)%dat_no
+            END IF 
 
             nnodes_pp(ii) = idum
             

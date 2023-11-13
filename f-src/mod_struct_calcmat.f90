@@ -27,6 +27,7 @@ Type(tBranch), Intent(InOut) :: root, domain_tree
 Type(tBranch), Intent(InOut), pointer :: esd_result_branch
 INTEGER(mik) , Intent(In) :: size_mpi
 integer(ik)  , Intent(in) :: ddc_nn, comm_nn
+INTEGER(ik) , DIMENSION(24), INTENT(INOUT) :: collected_logs ! timestamps, memory_usage, pid_returned
 Integer(mik), Dimension(no_streams), Intent(in) :: fh_mpi_worker
 
 Real(rk) :: div_10_exp_jj, eff_density, n12, n13, n23, alpha, phi, eta
@@ -55,7 +56,6 @@ integer(ik) :: ii, jj, kk, ll, no_elem_nodes, no_lc, alloc_stat, &
 Integer(ik), Dimension(:,:,:,:), Allocatable :: ang
 Integer(ik), Dimension(:)      , Allocatable :: xa_n, xe_n, no_cnodes_pp, cref_cnodes
 Integer(ik), Dimension(3)                    :: s_loop,e_loop, mlc
-INTEGER(ik), DIMENSION(24) :: collected_logs ! timestamps, memory_usage, pid_returned
 
 Logical :: success
 
@@ -108,7 +108,7 @@ max_c = Real(xe_n    ,rk) * delta
 If (macro_order == 1_ik) then
     no_elem_nodes = 8_ik
     no_lc = 24_ik
-ELSE IF (macro_order == 2) THEN
+ELSE IF (macro_order == 2_ik) THEN
      no_elem_nodes = 20_ik
      no_lc = 60_ik
 Else
@@ -240,7 +240,6 @@ If (out_amount == "DEBUG") THEN
     WRITE(un_lf, FMT_DBG_SEP)
 End if
 
-
 !------------------------------------------------------------------------------
 ! Prepare Reaction Forces
 !------------------------------------------------------------------------------
@@ -252,11 +251,11 @@ call alloc_err("rforces", alloc_stat)
 !------------------------------------------------------------------------------
 ff = 0._rk
 
-Do ii = 1, no_lc
+Do ii = 1, no_lc                         ! Cycle through all load cases
 
    rforces(:,:) = reshape(esd_result_branch%branches(2)%leaves(ii)%p_real8, [3,no_nodes])
    
-    Do jj = 1, no_nodes
+    Do jj = 1, no_nodes                  ! Cycle through all boundary nodes
 
           ! t_geom_xi transforms coordinates from geometry to xi space 
           ! Result(phi_nn) :  Real(rk), dimension(8)
@@ -280,17 +279,6 @@ Do ii = 1, no_lc
     End Do
 End Do
 
-! If (out_amount == "DEBUG") THEN
-!    WRITE(un_lf, FMT_DBG_SEP)
-!    write(un_lf, *)
-!    write(un_lf, *)'min rforces = ', minval(rforces), 'max rforces = ', maxval(rforces)
-!    write(un_lf, *)
-!    WRITE(un_lf, FMT_DBG_SEP)
-! end if
-
-
-! Deallocate(leaf_list)
-! 
 If (out_amount /= "PRODUCTION" ) then
     Call Write_matrix(un_lf, "ff by summation of single force formula", ff, fmti='std', unit='N')
 End If
@@ -435,6 +423,9 @@ CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
     Int(root%branches(3)%leaves(11)%lbound-1+(comm_nn-1)*6*no_lc, MPI_OFFSET_KIND), &
     reshape(int_strain,[6*no_lc]), &
     Int(6*no_lc, pd_mik), MPI_REAL8, status_mpi, ierr)
+
+DEALLOCATE(int_strain)
+DEALLOCATE(int_stress)
 
 !------------------------------------------------------------------------------
 ! Calc theoretical effective stiffness
@@ -1620,11 +1611,10 @@ EE_Orig = EE
    ! data is more likely to get corrupted. For example, the domain number gets
    ! written to file while some computations within this module is still pending.
    !------------------------------------------------------------------------------
-   CALL add_leaf_to_branch(result_branch, "Domain number", 1_ik, [ddc_nn])
+   CALL add_leaf_to_branch(result_branch, "Domain number", 1_pd_ik, [ddc_nn])
    CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
       Int(root%branches(3)%leaves(1)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
       ddc_nn, 1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
-
 
    !------------------------------------------------------------------------------
    ! Number of Elements

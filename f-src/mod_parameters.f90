@@ -32,11 +32,11 @@ contains
     Call PetscOptionsSetValue(PETSC_NULL_OPTIONS,"-ksp_max_it"  , "500000",petsc_ierr)
 
     ! CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS,"-malloc_test"  , "true",petsc_ierr)
+    ! CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS,"-log_view"  , "log.view",petsc_ierr)
     ! CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS,"-objects_dump" , "all",petsc_ierr)
     ! CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS,"-malloc_debug" , "true",petsc_ierr)
     ! CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS,"-malloc_dump"  , "true",petsc_ierr)
 
-    
   End Subroutine Set_PETSc_Options
   
 end module petsc_opt

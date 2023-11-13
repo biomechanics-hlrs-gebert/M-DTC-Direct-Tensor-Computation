@@ -221,20 +221,6 @@ If (rank_mpi == 0) then
 
     End If
     
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
     pro_path_tmp = pro_path 
     pro_name_tmp = pro_name     
     
@@ -242,31 +228,8 @@ If (rank_mpi == 0) then
     pro_name = "domain_tree_"//TRIM(domain_char)
     CALL raise_tree("domain_tree", domain_tree)
 
-    ! CALL get_stream_size(domain_tree, dsize)
-    ! domain_tree%streams%dim_st = dsize
-    ! domain_tree%streams%ii_st  = dsize + 1
-
-    ! CALL read_streams(domain_tree)
-
-    ! CALL connect_pointers(domain_tree%streams, domain_tree)
-
-    ! CALL include_branch_into_branch(s_b=domain_branch, t_b=domain_tree, blind=.TRUE.)
-
     pro_path = pro_path_tmp
     pro_name = pro_name_tmp
-
-
-    ! CALL assign_pd_root(domain_tree)
-    ! CALL set_bounds_in_branch(domain_tree, domain_tree%streams)
-
-
-
-
-
-
-
-
-
 
 
     !------------------------------------------------------------------------------
@@ -288,8 +251,9 @@ If (rank_mpi == 0) then
     CALL end_timer(trim(timer_name))
     timestamp = time()
 
-    WRITE(un_lf, '(A,I0)') 'End time: ', timestamp
-
+    IF (out_amount == "DEBUG") THEN
+        WRITE(un_lf, '(A,I0)') 'End time: ', timestamp
+    END IF
     !------------------------------------------------------------------------------
     ! Look for the Domain branch
     !------------------------------------------------------------------------------
@@ -456,8 +420,6 @@ IF (rank_mpi == 0) THEN
 END IF
             
 !------------------------------------------------------------------------------
-! preallo = ANINT(m_size/50000._rk)
-!------------------------------------------------------------------------------
 ! Create Stiffness matrix
 ! Preallocation avoids dynamic allocations during matassembly.
 !------------------------------------------------------------------------------
@@ -477,9 +439,8 @@ CALL MatMPIAIJSetPreallocation(AA, 85, PETSC_NULL_INTEGER, 85, PETSC_NULL_INTEGE
 CALL MatSeqAIJSetPreallocation(AA_org, 85, PETSC_NULL_INTEGER, petsc_ierr)
 CALL MatMPIAIJSetPreallocation(AA_org, 85, PETSC_NULL_INTEGER, 85, PETSC_NULL_INTEGER, petsc_ierr)
 
-CALL MatSetOption(AA    ,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
-CALL MatSetOption(AA_org,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE,petsc_ierr)
-
+CALL MatSetOption(AA    , MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE, petsc_ierr)
+CALL MatSetOption(AA_org, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE, petsc_ierr)
 
 !------------------------------------------------------------------------------
 ! Get and write another memory log.
@@ -649,9 +610,11 @@ IF (rank_mpi == 0) THEN
     collected_logs(18) = status_global
 END IF
 
+!------------------------------------------------------------------------------
 CALL MatAssemblyBegin(AA, MAT_FINAL_ASSEMBLY ,petsc_ierr)
 CALL MatAssemblyBegin(AA_org, MAT_FINAL_ASSEMBLY ,petsc_ierr)
 ! Computations can be done while messages are in transition
+!------------------------------------------------------------------------------
 
 !------------------------------------------------------------------------------
 ! End timer
@@ -756,7 +719,6 @@ Do ii = 1, no_lc
     END IF
     
 End Do
-!------------------------------------------------------------------------------
 
 !------------------------------------------------------------------------------
 ! Get Bounds branch of LC 1
@@ -1087,8 +1049,9 @@ IF (rank_mpi == 0) THEN
     CALL raise_branch("Strains"                         , 0,  0, esd_result_branch%branches(3))
     CALL raise_branch("Stresses"                        , 0,  0, esd_result_branch%branches(4))
 
-    CALL log_tree(mesh_branch, un_lf, .FALSE.)
-    
+    IF (out_amount == "DEBUG") THEN
+        CALL log_tree(mesh_branch, un_lf, .FALSE.)
+    END IF
     !------------------------------------------------------------------------------
     ! Look again for the Part branch since the part_branch pointer 
     ! gets invalidated by dealloc of the branches array in add_branch_to_branch
@@ -1322,11 +1285,6 @@ if (rank_mpi == 0) then
     END IF 
 
 
-                        ! ! ------------------------------------------------------------------------------
-                        ! ! Deallocate results of this domain.
-                        ! ! ------------------------------------------------------------------------------
-                        ! WRITE(desc,'(A,I0)')"Domain ", Domain
-                        ! CALL delete_branch_from_branch(TRIM(desc), root, dsize)
 ELSE
     DEALLOCATE(part_branch)
 End if
@@ -1343,26 +1301,6 @@ IF(rank_mpi==0) THEN
     IF(ALLOCATED(glob_force))    DEALLOCATE(glob_force)
     IF(ALLOCATED(nodes_in_mesh)) DEALLOCATE(nodes_in_mesh)
 END IF 
-
-! Do ii = 1, Parts
-!     ! IF (ALLOCATED(PMesh%branches(ii)%leaves(1)%p_int8)) THEN
-!         DEALLOCATE(PMesh%branches(ii)%leaves(1)%p_int8)
-!     ! END IF 
-!     ! IF (ALLOCATED(PMesh%branches(ii)%leaves(2)%p_real8)) THEN
-!         DEALLOCATE(PMesh%branches(ii)%leaves(2)%p_real8)
-!     ! END IF 
-!     ! IF (ALLOCATED(PMesh%branches(ii)%leaves(3)%p_int8)) THEN
-!         DEALLOCATE(PMesh%branches(ii)%leaves(3)%p_int8)
-!     ! END IF 
-!     ! IF (ALLOCATED(PMesh%branches(ii)%leaves(4)%p_int8)) THEN
-!         DEALLOCATE(PMesh%branches(ii)%leaves(4)%p_int8)
-!     ! END IF 
-!     ! IF (ALLOCATED(PMesh%branches(ii)%leaves(5)%p_int8)) THEN
-!         DEALLOCATE(PMesh%branches(ii)%leaves(5)%p_int8)
-!     ! END IF 
-! END DO
-
-! CALL delete_branch_from_branch(TRIM(mesh_desc), domain_branch, dsize)
 
 CALL destroy_tree(domain_tree, no_data)
 

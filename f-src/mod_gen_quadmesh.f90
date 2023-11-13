@@ -141,11 +141,13 @@ contains
     !If ( (min_val_phi > llimit) .Or. (max_val_phi < llimit) ) Then
     If ( (max_val_phi < llimit) ) Then
 
-        If (out_amount /= "PRODUCTION" ) Write(un_lf,FMT_MSG_SEP)
-        Write(un_lf,"('EE ',A,I0,A,T77,' EE')")'Isovalue = ',llimit,' not enclosed in field'
-        Write(un_lf,"('EE ',A,I0,T77,  ' EE')")'Minimum value in PHI = ',min_val_phi
-        Write(un_lf,"('EE ',A,I0,T77,  ' EE')")'Maximum value in PHI = ',max_val_phi
-        If (out_amount /= "PRODUCTION" ) Write(un_lf,FMT_MSG_SEP)
+        If (out_amount /= "PRODUCTION" ) THEN
+            Write(un_lf,FMT_MSG_SEP)
+            Write(un_lf,"('EE ',A,I0,A,T77,' EE')")'Isovalue = ',llimit,' not enclosed in field'
+            Write(un_lf,"('EE ',A,I0,T77,  ' EE')")'Minimum value in PHI = ',min_val_phi
+            Write(un_lf,"('EE ',A,I0,T77,  ' EE')")'Maximum value in PHI = ',max_val_phi
+            Write(un_lf,FMT_MSG_SEP)
+        END IF 
 
         no_nodes = 0
         no_elems = 0
@@ -163,9 +165,10 @@ contains
 
     Else
 
-        Write(un_lf,FMT_MSG_xAI0)'Minimal value in phi = ',min_val_phi
-        Write(un_lf,FMT_MSG_xAI0)'Maximal value in phi = ',max_val_phi
-
+        IF (out_amount == "DEBUG") THEN
+            Write(un_lf,FMT_MSG_xAI0)'Minimal value in phi = ',min_val_phi
+            Write(un_lf,FMT_MSG_xAI0)'Maximal value in phi = ',max_val_phi
+        END IF
     End If
 
     !------------------------------------------------------------------------------
@@ -207,7 +210,9 @@ contains
     Allocate(nodes_no(lb_nodes_no:ub_nodes_no),stat=alloc_stat)
     call alloc_err("nodes_no",alloc_stat)
 
-    Write(un_lf, FMT_MSG_xAI0)'Allocated nodes numbers with index range : ',lb_nodes_no,'-',ub_nodes_no
+    IF (out_amount == "DEBUG") THEN
+        Write(un_lf, FMT_MSG_xAI0)'Allocated nodes numbers with index range : ',lb_nodes_no,'-',ub_nodes_no
+    END IF 
 
     nodes_no  = 0
     elems     = 0
@@ -327,7 +332,9 @@ contains
         End Do
     End Do
 
-    write(un_lf,FMT_MSG_xAI0)'No nodes found in domain : ',no_nodes
+    IF (out_amount == "DEBUG") THEN
+        write(un_lf,FMT_MSG_xAI0)'No nodes found in domain : ',no_nodes
+    END IF
 
     Do ii = 1, no_elems
         elems(1:no_elem_nodes,ii) = nodes_no(elems( 1:no_elem_nodes,ii))       
@@ -389,8 +396,11 @@ contains
         continue
     End Select
 
-    Write(un_lf,FMT_MSG_SEP)
-    Write(un_lf,FMT_MSG)    'Coloring connected domains'
+
+    IF (out_amount == "DEBUG") THEN
+        Write(un_lf,FMT_MSG_SEP)
+        Write(un_lf,FMT_MSG)    'Coloring connected domains'
+    END IF 
 
     !------------------------------------------------------------------------------
     ! Color nodes
@@ -547,10 +557,12 @@ contains
     !------------------------------------------------------------------------------
     tmp_creg => start_cregs
     Do While ( Associated(tmp_creg%next) )
-       Write(un_lf,"('MM ',I0,L1)")tmp_creg%color, tmp_creg%tb
+       IF (out_amount == "DEBUG") Write(un_lf,"('MM ',I0,L1)")tmp_creg%color, tmp_creg%tb
        tmp_creg => tmp_creg%next
     End Do
-    Write(un_lf,"('MM ',I0,L1)")tmp_creg%color, tmp_creg%tb
+    IF (out_amount == "DEBUG") THEN
+        Write(un_lf,"('MM ',I0,L1)")tmp_creg%color, tmp_creg%tb
+    END IF 
     !------------------------------------------------------------------------------
     ! Debug
     !------------------------------------------------------------------------------

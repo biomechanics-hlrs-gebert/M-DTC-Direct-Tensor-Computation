@@ -124,7 +124,7 @@ CHARACTER(4*mcl) :: job_dir
 CHARACTER(mcl)   :: cmd_arg_history='', link_name = 'struct process', &
     muCT_pd_path, muCT_pd_name, binary, activity_file, desc="", &
     typeraw="", restart='N', restart_cmd_arg='U',ios="" ! U = 'undefined'
-CHARACTER(8)   :: elt_micro, output
+CHARACTER(8)   :: elt_micro, output, domain_nn
 
 REAL(rk), DIMENSION(3) :: delta
 REAL(rk) :: strain, t_start, t_end, t_duration, cn, mem_critical=1._rk, mem=0._rk
@@ -143,7 +143,7 @@ INTEGER(pd_ik), DIMENSION(no_streams) :: dsize
 INTEGER(pd_ik) :: serial_root_size, add_leaves
 
 LOGICAL :: success, stat_exists, heaxist, abrt = .FALSE., already_finished=.FALSE., &
-    create_new_header = .FALSE., no_restart_required = .FALSE.
+    create_new_header = .FALSE., no_restart_required = .FALSE., pl_exist = .FALSE.
 
 !----------------------------------------------------------------------------
 CALL mpi_init(ierr)
@@ -299,7 +299,7 @@ If (rank_mpi == 0) THEN
         CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF
     
-    IF ( (delta(1) /= delta(2)) .OR. (delta(1) /= delta(3)) ) THEN
+    IF ( (bone%delta(1) /= bone%delta(2)) .OR. (bone%delta(1) /= bone%delta(3)) ) THEN
         mssg = 'Currently, the spacings of all 3 dimensions must be equal!'
         CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF
@@ -465,6 +465,7 @@ CALL MPI_BCAST(No_of_domains, 1_mik, MPI_INTEGER8   , 0_mik, MPI_COMM_WORLD, ier
 CALL MPI_BCAST(cn           , 1_mik, MPI_DOUBLE_PRECISION, 0_mik, MPI_COMM_WORLD, ierr)
 CALL MPI_BCAST(activity_file, INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
 CALL MPI_BCAST(typeraw,       INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(out%p_n_bsnm,  INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
 
 !------------------------------------------------------------------------------
 ! Allocate and init field for selected domain range
@@ -964,10 +965,6 @@ If (rank_mpi==0) Then
 
         if (nn > No_of_domains) exit
 
-        !------------------------------------------------------------------------------
-        ! Delay starting the worker to avoid accumulating memory
-        !------------------------------------------------------------------------------
-        CALL SLEEP(1)
 
         Do mjj = mii, mii + parts-1
             !------------------------------------------------------------------------------
@@ -1013,7 +1010,6 @@ If (rank_mpi==0) Then
     ! mii is incremented by mii = mii + parts
     ! mii --> Worker master
     !------------------------------------------------------------------------------
-    nn = 1_ik
     DO  WHILE (nn <= No_of_domains) 
 
         !------------------------------------------------------------------------------
@@ -1308,7 +1304,21 @@ Else
             ! Organize Results
             !------------------------------------------------------------------------------
             IF (worker_rank_mpi==0) THEN
-            
+
+
+                !------------------------------------------------------------------------------
+                ! Move the .petsc.log to its domain related name
+                !------------------------------------------------------------------------------
+                WRITE(domain_nn, '(I0)') Domain
+
+
+                INQUIRE(FILE=TRIM(out%p_n_bsnm)//".petsc.log", EXIST = pl_exist)
+                
+                IF (pl_exist) THEN
+                    CALL exec_cmd_line("mv "//TRIM(out%p_n_bsnm)//".petsc.log"//" "//&
+                                        TRIM(out%p_n_bsnm)//"."//TRIM(domain_nn)//".petsc.log", stat)
+                END IF 
+
                 !------------------------------------------------------------------------------
                 ! Write the start time to file
                 !------------------------------------------------------------------------------
@@ -1352,11 +1362,11 @@ Else
 
 
             !------------------------------------------------------------------------------
-            ! Mark the current position within the stream.
+            ! Probably obsolete
             !------------------------------------------------------------------------------
-            CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
-                INT(root%branches(3)%leaves(1)%lbound-1+(domains_per_comm-1-1), MPI_OFFSET_KIND), &
-                INT(comm_nn, KIND=ik), 1_mik, MPI_INTEGER8, status_mpi, ierr)
+            !!!!!!!!! CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
+            !!!!!!!!!     INT(root%branches(3)%leaves(1)%lbound-1+(domains_per_comm-1-1), MPI_OFFSET_KIND), &
+            !!!!!!!!!     INT(comm_nn, KIND=ik), 1_mik, MPI_INTEGER8, status_mpi, ierr)
 
             !------------------------------------------------------------------------------
             ! Increment linear domain counter of the PETSc sub_comm instances
