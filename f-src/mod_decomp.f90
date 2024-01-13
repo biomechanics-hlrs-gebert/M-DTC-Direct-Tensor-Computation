@@ -254,8 +254,8 @@ Contains
     Real(rk), Dimension(3) :: delta
     Integer(ik), Dimension(3) :: vdim
 
-    Integer(kind=ik), Dimension(3) :: x_D, nn_D
-    Real(kind=rk)   , Dimension(3) :: x_D_phy
+    Integer(kind=ik), Dimension(3) :: x_D, nn_D ! , xa_d, xe_d
+    Real(kind=rk)   , Dimension(3) :: x_D_phy ! , mech_orgn, mech_offset
     Integer(kind=ik), Dimension(1) :: nn_D_max, no_dat_D
 
     Integer(kind=ik), Dimension(3), parameter :: bpoints=[1_ik,1_ik,1_ik]
@@ -263,8 +263,11 @@ Contains
     !--------------------------------------------------------------------------
     ! Get phi description
     !--------------------------------------------------------------------------
-    Call pd_get(phi_desc,"Number of voxels per direction", vdim, 3_ik)
-    call pd_get(phi_desc, "Grid spacings", delta, 3_ik)  
+    Call pd_get(phi_desc,"Number of voxels per direction", vdim, 3_ik) ! dimensions
+    call pd_get(phi_desc, "Grid spacings", delta, 3_ik)  ! spacing
+   !  call pd_get(phi_desc, "Mechanical origin", mech_orgn, 3_ik)  
+   !  CALL pd_get(phi_desc, "Lower bounds of selected domain range", xa_d, 3_ik)
+   !  CALL pd_get(phi_desc, "Upper bounds of selected domain range", xe_d, 3_ik)
 
     !--------------------------------------------------------------------------
     ! Generate global domain decomposition 
@@ -297,8 +300,16 @@ Contains
     !call pd_store(dc%streams,dc,"delta", delta)
     Call add_leaf_to_branch(dc,"delta",3_ik,delta)
     
-    ! Calc number of domains on each axis *
+    !--------------------------------------------------------------------------
+    ! Calc number of domains on each axis 
+    !--------------------------------------------------------------------------
+
+    ! Old version
     nn_D = INT((vdim - 2*bpoints) / x_D, ik)
+
+    ! New version
+   !  nn_D = xe_d - xa_d
+
     !call pd_store(dc%streams,dc,"nn_D",nn_D)
     Call add_leaf_to_branch(dc,"nn_D",3_ik,nn_D)
     
@@ -318,12 +329,73 @@ Contains
     ! Boundary points on each axis in decomposed volume *
     !call pd_store(dc%streams,dc,"bpoints",bpoints)
     Call add_leaf_to_branch(dc,"bpoints",3_ik,bpoints)
+
+   !  mech_offset = mech_orgn/delta
+   !  Call add_leaf_to_branch(dc,"mech_orgn_vox",3_ik,mech_offset)
     
     !call close_stream_files(dc,.TRUE.)
 
     !call write_tree(dc)
 
   End Function calc_general_ddc_params
+
+!------------------------------------------------------------------------------
+! MODULE: calc_physical_ddc_params
+!------------------------------------------------------------------------------
+!> @author Johannes Gebert - HLRS - NUM - gebert@hlrs.de
+!
+! DESCRIPTION: 
+!> Decomposing the image based on voxels only works for isotropic voxel
+!> spacings and allow for comparisons between volumetric images in only a 
+!> very limited way. Decomposing the image based on absolute physical 
+!> coordinates enables a more precise domain decomposition, but it also 
+!> introduces domains of varying sizes due to rounding phenomena. 
+!>
+!>  \section modified Last modified:
+!>  by: Johannes Gebert \n
+!>  on: 29.03.2022
+!------------------------------------------------------------------------------
+FUNCTION calc_physical_ddc_params(x_D_phy_in, phi_desc) Result(dc)
+
+    REAL(rk), DIMENSION(3), INTENT(In) :: x_D_phy_in
+    TYPE(tBranch), INTENT(inOut) :: phi_desc
+
+    TYPE(tBranch):: dc
+
+    REAL(rk), DIMENSION(3) :: delta, x_D_phy, FoV
+    INTEGER(ik), DIMENSION(3) :: vdim
+
+    INTEGER(ik), DIMENSION(3), PARAMETER :: bpoints=[1_ik,1_ik,1_ik]
+    INTEGER(ik), DIMENSION(3) :: x_D, nn_D, dmn_fov
+    INTEGER(ik), DIMENSION(1) :: nn_D_max, no_dat_D
+
+    !--------------------------------------------------------------------------
+    ! Generate global domain decomposition 
+    !--------------------------------------------------------------------------
+    CALL raise_tree("",dc) 
+    CALL raise_branch("Global domain decomposition",0,0,dc)
+ 
+    CALL add_leaf_to_branch(dc,"bpoints",3_ik,bpoints)
+    CALL add_leaf_to_branch(dc, "x_D_phy", 3_ik, x_D_phy_in)
+    
+    !--------------------------------------------------------------------------
+    ! Get phi description
+    !--------------------------------------------------------------------------
+    CALL pd_get(phi_desc,"Number of voxels per direction", vdim, 3_ik) ! dimensions
+    CALL pd_get(phi_desc, "Grid spacings", delta, 3_ik)                ! spacing
+    
+    FoV = (vdim-2*bpoints)*delta
+    
+    ! Calc number of domains on each axis 
+    nn_D = FLOOR(FoV/x_D_phy_in)
+    
+    CALL add_leaf_to_branch(dc,"delta",3_ik,delta)
+    CALL add_leaf_to_branch(dc,"nn_D",3_ik,nn_D)
+
+    nn_D_max = nn_D(1)*nn_D(2)*nn_D(3) - 1
+
+END FUNCTION calc_physical_ddc_params
+
 
 !!$  !============================================================================
 !!$  !> Function to calculate the domain decomposition parameters for a subdomain

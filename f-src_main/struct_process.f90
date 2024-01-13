@@ -93,8 +93,8 @@ USE chain_routines
 USE MPI
 USE decomp 
 USE dtc_main_subroutines
-USE PETSC
-USE petsc_opt
+! USE PETSC
+! USE petsc_opt
 USE system
 
 Implicit None
@@ -103,9 +103,9 @@ INTEGER(ik), PARAMETER :: debug = 2   ! Choose an even integer!!
 
 TYPE(materialcard) :: bone
 
-INTEGER(mik) :: ierr, rank_mpi, size_mpi, petsc_ierr, mii, mjj, &
+INTEGER(mik) :: ierr, rank_mpi, size_mpi, mii, mjj, &
     worker_rank_mpi, worker_size_mpi, aun, par_domains, &
-    Active, request, finished = -1, worker_comm
+    Active, finished = -1, worker_comm
 
 INTEGER(mik), Dimension(no_streams)       :: fh_mpi_worker
 INTEGER(mik), Dimension(MPI_STATUS_SIZE)  :: status_mpi
@@ -124,29 +124,29 @@ CHARACTER(mcl)  , DIMENSION(:), ALLOCATABLE :: m_rry
 
 CHARACTER(4*mcl) :: job_dir
 CHARACTER(mcl)   :: cmd_arg_history='', link_name = 'struct process', &
-    muCT_pd_path, muCT_pd_name, binary, activity_file, desc="", memlog_file="", &
-    typeraw="", restart='N', restart_cmd_arg='U',ios="", map_sgmnttn=""
-CHARACTER(8)   :: elt_micro, output
-CHARACTER(3)   :: file_status
+    muCT_pd_path, muCT_pd_name, binary, activity_file, desc="", &
+    typeraw="", restart='N', restart_cmd_arg='U',ios="", map_sgmnttn="" ! U = 'undefined'
+CHARACTER(8)   :: elt_micro, output, domain_nn
 CHARACTER(1) :: bin_sgmnttn=""
 
-REAL(rk) :: strain, t_start, t_end, t_duration
+REAL(rk) :: strain, cn, mem_critical=1., mem=0.
+REAL(rk), DIMENSION(3) :: mech_orgn=0.
 
 INTEGER(ik), DIMENSION(:), ALLOCATABLE :: Domains, nn_D, Domain_stats
 INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0
 
 INTEGER(ik) :: nn, ii, jj, kk, dc, computed_domains = 0, comm_nn = 1, &
-    No_of_domains, path_count, activity_size=0, alloc_stat, fh_cluster_log, &
+    No_of_domains, path_count, activity_size=0, alloc_stat, &
     free_file_handle, domains_per_comm, stat, no_lc=0, nl=0, &
-    Domain, llimit, parts, elo_macro, vdim(3)
+    Domain, llimit, parts, elo_macro, vdim(3), mem_usage
 
 INTEGER(pd_ik), DIMENSION(:), ALLOCATABLE :: serial_root
 INTEGER(pd_ik), DIMENSION(no_streams) :: dsize
 
 INTEGER(pd_ik) :: serial_root_size, add_leaves
 
-LOGICAL :: success, stat_exists, heaxist, abrt = .FALSE., already_finished=.FALSE.
-LOGICAL :: create_new_header = .FALSE., fex=.TRUE., no_restart_required = .FALSE.
+LOGICAL :: success, stat_exists, heaxist, abrt = .FALSE., already_finished=.FALSE., &
+    create_new_header = .FALSE., no_restart_required = .FALSE., pl_exist = .FALSE.
 
 !----------------------------------------------------------------------------
 CALL mpi_init(ierr)
@@ -163,17 +163,19 @@ CALL print_err_stop(std_out, "MPI_COMM_SIZE couldn't be retrieved", ierr)
 !------------------------------------------------------------------------------
 If (rank_mpi == 0) THEN
 
+    !------------------------------------------------------------------------------
+    ! Checking the memory
+    !------------------------------------------------------------------------------
+    mem_usage =  system_mem_usage()
+    mem = (REAL(mem_usage,rk)/1000._rk/1000._rk)
+    IF (mem > global_mem_threshold) mem_critical = -mem
+
     If (size_mpi < 2) THEN
         mssg = "We need at least 2 MPI processes to execute this program."
         CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF 
 
     CALL Start_Timer("Init Process")
-
-    !------------------------------------------------------------------------------
-    ! Batch feedback
-    !------------------------------------------------------------------------------
-    CALL execute_command_line ("echo 'JOB_STARTED' > BATCH_RUN")
 
     !------------------------------------------------------------------------------
     ! Parse the command arguments
@@ -253,6 +255,7 @@ If (rank_mpi == 0) THEN
     CALL meta_read('UP_BNDS_DMN_RANGE', m_rry, xe_d, ios); CALL mest(ios, abrt)
     CALL meta_read('BINARIZE_LO'      , m_rry, llimit, ios); CALL mest(ios, abrt)
     CALL meta_read('MESH_PER_SUB_DMN' , m_rry, parts, ios); CALL mest(ios, abrt)
+    CALL meta_read('COMPUTE_NODES'    , m_rry, cn, ios); CALL mest(ios, abrt)
     CALL meta_read('RVE_STRAIN'       , m_rry, strain, ios); CALL mest(ios, abrt)
     CALL meta_read('YOUNG_MODULUS'    , m_rry, bone%E, ios); CALL mest(ios, abrt)
     CALL meta_read('POISSON_RATIO'    , m_rry, bone%nu, ios); CALL mest(ios, abrt)
@@ -260,6 +263,7 @@ If (rank_mpi == 0) THEN
     CALL meta_read('TYPE_RAW'         , m_rry, typeraw, ios); CALL mest(ios, abrt)
     CALL meta_read('BINARY_SEGMENTATION', m_rry, bin_sgmnttn, ios); CALL mest(ios, abrt)
     CALL meta_read('SEGMENTATION_MAP'   , m_rry, map_sgmnttn, ios); CALL mest(ios, abrt)
+    ! CALL meta_read('MECHANICAL_ORIGIN', m_rry, mech_orgn, ios); CALL mest(ios, abrt)
 
     IF (elo_macro == 1) THEN
         no_lc = 24_ik
@@ -277,6 +281,10 @@ If (rank_mpi == 0) THEN
     IF (map_sgmnttn /= "Hounsfield") THEN
         CALL print_err_stop(std_out, "Keyword SEGMENTATION_MAP not recognized. &
             &Currently only 'Hounsfield' is implemented.", 1)
+    ! ELSE
+    !     llimit = 0_ik
+    !     WRITE(std_out, FMT_MSG) "BINARIZE_LO is ignored/internally overwritten with 0_ik to &
+    !         account for the hounsfield segmentation map."
     END IF 
 
     IF(abrt) CALL print_err_stop(std_out, "A keyword error occured.", 1)
@@ -308,10 +316,10 @@ If (rank_mpi == 0) THEN
     !     CALL print_err_stop_slaves(mssg); GOTO 1000
     ! END IF
 
-    IF ( (bone%phdsize(1) /= bone%phdsize(2)) .OR. (bone%phdsize(1) /= bone%phdsize(3)) ) THEN
-        mssg = 'Currently, all 3 dimensions of the physical domain size must be equal!'
-        CALL print_err_stop_slaves(mssg); GOTO 1000
-    END IF
+    ! IF ( (bone%phdsize(1) /= bone%phdsize(2)) .OR. (bone%phdsize(1) /= bone%phdsize(3)) ) THEN
+    !     mssg = 'Currently, all 3 dimensions of the physical domain size must be equal!'
+    !     CALL print_err_stop_slaves(mssg); GOTO 1000
+    ! END IF
     
     ! IF ( (bone%delta(1) /= bone%delta(2)) .OR. (bone%delta(1) /= bone%delta(3)) ) THEN
     !     mssg = 'Currently, the spacings of all 3 dimensions must be equal!'
@@ -427,10 +435,11 @@ If (rank_mpi == 0) THEN
     CALL add_leaf_to_branch(meta_para, "Restart", 1_ik, str_to_char(restart(1:1))) 
     CALL add_leaf_to_branch(meta_para, "Number of voxels per direction", 3_ik , vdim) 
     CALL add_leaf_to_branch(meta_para, "Domains per communicator", 1_ik, [domains_per_comm]) 
-
+    
     CALL add_leaf_to_branch(meta_para, "Binary segmentation" , LEN(bin_sgmnttn) , str_to_char(bin_sgmnttn))      
-    CALL add_leaf_to_branch(meta_para, "Segmentation map"    , LEN(map_sgmnttn) , str_to_char(map_sgmnttn))      
-
+    CALL add_leaf_to_branch(meta_para, "Segmentation map"    , LEN(map_sgmnttn) , str_to_char(map_sgmnttn))     
+    ! CALL add_leaf_to_branch(meta_para, "Mechanical origin", 3_ik, [mech_orgn])  
+        
     !------------------------------------------------------------------------------
     ! Prepare output directory via CALLing the c function.
     ! Required, because INQUIRE only acts on files, not on directories.
@@ -465,6 +474,13 @@ If (rank_mpi == 0) THEN
         CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF
 
+    !------------------------------------------------------------------------------
+    ! Checking the memory
+    !------------------------------------------------------------------------------
+    mem_usage =  system_mem_usage()
+    mem = (REAL(mem_usage,rk)/1000._rk/1000._rk)
+    IF (mem > global_mem_threshold) mem_critical = -mem
+
 END IF
 
 !------------------------------------------------------------------------------
@@ -472,8 +488,10 @@ END IF
 !------------------------------------------------------------------------------
 CALL MPI_BCAST(stat_exists  , 1_mik, MPI_LOGICAL    , 0_mik, MPI_COMM_WORLD, ierr)
 CALL MPI_BCAST(No_of_domains, 1_mik, MPI_INTEGER8   , 0_mik, MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(cn           , 1_mik, MPI_DOUBLE_PRECISION, 0_mik, MPI_COMM_WORLD, ierr)
 CALL MPI_BCAST(activity_file, INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
 CALL MPI_BCAST(typeraw,       INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
+CALL MPI_BCAST(out%p_n_bsnm,  INT(mcl,mik), MPI_CHAR, 0_mik, MPI_COMM_WORLD, ierr)
 
 !------------------------------------------------------------------------------
 ! Allocate and init field for selected domain range
@@ -607,7 +625,10 @@ If (rank_mpi == 0) THEN
         pro_name = project_name
 
         allocate(ddc)
-        ddc = calc_general_ddc_params(bone%phdsize, meta_para)
+
+        ! ddc = calc_general_ddc_params(bone%phdsize, meta_para)
+        
+        ddc = calc_physical_ddc_params(bone%phdsize, meta_para)
         
         CALL include_branch_into_branch(s_b=ddc, t_b=root, blind=.TRUE.)
         
@@ -697,13 +718,8 @@ If (rank_mpi == 0) THEN
     ! Ensure to update the number of leaves and the indices of these in every
     ! line of code! Also update dat_ty and dat_no in "CALL raise_leaves"
     !------------------------------------------------------------------------------
-    add_leaves = 24_pd_ik
+    add_leaves = 27_pd_ik
 
-    !------------------------------------------------------------------------------
-    ! Number of loadcases
-    !------------------------------------------------------------------------------
-    ! no_lc = 24 
-    
     !------------------------------------------------------------------------------
     ! The name of the branche is a bit outdated. In the meantime, it contains 
     ! more data to accomodate the need for the doctoral project.
@@ -713,52 +729,41 @@ If (rank_mpi == 0) THEN
     CALL add_branch_to_branch(root, result_branch)
     CALL raise_branch("Averaged Material Properties", 0_pd_ik, add_leaves, result_branch)
 
-    !------------------------------------------------------------------------------
-    ! Former *.memlog file
-    !------------------------------------------------------------------------------
-    ! Operation, Domain, Nodes, Elems, Preallo, Mem_comm, Pids_returned, Size_mpi, time
-    ! Before PETSc preallocation              , 3395     , 1672328, 1442071, 546, 37198100, 252, 252, 1671690714
-    ! After PETSc preallocation               , 3395     , 1672328, 1442071, 546, 209263436, 252, 252, 1671690714
-    ! Before matrix assembly                  , 3395     , 1672328, 1442071, 546, 269684188, 252, 252, 1671690714
-    ! After matrix assembly                   , 3395     , 1672328, 1442071, 546, 242114948, 252, 252, 1671690715
-    ! Before solving                          , 3395     , 1672328, 1442071, 546, 242514604, 252, 252, 1671690716
-    ! After solving                           , 3395     , 1672328, 1442071, 546, 244625464, 252, 252, 1671690736
-    ! End of domain                           , 3395     , 1672328, 1442071, 546, 73615236, 252, 252, 1671690747
-    !------------------------------------------------------------------------------
-
-    ! for better formatting :-)
     nl = no_lc
     CALL raise_leaves(no_leaves = add_leaves, &
         desc = [ & ! DO NOT CHANGE THE LENGTH OF THE STRINGS      ! Leaf x bytes
         "Domain number                                     " , &  !  1 x  1
-        "Number of Elements                                " , &  !  2 x  1
-        "Number of Nodes                                   " , &  !  3 x  1
-        "Collected logs                                    " , &  !  4 x  24
-        "Start Time                                        " , &  !  5 x  1
-        "Duration                                          " , &  !  6 x  1
-        "Domain forces                                     " , &  !  7 x 24*24
-        "Effective numerical stiffness                     " , &  !  8 x 24*24
-        "Symmetry deviation - effective numerical stiffness" , &  !  9 x  1
-        "Averaged stresses                                 " , &  ! 10 x  6*24
-        "Averaged strains                                  " , &  ! 11 x  6*24
-        "Effective stiffness                               " , &  ! 12 x  6* 6  
-        "Symmetry deviation - effective stiffness          " , &  ! 13 x  1
-        "Averaged Effective stiffness                      " , &  ! 14 x  6* 6
-        "Symmetry deviation - Averaged effective stiffness " , &  ! 15 x  1
-        "Rotation Angle CR_1                               " , &  ! 16 x  1
-        "Rotation Vector CR_1                              " , &  ! 17 x  3
-        "Final coordinate system CR_1                      " , &  ! 18 x  9
-        "Optimized Effective stiffness CR_1                " , &  ! 19 x  6* 6
-        "Rotation Angle CR_2                               " , &  ! 20 x  1
-        "Rotation Vector CR_2                              " , &  ! 21 x  3
-        "Final coordinate system CR_2                      " , &  ! 22 x  9
-        "Optimized Effective stiffness CR_2                " , &  ! 23 x  6* 6
-        "Effective density                                 "], &  ! 24 x  1
-        dat_ty = [(4_1, ii=1, 4), (5_1, ii=5, add_leaves)], &
+        "Section                                           " , &  !  2 x  3
+        "Number of Elements                                " , &  !  3 x  1
+        "Number of Nodes                                   " , &  !  4 x  1
+        "Collected logs                                    " , &  !  5 x  24
+        "Physical lower boundary                           " , &  !  6 x  3
+        "Physical upper boundary                           " , &  !  7 x  3
+        "Start Time                                        " , &  !  8 x  1
+        "Duration                                          " , &  !  9 x  1
+        "Domain forces                                     " , &  ! 10 x lc*lc
+        "Effective numerical stiffness                     " , &  ! 11 x lc*lc
+        "Symmetry deviation - effective numerical stiffness" , &  ! 12 x  1
+        "Averaged stresses                                 " , &  ! 13 x  6*lc
+        "Averaged strains                                  " , &  ! 14 x  6*lc
+        "Effective stiffness                               " , &  ! 15 x  6* 6  
+        "Symmetry deviation - effective stiffness          " , &  ! 16 x  1
+        "Averaged Effective stiffness                      " , &  ! 17 x  6* 6
+        "Symmetry deviation - Averaged effective stiffness " , &  ! 18 x  1
+        "Rotation Angle CR_1                               " , &  ! 19 x  1
+        "Rotation Vector CR_1                              " , &  ! 20 x  3
+        "Final coordinate system CR_1                      " , &  ! 21 x  9
+        "Optimized Effective stiffness CR_1                " , &  ! 22 x  6* 6
+        "Rotation Angle CR_2                               " , &  ! 23 x  1
+        "Rotation Vector CR_2                              " , &  ! 24 x  3
+        "Final coordinate system CR_2                      " , &  ! 25 x  9
+        "Optimized Effective stiffness CR_2                " , &  ! 26 x  6* 6
+        "Effective density                                 "], &  ! lc x  1
+        dat_ty = [(4_1, ii=1, 5), (5_1, ii=6, add_leaves)], &
         dat_no = [ domains_per_comm, &
-        domains_per_comm,         domains_per_comm, &
-        domains_per_comm * 24   ,                                                    &
-        domains_per_comm,         domains_per_comm, &                                  
+        domains_per_comm * 3    , domains_per_comm        , domains_per_comm,        &
+        domains_per_comm * 24   , domains_per_comm * 3    , domains_per_comm * 3,    &
+        domains_per_comm,         domains_per_comm        , &                                  
         domains_per_comm * nl*nl, domains_per_comm * nl*nl, domains_per_comm       , &
         domains_per_comm *  6*nl, domains_per_comm *  6*nl, domains_per_comm *  6*6, &
         domains_per_comm        , domains_per_comm *  6* 6, domains_per_comm       , &
@@ -768,6 +773,31 @@ If (rank_mpi == 0) THEN
         branch = result_branch)
 
     result_branch%leaves(:)%pstat = -1
+
+    ! "Domain number                                     " , &  !  1 x  1
+    ! "Number of Elements                                " , &  !  2 x  1
+    ! "Number of Nodes                                   " , &  !  3 x  1
+    ! "Collected logs                                    " , &  !  4 x  24
+    ! "Start Time                                        " , &  !  5 x  1
+    ! "Duration                                          " , &  !  6 x  1
+    ! "Domain forces                                     " , &  !  7 x lc*lc
+    ! "Effective numerical stiffness                     " , &  !  8 x lc*lc
+    ! "Symmetry deviation - effective numerical stiffness" , &  !  9 x  1
+    ! "Averaged stresses                                 " , &  ! 10 x  6*lc
+    ! "Averaged strains                                  " , &  ! 11 x  6*lc
+    ! "Effective stiffness                               " , &  ! 12 x  6* 6  
+    ! "Symmetry deviation - effective stiffness          " , &  ! 13 x  1
+    ! "Averaged Effective stiffness                      " , &  ! 14 x  6* 6
+    ! "Symmetry deviation - Averaged effective stiffness " , &  ! 15 x  1
+    ! "Rotation Angle CR_1                               " , &  ! 16 x  1
+    ! "Rotation Vector CR_1                              " , &  ! 17 x  3
+    ! "Final coordinate system CR_1                      " , &  ! 18 x  9
+    ! "Optimized Effective stiffness CR_1                " , &  ! 19 x  6* 6
+    ! "Rotation Angle CR_2                               " , &  ! 20 x  1
+    ! "Rotation Vector CR_2                              " , &  ! 21 x  3
+    ! "Final coordinate system CR_2                      " , &  ! 22 x  9
+    ! "Optimized Effective stiffness CR_2                " , &  ! 23 x  6* 6
+    ! "Effective density                                 "], &  ! lc x  1
     
     CALL set_bounds_in_branch(root, root%streams)
     
@@ -848,6 +878,12 @@ If (rank_mpi == 0) THEN
         CALL print_err_stop_slaves(mssg); GOTO 1000
     END IF 
 
+    !------------------------------------------------------------------------------
+    ! Checking the memory
+    !------------------------------------------------------------------------------
+    mem_usage =  system_mem_usage()
+    mem = (REAL(mem_usage,rk)/1000._rk/1000._rk)
+    IF (mem > global_mem_threshold) mem_critical = -mem
 
 !------------------------------------------------------------------------------
 ! Ranks > 0 -- Worker slaves
@@ -945,17 +981,6 @@ Else
     CALL MPI_COMM_SIZE(WORKER_COMM, worker_size_mpi, ierr)
     CALL print_err_stop(std_out, "MPI_COMM_SIZE couldn't retrieve worker_size_mpi", ierr)
 
-    !------------------------------------------------------------------------------
-    ! This sets the options for PETSc in-core. To alter the options
-    ! add them in Set_PETSc_Options in Module pets_opt in file
-    ! f-src/mod_parameters.f90
-    !------------------------------------------------------------------------------
-    CALL Set_PETSc_Options()
-
-    PETSC_COMM_WORLD = worker_comm
-
-    CALL PetscInitialize(PETSC_NULL_CHARACTER, petsc_ierr)
-
 End If
 
 ! WRITE_ROOT_COMM = MPI_COMM_WORLD
@@ -996,6 +1021,7 @@ If (rank_mpi==0) Then
     Do While (mii <= (size_mpi-1_mik))
 
         if (nn > No_of_domains) exit
+
 
         Do mjj = mii, mii + parts-1
             !------------------------------------------------------------------------------
@@ -1041,7 +1067,6 @@ If (rank_mpi==0) Then
     ! mii is incremented by mii = mii + parts
     ! mii --> Worker master
     !------------------------------------------------------------------------------
-    nn = 1_ik
     DO  WHILE (nn <= No_of_domains) 
 
         !------------------------------------------------------------------------------
@@ -1096,6 +1121,30 @@ If (rank_mpi==0) Then
         Call MPI_WAITANY(size_mpi-1_mik, req_list, finished, status_mpi, ierr)
         CALL print_err_stop(std_out, &
         "MPI_WAITANY on req_list for IRECV of worker_is_active(mii) didn't succeed", ierr)
+
+        !------------------------------------------------------------------------------
+        ! Checking the memory of the global main rank
+        !------------------------------------------------------------------------------
+        mem_usage =  system_mem_usage()
+        mem = (REAL(mem_usage,rk)/1000._rk/1000._rk)
+        IF (mem > global_mem_threshold) mem_critical = -mem
+
+        IF (mem_critical < 0._rk) THEN
+            mem_critical = -1._rk
+            WRITE(std_out, FMT_WRN_xAI0) "Received an OOM event from global main", mii
+            EXIT
+        ELSE
+            mem_critical = 1._rk
+        END IF 
+
+
+        IF (worker_is_active(mii) < -10) THEN
+            mem_critical = -1._rk
+            WRITE(std_out, FMT_WRN_xAI0) "Received an OOM event from rank", mii
+            EXIT
+        ELSE
+            mem_critical = 1._rk
+        END IF 
 
         IF(finished /= MPI_UNDEFINED) mii = finished
 
@@ -1177,50 +1226,8 @@ Else
             END IF
         END IF
 
-        !------------------------------------------------------------------------------
-        ! Start the memory logging
-        !------------------------------------------------------------------------------
-                ! INQUIRE(file="./datasets/memlog.sh", exist=fex)
+        ! CALL link_start(link_name, .True., .True.)
 
-                ! IF(fex) THEN
-                !     CALL EXECUTE_COMMAND_LINE (&
-                !         './datasets/memlog.sh '&
-                !         //TRIM(outpath)//TRIM(project_name)//'.memlog', CMDSTAT=stat)   
-
-                !     IF(stat /= 0) WRITE(std_err, FMT_WRN_xAI0) &
-                !         "Could not start memory logging! Rank: ", rank_mpi
-                ! ELSE
-                !     WRITE(std_err, FMT_WRN_xAI0) &
-                !         "File for memory logging not found! Rank: ", rank_mpi
-                ! END IF
-
-
-        memlog_file=TRIM(outpath)//TRIM(project_name)//'.memlog'
-        INQUIRE (FILE = memlog_file, EXIST = fex)
-
-        file_status="NEW"
-        IF(fex) file_status="OLD"
-
-        fh_cluster_log = give_new_unit()
-
-        OPEN(UNIT=fh_cluster_log, FILE=TRIM(memlog_file), ACTION='WRITE', &
-            ACCESS="SEQUENTIAL", STATUS=file_status)
-
-        WRITE(fh_cluster_log, '(A)') &
-            "Operation, Domain, Nodes, Elems, Preallo, "//&
-            "Mem_comm, Pids_returned, Size_mpi, time"
-    
-        ! IF(stat /= 0) WRITE(std_err, FMT_WRN_xAI0) &
-        !     "Could not start memory logging! Rank: ", rank_mpi
-
-
-        CALL link_start(link_name, .True., .True.)
-
-    ELSE ! Worker threads of the sub communicator
-        !------------------------------------------------------------------------------
-        ! Set fh_cluster_log = -1 for clarifying the state of the worker threads
-        !------------------------------------------------------------------------------
-        fh_cluster_log = -1_ik
     END IF 
 
         
@@ -1254,13 +1261,6 @@ Else
             comm_nn, 1_mik, & 
             MPI_INTEGER8, MPI_STATUS_IGNORE, ierr)
         
-        !!!!!------------------------------------------------------------------------------
-        !!!!! Experimental
-        !!!!! May help computing domains which may be skipped
-        !!!!! Some domains are skipped while restarting. Considered a minor issue
-        !!!!!------------------------------------------------------------------------------
-        !!!!!!!!!!!!! IF(comm_nn > 1) comm_nn = comm_nn - 1_ik
-
     END IF 
 
     CALL MPI_BCAST(comm_nn, 1_mik , MPI_INTEGER8, 0_mik, WORKER_COMM, ierr)
@@ -1292,19 +1292,18 @@ Else
         ! (domains_per_comm*24)-1 because the last int8 entry has 24 ints.
         !------------------------------------------------------------------------------
         CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
-            Int(root%branches(3)%leaves(4)%lbound-1+((domains_per_comm*24)-1), MPI_OFFSET_KIND), &
+            Int(root%branches(3)%leaves(5)%lbound-1+((domains_per_comm*24)-1), MPI_OFFSET_KIND), &
             INT(Domain, KIND=ik), 1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
 
         CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-            Int(root%branches(3)%leaves(24)%lbound-1+(domains_per_comm-1), MPI_OFFSET_KIND), &
+            Int(root%branches(3)%leaves(27)%lbound-1+(domains_per_comm-1), MPI_OFFSET_KIND), &
             1_rk, 1_pd_mik, MPI_REAL8, status_mpi, ierr)
-
 
         !------------------------------------------------------------------------------
         ! Start workers
         !------------------------------------------------------------------------------
         CALL MPI_RECV(active, 1_mik, MPI_INTEGER4, 0_mik, rank_mpi, MPI_COMM_WORLD, status_mpi, ierr)
-        CALL print_err_stop(std_out, "MPI_RECV on Active didn't succseed", ierr)
+        CALL print_err_stop(std_out, "MPI_RECV on Active didn't succeed", ierr)
 
         !------------------------------------------------------------------------------
         ! Stop workers
@@ -1339,46 +1338,33 @@ Else
             
             IF (job_dir(len(job_dir):len(job_dir)) /= "/") job_dir = trim(job_dir)//"/"
 
-            !------------------------------------------------------------------------------
-            ! Track the start time of the computation of a domain.
-            !------------------------------------------------------------------------------
-            CALL CPU_TIME(t_start)
-
             !==============================================================================
             ! Compute a domain
             !==============================================================================
-            CALL exec_single_domain(root, comm_nn, Domain, typeraw, job_dir, fh_cluster_log, &
-                Active, fh_mpi_worker, worker_rank_mpi, worker_size_mpi, worker_comm)
+            CALL exec_single_domain(root, comm_nn, Domain, typeraw, job_dir, &
+                Active, fh_mpi_worker, worker_comm, cn, mem_critical)
             !==============================================================================
-
-            !------------------------------------------------------------------------------
-            ! Track the duration of the computation of a domain.
-            !------------------------------------------------------------------------------
-            CALL CPU_TIME(t_end)
-            t_duration = t_end - t_start
 
             !------------------------------------------------------------------------------
             ! Organize Results
             !------------------------------------------------------------------------------
             IF (worker_rank_mpi==0) THEN
-            
-                !------------------------------------------------------------------------------
-                ! Write the start time to file
-                !------------------------------------------------------------------------------
-                ! CALL add_leaf_to_branch(result_branch, "Start Time", 1_pd_ik, [t_start])
-                CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-                    Int(root%branches(3)%leaves(2)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
-                    t_start, 1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
-
-                !------------------------------------------------------------------------------
-                ! Write the duration to file
-                !------------------------------------------------------------------------------
-                ! CALL add_leaf_to_branch(result_branch, "Duration", 1_pd_ik, [t_duration])
-                CALL MPI_FILE_WRITE_AT(fh_mpi_worker(5), &
-                    Int(root%branches(3)%leaves(3)%lbound-1+(comm_nn-1), MPI_OFFSET_KIND), &
-                    t_duration, 1_pd_mik, MPI_INTEGER8, status_mpi, ierr)
 
 
+                !------------------------------------------------------------------------------
+                ! Move the .petsc.log to its domain related name
+                !------------------------------------------------------------------------------
+                WRITE(domain_nn, '(I0)') Domain
+
+
+                INQUIRE(FILE=TRIM(out%p_n_bsnm)//".petsc.log", EXIST = pl_exist)
+                
+                IF (pl_exist) THEN
+                    CALL exec_cmd_line("mv "//TRIM(out%p_n_bsnm)//".petsc.log"//" "//&
+                                        TRIM(out%p_n_bsnm)//"."//TRIM(domain_nn)//".petsc.log", stat)
+                END IF 
+
+    
                 CALL Start_Timer("Write Worker Root Branch")
 
                 !------------------------------------------------------------------------------
@@ -1392,15 +1378,6 @@ Else
                 !------------------------------------------------------------------------------
                 CALL Write_Tree(root%branches(3)) ! Branch with 'Averaged Material Properties'
                 ! ../../../bin/pd_dump_leaf_x86_64 $PWD/ results_0000001 7
-            
-            !    IF (out_amount == "ALEXANDRIA") THEN
-            !        DO ii = 1, SIZE(root%branches)FH01-2_mu_Dev_dtc_Tensors
-            !            write(*, '(A, I0, 2A, T80, I0, T84, A)') &
-            !                "Branch(", ii, ") of the tree: ", &
-            !                TRIM(root%branches(ii)%desc), &
-            !                SIZE(root%branches(ii)%leaves), " leaves."
-            !        END DO
-            !    END IF
 
                 CALL End_Timer("Write Worker Root Branch")
 
@@ -1410,20 +1387,16 @@ Else
                 Call MPI_FILE_WRITE_AT(aun, INT(((nn-1) * ik), MPI_OFFSET_KIND), &
                     Domain, 1_mik, MPI_INTEGER8, status_mpi, ierr)
 
-                !------------------------------------------------------------------------------
-                ! Deallocate results of this domain. Potential memory leak.
-                !------------------------------------------------------------------------------
-                WRITE(desc,'(A,I0)')"Domain ", Domain
-                CALL delete_branch_from_branch(TRIM(desc), root, dsize)
 
             END IF
 
+
             !------------------------------------------------------------------------------
-            ! Mark the current position within the stream.
+            ! Probably obsolete
             !------------------------------------------------------------------------------
-            CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
-                INT(root%branches(3)%leaves(1)%lbound-1+(domains_per_comm-1-1), MPI_OFFSET_KIND), &
-                INT(comm_nn, KIND=ik), 1_mik, MPI_INTEGER8, status_mpi, ierr)
+            !!!!!!!!! CALL MPI_FILE_WRITE_AT(fh_mpi_worker(4), &
+            !!!!!!!!!     INT(root%branches(3)%leaves(1)%lbound-1+(domains_per_comm-1-1), MPI_OFFSET_KIND), &
+            !!!!!!!!!     INT(comm_nn, KIND=ik), 1_mik, MPI_INTEGER8, status_mpi, ierr)
 
             !------------------------------------------------------------------------------
             ! Increment linear domain counter of the PETSc sub_comm instances
@@ -1439,16 +1412,17 @@ Else
         ! "Deactivate" communicator
         !------------------------------------------------------------------------------
         active = 0_mik
+        IF (mem_critical < 0._rk) active = -999
+ 
+        IF ((worker_rank_mpi==0) .AND. (mem_critical < 0._rk))  THEN
+            WRITE(std_out, FMT_WRN_xAI0) "OOM on ranks", rank_mpi, "to", rank_mpi+parts
+            WRITE(std_out, FMT_WRN_xAF0) "Memory usage normalized to a compute node of hawk:", -mem_critical, "GB"
+        END IF 
 
-        CALL MPI_ISEND(active, 1_mik, MPI_INTEGER4, 0_mik, rank_mpi, MPI_COMM_WORLD, request, ierr)
-        CALL print_err_stop(std_out, "MPI_ISEND on Active didn't succeed", ierr)
-
-        CALL MPI_WAIT(request, status_mpi, ierr)
-        CALL print_err_stop(std_out, "MPI_WAIT on request for ISEND Active didn't succeed", ierr)
+        CALL MPI_SEND(active, 1_mik, MPI_INTEGER4, 0_mik, rank_mpi, MPI_COMM_WORLD, ierr)
+        CALL print_err_stop(std_out, "MPI_SEND on Active didn't succeed", ierr)
 
     End Do
-
-    CALL PetscFinalize(petsc_ierr) 
 
 End If
 
@@ -1473,13 +1447,16 @@ IF(rank_mpi == 0) THEN
 
     CALL link_end(link_name,.True.)
 
-    WRITE(std_out, FMT_TXT_SEP)
-    WRITE(std_out, FMT_TXT) "HLRS Direct Tensor Computation finished successfully."
-    WRITE(std_out, FMT_TXT_SEP)
+    IF (mem_critical > 0._rk)THEN
+        WRITE(std_out, FMT_TXT_SEP)
+        WRITE(std_out, FMT_TXT) "HLRS Direct Tensor Computation finished successfully."
+        WRITE(std_out, FMT_TXT_SEP)
 
-END IF ! (rank_mpi == 0)
+        CALL meta_close(m_rry)
 
-IF(rank_mpi==0) THEN
+    ELSE
+        WRITE(std_out, FMT_WRN) "Stopping due to an OOM event."
+    END IF 
 
     !------------------------------------------------------------------------------
     ! Write the "JOB_FINISHED" keyword only if the job was finished during 
@@ -1488,10 +1465,8 @@ IF(rank_mpi==0) THEN
     IF ((Domain_stats(No_of_domains) == No_of_domains-1) .OR. (already_finished)) THEN ! counts from 0
 
         no_restart_required = .TRUE.
-        CALL execute_command_line ("echo 'JOB_FINISHED' > BATCH_RUN")
     END IF 
 
-    CALL meta_close(m_rry)
 
     CALL meta_stop_ascii(fh_mon, mon_suf)
 

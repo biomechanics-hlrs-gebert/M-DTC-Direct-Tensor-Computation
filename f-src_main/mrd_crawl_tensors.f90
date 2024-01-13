@@ -28,16 +28,16 @@ IMPLICIT NONE
 CHARACTER(*), PARAMETER :: mrd_dbg_lvl =  "PRODUCTION" ! "DEBUG"
 
 TYPE(tLeaf), POINTER :: domain_no, eff_num_stiffness, density, tensors, leaf_pos, &
-    no_elems, no_nodes, t_start, t_duration, collected_logs
+    no_elems, no_nodes, t_start, t_duration, collected_logs, phy_lo_bnd, phy_up_bnd, section
 TYPE(tBranch)        :: rank_data
 TYPE(domain_data), DIMENSION(3) :: tensor
 
 INTEGER(ik), DIMENSION(:,:), ALLOCATABLE :: Domain_status
-INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0, vdim=0, grid=0
+INTEGER(ik), DIMENSION(3) :: xa_d=0, xe_d=0, vdim=0
 
 INTEGER(ik) :: alloc_stat, parts, fh_covo, fh_cr1, fh_cr2, fh_tens, &
     domains_crawled = 0_ik, nn_comm, par_domains, activity_size, size_mpi, fh_covo_num, &
-    ii, kk, ll, mm, tt, xx, par_dmn_number, jj, current_domain, pntr, no_lc, ma_el_order, &
+    ii, kk, ll, mm, tt, xx, par_dmn_number, jj, pntr, no_lc, ma_el_order, &
     aun, domains_per_comm = 0, rank_mpi, No_of_domains, local_domain_no, last_domain_rank
 
 REAL(rk) :: local_domain_density, sym, start, end
@@ -45,9 +45,9 @@ REAL(rk), DIMENSION(3)   :: local_domain_opt_pos, spcng, dmn_size
 REAL(rk), DIMENSION(6,6) :: local_domain_tensor
 REAL(rk), DIMENSION(:,:), ALLOCATABLE :: local_num_tensor
 
-INTEGER(8), DIMENSION(:), ALLOCATABLE :: dat_domains, dat_no_elems, dat_no_nodes, dat_collected_logs
+INTEGER(8), DIMENSION(:), ALLOCATABLE :: dat_domains, dat_no_elems, dat_no_nodes, dat_collected_logs, dat_section
 REAL(8), DIMENSION(:), ALLOCATABLE :: dat_densities, dat_eff_num_stiffnesses, dat_tensors, &
-    dat_pos, dat_t_start, dat_t_duration
+    dat_pos, dat_t_start, dat_t_duration, dat_phy_lo_bnd, dat_phy_up_bnd
 
 CHARACTER(mcl), DIMENSION(:), ALLOCATABLE :: m_rry      
 CHARACTER(mcl) :: cmd_arg_history='', target_path, file_head, binary, activity_file, stat=""
@@ -108,29 +108,77 @@ CALL show_title(["Johannes Gebert, M.Sc. (HLRS, NUM) "])
 !------------------------------------------------------------------------------
 CALL meta_check_contains_program ('TENSOR_COMPUTATION', m_rry, success)
 
-IF (.NOT. success) THEN
-    CALL print_trimmed(std_out, &
-        "The program 'TENSOR_COMPUTATION' apparently did not run successfully. &
-        &Maybe it crashed or was stopped by purpose. However, it can also point &
-        &to an incorrect implementation.", &
-        FMT_WRN)    
-    WRITE(std_out, FMT_WRN_SEP)
-END IF
+! Commented out for development. Can be used, works fine without, at least
+! as long everything is properly configured
+!
+! IF (.NOT. success) THEN
+!     CALL print_trimmed(std_out, &
+!         "The program 'TENSOR_COMPUTATION' apparently did not run successfully. &
+!         &Maybe it crashed or was stopped by purpose. However, it can also point &
+!         &to an incorrect implementation.", &
+!         FMT_WRN)    
+!     WRITE(std_out, FMT_WRN_SEP)
+! END IF
 
-CALL meta_read('LO_BNDS_DMN_RANGE' , m_rry, xa_d, stat); IF(stat/="") STOP
-CALL meta_read('UP_BNDS_DMN_RANGE' , m_rry, xe_d, stat); IF(stat/="") STOP
-CALL meta_read('MESH_PER_SUB_DMN'  , m_rry, parts, stat); IF(stat/="") STOP
+CALL meta_read('LO_BNDS_DMN_RANGE' , m_rry, xa_d, stat)
+IF(stat/="") THEN
+    WRITE(std_out,FMT_ERR) "in keyword ", TRIM(stat)
+    STOP
+END IF 
+
+CALL meta_read('UP_BNDS_DMN_RANGE' , m_rry, xe_d, stat)
+IF(stat/="") THEN
+    WRITE(std_out,FMT_ERR) "in keyword ", TRIM(stat)
+    STOP
+END IF 
+
+CALL meta_read('MESH_PER_SUB_DMN'  , m_rry, parts, stat)
+IF(stat/="") THEN
+    WRITE(std_out,FMT_ERR) "in keyword ", TRIM(stat)
+    STOP
+END IF 
+
 
 !------------------------------------------------------------------------------
 ! Macro Element order via string for more flexibility
 !------------------------------------------------------------------------------
-CALL meta_read('MACRO_ELMNT_ORDER' , m_rry, ma_el_order, stat); IF(stat/="") STOP
-CALL meta_read('MICRO_ELMNT_TYPE'  , m_rry, mi_el_type, stat); IF(stat/="") STOP
+CALL meta_read('MACRO_ELMNT_ORDER' , m_rry, ma_el_order, stat)
+IF(stat/="") THEN
+    WRITE(std_out,FMT_ERR) "in keyword ", TRIM(stat)
+    STOP
+END IF 
 
-CALL meta_read('PROCESSORS' , m_rry, size_mpi, stat); IF(stat/="") STOP
-CALL meta_read('SIZE_DOMAIN', m_rry, dmn_size, stat); IF(stat/="") STOP
-CALL meta_read('SPACING'    , m_rry, spcng, stat); IF(stat/="") STOP
-CALL meta_read('DIMENSIONS' , m_rry, vdim, stat); IF(stat/="") STOP
+CALL meta_read('MICRO_ELMNT_TYPE'  , m_rry, mi_el_type, stat)
+IF(stat/="") THEN
+    WRITE(std_out,FMT_ERR) "in keyword ", TRIM(stat)
+    STOP
+END IF 
+
+
+CALL meta_read('PROCESSORS' , m_rry, size_mpi, stat)
+IF(stat/="") THEN
+    WRITE(std_out,FMT_ERR) "in keyword ", TRIM(stat)
+    STOP
+END IF 
+
+CALL meta_read('SIZE_DOMAIN', m_rry, dmn_size, stat)
+IF(stat/="") THEN
+    WRITE(std_out,FMT_ERR) "in keyword ", TRIM(stat)
+    STOP
+END IF 
+
+CALL meta_read('SPACING'    , m_rry, spcng, stat)
+IF(stat/="") THEN
+    WRITE(std_out,FMT_ERR) "in keyword ", TRIM(stat)
+    STOP
+END IF 
+
+CALL meta_read('DIMENSIONS' , m_rry, vdim, stat)
+IF(stat/="") THEN
+    WRITE(std_out,FMT_ERR) "in keyword ", TRIM(stat)
+    STOP
+END IF 
+
 
 IF (ma_el_order == 1) THEN
     no_lc = 24
@@ -229,6 +277,7 @@ END IF
 par_dmn_number=0
 
 DO rank_mpi = 1, size_mpi-1, parts
+
     par_dmn_number = par_dmn_number + 1
 
     nn_comm = 1_ik
@@ -264,10 +313,23 @@ DO rank_mpi = 1, size_mpi-1, parts
 
     last_domain_rank = MAXVAL(dat_domains)
 
+
+    !------------------------------------------------------------------------------
+    ! Section
+    !------------------------------------------------------------------------------
+    CALL get_leaf_with_num(rank_data, 3_pd_ik, Section, success)
+
+    IF(ALLOCATED(dat_section)) DEALLOCATE(dat_section)
+    ALLOCATE(dat_section(Section%dat_no), stat=alloc_stat)
+
+    CALL print_err_stop(std_out, "Allocating 'dat_section' failed.", alloc_stat)
+    CALL pd_read_leaf(rank_data%streams, section, dat_section)
+
+
     !------------------------------------------------------------------------------
     ! Number of elements
     !------------------------------------------------------------------------------
-    CALL get_leaf_with_num(rank_data, 3_pd_ik, no_elems, success)
+    CALL get_leaf_with_num(rank_data, 4_pd_ik, no_elems, success)
 
     IF(ALLOCATED(dat_no_elems)) DEALLOCATE(dat_no_elems)
     ALLOCATE(dat_no_elems(no_elems%dat_no), stat=alloc_stat)
@@ -275,10 +337,11 @@ DO rank_mpi = 1, size_mpi-1, parts
     CALL print_err_stop(std_out, "Allocating 'dat_no_elems' failed.", alloc_stat)
     CALL pd_read_leaf(rank_data%streams, no_elems, dat_no_elems)
 
+
     !------------------------------------------------------------------------------
     ! Number of Nodes
     !------------------------------------------------------------------------------
-    CALL get_leaf_with_num(rank_data, 4_pd_ik, no_nodes, success)
+    CALL get_leaf_with_num(rank_data, 5_pd_ik, no_nodes, success)
 
     IF(ALLOCATED(dat_no_nodes)) DEALLOCATE(dat_no_nodes)
     ALLOCATE(dat_no_nodes(no_nodes%dat_no), stat=alloc_stat)
@@ -286,10 +349,11 @@ DO rank_mpi = 1, size_mpi-1, parts
     CALL print_err_stop(std_out, "Allocating 'dat_no_nodes' failed.", alloc_stat)
     CALL pd_read_leaf(rank_data%streams, no_nodes, dat_no_nodes)
 
+
     !------------------------------------------------------------------------------
     ! Collected logs
     !------------------------------------------------------------------------------
-    CALL get_leaf_with_num(rank_data, 5_pd_ik, collected_logs, success)
+    CALL get_leaf_with_num(rank_data, 6_pd_ik, collected_logs, success)
 
     IF(ALLOCATED(dat_collected_logs)) DEALLOCATE(dat_collected_logs)
     ALLOCATE(dat_collected_logs(collected_logs%dat_no), stat=alloc_stat)
@@ -297,10 +361,37 @@ DO rank_mpi = 1, size_mpi-1, parts
     CALL print_err_stop(std_out, "Allocating 'dat_collected_logs' failed.", alloc_stat)
     CALL pd_read_leaf(rank_data%streams, collected_logs, dat_collected_logs)
 
+
+    !------------------------------------------------------------------------------
+    ! Physical lower boundary
+    !------------------------------------------------------------------------------
+    CALL get_leaf_with_num(rank_data, 7_pd_ik, phy_lo_bnd, success)
+
+    IF(ALLOCATED(dat_phy_lo_bnd)) DEALLOCATE(dat_phy_lo_bnd)
+    ALLOCATE(dat_phy_lo_bnd(phy_lo_bnd%dat_no), stat=alloc_stat)
+
+    CALL print_err_stop(std_out, "Allocating 'dat_phy_lo_bnd' failed.", alloc_stat)
+    CALL pd_read_leaf(rank_data%streams, phy_lo_bnd, dat_phy_lo_bnd)
+
+
+
+
+    !------------------------------------------------------------------------------
+    ! Physical upper boundary
+    !------------------------------------------------------------------------------
+    CALL get_leaf_with_num(rank_data, 8_pd_ik, phy_up_bnd, success)
+
+    IF(ALLOCATED(dat_phy_up_bnd)) DEALLOCATE(dat_phy_up_bnd)
+    ALLOCATE(dat_phy_up_bnd(phy_up_bnd%dat_no), stat=alloc_stat)
+
+    CALL print_err_stop(std_out, "Allocating 'dat_phy_up_bnd' failed.", alloc_stat)
+    CALL pd_read_leaf(rank_data%streams, phy_up_bnd, dat_phy_up_bnd)
+
+
     !------------------------------------------------------------------------------
     ! Start time of the domain
     !------------------------------------------------------------------------------
-    CALL get_leaf_with_num(rank_data, 6_pd_ik, t_start, success)
+    CALL get_leaf_with_num(rank_data, 9_pd_ik, t_start, success)
 
     IF(ALLOCATED(dat_t_start)) DEALLOCATE(dat_t_start)
     ALLOCATE(dat_t_start(t_start%dat_no), stat=alloc_stat)
@@ -308,10 +399,11 @@ DO rank_mpi = 1, size_mpi-1, parts
     CALL print_err_stop(std_out, "Allocating 'dat_t_start' failed.", alloc_stat)
     CALL pd_read_leaf(rank_data%streams, t_start, dat_t_start)
 
+
     !------------------------------------------------------------------------------
     ! Duration of the domain
     !------------------------------------------------------------------------------
-    CALL get_leaf_with_num(rank_data, 7_pd_ik, t_duration, success)
+    CALL get_leaf_with_num(rank_data, 10_pd_ik, t_duration, success)
 
     IF(ALLOCATED(dat_t_duration)) DEALLOCATE(dat_t_duration)
     ALLOCATE(dat_t_duration(t_duration%dat_no), stat=alloc_stat)
@@ -319,10 +411,11 @@ DO rank_mpi = 1, size_mpi-1, parts
     CALL print_err_stop(std_out, "Allocating 'dat_t_duration' failed.", alloc_stat)
     CALL pd_read_leaf(rank_data%streams, t_duration, dat_t_duration)
 
+
     !------------------------------------------------------------------------------
     ! Read effective numerical stiffness
     !------------------------------------------------------------------------------
-    CALL get_leaf_with_num(rank_data, 9_pd_ik, eff_num_stiffness, success)
+    CALL get_leaf_with_num(rank_data, 12_pd_ik, eff_num_stiffness, success)
         
     IF(ALLOCATED(dat_eff_num_stiffnesses)) DEALLOCATE(dat_eff_num_stiffnesses)
     ALLOCATE(dat_eff_num_stiffnesses(eff_num_stiffness%dat_no), stat=alloc_stat)
@@ -330,10 +423,11 @@ DO rank_mpi = 1, size_mpi-1, parts
     CALL print_err_stop(std_out, "Allocating 'dat_eff_num_stiffnesses' failed.", alloc_stat)
     CALL pd_read_leaf(rank_data%streams, eff_num_stiffness, dat_eff_num_stiffnesses)
 
+
     !------------------------------------------------------------------------------
     ! Read effective density
     !------------------------------------------------------------------------------
-    CALL get_leaf_with_num(rank_data, 25_pd_ik, density, success)
+    CALL get_leaf_with_num(rank_data, 28_pd_ik, density, success)
     
     IF(ALLOCATED(dat_densities)) DEALLOCATE(dat_densities)
     ALLOCATE(dat_densities(density%dat_no), stat=alloc_stat)
@@ -348,18 +442,18 @@ DO rank_mpi = 1, size_mpi-1, parts
         !------------------------------------------------------------------------------
         SELECT CASE(tt)
             CASE(1)
-                CALL get_leaf_with_num(rank_data, 13_pd_ik, tensors, success)
+                CALL get_leaf_with_num(rank_data, 16_pd_ik, tensors, success)
                 local_domain_opt_pos = 0._rk
                 fh_tens = fh_covo 
                 tensor(tt)%opt_crit = "covo" 
             CASE(2)
-                CALL get_leaf_with_num(rank_data, 20_pd_ik, tensors, success)
-                CALL get_leaf_with_num(rank_data, 18_pd_ik, leaf_pos, success)
+                CALL get_leaf_with_num(rank_data, 23_pd_ik, tensors, success)
+                CALL get_leaf_with_num(rank_data, 21_pd_ik, leaf_pos, success)
                 fh_tens = fh_cr1
                 tensor(tt)%opt_crit = "cr1" 
             CASE(3)
-                CALL get_leaf_with_num(rank_data, 24_pd_ik, tensors, success)
-                CALL get_leaf_with_num(rank_data, 22_pd_ik, leaf_pos, success)
+                CALL get_leaf_with_num(rank_data, 27_pd_ik, tensors, success)
+                CALL get_leaf_with_num(rank_data, 25_pd_ik, leaf_pos, success)
                 fh_tens = fh_cr2
                 tensor(tt)%opt_crit = "cr2" 
         END SELECT
@@ -393,7 +487,7 @@ DO rank_mpi = 1, size_mpi-1, parts
         ! Begin searching for the domain to extract
         !------------------------------------------------------------------------------
         last_domain = .FALSE.
-        DO ii = 1, domains_Per_comm 
+        DO ii = 1, domains_Per_comm
 
             !------------------------------------------------------------------------------
             ! Quite a naive implementation
@@ -431,11 +525,10 @@ DO rank_mpi = 1, size_mpi-1, parts
             !------------------------------------------------------------------------------
             ! Search for the current domain
             !------------------------------------------------------------------------------
-            current_domain = dat_domains(ii)
-
             pntr = -1
             DO jj = 1, No_of_domains
-                IF (Domain_status(jj,1) == current_domain) pntr = jj
+                IF (Domain_status(jj,1) == dat_domains(ii)) pntr = jj
+                ! write(*,*) "DATA", Domain_status(jj,1), dat_domains(ii), " VECTOR:", dat_domains
             END DO
 
             !------------------------------------------------------------------------------
@@ -515,6 +608,7 @@ DO rank_mpi = 1, size_mpi-1, parts
             tensor(tt)%no_nodes = dat_no_nodes(ii)
             tensor(tt)%t_start    = dat_t_start(ii)
             tensor(tt)%t_duration = dat_t_duration(ii)
+            tensor(tt)%section = dat_section(ii)
 
             tensor(tt)%sym  = sym
             tensor(tt)%mat  = local_domain_tensor
@@ -529,15 +623,9 @@ DO rank_mpi = 1, size_mpi-1, parts
             tensor(tt)%pos  = local_domain_opt_pos
             tensor(tt)%dmn_size = dmn_size(1)
 
-            grid = get_grid(dmn_size, vdim, spcng)
-            tensor(tt)%section = domain_no_to_section(tensor(tt)%dmn, grid)
-            
             DO xx=1, 3
-                tensor(tt)%phy_dmn_bnds(xx,1) = &
-                        tensor(tt)%section(xx) * tensor(tt)%dmn_size
-
-                tensor(tt)%phy_dmn_bnds(xx,2) = &
-                    (tensor(tt)%section(xx)+1) * tensor(tt)%dmn_size
+                tensor(tt)%phy_dmn_bnds(xx,1) = dat_phy_lo_bnd(xx)
+                tensor(tt)%phy_dmn_bnds(xx,2) = dat_phy_up_bnd(xx)
             END DO
 
             tensor(tt)%sym = check_sym(tensor(tt)%mat)
@@ -561,7 +649,6 @@ DO rank_mpi = 1, size_mpi-1, parts
             DO xx=1, 24
                 tensor(tt)%collected_logs(xx) = dat_collected_logs(24_ik*(ii-1)+xx)
             END DO
-            
             CALL write_tensor_2nd_rank_R66_row(tensor(tt), string)
             WRITE(fh_tens,'(A)') TRIM(string)
 

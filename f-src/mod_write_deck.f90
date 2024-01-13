@@ -62,11 +62,11 @@ End Subroutine determine_prescribed_displ
 !------------------------------------------------------------------------------  
 Function init_displ_hexe8(elnodes) Result(uu)
 
-    Integer      , Intent(in)                     :: elnodes
+    Integer, Intent(in) :: elnodes
 
-    Real(Kind=rk), dimension(elnodes,3,elnodes*3) :: uu 
-    Real(Kind=rk)                                 :: eps=1.E-6_rk
-
+    Real(rk), dimension(elnodes,3,elnodes*3) :: uu 
+    Real(rk) :: eps=1.E-6_rk
+ 
     uu = 0._rk
 
     uu(:,1,1)   = [ 0._rk, eps, eps, 0._rk, 0._rk, eps, eps, 0._rk ]
@@ -121,7 +121,7 @@ Function init_displ_hexe20(elnodes) Result(uu)
 
     REAL(rk), dimension(elnodes,3,elnodes*3) :: uu 
     REAL(rk), PARAMETER :: eps = 1.E-6_rk, z = 0._rk, f = 0.99794_rk, oh=1.5_rk, h=0.5_rk
-    INTEGER(ik), PARAMETER :: ish = 1_ik ! Index shift for better compatibility with, e.g., Pyhton
+    INTEGER(ik), PARAMETER :: ish = 1_ik ! Index shift for better compatibility with, e.g., Python
 
     uu  = z
 
@@ -275,7 +275,7 @@ Function init_displ_hexe20(elnodes) Result(uu)
            z,       z,       z,       z,       z,       z,       z,     eps,       z,       z,       z ] ! HEXE20 iLC 35 | tLC 59 | Move Center
     uu(:,ish+2,ish+59)   = [       z,       z,       z,       z,       z,       z,       z,       z,            z,&
            z,       z,       z,       z,       z,       z,       z,       z,    -eps,       z,       z ] ! HEXE20 iLC 36 | tLC 60 | Move Center
-                                                          
+                 
 End Function init_displ_hexe20
 
 

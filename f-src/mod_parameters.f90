@@ -28,15 +28,15 @@ contains
       Call PetscOptionsSetValue(PETSC_NULL_OPTIONS,"-ksp_monitor" , ""      ,petsc_ierr)
     END IF
 
-    Call PetscOptionsSetValue(PETSC_NULL_OPTIONS,"-ksp_rtol"    , "1.e-03",petsc_ierr)
+    Call PetscOptionsSetValue(PETSC_NULL_OPTIONS,"-ksp_rtol"    , "1.e-06",petsc_ierr)
     Call PetscOptionsSetValue(PETSC_NULL_OPTIONS,"-ksp_max_it"  , "500000",petsc_ierr)
 
     ! CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS,"-malloc_test"  , "true",petsc_ierr)
-    ! CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS,"-objects_dump"  , "all",petsc_ierr)
-    ! CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS,"-malloc_debug"  , "true",petsc_ierr)
-    ! CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS,"-malloc_dump"  , "Dump_it",petsc_ierr)
+    ! CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS,"-log_view"  , "log.view",petsc_ierr)
+    ! CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS,"-objects_dump" , "all",petsc_ierr)
+    ! CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS,"-malloc_debug" , "true",petsc_ierr)
+    ! CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS,"-malloc_dump"  , "true",petsc_ierr)
 
-    
   End Subroutine Set_PETSc_Options
   
 end module petsc_opt
